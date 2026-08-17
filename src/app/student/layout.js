@@ -106,7 +106,7 @@ export default function StudentLayout({ children }) {
               */}
 
               {/* Content stack (single, consistent top spacing below header/topbar) */}
-              <div className="flex-1 flex flex-col min-h-0 pt-(--app-content-top-gap,20px) lg:pt-(--app-fixed-header-offset,100px) ">
+              <div className="flex-1 flex flex-col min-h-0 pt-(--app-content-top-gap,20px) lg:pt-(--app-fixed-header-offset,72px) ">
                 <ActivationGuard>
                   {/* Activity Bar */}
                   <div className="px-4 lg:px-8">

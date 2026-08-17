@@ -3,7 +3,7 @@ import { staffRegistrationRequests, staffAccounts, staffAccountActivationTokens,
 import { eq } from 'drizzle-orm';
 import { wrapHandler } from '@/lib/api-utils';
 import crypto from 'crypto';
-import { sendInstitutionalEmail } from '@/lib/email';
+import { sendInstitutionalEmail, getBaseUrl } from '@/lib/email';
 import logger from '@/lib/logger';
 
 export const POST = wrapHandler({
@@ -46,7 +46,7 @@ export const POST = wrapHandler({
       expiresAt.setHours(expiresAt.getHours() + 48);
 
       await tx.insert(staffAccountActivationTokens).values({
-        staff_id: account.id,
+        staff_account_id: account.id,
         token_hash: tokenHash,
         expires_at: expiresAt,
       });
@@ -69,23 +69,24 @@ export const POST = wrapHandler({
       };
     });
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = getBaseUrl();
     const activationLink = `${baseUrl}/register/staff/activate?token=${result.rawToken}`;
-
-    const emailHtml = `
-      <h2>Welcome to KUCET, ${result.name}</h2>
-      <p>Your staff registration has been approved.</p>
-      <p><strong>Employee ID:</strong> ${result.employeeId}</p>
-      <p>Please activate your account and set up your password within the next 48 hours by clicking the link below:</p>
-      <p><a href="${activationLink}" style="padding: 10px 20px; background-color: #0b3578; color: #ffffff; text-decoration: none; border-radius: 5px;">Activate Account</a></p>
-    `;
 
     try {
       await sendInstitutionalEmail({
         to: result.email,
         subject: 'KUCET Staff Account Activation (Resend)',
-        html: emailHtml,
-        text: `Welcome to KUCET, ${result.name}.\n\nYour Employee ID is: ${result.employeeId}.\n\nActivate your account here: ${activationLink}\n\nThis link expires in 48 hours.`
+        title: 'Account Activation (Resend)',
+        bodyHtml: `<p>Welcome to KUCET, <strong>${result.name}</strong>.</p>
+                   <p>Your staff registration has been approved. Please activate your account and set up your password.</p>`,
+        infoRows: [
+          { label: 'Employee ID', value: result.employeeId }
+        ],
+        action: {
+          url: activationLink,
+          label: 'Activate Account',
+          expiresIn: '48 hours'
+        }
       });
       logger.info({ email: result.email }, '[STAFF_APPROVAL] Resent activation email successfully');
     } catch (err) {

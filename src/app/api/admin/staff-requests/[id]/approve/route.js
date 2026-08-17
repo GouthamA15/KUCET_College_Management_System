@@ -3,6 +3,7 @@ import {
   staffRegistrationRequests, 
   staffAccounts, 
   staffAccountRoles, 
+  staffRoles,
   staffAcademicAffiliations, 
   staffAccountActivationTokens,
   auditLogs
@@ -10,7 +11,7 @@ import {
 import { eq, sql } from 'drizzle-orm';
 import { wrapHandler } from '@/lib/api-utils';
 import crypto from 'crypto';
-import { sendInstitutionalEmail } from '@/lib/email';
+import { sendInstitutionalEmail, getBaseUrl } from '@/lib/email';
 import logger from '@/lib/logger';
 
 export const POST = wrapHandler({
@@ -69,13 +70,19 @@ export const POST = wrapHandler({
 
       // 5. Create staff_account_roles row
       let roleToAssign = request.requested_role;
-      if (!['FACULTY', 'ADMISSION_CLERK', 'SCHOLARSHIP_CLERK'].includes(roleToAssign)) {
-        throw new Error(`Invalid role: ${roleToAssign}`);
+      const [roleRecord] = await tx
+        .select()
+        .from(staffRoles)
+        .where(eq(staffRoles.role_code, roleToAssign));
+
+      if (!roleRecord) {
+        throw new Error(`Requested role '${roleToAssign}' does not exist in the system.`);
       }
 
       await tx.insert(staffAccountRoles).values({
-        staff_id: newAccountId,
-        role: roleToAssign,
+        staff_account_id: newAccountId,
+        role_id: roleRecord.id,
+        assigned_by: adminId,
       });
 
       // 6. If FACULTY: create staff_academic_affiliations rows
@@ -89,11 +96,6 @@ export const POST = wrapHandler({
           throw new Error('Invalid academic affiliations JSON format');
         }
 
-        // We expect an array of affiliations like: [{ department_code, program_codes }]
-        // But since we don't have department_id lookups easily available without querying the DB,
-        // we'll fetch them. Wait, the DB stores department_code? 
-        // The staff_academic_affiliations schema uses `department_id` and `program_id`.
-        // Let's query academic_departments to map codes to ids.
         const { academicDepartments, academicPrograms } = await import('@/db/schema');
         
         for (const affil of affiliations) {
@@ -112,10 +114,9 @@ export const POST = wrapHandler({
             
             if (prog) {
               await tx.insert(staffAcademicAffiliations).values({
-                staff_id: newAccountId,
+                staff_account_id: newAccountId,
                 department_id: dept.id,
                 program_id: prog.id,
-                is_primary: true // First one can be primary? Just setting true.
               });
             }
           }
@@ -139,7 +140,7 @@ export const POST = wrapHandler({
       expiresAt.setHours(expiresAt.getHours() + 48); // 48 hours
 
       await tx.insert(staffAccountActivationTokens).values({
-        staff_id: newAccountId,
+        staff_account_id: newAccountId,
         token_hash: tokenHash,
         expires_at: expiresAt,
       });
@@ -179,25 +180,25 @@ export const POST = wrapHandler({
     });
 
     // 10. Send Activation Email (after transaction commits)
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = getBaseUrl();
     const activationLink = `${baseUrl}/register/staff/activate?token=${result.rawToken}`;
-
-    const emailHtml = `
-      <h2>Welcome to KUCET, ${result.name}</h2>
-      <p>Your staff registration has been approved.</p>
-      <p><strong>Employee ID:</strong> ${result.employeeId}</p>
-      <p><strong>Assigned Role:</strong> ${result.role}</p>
-      <p>Please activate your account and set up your password within the next 48 hours by clicking the link below:</p>
-      <p><a href="${activationLink}" style="padding: 10px 20px; background-color: #0b3578; color: #ffffff; text-decoration: none; border-radius: 5px;">Activate Account</a></p>
-      <p>If the link expires, you will need to request a new activation email from the administrator.</p>
-    `;
 
     try {
       await sendInstitutionalEmail({
         to: result.email,
         subject: 'KUCET Staff Account Activation',
-        html: emailHtml,
-        text: `Welcome to KUCET, ${result.name}.\n\nYour Employee ID is: ${result.employeeId}.\n\nActivate your account here: ${activationLink}\n\nThis link expires in 48 hours.`
+        title: 'Account Activation',
+        bodyHtml: `<p>Welcome to KUCET, <strong>${result.name}</strong>.</p>
+                   <p>Your staff registration has been approved. Please activate your account and set up your password.</p>`,
+        infoRows: [
+          { label: 'Employee ID', value: result.employeeId },
+          { label: 'Assigned Role', value: result.role }
+        ],
+        action: {
+          url: activationLink,
+          label: 'Activate Account',
+          expiresIn: '48 hours'
+        }
       });
       logger.info({ email: result.email }, '[STAFF_APPROVAL] Activation email sent successfully');
     } catch (err) {

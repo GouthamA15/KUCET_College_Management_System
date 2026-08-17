@@ -142,8 +142,8 @@ export default function StaffRequestsPage() {
       
       return affils.map((affil, idx) => (
         <div key={idx} className="mb-2">
-          <p className="text-sm font-medium text-slate-700">Department: {affil.department_code}</p>
-          <p className="text-sm text-slate-600">Programs: {affil.program_codes.join(', ')}</p>
+          <p className="text-sm font-medium text-slate-700">Department: {affil.department_name || affil.department_code}</p>
+          <p className="text-sm text-slate-600">Programs: {(affil.program_names || affil.program_codes || []).join(', ')}</p>
         </div>
       ));
     } catch (_e) {
@@ -152,13 +152,13 @@ export default function StaffRequestsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-end">
+    <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
+      <header className="mb-4 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Staff Registration Requests</h1>
-          <p className="text-slate-500 mt-1">Review and approve new staff and faculty registrations.</p>
+          <h1 className="text-2xl font-semibold text-gray-800">Staff Registration Requests</h1>
+          <p className="text-sm text-gray-600 mt-1">Review and approve new staff and faculty registrations.</p>
         </div>
-      </div>
+      </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
@@ -214,10 +214,10 @@ export default function StaffRequestsPage() {
         </div>
 
         <div className="flex-1 overflow-auto">
-          <table className="min-w-full divide-y divide-slate-200">
+          <table className="w-full divide-y divide-slate-200">
             <thead className="bg-slate-50 sticky top-0 z-10">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Applicant</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-full">Applicant</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Role & Category</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Email Status</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
@@ -232,7 +232,11 @@ export default function StaffRequestsPage() {
                 <tr><td colSpan="6" className="px-6 py-8 text-center text-slate-500">No requests found.</td></tr>
               ) : (
                 filteredRequests.map((req) => (
-                  <tr key={req.id} className="hover:bg-slate-50 transition-colors">
+                  <tr 
+                    key={req.id} 
+                    onClick={() => openDetails(req)}
+                    className="hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-[#0b3578] font-bold">
@@ -260,21 +264,38 @@ export default function StaffRequestsPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        req.status === 'PENDING' ? 'bg-amber-100 text-amber-800' :
-                        req.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {req.status}
-                      </span>
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          req.status === 'PENDING' ? 'bg-amber-100 text-amber-800' :
+                          req.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {req.status}
+                        </span>
+                        {req.status === 'APPROVED' && req.account_status && (
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            req.account_status === 'PENDING_ACTIVATION' ? 'bg-blue-100 text-blue-800' :
+                            req.account_status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' :
+                            'bg-slate-100 text-slate-800'
+                          }`}>
+                            {req.account_status.replace('_', ' ')}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                      {new Date(req.created_at).toLocaleDateString()}
+                      {new Date(req.created_at).toLocaleString('en-US', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric', 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
                         onClick={() => openDetails(req)}
-                        className="text-[#0b3578] hover:text-blue-900 font-medium"
+                        className="text-[#0b3578] hover:text-blue-900 font-medium cursor-pointer"
                       >
                         Review
                       </button>
@@ -287,25 +308,44 @@ export default function StaffRequestsPage() {
         </div>
       </div>
 
-      {/* Details Modal */}
-      {selectedRequest && !isApproveModalOpen && !isRejectModalOpen && (
+      {/* Unified Action Modal */}
+      {selectedRequest && (
         <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" aria-hidden="true" onClick={() => setSelectedRequest(null)}></div>
+            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" aria-hidden="true" onClick={() => {
+              if (!processing) {
+                if (isApproveModalOpen) setIsApproveModalOpen(false);
+                else if (isRejectModalOpen) setIsRejectModalOpen(false);
+                else setSelectedRequest(null);
+              }
+            }}></div>
             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl w-full border border-slate-200">
+            <div className="relative z-10 inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl w-full border border-slate-200">
+              
+              {/* ALWAYS SHOW DETAILS */}
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="sm:flex sm:items-start">
                   <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
                     <h3 className="text-xl leading-6 font-semibold text-slate-900 mb-6 flex justify-between items-center" id="modal-title">
                       Request Details
-                      <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-                        selectedRequest.status === 'PENDING' ? 'bg-amber-100 text-amber-800' :
-                        selectedRequest.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {selectedRequest.status}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+                          selectedRequest.status === 'PENDING' ? 'bg-amber-100 text-amber-800' :
+                          selectedRequest.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {selectedRequest.status}
+                        </span>
+                        {selectedRequest.status === 'APPROVED' && selectedRequest.account_status && (
+                          <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+                            selectedRequest.account_status === 'PENDING_ACTIVATION' ? 'bg-blue-100 text-blue-800' :
+                            selectedRequest.account_status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' :
+                            'bg-slate-100 text-slate-800'
+                          }`}>
+                            {selectedRequest.account_status.replace('_', ' ')}
+                          </span>
+                        )}
+                      </div>
                     </h3>
                     
                     <div className="bg-slate-50 rounded-lg p-5 grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 border border-slate-100 mb-6">
@@ -351,139 +391,135 @@ export default function StaffRequestsPage() {
                         <p className="text-sm text-red-700 mt-1">{selectedRequest.rejection_reason}</p>
                       </div>
                     )}
-
                   </div>
                 </div>
               </div>
-              <div className="bg-slate-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-slate-200">
-                {selectedRequest.status === 'PENDING' ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setIsApproveModalOpen(true)}
-                      disabled={!selectedRequest.email_verified_at}
-                      className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-[#0b3578] text-base font-medium text-white hover:bg-blue-900 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={!selectedRequest.email_verified_at ? "Email must be verified to approve" : ""}
-                    >
-                      Approve Request
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsRejectModalOpen(true)}
-                      className="mt-3 w-full inline-flex justify-center rounded-md border border-red-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-red-700 hover:bg-red-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                    >
-                      Reject
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedRequest(null)}
-                      className="mt-3 w-full inline-flex justify-center rounded-md border border-slate-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                    >
-                      Close
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    {selectedRequest.status === 'APPROVED' && (
+
+              {/* ACTION AREA - BOTTOM */}
+              {!isApproveModalOpen && !isRejectModalOpen ? (
+                <div className="bg-slate-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-slate-200">
+                  {selectedRequest.status === 'PENDING' ? (
+                    <>
                       <button
                         type="button"
-                        onClick={handleResendActivation}
-                        disabled={processing}
-                        className="w-full inline-flex justify-center rounded-md border border-slate-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-[#0b3578] hover:bg-slate-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
+                        onClick={() => setIsApproveModalOpen(true)}
+                        disabled={!selectedRequest.email_verified_at}
+                        className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-[#0b3578] text-base font-medium text-white hover:bg-blue-900 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                        title={!selectedRequest.email_verified_at ? "Email must be verified to approve" : ""}
                       >
-                        Resend Activation
+                        Approve Request
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setSelectedRequest(null)}
-                      className="w-full inline-flex justify-center rounded-md border border-slate-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                    >
-                      Close
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+                      <button
+                        type="button"
+                        onClick={() => setIsRejectModalOpen(true)}
+                        className="mt-3 w-full inline-flex justify-center rounded-md border border-red-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-red-700 hover:bg-red-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm cursor-pointer"
+                      >
+                        Reject
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedRequest(null)}
+                        className="mt-3 w-full inline-flex justify-center rounded-md border border-slate-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm cursor-pointer"
+                      >
+                        Close
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {selectedRequest.status === 'APPROVED' && selectedRequest.account_status === 'PENDING_ACTIVATION' && (
+                        <button
+                          type="button"
+                          onClick={handleResendActivation}
+                          disabled={processing}
+                          className="w-full inline-flex justify-center rounded-md border border-slate-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-[#0b3578] hover:bg-slate-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 cursor-pointer"
+                        >
+                          Resend Activation
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedRequest(null)}
+                        className="w-full inline-flex justify-center rounded-md border border-slate-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm cursor-pointer"
+                      >
+                        Close
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : isApproveModalOpen ? (
+                <div className="bg-green-50 px-4 py-5 sm:p-6 border-t border-green-200">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <CheckCircle2 className="h-6 w-6 text-green-600" aria-hidden="true" />
+                    </div>
+                    <div className="ml-3 w-full">
+                      <h3 className="text-sm font-medium text-green-800">Confirm Approval</h3>
+                      <div className="mt-2 text-sm text-green-700">
+                        <p>This will automatically generate a unique Employee ID, create the staff account, assign the requested role (<span className="font-semibold text-green-900">{selectedRequest?.requested_role}</span>), and send an activation email.</p>
+                      </div>
+                      <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                        <button
+                          type="button"
+                          onClick={handleApprove}
+                          disabled={processing}
+                          className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 sm:w-auto sm:text-sm disabled:opacity-50 cursor-pointer"
+                        >
+                          {processing ? 'Processing...' : 'Confirm Approval'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsApproveModalOpen(false)}
+                          disabled={processing}
+                          className="w-full inline-flex justify-center rounded-md border border-green-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-green-700 hover:bg-green-50 sm:w-auto sm:text-sm disabled:opacity-50 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-red-50 px-4 py-5 sm:p-6 border-t border-red-200">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
+                    </div>
+                    <div className="ml-3 w-full">
+                      <h3 className="text-sm font-medium text-red-800">Reject Request</h3>
+                      <div className="mt-2 text-sm text-red-700">
+                        <p>Please provide a reason for rejecting this registration request. This information will be saved for audit purposes.</p>
+                      </div>
+                      <div className="mt-3">
+                        <textarea
+                          className="w-full border border-red-300 rounded-md p-3 text-sm focus:ring-2 focus:ring-red-500 outline-none resize-none h-20 bg-white"
+                          placeholder="Reason for rejection (required)..."
+                          value={rejectionReason}
+                          onChange={(e) => setRejectionReason(e.target.value)}
+                        ></textarea>
+                      </div>
+                      <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                        <button
+                          type="button"
+                          onClick={handleReject}
+                          disabled={processing || rejectionReason.trim().length < 5}
+                          className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 sm:w-auto sm:text-sm disabled:opacity-50 cursor-pointer"
+                        >
+                          {processing ? 'Rejecting...' : 'Confirm Rejection'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsRejectModalOpen(false)}
+                          disabled={processing}
+                          className="w-full inline-flex justify-center rounded-md border border-red-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-red-700 hover:bg-red-50 sm:w-auto sm:text-sm disabled:opacity-50 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-      {/* Approve Confirmation Modal */}
-      {isApproveModalOpen && (
-        <div className="fixed inset-0 z-[60] overflow-y-auto">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => !processing && setIsApproveModalOpen(false)}></div>
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full border border-slate-200 p-6">
-              <div className="flex items-center justify-center w-12 h-12 mx-auto bg-green-100 rounded-full mb-4">
-                <CheckCircle2 className="w-6 h-6 text-green-600" />
-              </div>
-              <h3 className="text-lg font-medium text-center text-slate-900 mb-2">Approve Staff Registration?</h3>
-              <p className="text-sm text-slate-500 text-center mb-6">
-                This will automatically generate a unique Employee ID, create the staff account, assign the requested role (<span className="font-semibold text-slate-700">{selectedRequest?.requested_role}</span>), and send an activation email to the applicant.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  type="button"
-                  onClick={handleApprove}
-                  disabled={processing}
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-[#0b3578] text-base font-medium text-white hover:bg-blue-900 sm:text-sm disabled:opacity-50"
-                >
-                  {processing ? 'Processing...' : 'Confirm Approval'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsApproveModalOpen(false)}
-                  disabled={processing}
-                  className="w-full inline-flex justify-center rounded-md border border-slate-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 sm:text-sm disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Reject Modal */}
-      {isRejectModalOpen && (
-        <div className="fixed inset-0 z-[60] overflow-y-auto">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => !processing && setIsRejectModalOpen(false)}></div>
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full border border-slate-200 p-6">
-              <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
-                <AlertTriangle className="w-6 h-6 text-red-600" />
-              </div>
-              <h3 className="text-lg font-medium text-center text-slate-900 mb-2">Reject Request</h3>
-              <p className="text-sm text-slate-500 text-center mb-4">
-                Please provide a reason for rejecting this registration request. This information will be saved for audit purposes.
-              </p>
-              <textarea
-                className="w-full border border-slate-300 rounded-md p-3 mb-4 text-sm focus:ring-2 focus:ring-red-500 outline-none resize-none h-24"
-                placeholder="Reason for rejection (required)..."
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-              ></textarea>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  type="button"
-                  onClick={handleReject}
-                  disabled={processing || rejectionReason.trim().length < 5}
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 sm:text-sm disabled:opacity-50"
-                >
-                  {processing ? 'Rejecting...' : 'Confirm Rejection'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsRejectModalOpen(false)}
-                  disabled={processing}
-                  className="w-full inline-flex justify-center rounded-md border border-slate-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 sm:text-sm disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-              </div>
             </div>
           </div>
         </div>

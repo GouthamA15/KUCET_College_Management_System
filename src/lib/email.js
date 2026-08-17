@@ -9,11 +9,11 @@ const BORDER_COLOR = '#e5e7eb';
 
 // Derive base URL from environment for all links
 export const getBaseUrl = () => {
-  const envUrl = process.env.NEXT_PUBLIC_BASE_URL;
-  if (!envUrl) {
-    console.error('[EMAIL_CONFIG] NEXT_PUBLIC_BASE_URL is not set.');
+  let envUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  if (envUrl.includes('localhost') && envUrl.startsWith('https://')) {
+    envUrl = envUrl.replace('https://', 'http://');
   }
-  return envUrl || '';
+  return envUrl;
 };
 
 /**

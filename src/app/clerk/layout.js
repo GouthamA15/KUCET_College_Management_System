@@ -58,7 +58,7 @@ export default function ClerkLayout({ children }) {
             </div>
 
             {/* Page Content (single, consistent top spacing below header/topbar) */}
-            <div className="flex-1 flex flex-col min-h-0 pt-(--app-content-top-gap,20px) lg:pt-(--app-fixed-header-offset,112px)">
+            <div className="flex-1 flex flex-col min-h-0 pt-(--app-content-top-gap,20px) lg:pt-(--app-fixed-header-offset,72px)">
               <main className="flex-1 p-4 lg:p-8 pt-0">
                 {children}
               </main>
