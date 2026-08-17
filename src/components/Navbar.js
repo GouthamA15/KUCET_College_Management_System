@@ -139,7 +139,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
     <>
       <nav className={`bg-[#0b3578] shadow-lg ${sticky ? 'sticky z-50' : 'relative z-20'} pt-[env(safe-area-inset-top)]`} style={sticky ? { top: 'var(--site-header-height, 72px)' } : undefined}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className={`flex items-center h-11 ${minimalNav ? 'justify-start' : 'justify-between'}`}>
+          <div className={`flex items-center h-11 lg:h-12 ${minimalNav ? 'justify-start' : 'justify-between'}`}>
             <div className={`flex items-center gap-4 ${minimalNav ? 'pl-2 sm:pl-4' : 'shrink-0'}`}>
               <span className="text-white text-sm font-bold tracking-wide uppercase">{brandLabel}</span>
             </div>

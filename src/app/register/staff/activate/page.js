@@ -5,6 +5,12 @@ import crypto from 'crypto';
 import PasswordSetupClient from './PasswordSetupClient';
 import Link from 'next/link';
 
+import Header from '@/components/Header';
+import HeaderMobileView from '@/components/Header-MobileView';
+import Footer from '@/app/components/Footer/Footer';
+
+import Navbar from '@/components/Navbar';
+
 export const metadata = {
   title: 'Activate Staff Account - KUCET',
 };
@@ -63,7 +69,7 @@ export default async function StaffActivationPage({ searchParams }) {
   
   const [roleMapping] = await db
     .select({
-      roleName: staffRoles.role_name
+      roleName: staffRoles.role_code
     })
     .from(staffAccountRoles)
     .leftJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
@@ -73,39 +79,37 @@ export default async function StaffActivationPage({ searchParams }) {
   const assignedRole = roleMapping?.roleName || 'Staff Member';
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 flex flex-col justify-center sm:px-6 lg:px-8 font-sans">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <h2 className="text-3xl font-extrabold text-[#0b3578]">
-          Account Activation
-        </h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Welcome to KUCET Portal
-        </p>
-      </div>
-
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-slate-200">
-          <div className="mb-6 pb-6 border-b border-slate-100">
-            <h3 className="text-lg font-medium text-slate-900">Staff Details</h3>
-            <dl className="mt-4 space-y-3 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-slate-500">Name</dt>
-                <dd className="font-medium text-slate-900">{account.name}</dd>
+    <div className="min-h-screen bg-slate-50 relative flex flex-col">
+      <Header />
+      <HeaderMobileView />
+      <Navbar minimalNav={true} brandLabel="STAFF ONBOARDING" />
+      <main className="flex-1 flex flex-col py-4 md:py-12 px-4 sm:px-6 lg:px-8 font-sans md:mt-10">
+        <div className="mt-2 md:mt-8 sm:mx-auto sm:w-full sm:max-w-5xl w-full">
+          <PasswordSetupClient 
+            token={token}
+            staffDetailsNode={
+              <div className="mb-6 pb-6 border-b border-slate-100">
+                <h3 className="text-lg font-medium text-slate-900">Staff Details</h3>
+                <dl className="mt-4 space-y-3 text-sm">
+                  <div className="flex justify-between flex-wrap gap-2">
+                    <dt className="text-slate-500">Name</dt>
+                    <dd className="font-medium text-slate-900 text-right">{account.name}</dd>
+                  </div>
+                  <div className="flex justify-between flex-wrap gap-2">
+                    <dt className="text-slate-500">Employee ID</dt>
+                    <dd className="font-medium text-slate-900 text-right">{account.employee_id}</dd>
+                  </div>
+                  <div className="flex justify-between flex-wrap gap-2">
+                    <dt className="text-slate-500">Assigned Role</dt>
+                    <dd className="font-medium text-slate-900 text-right">{assignedRole}</dd>
+                  </div>
+                </dl>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-slate-500">Employee ID</dt>
-                <dd className="font-medium text-slate-900">{account.employee_id}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-slate-500">Assigned Role</dt>
-                <dd className="font-medium text-slate-900">{assignedRole}</dd>
-              </div>
-            </dl>
-          </div>
-          
-          <PasswordSetupClient token={token} />
+            }
+          />
         </div>
-      </div>
+      </main>
+      <Footer />
     </div>
   );
 }

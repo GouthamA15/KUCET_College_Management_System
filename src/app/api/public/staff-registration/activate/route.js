@@ -1,18 +1,23 @@
 import { db } from '@/db';
 import { staffAccounts, staffAccountActivationTokens, auditLogs } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { wrapHandler } from '@/lib/api-utils';
+import { wrapHandler, apiError } from '@/lib/api-utils';
+import { checkRateLimit } from '@/lib/rate-limit';
 import crypto from 'crypto';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import { z } from 'zod';
 
 export const POST = wrapHandler({
-  auth: 'public',
   schema: z.object({
     token: z.string().min(1, 'Token is required'),
     password: z.string().min(8, 'Password must be at least 8 characters')
   }),
-  handler: async (req, { context, data }) => {
+  handler: async (req, { context, data, ip }) => {
+    const rateCheck = await checkRateLimit(`staff_activate:${ip || 'anon'}`, 5, 900);
+    if (!rateCheck.success) {
+      return apiError('Too many activation attempts. Please try again later.', 429);
+    }
+
     const { token, password } = data;
 
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -56,8 +61,8 @@ export const POST = wrapHandler({
         throw new Error(`Cannot activate account in status: ${account.account_status}`);
       }
 
-      // Hash password
-      const passwordHash = await bcrypt.hash(password, 10);
+      // Hash password using project standard SALT_ROUNDS = 12
+      const passwordHash = await bcrypt.hash(password, 12);
 
       // Update account
       await tx.update(staffAccounts)

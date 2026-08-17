@@ -120,8 +120,8 @@ export default function StaffRequestsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to resend');
-      
       toast.success('Activation email resent!', { id: toastId });
+      setSelectedRequest(null);
     } catch (err) {
       toast.error(err.message, { id: toastId });
     } finally {

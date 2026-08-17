@@ -31,6 +31,19 @@ export async function POST(req) {
       return apiError('Email is required', 400);
     }
 
+    const { staffAccounts } = await import('@/db/schema');
+    const staffAccount = await db.query.staffAccounts.findFirst({
+      where: eq(staffAccounts.email, email),
+      columns: {
+        email: true,
+        account_status: true
+      }
+    });
+
+    if (staffAccount && staffAccount.account_status === 'PENDING_ACTIVATION') {
+      return apiError('This account is pending activation. Please check your email for the activation link.', 403);
+    }
+
     const clerk = await db.query.clerks.findFirst({
       where: eq(clerks.email, email),
       columns: {
@@ -39,10 +52,10 @@ export async function POST(req) {
     });
 
     // ─── FIX #3: Was returning 404 "Clerk not found" — now always 200 generic ───
-    // SECURITY: Do NOT reveal whether the account exists or not.
+    // SECURITY: Do NOT reveal whether the account exists or not unless it's a specific activation block.
     const GENERIC_OK = apiResponse({ message: 'If an account with this email exists, a password reset link has been sent.' });
 
-    if (!clerk) return GENERIC_OK;
+    if (!clerk && !staffAccount) return GENERIC_OK;
 
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
