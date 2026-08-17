@@ -24,6 +24,8 @@ The database schema evolution is managed version-by-version using Drizzle Kit. E
 | **`0009`** | `0009_tiny_sabretooth.sql` | **Restoration Constraint Alignment:** Added fallback default column parameters (`session_pin`, `attendance_date`, `expires_at`) to match operational constraints during data restoration. |
 | **`0010`** | `0010_tan_cerebro.sql` | **Institutional Asset Metadata:** Added institutional asset protection tracking and logical asset key resolution tables. |
 | **`0011`** | `0011_curious_terrax.sql` | **Payment Screenshot Consolidation:** Consolidated request payment evidence into `student_request_images` sidecar table and safely dropped legacy redundant column `student_requests.payment_screenshot`. |
+| **`0012`** | `0012_clerk_registration_requests.sql` | **Staff Onboarding & Branch Verification:** Added `clerk_registration_requests` table for multi-role pending staff approvals and HOD branch constraint validation. |
+| **`0013`** | `0013_thin_outlaw_kid.sql` | **Performance & Foreign Key Indexes:** Optimized indexes across active operations and registration lookup tables. |
 
 ---
 
@@ -60,7 +62,16 @@ graph TD
 
 ---
 
-## 4. Cross-References & Related Documentation
+## 4. Session 206 Hardening & Environment Synchronization
+
+- **QStash Webhook Signature Verification:** Implemented `verifySignatureAppRouter` across all 7 background endpoints (`archive-job`, `notification-dispatch`, `generate-pdf`, `report-generation`, `send-email`, `bulk-import`, `dlq`).
+- **Web Push Engine (VAPID):** Added `PushNotificationService.sendToRecipients()` with `web-push`, automatic VAPID authorization, and dead subscription pruning (404/410).
+- **Synchronous Fallback Processing:** Added transaction-level batch processing for admissions bulk import when external queueing services are disabled.
+- **Environment Template Alignment:** Rebuilt `.env.example` and `DEPLOYMENT_PACKAGE/.env.production.template` to reflect the 32 active variables across 12 distinct functional categories.
+
+---
+
+## 5. Cross-References & Related Documentation
 
 - [System Architectural Decision Records (ADRs)](./architectural-decisions.md)
 - [Chronological Forensics of Resolved Incidents](./resolved-incidents.md)

@@ -31,7 +31,7 @@ flowchart TD
 
 ## 2. Web Push Notifications (`PushNotificationService.js` & `sw.js`)
 
-Web Push notifications operate using the W3C Push API and VAPID (Voluntary Application Server Identification) cryptographic standards.
+Web Push notifications operate using the W3C Push API and VAPID (Voluntary Application Server Identification) cryptographic standards via the `web-push` library.
 
 ### Client Service Worker (`public/sw.js`)
 The service worker handles incoming push events, caches offline routes (ID card, fee receipts, timetables), and manages notification click handlers:
@@ -39,24 +39,55 @@ The service worker handles incoming push events, caches offline routes (ID card,
 ```javascript
 // Source: public/sw.js
 self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : {};
-  const title = data.title || 'KUCET Notification';
-  const options = {
-    body: data.body || 'You have a new update.',
-    icon: '/favicon.ico',
-    badge: '/favicon.ico',
-    data: { url: data.url || '/student' }
-  };
-  event.waitUntil(self.registration.showNotification(title, options));
+  if (!event.data) return;
+
+  try {
+    const data = event.data.json();
+    const title = data.title || 'KUCET CMS Notification';
+    const options = {
+      body: data.body || '',
+      icon: data.icon || '/favicon.ico',
+      badge: '/favicon.ico',
+      data: {
+        url: data.url || '/',
+        ...data.data
+      },
+      tag: data.category || 'general',
+      renotify: true
+    };
+
+    event.waitUntil(self.registration.showNotification(title, options));
+  } catch (_e) {
+    const rawText = event.data.text();
+    event.waitUntil(
+      self.registration.showNotification('KUCET CMS', {
+        body: rawText,
+        icon: '/favicon.ico'
+      })
+    );
+  }
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  event.waitUntil(clients.openWindow(event.notification.data.url));
+  const targetUrl = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    })
+  );
 });
 ```
 
-### Push Service Implementation (`PushNotificationService.js`)
+### Push Service Implementation (`src/services/security/PushNotificationService.js`)
 
 ```javascript
 // Source: src/services/security/PushNotificationService.js
@@ -73,6 +104,22 @@ export class PushNotificationService {
     }).onDuplicateKeyUpdate({
       set: { endpoint, p256dh: keys.p256dh, auth_secret: keys.auth }
     });
+  }
+
+  static async sendToRecipients(recipients = [], notification = {}) {
+    const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+    const vapidEmail = process.env.VAPID_CONTACT_EMAIL || process.env.EMAIL_USER || 'mailto:admin@kucet.ac.in';
+
+    if (!vapidPublicKey || !vapidPrivateKey) {
+      logger.info('[PushNotificationService] VAPID keys not configured, skipping browser push dispatch');
+      return { success: true, sentCount: 0, reason: 'VAPID keys not configured' };
+    }
+
+    webpush.setVapidDetails(vapidEmail.startsWith('mailto:') ? vapidEmail : `mailto:${vapidEmail}`, vapidPublicKey, vapidPrivateKey);
+
+    // Queries active subscriptions, sends payload, and automatically deletes 404/410 dead endpoints from database
+    // ...
   }
 }
 ```

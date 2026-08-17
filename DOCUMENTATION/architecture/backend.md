@@ -339,4 +339,31 @@ export function safeJsonParse(value, fallback = null) {
 
 ---
 
+## 📬 Asynchronous Job Queuing & QStash Webhook Security
+
+Background jobs (PDF certificate rendering, bulk student import, report compilation, transactional email delivery, notifications, DLQ dead-letter monitoring) are orchestrated via **Upstash QStash** (`src/lib/queue.js`).
+
+### Cryptographic Signature Verification (`verifySignatureAppRouter`)
+
+To prevent arbitrary external actors from invoking internal queue endpoints, all 7 QStash webhook endpoints under `src/app/api/webhooks/qstash/*` enforce HMAC/RSA signature verification:
+
+```javascript
+// Example webhook guard in src/app/api/webhooks/qstash/bulk-import/route.js
+import { verifySignatureAppRouter } from '@upstash/qstash/dist/nextjs';
+
+async function handler(req) {
+  const body = await req.json();
+  // Process asynchronous background workload safely...
+  return NextResponse.json({ success: true });
+}
+
+export const POST = verifySignatureAppRouter(handler);
+```
+
+### Self-Hosted Synchronous Fallback
+
+For deployments where `QSTASH_TOKEN` is not configured, endpoints such as `src/app/api/clerk/admission/bulk-import/route.js` automatically fail over to transactional synchronous batch execution via `StudentService.processBulkImport()`, guaranteeing 100% operational autonomy without external dependencies.
+
+---
+
 > 💡 **Next Steps**: Review storage key resolution patterns in [Storage Architecture](./storage.md) or examine database tables in [Database Architecture](./database.md).

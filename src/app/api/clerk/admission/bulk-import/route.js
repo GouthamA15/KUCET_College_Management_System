@@ -1,16 +1,14 @@
-import { _db } from '@/db';
+import { db } from '@/db';
 import { 
-  students as _studentsTable, 
-  _studentPersonalDetails, 
-  _studentAcademicBackground,
-  _studentImportLogs
+  students as studentsTable, 
+  studentImportLogs
 } from '@/db/schema';
-import { _eq, _inArray } from 'drizzle-orm';
+import { inArray } from 'drizzle-orm';
 import * as XLSX from 'xlsx-js-style';
 import { toMySQLDate, parseDate } from '@/lib/date';
 import { apiError, wrapHandler } from '@/lib/api-utils';
 import { encrypt, hashForIndex } from '@/lib/encryption';
-import { _StudentService } from '@/services/StudentService';
+import { StudentService } from '@/services/StudentService';
 
 // Header normalization: lowercase, trim, spaces & hyphens to _, remove non-word chars
 const normalizeHeader = (h) => {
@@ -229,35 +227,118 @@ export const POST = wrapHandler({
 
     if (prepared.length === 0) return { totalRows, inserted: 0, updated: 0, skipped: totalRows, errors };
 
-    // Offload to background queue (Upstash QStash)
-    const { Queue } = await import('@/lib/queue');
-    const CHUNK_SIZE = 50; // Process 50 records per webhook invocation to prevent Vercel timeouts
-    
-    let queuedChunks = 0;
-    const chunkPromises = [];
-    for (let i = 0; i < prepared.length; i += CHUNK_SIZE) {
-      const chunk = prepared.slice(i, i + CHUNK_SIZE);
-      chunkPromises.push(Queue.enqueueBulkImportChunk(chunk, clerkId, importFileName));
-    }
-    
-    try {
-      const results = await Promise.all(chunkPromises);
-      if (results.some(r => !r || r.success === false)) {
-        throw new Error("One or more chunks failed to queue (QStash not configured or error)");
+    if (process.env.QSTASH_TOKEN) {
+      // Offload to background queue (Upstash QStash)
+      try {
+        const { Queue } = await import('@/lib/queue');
+        const CHUNK_SIZE = 50; // Process 50 records per webhook invocation to prevent Vercel timeouts
+        
+        let queuedChunks = 0;
+        const chunkPromises = [];
+        for (let i = 0; i < prepared.length; i += CHUNK_SIZE) {
+          const chunk = prepared.slice(i, i + CHUNK_SIZE);
+          chunkPromises.push(Queue.enqueueBulkImportChunk(chunk, clerkId, importFileName));
+        }
+        
+        const results = await Promise.all(chunkPromises);
+        if (results.every(r => r && r.success)) {
+          queuedChunks = chunkPromises.length;
+          return {
+            message: `Bulk import queued. ${prepared.length} records are being processed in the background across ${queuedChunks} chunks.`,
+            totalRows,
+            queuedChunks,
+            inserted: 0,
+            updated: 0,
+            skipped: 0,
+            errors
+          };
+        }
+      } catch (enqueueError) {
+        // Log error and fall back to synchronous execution below
+        console.warn('Failed to dispatch to QStash, falling back to synchronous processing:', enqueueError.message);
       }
-      queuedChunks = chunkPromises.length;
-    } catch (enqueueError) {
-      return apiError('Failed to queue bulk import tasks: ' + enqueueError.message, 500);
     }
 
+    // Synchronous Fallback Processing (Local VPS / Self-hosted without QStash)
+    const incomingRolls = prepared.map(p => p.student.roll_no);
+    const incomingEmails = prepared.map(p => p.student.email).filter(Boolean);
+
+    const existingByRoll = await db.select({
+      id: studentsTable.id,
+      roll_no: studentsTable.roll_no,
+      email: studentsTable.email
+    })
+    .from(studentsTable)
+    .where(inArray(studentsTable.roll_no, incomingRolls));
+
+    const existingByEmail = incomingEmails.length > 0 ? await db.select({
+      id: studentsTable.id,
+      roll_no: studentsTable.roll_no,
+      email: studentsTable.email
+    })
+    .from(studentsTable)
+    .where(inArray(studentsTable.email, incomingEmails)) : [];
+
+    const rollMap = new Map(existingByRoll.map(s => [s.roll_no, s]));
+    const emailMap = new Map(existingByEmail.map(s => [s.email, s]));
+
+    let inserted = 0;
+    let updated = 0;
+    const processedEmails = new Set();
+
+    await db.transaction(async (tx) => {
+      for (const rec of prepared) {
+        const { student, personal, academic } = rec;
+
+        if (student.email) {
+          const emailCollision = emailMap.get(student.email);
+          if (emailCollision && emailCollision.roll_no !== student.roll_no) {
+            errors.push({
+              row: rec.rowNumber,
+              roll_no: student.roll_no,
+              reason: `Email (${student.email}) is already assigned to student ${emailCollision.roll_no}`
+            });
+            continue;
+          }
+          if (processedEmails.has(student.email)) {
+            errors.push({
+              row: rec.rowNumber,
+              roll_no: student.roll_no,
+              reason: `Email (${student.email}) is duplicated within the import file`
+            });
+            continue;
+          }
+        }
+
+        const isUpdate = rollMap.has(student.roll_no);
+        await StudentService.upsertStudent({
+          ...student,
+          ...personal,
+          ...academic
+        }, clerkId, tx);
+
+        if (student.email) processedEmails.add(student.email);
+
+        if (isUpdate) updated++;
+        else inserted++;
+      }
+
+      if (inserted > 0 || updated > 0) {
+        await tx.insert(studentImportLogs).values({
+          clerk_id: clerkId,
+          total_records: inserted + updated,
+          file_name: importFileName
+        });
+      }
+    });
+
     return {
-      message: `Bulk import queued. ${prepared.length} records are being processed in the background across ${queuedChunks} chunks.`,
+      message: `Bulk import completed successfully. ${inserted} inserted, ${updated} updated.`,
       totalRows,
-      queuedChunks,
-      inserted: 0, // Client should check logs later for actual inserted count
-      updated: 0,
-      skipped: 0,
-      errors // Return inline validation errors immediately
+      inserted,
+      updated,
+      skipped: errors.length,
+      errors
     };
   }
 });
