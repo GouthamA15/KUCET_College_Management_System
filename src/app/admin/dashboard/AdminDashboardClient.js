@@ -12,7 +12,7 @@ import { AdminDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
 const BRANCHES = COLLEGE_CONFIG.branches;
 
 export default function AdminDashboardClient() {
-  const { clerks, studentStats, loading: _contextLoading } = useAdmin();
+  const { staffList, studentStats, loading: _contextLoading } = useAdmin();
   const [searchRoll, setSearchRoll] = useState('');
   const [searchedStudent, setSearchedStudent] = useState(null);
   const [searchError, setSearchError] = useState('');
@@ -27,8 +27,8 @@ export default function AdminDashboardClient() {
     return <AdminDashboardSkeleton />;
   }
 
-  const totalClerks = Array.isArray(clerks) ? clerks.length : 0;
-  const activeClerks = Array.isArray(clerks) ? clerks.filter(c => c.is_active).length : 0;
+  const totalStaff = Array.isArray(staffList) ? staffList.length : 0;
+  const activeStaff = Array.isArray(staffList) ? staffList.filter(c => c.is_active).length : 0;
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -129,12 +129,12 @@ export default function AdminDashboardClient() {
           <>
             <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-white border border-slate-200 p-4 flex justify-between items-center">
-                <span className="font-semibold text-slate-600 uppercase text-[10px] tracking-widest">Total Clerks</span>
-                <span className="text-xl font-bold text-[#0b3578]">{totalClerks}</span>
+                <span className="font-semibold text-slate-600 uppercase text-[10px] tracking-widest">Total Staff</span>
+                <span className="text-xl font-bold text-[#0b3578]">{totalStaff}</span>
               </div>
               <div className="bg-white border border-slate-200 p-4 flex justify-between items-center">
-                <span className="font-semibold text-slate-600 uppercase text-[10px] tracking-widest">Active Clerks</span>
-                <span className="text-xl font-bold text-green-700">{activeClerks}</span>
+                <span className="font-semibold text-slate-600 uppercase text-[10px] tracking-widest">Active Staff</span>
+                <span className="text-xl font-bold text-green-700">{activeStaff}</span>
               </div>
               <div className="bg-white border border-slate-200 p-4 flex justify-between items-center">
                 <span className="font-semibold text-slate-600 uppercase text-[10px] tracking-widest">Total Students</span>

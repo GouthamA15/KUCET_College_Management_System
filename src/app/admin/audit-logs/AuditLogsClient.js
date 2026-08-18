@@ -95,7 +95,7 @@ export default function AuditLogsClient() {
             >
               <option value="">All Types</option>
               <option value="admin">Admin</option>
-              <option value="clerk">Clerk</option>
+              <option value="staff">Staff</option>
               <option value="student">Student</option>
               <option value="system">System</option>
             </select>
@@ -163,7 +163,7 @@ export default function AuditLogsClient() {
                         <td className="px-4 py-3">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                             log.user_type === 'admin' ? 'bg-purple-100 text-purple-700' :
-                            log.user_type === 'clerk' ? 'bg-blue-100 text-blue-700' :
+                            (log.user_type === 'staff' || log.user_type === 'clerk') ? 'bg-blue-100 text-blue-700' :
                             log.user_type === 'student' ? 'bg-emerald-100 text-emerald-700' :
                             'bg-slate-100 text-slate-700'
                           }`}>
@@ -242,7 +242,7 @@ export default function AuditLogsClient() {
                     <div className="flex flex-col gap-1">
                       <span className={`w-fit px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
                         log.user_type === 'admin' ? 'bg-purple-100 text-purple-700' :
-                        log.user_type === 'clerk' ? 'bg-blue-100 text-blue-700' :
+                        (log.user_type === 'staff' || log.user_type === 'clerk') ? 'bg-blue-100 text-blue-700' :
                         log.user_type === 'student' ? 'bg-emerald-100 text-emerald-700' :
                         'bg-slate-100 text-slate-700'
                       }`}>

@@ -4,14 +4,15 @@ import RealtimeListener from '@/components/RealtimeListener';
 
 export const StaffContext = createContext();
 
+let cachedCollegeInfo = null;
+
 export function StaffProvider({ children }) {
-  // ... rest of state
   const lastFetchTimeRef = useRef(0);
   const activePromiseRef = useRef(null);
   const isInitializingRef = useRef(false);
 
-  const [clerkData, setClerkData] = useState(null);
-  const [collegeInfo, setCollegeInfo] = useState(null);
+  const [staffData, setStaffData] = useState(null);
+  const [collegeInfo, setCollegeInfo] = useState(cachedCollegeInfo);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [facultyAssignments, setFacultyAssignments] = useState([]);
@@ -28,30 +29,37 @@ export function StaffProvider({ children }) {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   const fetchCollegeInfo = useCallback(async () => {
+    if (cachedCollegeInfo) {
+      setCollegeInfo(cachedCollegeInfo);
+      return cachedCollegeInfo;
+    }
     try {
       const res = await fetch('/api/public/college-info');
       if (res.ok) {
         const data = await res.json();
+        cachedCollegeInfo = data.collegeInfo;
         setCollegeInfo(data.collegeInfo);
+        return data.collegeInfo;
       }
     } catch (e) {
       console.error('Failed to fetch college info', e);
     }
+    return null;
   }, []);
 
-  const fetchClerk = useCallback(async () => {
+  const fetchStaffData = useCallback(async () => {
     try {
-      const res = await fetch(`/api/staff/me?t=${Date.now()}`);
+      const res = await fetch('/api/staff/me');
       if (res.ok) {
         const data = await res.json();
-        setClerkData(data.data);
+        setStaffData(data.data);
         return data.data;
       } else {
         try {
           const data = await res.json();
-          setError(data.error || 'Failed to fetch clerk data');
+          setError(data.error || 'Failed to fetch staff data');
         } catch {
-          setError('Failed to fetch clerk data');
+          setError('Failed to fetch staff data');
         }
       }
     } catch (_e) {
@@ -201,20 +209,14 @@ export function StaffProvider({ children }) {
 
     const promise = (async () => {
       try {
-        await fetchClerk();
+        await fetchStaffData();
         await fetchCollegeInfo();
         
         // Basic identity and config are loaded! Drop the global spinner immediately.
         setLoading(false);
-
-        // Fetch heavy tables sequentially so we don't hammer the database pool 
-        // causing 30s delays or deadlocks
-        // Removed global fetches for admissionDrafts, pendingProfileRequests, etc.
-        // Data fetching is now scoped to individual components/pages via useEffect
-        
         lastFetchTimeRef.current = Date.now();
       } catch (e) {
-        console.error('Failed to refresh clerk data', e);
+        console.error('Failed to refresh staff data', e);
       } finally {
         activePromiseRef.current = null;
       }
@@ -222,12 +224,12 @@ export function StaffProvider({ children }) {
 
     activePromiseRef.current = promise;
     return promise;
-  }, [fetchClerk, fetchCollegeInfo]);
+  }, [fetchStaffData, fetchCollegeInfo]);
 
   const handleResume = useCallback(async (event) => {
     const now = Date.now();
     const isBfcacheRestore = event?.type === 'pageshow' && event.persisted;
-    const isStuck = loading && !clerkData;
+    const isStuck = loading && !staffData;
 
     // Check if we should revalidate
     const shouldReinit = isBfcacheRestore || isStuck;
@@ -261,22 +263,22 @@ export function StaffProvider({ children }) {
     try {
       await refreshAllData();
     } catch (e) {
-      console.error('Failed to revalidate clerk data on resume', e);
+      console.error('Failed to revalidate staff data on resume', e);
     } finally {
       setLoading(false);
       setAreRequestsBootstrapping(false);
       isInitializingRef.current = false;
     }
-  }, [loading, clerkData, refreshAllData]);
+  }, [loading, staffData, refreshAllData]);
 
   useEffect(() => {
-    if (clerkData || isInitializingRef.current) return;
+    if (staffData || isInitializingRef.current) return;
 
     let isMounted = true;
     isInitializingRef.current = true;
 
     const init = async () => {
-      if (!clerkData) setLoading(true);
+      if (!staffData) setLoading(true);
       setAreRequestsBootstrapping(true);
       try {
         await refreshAllData();
@@ -295,7 +297,7 @@ export function StaffProvider({ children }) {
       isMounted = false;
       isInitializingRef.current = false;
     };
-  }, [clerkData, refreshAllData]);
+  }, [staffData, refreshAllData]);
 
   // Keep a stable ref to handleResume so the event listener effect only runs once.
   const handleResumeRef = useRef(handleResume);
@@ -320,10 +322,10 @@ export function StaffProvider({ children }) {
       document.removeEventListener('visibilitychange', onResume);
       window.removeEventListener('focus', onResume);
     };
-  }, []);  // Empty deps — register once, never re-register on state changes
+  }, []);
 
   const handleRealtimeUpdate = useCallback((data) => {
-    if (clerkData?.is_hod && data.payload?.branch === clerkData.branch) {
+    if (staffData?.is_hod && data.payload?.branch === staffData.branch) {
       if (['TIMETABLE_CHANGED', 'ATTENDANCE_SAVED', 'SESSION_STARTED', 'SESSION_ENDED'].includes(data.type)) {
         console.info(`[HODSync] ${data.type} detected, refreshing...`);
         fetchHODData();
@@ -331,24 +333,28 @@ export function StaffProvider({ children }) {
     }
 
     if (['REQUEST_CREATED', 'REQUEST_UPDATED'].includes(data.type)) {
-      if (clerkData?.role) {
+      if (staffData?.role) {
         console.info(`[StaffSync] ${data.type} detected, refreshing requests and history...`);
-        refreshAllRequests(clerkData.role);
+        refreshAllRequests(staffData.role);
       }
     }
-  }, [clerkData, fetchHODData, refreshAllRequests]);
+
+    if (data.type === 'STAFF_UPDATED' && data.payload?.id === staffData?.id) {
+      setStaffData(prev => ({ ...prev, ...data.payload }));
+    }
+  }, [staffData, fetchHODData, refreshAllRequests]);
 
   return (
     <StaffContext.Provider value={{
-      staffData: clerkData,
-      clerkData,
+      staffData,
+      clerkData: staffData,
       collegeInfo,
-      setStaffData: setClerkData,
-      setClerkData,
+      setStaffData,
+      setClerkData: setStaffData,
       loading,
       error,
-      refreshStaffData: fetchClerk,
-      refreshClerkData: fetchClerk,
+      refreshStaffData: fetchStaffData,
+      refreshClerkData: fetchStaffData,
       facultyAssignments,
       facultyInterests,
       isLoadingFaculty,

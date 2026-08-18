@@ -1,8 +1,11 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import RealtimeListener from '@/components/RealtimeListener';
 
 export const AdminContext = createContext();
+
+let cachedCollegeInfo = null;
 
 export function AdminProvider({ children }) {
   const lastFetchTimeRef = useRef(0);
@@ -10,7 +13,7 @@ export function AdminProvider({ children }) {
   const isInitializingRef = useRef(false);
 
   const [adminData, setAdminData] = useState(null);
-  const [collegeInfo, setCollegeInfo] = useState(null);
+  const [collegeInfo, setCollegeInfo] = useState(cachedCollegeInfo);
   const [staffList, setStaffList] = useState([]);
   const [studentStats, setStudentStats] = useState(null);
   const [facultyInterests, setFacultyInterests] = useState([]);
@@ -19,15 +22,22 @@ export function AdminProvider({ children }) {
   const [error, _setError] = useState(null);
 
   const fetchCollegeInfo = useCallback(async () => {
+    if (cachedCollegeInfo) {
+      setCollegeInfo(cachedCollegeInfo);
+      return cachedCollegeInfo;
+    }
     try {
       const res = await fetch('/api/public/college-info');
       if (res.ok) {
         const data = await res.json();
+        cachedCollegeInfo = data.collegeInfo;
         setCollegeInfo(data.collegeInfo);
+        return data.collegeInfo;
       }
     } catch (e) {
       console.error('Failed to fetch college info', e);
     }
+    return null;
   }, []);
 
   const fetchStaff = useCallback(async () => {
@@ -62,7 +72,7 @@ export function AdminProvider({ children }) {
 
   const fetchAdminMe = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/verify'); // Assuming verify endpoint gives admin info
+      const res = await fetch('/api/admin/verify');
       if (res.ok) {
         const json = await res.json();
         const payload = json?.admin ?? json ?? null;
@@ -92,6 +102,58 @@ export function AdminProvider({ children }) {
     return [];
   }, []);
 
+  // Targeted in-place updaters (avoids refetching entire staff list)
+  const addStaffToList = useCallback((newStaff) => {
+    if (!newStaff || !newStaff.id) return;
+    setStaffList((prev) => {
+      const exists = prev.some((s) => s.id === newStaff.id);
+      if (exists) {
+        return prev.map((s) => (s.id === newStaff.id ? { ...s, ...newStaff } : s));
+      }
+      return [newStaff, ...prev];
+    });
+  }, []);
+
+  const updateStaffInList = useCallback((updatedStaff) => {
+    if (!updatedStaff || !updatedStaff.id) return;
+    setStaffList((prev) =>
+      prev.map((s) => {
+        if (s.id === updatedStaff.id) {
+          return {
+            ...s,
+            ...updatedStaff,
+            roles: updatedStaff.roles !== undefined ? updatedStaff.roles : s.roles,
+            branches: updatedStaff.branches !== undefined ? updatedStaff.branches : s.branches,
+            is_hod: updatedStaff.is_hod !== undefined ? updatedStaff.is_hod : s.is_hod,
+            is_active: updatedStaff.is_active !== undefined ? updatedStaff.is_active : s.is_active
+          };
+        }
+        return s;
+      })
+    );
+  }, []);
+
+  const setStaffActiveStatus = useCallback((staffId, isActive) => {
+    if (!staffId) return;
+    setStaffList((prev) =>
+      prev.map((s) => (s.id === staffId ? { ...s, is_active: !!isActive } : s))
+    );
+  }, []);
+
+  // Realtime update handler
+  const handleRealtimeUpdate = useCallback((data) => {
+    if (!data || !data.type || !data.payload) return;
+    const { type, payload } = data;
+
+    if (type === 'STAFF_CREATED') {
+      addStaffToList(payload);
+    } else if (type === 'STAFF_UPDATED') {
+      updateStaffInList(payload);
+    } else if (type === 'STAFF_STATUS_CHANGED') {
+      setStaffActiveStatus(payload.id, payload.is_active);
+    }
+  }, [addStaffToList, updateStaffInList, setStaffActiveStatus]);
+
   const refreshAll = useCallback(async () => {
     if (activePromiseRef.current) {
       return activePromiseRef.current;
@@ -104,8 +166,7 @@ export function AdminProvider({ children }) {
           fetchAdminMe(),
           fetchStaff(),
           fetchStudentStats(),
-          fetchCollegeInfo(),
-          fetchFacultyInterests()
+          fetchCollegeInfo()
         ]);
         lastFetchTimeRef.current = Date.now();
       } catch (e) {
@@ -118,7 +179,7 @@ export function AdminProvider({ children }) {
 
     activePromiseRef.current = promise;
     return promise;
-  }, [fetchAdminMe, fetchStaff, fetchStudentStats, fetchCollegeInfo, fetchFacultyInterests, adminData]);
+  }, [fetchAdminMe, fetchStaff, fetchStudentStats, fetchCollegeInfo, adminData]);
 
   const handleResume = useCallback(async (event) => {
     const now = Date.now();
@@ -209,7 +270,7 @@ export function AdminProvider({ children }) {
       document.removeEventListener('visibilitychange', onResume);
       window.removeEventListener('focus', onResume);
     };
-  }, []);  // Empty deps — register once, never re-register on state changes
+  }, []);
 
   return (
     <AdminContext.Provider value={{ 
@@ -224,8 +285,12 @@ export function AdminProvider({ children }) {
       refreshStudentStats: fetchStudentStats,
       facultyInterests,
       isLoadingFaculty,
-      refreshFaculty: fetchFacultyInterests
+      refreshFaculty: fetchFacultyInterests,
+      addStaffToList,
+      updateStaffInList,
+      setStaffActiveStatus
     }}>
+      <RealtimeListener onUpdate={handleRealtimeUpdate} />
       {children}
     </AdminContext.Provider>
   );

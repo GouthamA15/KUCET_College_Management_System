@@ -375,9 +375,9 @@ export default function PaymentsClient() {
                                
                                const formatKey = (k) => {
                                   const keyMap = {
-                                    'action_by_clerk_name': 'Approved/Processed By (Name)',
-                                    'action_by_clerk_id': 'Clerk ID',
-                                    'action_by_role': 'Clerk Role',
+                                    'action_by_staff_name': 'Approved/Processed By (Name)',
+                                    'action_by_staff_id': 'Staff ID',
+                                    'action_by_role': 'Staff Role',
                                     'generated_cert_id': 'Certificate ID',
                                     'cert_type': 'Certificate Type',
                                     'payment_mode': 'Payment Mode',

@@ -51,6 +51,19 @@ export async function DELETE(req, context) {
       before: staffBefore
     });
 
+    // Realtime Broadcast
+    try {
+      const { broadcastUpdate } = await import('@/lib/sse');
+      await broadcastUpdate('STAFF_STATUS_CHANGED', {
+        id: idNum,
+        is_active: false,
+        account_status: 'SUSPENDED',
+        updated_at: new Date().toISOString()
+      });
+    } catch (_e) {
+      // Non-blocking
+    }
+
     return apiResponse({ message: 'Staff account deactivated successfully' });
   } catch (error) {
     logger.error('Error deactivating staff:', error);
@@ -201,6 +214,23 @@ export async function PUT(req, context) {
       before: staffBefore,
       after: { name, email, employee_id, is_hod, branches, is_active }
     });
+
+    // Realtime Broadcast
+    try {
+      const { broadcastUpdate } = await import('@/lib/sse');
+      await broadcastUpdate('STAFF_UPDATED', {
+        id: idNum,
+        name: name !== undefined ? name : staffBefore.name,
+        email: email !== undefined ? email.toLowerCase() : staffBefore.email,
+        employee_id: employee_id !== undefined ? employee_id : staffBefore.employee_id,
+        is_active: is_active !== undefined ? is_active : (staffBefore.account_status === 'ACTIVE'),
+        is_hod: is_hod,
+        branches: branches,
+        updated_at: new Date().toISOString()
+      });
+    } catch (_e) {
+      // Non-blocking
+    }
 
     return apiResponse({ message: 'Staff updated successfully' });
   } catch (error) {

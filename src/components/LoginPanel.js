@@ -10,21 +10,21 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
   const MAX_ROLL = 10;
   const MIN_ROLL = 10;
   const [studentForm, setStudentForm] = useState({ rollNumber: '', dob: '' });
-  const [clerkForm, setClerkForm] = useState({ email: '', password: '' });
+  const [staffForm, setStaffForm] = useState({ email: '', password: '' });
   const [adminForm, setAdminForm] = useState({ email: '', password: '' });
   const [studentLoading, setStudentLoading] = useState(false);
   const [studentError, setStudentError] = useState('');
   const [studentRollNoError, setStudentRollNoError] = useState('');
-  const [clerkError, setClerkError] = useState('');
+  const [staffError, setStaffError] = useState('');
   const [adminError, setAdminError] = useState('');
   // Password visibility toggles for all panels
   const [studentPasswordVisible, setStudentPasswordVisible] = useState(false);
-  const [clerkPasswordVisible, setClerkPasswordVisible] = useState(false);
+  const [staffPasswordVisible, setStaffPasswordVisible] = useState(false);
   const [adminPasswordVisible, setAdminPasswordVisible] = useState(false);
 
   // Remember Me states
   const [studentRememberMe, setStudentRememberMe] = useState(false);
-  const [clerkRememberMe, setClerkRememberMe] = useState(false);
+  const [staffRememberMe, setStaffRememberMe] = useState(false);
   const [adminRememberMe, setAdminRememberMe] = useState(false);
 
   // mode: 'login' | 'forgot-password'
@@ -336,10 +336,10 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
 
   const handleEmployeeSubmit = async (e) => {
     e.preventDefault();
-    const isClerk = activePanel === 'clerk';
-    const errorSetter = isClerk ? setClerkError : setAdminError;
-    const formData = isClerk ? clerkForm : adminForm;
-    const rememberMe = isClerk ? clerkRememberMe : adminRememberMe;
+    const isStaff = activePanel === 'staff' || activePanel === 'clerk';
+    const errorSetter = isStaff ? setStaffError : setAdminError;
+    const formData = isStaff ? staffForm : adminForm;
+    const rememberMe = isStaff ? staffRememberMe : adminRememberMe;
 
     errorSetter('');
     const toastId = toast.loading('Logging in...');
@@ -358,7 +358,7 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
 
       if (res.ok) {
         toast.success('Login successful!', { id: toastId });
-        const targetRole = data.role || (isClerk ? 'clerk' : 'admin');
+        const targetRole = data.role || (isStaff ? 'staff' : 'admin');
         let targetPath = getDashboardPathByRole(targetRole);
         if (targetPath === '/') {
           targetPath = targetRole === 'admin' ? '/admin/dashboard' : '/staff';
@@ -606,15 +606,15 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
             )}
           </div>
 
-          {/* Unified Staff Login Panel (Clerk/Admin) */}
+          {/* Unified Staff Login Panel (Staff/Admin) */}
           <div 
             className={`transition-all duration-400 ease-out ${
-              (activePanel === 'clerk' || activePanel === 'admin')
+              (activePanel === 'staff' || activePanel === 'clerk' || activePanel === 'admin')
                 ? 'opacity-100 transform translate-y-0' 
                 : 'opacity-0 transform -translate-y-4 absolute inset-0 pointer-events-none'
             }`}
           >
-            {(activePanel === 'clerk' || activePanel === 'admin') && (
+            {(activePanel === 'staff' || activePanel === 'clerk' || activePanel === 'admin') && (
               <div className={isModal ? 'bg-white rounded-xl border shadow-sm p-6 md:p-8' : 'bg-white rounded-sm border border-slate-200 shadow-none p-4 sm:p-5'}>
                 <div className={isModal ? 'flex items-start justify-between gap-4 mb-6' : 'flex items-start justify-between gap-3 mb-4'}>
                   <div>
@@ -640,10 +640,10 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                     </label>
                       <input
                       type="email"
-                      value={activePanel === 'clerk' ? clerkForm.email : adminForm.email}
+                      value={activePanel !== 'admin' ? staffForm.email : adminForm.email}
                       onChange={(e) => {
                         const val = e.target.value;
-                        if (activePanel === 'clerk') setClerkForm({ ...clerkForm, email: val });
+                        if (activePanel !== 'admin') setStaffForm({ ...staffForm, email: val });
                         else setAdminForm({ ...adminForm, email: val });
                       }}
                       placeholder="Enter your email"
@@ -658,11 +658,11 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                     </label>
                     <div className="relative">
                       <input
-                        type={(activePanel === 'clerk' ? clerkPasswordVisible : adminPasswordVisible) ? 'text' : 'password'}
-                        value={activePanel === 'clerk' ? clerkForm.password : adminForm.password}
+                        type={(activePanel !== 'admin' ? staffPasswordVisible : adminPasswordVisible) ? 'text' : 'password'}
+                        value={activePanel !== 'admin' ? staffForm.password : adminForm.password}
                         onChange={(e) => {
                           const val = e.target.value;
-                          if (activePanel === 'clerk') setClerkForm({ ...clerkForm, password: val });
+                          if (activePanel !== 'admin') setStaffForm({ ...staffForm, password: val });
                           else setAdminForm({ ...adminForm, password: val });
                         }}
                         placeholder="Enter your password"
@@ -672,13 +672,13 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                       <button
                         type="button"
                         onClick={() => {
-                          if (activePanel === 'clerk') setClerkPasswordVisible(v => !v);
+                          if (activePanel !== 'admin') setStaffPasswordVisible(v => !v);
                           else setAdminPasswordVisible(v => !v);
                         }}
                         aria-label="Toggle password visibility"
                         className="absolute inset-y-0 right-2 flex items-center justify-center px-2 text-gray-500 hover:text-gray-700 focus:outline-none"
                       >
-                        {(activePanel === 'clerk' ? clerkPasswordVisible : adminPasswordVisible) ? (
+                        {(activePanel !== 'admin' ? staffPasswordVisible : adminPasswordVisible) ? (
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -697,10 +697,10 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                         <input
                           id="employee-remember-me"
                           type="checkbox"
-                          checked={activePanel === 'clerk' ? clerkRememberMe : adminRememberMe}
+                          checked={activePanel !== 'admin' ? staffRememberMe : adminRememberMe}
                           onChange={(e) => {
                             const val = e.target.checked;
-                            if (activePanel === 'clerk') setClerkRememberMe(val);
+                            if (activePanel !== 'admin') setStaffRememberMe(val);
                             else setAdminRememberMe(val);
                           }}
                           className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
@@ -711,7 +711,7 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                       </div>
                       <button
                         type="button"
-                        onClick={() => { setMode('forgot-password'); setFpEmail(activePanel === 'clerk' ? clerkForm.email : adminForm.email); }}
+                        onClick={() => { setMode('forgot-password'); setFpEmail(activePanel !== 'admin' ? staffForm.email : adminForm.email); }}
                         className="text-xs text-blue-500 hover:text-blue-700"
                       >
                         Forgot Password?
@@ -725,11 +725,11 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                   >
                     Login
                   </button>
-                  {(activePanel === 'clerk' ? clerkError : adminError) && (
-                    <div className="text-red-600 text-sm mt-2 text-center">{activePanel === 'clerk' ? clerkError : adminError}</div>
+                  {(activePanel !== 'admin' ? staffError : adminError) && (
+                    <div className="text-red-600 text-sm mt-2 text-center">{activePanel !== 'admin' ? staffError : adminError}</div>
                   )}
 
-                  {activePanel === 'clerk' && (
+                  {activePanel !== 'admin' && (
                     <div className="mt-4 pt-3 border-t border-gray-200 flex items-center justify-between text-xs">
                       <span className="text-gray-600">New Staff Member?</span>
                       <Link

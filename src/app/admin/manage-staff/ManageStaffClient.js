@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 export default function ManageStaffClient() {
-  const { staffList, loading, refreshStaff } = useAdmin();
+  const { staffList, loading, updateStaffInList, setStaffActiveStatus } = useAdmin();
   const [activeTab, setActiveTab] = useState('faculty');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('ALL');
@@ -100,10 +100,16 @@ export default function ManageStaffClient() {
         throw new Error(data.error || 'Failed to update staff record');
       }
 
+      // Targeted state update — zero refetches needed!
+      updateStaffInList({
+        ...selectedStaff,
+        ...editedStaff,
+        updated_at: new Date().toISOString()
+      });
+
       toast.success('Staff record updated successfully!', { id: toastId });
       setSelectedStaff(null);
       setEditedStaff({});
-      refreshStaff();
     } catch (error) {
       toast.error(error.message, { id: toastId });
     } finally {
@@ -122,10 +128,12 @@ export default function ManageStaffClient() {
         throw new Error(data.error || 'Failed to deactivate staff account');
       }
 
+      // Targeted state update — zero refetches needed!
+      setStaffActiveStatus(selectedStaff.id, false);
+
       toast.success('Staff account deactivated successfully! You can reactivate it at any time.', { id: toastId });
       setIsDeleteModalOpen(false);
       setSelectedStaff(null);
-      refreshStaff();
     } catch (error) {
       toast.error(error.message, { id: toastId });
       setIsDeleteModalOpen(false);

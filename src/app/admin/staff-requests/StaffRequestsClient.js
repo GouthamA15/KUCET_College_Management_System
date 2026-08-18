@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import RealtimeListener from '@/components/RealtimeListener';
 import { 
   CheckCircle2, XCircle, Search, Clock, 
   AlertTriangle, ShieldCheck
@@ -38,6 +39,47 @@ export default function StaffRequestsClient() {
     fetchRequests();
   }, []);
 
+  // Realtime update handler
+  const handleRealtimeUpdate = useCallback((data) => {
+    if (!data || !data.type || !data.payload) return;
+    const { type, payload } = data;
+
+    if (type === 'STAFF_REGISTRATION_CREATED') {
+      setRequests((prev) => {
+        const exists = prev.some((r) => r.id === payload.id);
+        if (exists) return prev;
+        return [payload, ...prev];
+      });
+      toast(`New staff registration request: ${payload.name}`, { icon: '📝' });
+    } else if (type === 'STAFF_REGISTRATION_APPROVED') {
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.id === payload.id
+            ? {
+                ...r,
+                status: 'APPROVED',
+                account_status: payload.account_status || 'PENDING_ACTIVATION',
+                processed_at: payload.processed_at || new Date().toISOString()
+              }
+            : r
+        )
+      );
+    } else if (type === 'STAFF_REGISTRATION_REJECTED') {
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.id === payload.id
+            ? {
+                ...r,
+                status: 'REJECTED',
+                rejection_reason: payload.rejection_reason || r.rejection_reason,
+                processed_at: payload.processed_at || new Date().toISOString()
+              }
+            : r
+        )
+      );
+    }
+  }, []);
+
   const filteredRequests = useMemo(() => {
     return requests.filter(req => {
       if (statusFilter !== 'ALL' && req.status !== statusFilter) return false;
@@ -71,10 +113,23 @@ export default function StaffRequestsClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to approve');
       
+      // Targeted state update — zero refetches!
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.id === selectedRequest.id
+            ? {
+                ...r,
+                status: 'APPROVED',
+                account_status: 'PENDING_ACTIVATION',
+                processed_at: new Date().toISOString()
+              }
+            : r
+        )
+      );
+
       toast.success('Staff account created and activation email sent!', { id: toastId });
       setIsApproveModalOpen(false);
       setSelectedRequest(null);
-      fetchRequests();
     } catch (err) {
       toast.error(err.message, { id: toastId });
     } finally {
@@ -98,11 +153,24 @@ export default function StaffRequestsClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to reject');
       
+      // Targeted state update — zero refetches!
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.id === selectedRequest.id
+            ? {
+                ...r,
+                status: 'REJECTED',
+                rejection_reason: rejectionReason,
+                processed_at: new Date().toISOString()
+              }
+            : r
+        )
+      );
+
       toast.success('Request rejected.', { id: toastId });
       setIsRejectModalOpen(false);
       setRejectionReason('');
       setSelectedRequest(null);
-      fetchRequests();
     } catch (err) {
       toast.error(err.message, { id: toastId });
     } finally {
@@ -525,6 +593,7 @@ export default function StaffRequestsClient() {
         </div>
       )}
 
+      <RealtimeListener onUpdate={handleRealtimeUpdate} />
     </div>
   );
 }
