@@ -113,6 +113,10 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto', options = {
 
   // 1. Normalize and clean the path (strip base URL if present)
   let cleanPath = path;
+  if (cleanPath.startsWith('data:')) {
+    return cleanPath;
+  }
+
   if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
     try {
       const url = new URL(cleanPath);
@@ -194,7 +198,7 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto', options = {
       resolvedUrl = `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformations}/${cleanPath}`;
     } else {
       // Secure Private Storage (Local Mode): All non-static asset keys are served through /api/assets/view/
-      resolvedUrl = `/api/assets/view/${cleanPath}`;
+      resolvedUrl = `/api/assets/view/${finalCleanPath}`;
     }
   }
 
