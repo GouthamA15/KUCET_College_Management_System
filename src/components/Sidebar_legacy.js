@@ -4,7 +4,7 @@ import { useContext, useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { NAV_MENU_CONFIG } from '@/lib/menu-config';
-import { ClerkContext } from '@/context/ClerkContext';
+import { StaffContext } from '@/context/StaffContext';
 import { StudentContext } from '@/context/StudentContext';
 import { Home, User, Book, Calendar, FileText, Settings, LogOut, _Plus, Wallet, ChevronDown } from 'lucide-react';
 
@@ -27,7 +27,7 @@ const ICON_MAP = {
 export default function Sidebar({ role: initialRole = 'student', isMobileOpen = false, setIsMobileOpen = () => { /* empty */ }, onLogout }) {
   const pathname = usePathname();
   const router = useRouter();
-  const clerkContext = useContext(ClerkContext);
+  const clerkContext = useContext(StaffContext);
   const studentContext = useContext(StudentContext);
   const clerkData = clerkContext?.clerkData;
   const _studentData = studentContext?.studentData;
@@ -95,7 +95,7 @@ export default function Sidebar({ role: initialRole = 'student', isMobileOpen = 
         try { await onLogout(); return; } catch (_e) { /* empty */ }
       }
       try {
-        const endpoint = role === 'student' ? '/api/student/logout' : (role && String(role).startsWith('clerk') ? '/api/clerk/logout' : '/api/auth/logout');
+        const endpoint = role === 'student' ? '/api/student/logout' : (role && String(role).startsWith('clerk') ? '/api/staff/logout' : '/api/auth/logout');
         await fetch(endpoint, { method: 'POST' });
       } catch (_e) { /* empty */ }
       try { localStorage.removeItem('logged_in_student'); } catch (_e) { /* empty */ }
@@ -105,7 +105,7 @@ export default function Sidebar({ role: initialRole = 'student', isMobileOpen = 
     }
     if (action === 'change-password') {
       if (role === 'student') { router.push('/student/settings/security'); return; }
-      if (role && String(role).startsWith('clerk')) { router.push('/clerk/settings/security'); return; }
+      if (role && String(role).startsWith('clerk')) { router.push('/staff/settings/security'); return; }
       router.push('/settings/security');
     }
   };

@@ -425,7 +425,7 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
     setImportStage('importing');
 
     try {
-      const response = await fetch('/api/clerk/admission/bulk-import', {
+      const response = await fetch('/api/staff/admission/bulk-import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ students: previewData, headers: previewHeaders }),

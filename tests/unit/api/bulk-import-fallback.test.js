@@ -32,7 +32,7 @@ describe('Bulk Import Fallback Execution', () => {
 
   it('should support synchronous execution when QSTASH_TOKEN is absent', async () => {
     delete process.env.QSTASH_TOKEN;
-    const { POST } = await import('@/app/api/clerk/admission/bulk-import/route.js');
+    const { POST } = await import('@/app/api/staff/admission/bulk-import/route.js');
     expect(typeof POST).toBe('function');
   });
 });

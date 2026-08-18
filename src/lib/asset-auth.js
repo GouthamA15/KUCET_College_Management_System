@@ -7,7 +7,7 @@ import {
   studentProfileRequests, 
   studentRequests, 
   studentRequestImages,
-  clerks,
+  staffAccounts,
   principal,
   bugReports 
 } from '@/db/schema';
@@ -89,17 +89,17 @@ export async function isUserActive(user) {
       return !!adminRecord;
     }
 
-    if (['scholarship', 'admission', 'faculty', 'clerk'].includes(role) || user.is_hod || user.clerkId) {
-      const clerkId = user.id || user.clerkId;
-      if (!clerkId && !user.email) return false;
+    if (['scholarship', 'admission', 'faculty', 'staff'].includes(role) || user.is_hod || user.staffId || user.clerkId) {
+      const staffId = user.id || user.staffId || user.clerkId;
+      if (!staffId && !user.email) return false;
 
-      const clerkRecord = await db.query.clerks.findFirst({
-        where: clerkId ? eq(clerks.id, clerkId) : eq(clerks.email, user.email),
-        columns: { id: true, is_active: true }
+      const staffRecord = await db.query.staffAccounts.findFirst({
+        where: staffId ? eq(staffAccounts.id, staffId) : eq(staffAccounts.email, user.email),
+        columns: { id: true, account_status: true }
       });
 
-      if (!clerkRecord) return false;
-      return clerkRecord.is_active !== false && clerkRecord.is_active !== 0;
+      if (!staffRecord) return false;
+      return staffRecord.account_status === 'ACTIVE';
     }
 
     if (role === 'student' || user.student_id || user.roll_no) {

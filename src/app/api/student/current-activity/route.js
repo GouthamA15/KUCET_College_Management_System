@@ -4,7 +4,7 @@ import {
   semesters, 
   branchTimetable, 
   syllabusSubjects, 
-  clerks 
+  staffAccounts 
 } from '@/db/schema';
 import { eq, and, desc, like, or } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
@@ -60,12 +60,12 @@ export async function GET(_req) {
     const timetableRows = await db.select({
       room_no: branchTimetable.room_no,
       subject_name: syllabusSubjects.subject_name,
-      faculty_name: clerks.name,
+      faculty_name: staffAccounts.name,
       subject_code: branchTimetable.subject_code
     })
     .from(branchTimetable)
     .leftJoin(syllabusSubjects, eq(branchTimetable.subject_code, syllabusSubjects.subject_code))
-    .leftJoin(clerks, eq(branchTimetable.faculty_id, clerks.id))
+    .leftJoin(staffAccounts, eq(branchTimetable.faculty_id, staffAccounts.id))
     .where(and(
       eq(branchTimetable.branch, branch),
       eq(branchTimetable.semester, semester),

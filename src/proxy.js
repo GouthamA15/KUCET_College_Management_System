@@ -36,7 +36,7 @@ export default async function proxy(request) {
   const { cookies } = request;
 
   const adminAuth = cookies.get('admin_auth');
-  const clerkAuth = cookies.get('clerk_auth');
+  const staffAuth = cookies.get('staff_auth');
   const studentAuth = cookies.get('student_auth');
   const jwtSecret = process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long';
 
@@ -46,7 +46,7 @@ export default async function proxy(request) {
 
   // 1. Verify existing tokens
   let adminRes = adminAuth ? await verify(adminAuth.value, jwtSecret) : { payload: null, expired: false };
-  let clerkRes = clerkAuth ? await verify(clerkAuth.value, jwtSecret) : { payload: null, expired: false };
+  let staffRes = staffAuth ? await verify(staffAuth.value, jwtSecret) : { payload: null, expired: false };
   let studentRes = studentAuth ? await verify(studentAuth.value, jwtSecret) : { payload: null, expired: false };
 
   // Base response
@@ -54,15 +54,15 @@ export default async function proxy(request) {
   response.headers.set('x-request-id', requestId);
 
   const adminPayload = adminRes.payload;
-  const clerkPayload = clerkRes.payload;
+  const staffPayload = staffRes.payload;
   const studentPayload = studentRes.payload;
 
   // ─── Route: Home "/" ──────────────────────────────────────────────────────
   if (pathname === '/') {
     // If valid payload exists, immediately redirect to dashboard
     if (adminPayload) return NextResponse.redirect(new URL('/admin/dashboard', request.url), 303);
-    if (clerkPayload) {
-      const dashboard = getDashboardPathByRole(clerkPayload.role);
+    if (staffPayload) {
+      const dashboard = getDashboardPathByRole(staffPayload.role);
       return NextResponse.redirect(new URL(dashboard, request.url), 303);
     }
     if (studentPayload) {
@@ -77,23 +77,23 @@ export default async function proxy(request) {
   // ─── Protect API Routes ───────────────────────────────────────────────────
   if (pathname.startsWith('/api/admin')) {
     if (!adminPayload) return handleUnauthorized(request);
-  } else if (pathname.startsWith('/api/clerk')) {
-    if (!clerkPayload) return handleUnauthorized(request);
+  } else if (pathname.startsWith('/api/staff')) {
+    if (!staffPayload) return handleUnauthorized(request);
   }
 
   // ─── Protect UI Routes ────────────────────────────────────────────────────
   if (pathname.startsWith('/admin')) {
     if (!adminPayload) return handleUnauthorized(request);
     if (pathname === '/admin') return NextResponse.redirect(new URL('/admin/dashboard', request.url), 303);
-  } else if (pathname.startsWith('/clerk')) {
-    if (!clerkPayload) return handleUnauthorized(request);
-    if (pathname === '/clerk') {
-      const dashboard = getDashboardPathByRole(clerkPayload.role);
+  } else if (pathname === '/staff' || pathname.startsWith('/staff/')) {
+    if (!staffPayload) return handleUnauthorized(request);
+    if (pathname === '/staff') {
+      const dashboard = getDashboardPathByRole(staffPayload.role);
       return NextResponse.redirect(new URL(dashboard, request.url), 303);
     }
-    if (pathname.startsWith('/clerk/scholarship') && clerkPayload.role !== 'scholarship') return NextResponse.redirect(new URL(getDashboardPathByRole(clerkPayload.role), request.url), 303);
-    if (pathname.startsWith('/clerk/admission') && clerkPayload.role !== 'admission') return NextResponse.redirect(new URL(getDashboardPathByRole(clerkPayload.role), request.url), 303);
-    if (pathname.startsWith('/clerk/faculty') && clerkPayload.role !== 'faculty') return NextResponse.redirect(new URL(getDashboardPathByRole(clerkPayload.role), request.url), 303);
+    if (pathname.startsWith('/staff/scholarship') && staffPayload.role !== 'scholarship') return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
+    if ((pathname.startsWith('/staff/admission') || pathname.startsWith('/staff/academic-calendar')) && staffPayload.role !== 'admission') return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
+    if (pathname.startsWith('/staff/faculty') && staffPayload.role !== 'faculty') return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
   } else if (pathname.startsWith('/student')) {
     if (!studentPayload) return handleUnauthorized(request);
     const isVerified = studentPayload.is_email_verified && studentPayload.has_password_set;

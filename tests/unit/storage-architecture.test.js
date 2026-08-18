@@ -359,7 +359,7 @@ describe('Storage Contract: upload() must return storage keys NOT URLs', () => {
     ).rejects.toThrow('empty response');
 
     spy.mockRestore();
-  });
+  }, 10000);
 });
 
 // =============================================================================

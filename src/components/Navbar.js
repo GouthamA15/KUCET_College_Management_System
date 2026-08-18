@@ -2,12 +2,12 @@
 
 import { useState, useContext } from 'react';
 import { _useStudent, StudentContext } from '@/context/StudentContext';
-import { _useClerk, ClerkContext } from '@/context/ClerkContext';
+import { _useStaff, StaffContext } from '@/context/StaffContext';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import ChangePasswordModal from './ChangePasswordModal';
 // import NotificationDropdown from './NotificationDropdown';
-// import ClerkNotificationDropdown from './clerk/ClerkNotificationDropdown';
+// import ClerkNotificationDropdown from './staff/ClerkNotificationDropdown';
 import { NAV_MENU_CONFIG } from '@/lib/menu-config';
 import { logoutByRole } from '@/lib/logout';
 
@@ -21,7 +21,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   // Use useContext directly to avoid throwing when Provider is missing (e.g. guest home)
   // Hooks must be called unconditionally at the top level
   const studentContext = useContext(StudentContext);
-  const clerkContext = useContext(ClerkContext);
+  const clerkContext = useContext(StaffContext);
 
   const studentData = studentContext?.studentData;
   const clerkData = clerkContext?.clerkData;
@@ -139,7 +139,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
     <>
       <nav className={`bg-[#0b3578] shadow-lg ${sticky ? 'sticky z-50' : 'relative z-20'} pt-[env(safe-area-inset-top)]`} style={sticky ? { top: 'var(--site-header-height, 72px)' } : undefined}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className={`flex items-center h-11 ${minimalNav ? 'justify-start' : 'justify-between'}`}>
+          <div className={`flex items-center h-11 lg:h-12 ${minimalNav ? 'justify-start' : 'justify-between'}`}>
             <div className={`flex items-center gap-4 ${minimalNav ? 'pl-2 sm:pl-4' : 'shrink-0'}`}>
               <span className="text-white text-sm font-bold tracking-wide uppercase">{brandLabel}</span>
             </div>
@@ -384,7 +384,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
         onClose={() => setShowChangePasswordModal(false)}
         apiEndpoint={
             effectiveRole === 'student' ? '/api/auth/change-password/student' :
-            effectiveRole.startsWith('clerk') ? '/api/auth/change-password/clerk' : ''
+            effectiveRole.startsWith('staff') ? '/api/auth/change-password/staff' : ''
           }
       />
     </>

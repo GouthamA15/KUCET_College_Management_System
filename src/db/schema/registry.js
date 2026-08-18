@@ -162,7 +162,7 @@ export const studentProfileRequests = mysqlTable('student_profile_requests', {
 
 export const studentImportLogs = mysqlTable('student_import_logs', {
   id: int('id').autoincrement().primaryKey().notNull(),
-  clerk_id: int('clerk_id').notNull(),
+  staff_id: int('staff_id').notNull(),
   total_records: int('total_records').notNull(),
   file_name: varchar('file_name', { length: 255 }),
   created_at: timestamp('created_at').defaultNow(),

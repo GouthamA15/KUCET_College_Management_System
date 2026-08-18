@@ -114,7 +114,7 @@ export const POST = wrapHandler({
     const response = apiResponse({ student: profile, success: true });
 
     response.cookies.delete('admin_auth');
-    response.cookies.delete('clerk_auth');
+    response.cookies.delete('staff_auth');
 
     const userAgent = req.headers.get('user-agent') || 'Unknown';
     const { issueStudentAuthCookie } = await import('@/lib/auth-utils');

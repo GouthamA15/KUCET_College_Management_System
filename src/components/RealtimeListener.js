@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import { StudentContext } from '@/context/StudentContext';
-import { ClerkContext } from '@/context/ClerkContext';
+import { StaffContext } from '@/context/StaffContext';
 
 // Shared state for all instances of RealtimeListener
 let sharedSupabaseClient = null;
@@ -170,7 +170,7 @@ function ensureSupabaseChannel() {
 
 export default function RealtimeListener({ onUpdate, enableNotifications = false }) {
   const { studentData } = useContext(StudentContext) || { /* empty */ };
-  const { clerkData } = useContext(ClerkContext) || { /* empty */ };
+  const { clerkData } = useContext(StaffContext) || { /* empty */ };
   
   const studentDataRef = useRef(studentData);
   const clerkDataRef = useRef(clerkData);

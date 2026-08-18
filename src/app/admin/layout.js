@@ -39,7 +39,7 @@ export default function AdminLayout({ children }) {
         )}
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-h-0 relative lg:pt-(--site-header-height,72px) lg:ml-(--desktop-sidebar-offset,64px) transition-[margin-left] duration-220 ease-[cubic-bezier(0.2,0.8,0.2,1)]">
+        <div className="flex-1 flex flex-col min-h-0 relative lg:ml-(--desktop-sidebar-offset,64px) transition-[margin-left] duration-220 ease-[cubic-bezier(0.2,0.8,0.2,1)]">
 
           {/* Mobile Navigation */}
           <div className="lg:hidden sticky top-0 z-30 shadow-sm">
@@ -57,7 +57,7 @@ export default function AdminLayout({ children }) {
             </div>
 
             {/* Page Content (single, consistent top spacing below header/topbar) */}
-            <div className="flex-1 flex flex-col min-h-0 pt-(--app-content-top-gap,20px) lg:pt-(--app-fixed-header-offset,112px)">
+            <div className="flex-1 flex flex-col min-h-0 pt-(--app-content-top-gap,20px) lg:pt-(--app-fixed-header-offset,72px)">
               <main className="flex-1 p-4 lg:p-8 pt-0">
                 {children}
               </main>

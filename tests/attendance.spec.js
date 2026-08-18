@@ -110,7 +110,7 @@ test.describe('Attendance Marking & Lecture Topic Flow', () => {
     await page.goto('/');
 
     // Intercept lecture topic update API via page.route (applies to fetch within page context)
-    await page.route('/api/clerk/faculty/attendance/session/topic', async (route) => {
+    await page.route('/api/staff/faculty/attendance/session/topic', async (route) => {
       const payload = JSON.parse(route.request().postData() || '{}');
       await route.fulfill({
         status: 200,
@@ -125,7 +125,7 @@ test.describe('Attendance Marking & Lecture Topic Flow', () => {
 
     // Execute fetch from within the page context — this respects route mocking
     const result = await page.evaluate(async () => {
-      const res = await fetch('/api/clerk/faculty/attendance/session/topic', {
+      const res = await fetch('/api/staff/faculty/attendance/session/topic', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

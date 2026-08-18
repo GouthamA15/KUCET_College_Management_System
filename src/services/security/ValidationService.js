@@ -1,7 +1,6 @@
 import { db } from '@/db';
 import { 
   students, 
-  clerks, 
   branchTimetable, 
   facultySubjectAssignments, 
   syllabusStructure,
@@ -43,13 +42,16 @@ export class ValidationService {
       return { canDelete: false, reason: `Cannot delete: ${studentCount} students are still assigned to this branch.` };
     }
 
-    // 3. Count Clerks/Faculty
-    const clerkRows = await db.select({ count: sql`count(*)` })
-      .from(clerks)
-      .where(eq(clerks.branch, branchName));
-    const clerkCount = Number(clerkRows[0]?.count || 0);
-    if (clerkCount > 0) {
-      return { canDelete: false, reason: `Cannot delete: ${clerkCount} staff members are still assigned to this branch.` };
+    // 3. Count Staff
+    const { staffAccounts, staffAcademicAffiliations, academicDepartments } = await import('@/db/schema');
+    const staffRows = await db.select({ count: sql`count(*)` })
+      .from(staffAccounts)
+      .innerJoin(staffAcademicAffiliations, eq(staffAccounts.id, staffAcademicAffiliations.staff_account_id))
+      .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
+      .where(eq(academicDepartments.department_code, branchName));
+    const staffCount = Number(staffRows[0]?.count || 0);
+    if (staffCount > 0) {
+      return { canDelete: false, reason: `Cannot delete: ${staffCount} staff members are still assigned to this branch.` };
     }
 
     // 4. Count Timetable Slots

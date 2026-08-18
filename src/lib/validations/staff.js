@@ -3,7 +3,7 @@ import { z } from 'zod';
 /**
  * Zod schema for Clerk/Staff roles.
  */
-export const clerkRoleSchema = z.enum([
+export const staffRoleSchema = z.enum([
   'admin',
   'clerkAdmission',
   'clerkScholarship',
@@ -17,7 +17,7 @@ export const clerkRoleSchema = z.enum([
  * Zod schema for creating/updating a clerk record.
  * Used by Super Admin.
  */
-export const clerkSchema = z.object({
+export const staffSchema = z.object({
   name: z.string()
     .trim()
     .min(3, "Name must be at least 3 characters")
@@ -27,7 +27,7 @@ export const clerkSchema = z.object({
     .trim()
     .email("Invalid email address")
     .toLowerCase(),
-  role: clerkRoleSchema,
+  role: staffRoleSchema,
   branch: z.string().trim().max(50).nullable().optional(),
   is_hod: z.boolean().default(false),
   status: z.enum(['active', 'inactive']).default('active'),
@@ -72,3 +72,5 @@ export const scholarshipSanctionSchema = z.object({
   released_amount: z.number().min(0).max(150000).optional().nullable(),
   status: z.enum(['PENDING', 'SANCTIONED', 'RELEASED', 'REJECTED'])
 });
+
+

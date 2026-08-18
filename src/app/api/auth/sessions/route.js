@@ -14,7 +14,7 @@ export async function GET(_req) {
     
     if (!user) {
       user = await getAuthUser('clerk');
-      userType = 'CLERK';
+      userType = 'STAFF';
     }
 
     if (!user) {
@@ -33,11 +33,11 @@ export async function GET(_req) {
       });
       dbId = student?.id;
     } else {
-      const clerk = await db.query.clerks.findFirst({
-        where: (clerks, { eq }) => eq(clerks.email, user.email),
+      const staff = await db.query.staffAccounts.findFirst({
+        where: (staffAccounts, { eq }) => eq(staffAccounts.email, user.email),
         columns: { id: true }
       });
-      dbId = clerk?.id;
+      dbId = staff?.id;
     }
 
     if (!dbId) return apiError('User not found', 404);
@@ -66,7 +66,7 @@ export async function DELETE(req) {
     let userType = 'STUDENT';
     if (!user) {
       user = await getAuthUser('clerk');
-      userType = 'CLERK';
+      userType = 'STAFF';
     }
     if (!user) return apiError('Unauthorized', 401);
 
@@ -82,11 +82,11 @@ export async function DELETE(req) {
       });
       dbId = student?.id;
     } else {
-      const clerk = await db.query.clerks.findFirst({
-        where: (clerks, { eq }) => eq(clerks.email, user.email),
+      const staff = await db.query.staffAccounts.findFirst({
+        where: (staffAccounts, { eq }) => eq(staffAccounts.email, user.email),
         columns: { id: true }
       });
-      dbId = clerk?.id;
+      dbId = staff?.id;
     }
 
     const success = await SecurityService.revokeSession(userType, dbId, sessionId);

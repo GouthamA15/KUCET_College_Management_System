@@ -37,8 +37,8 @@ export function usePasswordManagement({ role, roll_no, isPasswordSet, onSuccess 
     
     setPwSaving(true);
     try {
-      const url = role === 'clerk' ? '/api/auth/change-password/clerk' : '/api/student/set-password';
-      const body = role === 'clerk' 
+      const url = role === 'staff' ? '/api/auth/change-password/staff' : '/api/student/set-password';
+      const body = role === 'staff' 
         ? { oldPassword: currentPassword, newPassword }
         : { rollno: roll_no, password: newPassword, currentPassword: isPasswordSet ? currentPassword : null };
 

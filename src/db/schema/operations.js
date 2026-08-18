@@ -57,6 +57,22 @@ export const branchTimetable = mysqlTable('branch_timetable', {
   uqTimetableSlot: uniqueIndex('uq_timetable_slot').on(table.branch, table.semester, table.section, table.day_of_week, table.period_number, table.academic_year),
 }));
 
+export const facultyHodAssignments = mysqlTable('faculty_hod_assignments', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  staff_account_id: int('staff_account_id').notNull(),
+  department_code: varchar('department_code', { length: 20 }).notNull(),
+  academic_year: varchar('academic_year', { length: 9 }).notNull(),
+  start_date: date('start_date').notNull(),
+  end_date: date('end_date'),
+  is_active: boolean('is_active').default(true).notNull(),
+  assigned_by: int('assigned_by'),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').onUpdateNow(),
+}, (table) => ({
+  staffIdIdx: index('idx_hod_staff_id').on(table.staff_account_id),
+  deptIdx: index('idx_hod_dept_code').on(table.department_code),
+}));
+
 export const facultySubjectAssignments = mysqlTable('faculty_subject_assignments', {
   id: int('id').autoincrement().primaryKey().notNull(),
   faculty_id: int('faculty_id').notNull(),
@@ -98,7 +114,7 @@ export const facultySubstitutions = mysqlTable('faculty_substitutions', {
   substitute_faculty_id: int('substitute_faculty_id').notNull(),
   substitution_date: date('substitution_date').notNull(),
   created_at: timestamp('created_at').defaultNow(),
-  created_by_clerk_id: int('created_by_clerk_id'),
+  created_by_staff_id: int('created_by_staff_id'),
 }, (table) => ({
   lookupIdx: index('idx_subst_lookup').on(table.original_assignment_id, table.substitution_date),
   substituteIdx: index('idx_subst_faculty').on(table.substitute_faculty_id),
@@ -121,7 +137,7 @@ export const studentRequests = mysqlTable('student_requests', {
   completed_at: timestamp('completed_at'),
   reject_reason: text('reject_reason'),
   generated_attendance: varchar('generated_attendance', { length: 10 }),
-  action_by_clerk_id: int('action_by_clerk_id'),
+  action_by_staff_id: int('action_by_staff_id'),
   action_by_role: varchar('action_by_role', { length: 50 }),
   is_flagged: boolean('is_flagged').default(false),
   flag_details: json('flag_details'),

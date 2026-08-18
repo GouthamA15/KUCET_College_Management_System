@@ -47,8 +47,8 @@ const icons = {
 const labelToIcon = {
   'DASHBOARD': icons.dashboard,
   'PAYMENTS': icons.payments,
-  'MANAGE CLERKS': icons.manageClerks,
-  'CREATE CLERK': icons.createClerk,
+  'MANAGE STAFF': icons.manageClerks,
+  'STAFF REQUESTS': icons.createClerk,
   'INFRASTRUCTURE': icons.infrastructure,
   'AUDIT TRAILS': icons.auditLogs,
   'VERIFICATIONS': icons.verifications,

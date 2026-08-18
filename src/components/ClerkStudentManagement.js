@@ -1,11 +1,11 @@
 "use client";
 import React, { useState } from 'react';
 import BulkImportStudents from '@/components/BulkImportStudents';
-import AddNewStudent from './clerk/student-management/AddNewStudent';
-import FetchStudent from './clerk/student-management/FetchStudent';
-import ViewEditStudent from './clerk/student-management/ViewEditStudent';
-import ExportStudents from './clerk/student-management/ExportStudents';
-import StudentHistoryCard from './clerk/student-management/StudentHistoryCard';
+import AddNewStudent from './staff/student-management/AddNewStudent';
+import FetchStudent from './staff/student-management/FetchStudent';
+import ViewEditStudent from './staff/student-management/ViewEditStudent';
+import ExportStudents from './staff/student-management/ExportStudents';
+import StudentHistoryCard from './staff/student-management/StudentHistoryCard';
 
 export default function ClerkStudentManagement({ clerkId }) {
   const [activeAction, setActiveAction] = useState('fetch');

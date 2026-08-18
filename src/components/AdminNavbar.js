@@ -24,12 +24,8 @@ export default function AdminNavbar() {
                 Dashboard
                 <span className="absolute left-0 -bottom-1 w-full h-0.5 bg-white scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></span>
               </Link>
-              <Link href="/admin/manage-clerks" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
-                Manage Clerks
-                <span className="absolute left-0 -bottom-1 w-full h-0.5 bg-white scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></span>
-              </Link>
-              <Link href="/admin/create-clerk" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
-                Create Clerk
+              <Link href="/admin/manage-staff" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                Manage Staff
                 <span className="absolute left-0 -bottom-1 w-full h-0.5 bg-white scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></span>
               </Link>
               <button onClick={handleLogout} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
@@ -56,8 +52,7 @@ export default function AdminNavbar() {
         <div className={`md:hidden bg-[#0a2d66] overflow-hidden transition-all duration-250 ease-in-out ${mobileMenuOpen ? 'opacity-100' : 'opacity-0'}`} style={{ transform: mobileMenuOpen ? 'translateY(0)' : 'translateY(-8px)', maxHeight: mobileMenuOpen ? '320px' : '0px' }}>
           <div className="px-4 pt-2 pb-3">
             <Link href="/admin/dashboard" className="block px-3 py-2 text-white">Dashboard</Link>
-            <Link href="/admin/manage-clerks" className="block px-3 py-2 text-white">Manage Clerks</Link>
-            <Link href="/admin/create-clerk" className="block px-3 py-2 text-white">Create Clerk</Link>
+            <Link href="/admin/manage-staff" className="block px-3 py-2 text-white">Manage Staff</Link>
             <button onClick={() => { setMobileMenuOpen(false); handleLogout(); }} className="w-full text-left px-3 py-2 text-white">Logout</button>
           </div>
         </div>
@@ -66,3 +61,4 @@ export default function AdminNavbar() {
     </>
   );
 }
+

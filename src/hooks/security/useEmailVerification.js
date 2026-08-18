@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 
-export function useEmailVerification(roll_no, initialEmail, onVerified) {
+export function useEmailVerification(identifier, initialEmail, onVerified, role = 'student') {
   const [emailInput, setEmailInput] = useState(initialEmail || '');
   const [otpInput, setOtpInput] = useState('');
   const [emailSending, setEmailSending] = useState(false);
@@ -10,6 +10,14 @@ export function useEmailVerification(roll_no, initialEmail, onVerified) {
   const [emailEditing, setEmailEditing] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
   const timerRef = useRef(null);
+
+  const [prevInitialEmail, setPrevInitialEmail] = useState(initialEmail);
+  if (initialEmail !== prevInitialEmail) {
+    setPrevInitialEmail(initialEmail);
+    if (!emailEditing) {
+      setEmailInput(initialEmail);
+    }
+  }
 
   useEffect(() => {
     return () => {
@@ -39,7 +47,7 @@ export function useEmailVerification(roll_no, initialEmail, onVerified) {
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput || '');
 
   const handleSendOtp = useCallback(async () => {
-    if (!emailInput || !roll_no || resendCountdown > 0) return;
+    if (!emailInput || !identifier || resendCountdown > 0) return;
 
     if (!isEmailValid) {
       toast.error('Please enter a valid email address.');
@@ -48,10 +56,15 @@ export function useEmailVerification(roll_no, initialEmail, onVerified) {
 
     setEmailSending(true);
     try {
-      const res = await fetch('/api/student/send-update-email-otp', {
+      const url = role === 'student' ? '/api/student/send-update-email-otp' : '/api/staff/send-update-email-otp';
+      const payload = role === 'student' 
+        ? { rollno: identifier, email: emailInput } 
+        : { id: identifier, email: emailInput };
+
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rollno: roll_no, email: emailInput })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (res.ok) {
@@ -66,16 +79,21 @@ export function useEmailVerification(roll_no, initialEmail, onVerified) {
     } finally {
       setEmailSending(false);
     }
-  }, [emailInput, roll_no, resendCountdown, startCountdown, isEmailValid]);
+  }, [emailInput, identifier, resendCountdown, startCountdown, isEmailValid, role]);
 
   const handleVerifyOtp = useCallback(async () => {
-    if (!otpInput || !roll_no) return;
+    if (!otpInput || !identifier) return;
     setOtpVerifying(true);
     try {
-      const res = await fetch('/api/student/verify-update-email-otp', {
+      const url = role === 'student' ? '/api/student/verify-update-email-otp' : '/api/staff/verify-update-email-otp';
+      const payload = role === 'student' 
+        ? { rollno: identifier, otp: otpInput, email: emailInput }
+        : { id: identifier, otp: otpInput, email: emailInput };
+
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rollno: roll_no, otp: otpInput, email: emailInput })
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
         toast.success('Email verified successfully.');
@@ -92,7 +110,7 @@ export function useEmailVerification(roll_no, initialEmail, onVerified) {
     } finally {
       setOtpVerifying(false);
     }
-  }, [otpInput, roll_no, emailInput, onVerified]);
+  }, [otpInput, identifier, emailInput, onVerified, role]);
 
   return {
     emailInput, setEmailInput,

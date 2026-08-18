@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { clerks, clerkRegistrationRequests } from '@/db/schema';
+import { staffAccounts, staffAccountRoles, staffRoles, staffAcademicAffiliations, academicDepartments, staffRegistrationRequests } from '@/db/schema';
 import { eq, or, and } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
@@ -59,11 +59,11 @@ export class ClerkRegistrationService {
     }
 
     // 3. Duplicate check in active clerks
-    const existingClerk = await db.select({ id: clerks.id })
-      .from(clerks)
+    const existingClerk = await db.select({ id: staffAccounts.id })
+      .from(staffAccounts)
       .where(or(
-        eq(clerks.email, cleanEmail),
-        eq(clerks.employee_id, cleanEmpId)
+        eq(staffAccounts.email, cleanEmail),
+        eq(staffAccounts.employee_id, cleanEmpId)
       ))
       .limit(1);
 
@@ -72,14 +72,14 @@ export class ClerkRegistrationService {
     }
 
     // 4. Duplicate check in pending registration requests
-    const existingPending = await db.select({ id: clerkRegistrationRequests.id })
-      .from(clerkRegistrationRequests)
+    const existingPending = await db.select({ id: staffRegistrationRequests.id })
+      .from(staffRegistrationRequests)
       .where(and(
         or(
-          eq(clerkRegistrationRequests.email, cleanEmail),
-          eq(clerkRegistrationRequests.employee_id, cleanEmpId)
+          eq(staffRegistrationRequests.email, cleanEmail),
+          eq(staffRegistrationRequests.employee_id, cleanEmpId)
         ),
-        eq(clerkRegistrationRequests.status, 'PENDING')
+        eq(staffRegistrationRequests.status, 'PENDING')
       ))
       .limit(1);
 
@@ -88,20 +88,18 @@ export class ClerkRegistrationService {
     }
 
     // 5. Mobile encryption & hashing
-    let encryptedMobile = null;
     let mobileHash = null;
     if (mobile) {
       const cleanMobile = mobile.replace(/[^0-9]/g, '');
       if (cleanMobile) {
-        encryptedMobile = encrypt(cleanMobile);
-        mobileHash = hashForIndex(cleanMobile);
+        mobileHash = encrypt(cleanMobile); // Store the actual encrypted mobile number here as per user instruction
       }
     }
 
     const catInfo = STAFF_CATEGORIES[category];
 
     // 6. Insert registration request
-    const [result] = await db.insert(clerkRegistrationRequests).values({
+    const [result] = await db.insert(staffRegistrationRequests).values({
       name: name.trim(),
       email: cleanEmail,
       employee_id: cleanEmpId,
@@ -109,7 +107,6 @@ export class ClerkRegistrationService {
       branch: validatedBranch,
       department: validatedBranch || catInfo.label,
       designation: catInfo.label,
-      mobile: encryptedMobile,
       mobile_hash: mobileHash,
       pfp: pfp || null,
       signature: signature || null,
@@ -133,18 +130,18 @@ export class ClerkRegistrationService {
   static async getRequests(status = 'PENDING', staffCategory = null) {
     const conditions = [];
     if (status) {
-      conditions.push(eq(clerkRegistrationRequests.status, status));
+      conditions.push(eq(staffRegistrationRequests.status, status));
     }
     if (staffCategory) {
-      conditions.push(eq(clerkRegistrationRequests.staff_category, staffCategory.toUpperCase()));
+      conditions.push(eq(staffRegistrationRequests.staff_category, staffCategory.toUpperCase()));
     }
 
-    let query = db.select().from(clerkRegistrationRequests);
+    let query = db.select().from(staffRegistrationRequests);
     if (conditions.length > 0) {
       query = query.where(and(...conditions));
     }
 
-    const requests = await query.orderBy(clerkRegistrationRequests.created_at);
+    const requests = await query.orderBy(staffRegistrationRequests.created_at);
     return requests;
   }
 
@@ -153,8 +150,8 @@ export class ClerkRegistrationService {
    */
   static async approveRequest(requestId, adminId) {
     const reqs = await db.select()
-      .from(clerkRegistrationRequests)
-      .where(eq(clerkRegistrationRequests.id, requestId))
+      .from(staffRegistrationRequests)
+      .where(eq(staffRegistrationRequests.id, requestId))
       .limit(1);
 
     if (reqs.length === 0) {
@@ -177,32 +174,61 @@ export class ClerkRegistrationService {
     const targetBranch = request.branch || null;
 
     // 3. Create active clerk/staff account
-    const [clerkResult] = await db.insert(clerks).values({
+    
+    let roleRows = await db.select({ id: staffRoles.id }).from(staffRoles).where(eq(staffRoles.role_code, targetRole)).limit(1);
+    let roleId = null;
+    if (roleRows.length > 0) roleId = roleRows[0].id;
+    else {
+      const [rRes] = await db.insert(staffRoles).values({ role_code: targetRole, role_name: targetRole });
+      roleId = rRes.insertId;
+    }
+
+    const [clerkResult] = await db.insert(staffAccounts).values({
       name: request.name,
       email: request.email,
       employee_id: request.employee_id,
       password_hash: passwordHash,
-      role: targetRole,
-      branch: targetBranch,
-      is_hod: false, // HOD is assigned later by admin
-      mobile: request.mobile,
+      staff_category: categoryKey,
+      designation: catInfo.label,
       mobile_hash: request.mobile_hash,
       pfp: request.pfp,
       signature: request.signature,
-      is_active: true,
-      must_change_password: true,
+      account_status: 'PENDING_ACTIVATION',
     });
+    
+    const newStaffId = clerkResult.insertId;
+
+    await db.insert(staffAccountRoles).values({
+      staff_account_id: newStaffId,
+      role_id: roleId
+    });
+
+    if (targetBranch) {
+      let deptRows = await db.select({ id: academicDepartments.id }).from(academicDepartments).where(eq(academicDepartments.department_code, targetBranch)).limit(1);
+      let deptId = null;
+      if (deptRows.length > 0) deptId = deptRows[0].id;
+      else {
+         const [dRes] = await db.insert(academicDepartments).values({ code: targetBranch, name: targetBranch });
+         deptId = dRes.insertId;
+      }
+      await db.insert(staffAcademicAffiliations).values({
+        staff_account_id: newStaffId,
+        department_id: deptId,
+        is_hod: false
+      });
+    }
+    // Dummy newClerkId assignment to avoid ReferenceError because I redefined it above
 
     const newClerkId = clerkResult.insertId;
 
     // 4. Update request status
-    await db.update(clerkRegistrationRequests)
+    await db.update(staffRegistrationRequests)
       .set({
         status: 'APPROVED',
         processed_at: new Date(),
         processed_by_admin_id: adminId,
       })
-      .where(eq(clerkRegistrationRequests.id, requestId));
+      .where(eq(staffRegistrationRequests.id, requestId));
 
     // 5. Send approval email with credentials
     const baseUrl = getBaseUrl();
@@ -245,8 +271,8 @@ export class ClerkRegistrationService {
    */
   static async rejectRequest(requestId, adminId, reason = '') {
     const reqs = await db.select()
-      .from(clerkRegistrationRequests)
-      .where(eq(clerkRegistrationRequests.id, requestId))
+      .from(staffRegistrationRequests)
+      .where(eq(staffRegistrationRequests.id, requestId))
       .limit(1);
 
     if (reqs.length === 0) {
@@ -262,14 +288,14 @@ export class ClerkRegistrationService {
     const catInfo = STAFF_CATEGORIES[request.staff_category] || STAFF_CATEGORIES.FACULTY;
 
     // 1. Update request status
-    await db.update(clerkRegistrationRequests)
+    await db.update(staffRegistrationRequests)
       .set({
         status: 'REJECTED',
         rejection_reason: rejectionReason,
         processed_at: new Date(),
         processed_by_admin_id: adminId,
       })
-      .where(eq(clerkRegistrationRequests.id, requestId));
+      .where(eq(staffRegistrationRequests.id, requestId));
 
     // 2. Send rejection email
     const emailSent = await sendInstitutionalEmail({
@@ -307,8 +333,8 @@ export class ClerkRegistrationService {
     }
 
     const clerkRows = await db.select()
-      .from(clerks)
-      .where(eq(clerks.id, clerkId))
+      .from(staffAccounts)
+      .where(eq(staffAccounts.id, clerkId))
       .limit(1);
 
     if (clerkRows.length === 0) {
@@ -322,13 +348,12 @@ export class ClerkRegistrationService {
     }
 
     const newHash = await bcrypt.hash(newPassword, 10);
-    await db.update(clerks)
+    await db.update(staffAccounts)
       .set({
         password_hash: newHash,
-        must_change_password: false,
-        password_changed_at: new Date(),
+        account_status: 'ACTIVE'
       })
-      .where(eq(clerks.id, clerkId));
+      .where(eq(staffAccounts.id, clerkId));
 
     logger.info({ clerkId }, '[CLERK_REGISTRATION] Password changed successfully');
 

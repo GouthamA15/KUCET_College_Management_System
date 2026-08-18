@@ -1,6 +1,6 @@
 import { 
   mysqlTable, varchar, int, boolean, text, timestamp, 
-  mysqlEnum, bigint, index, uniqueIndex, date
+  mysqlEnum, bigint, index, uniqueIndex, date, json
 } from 'drizzle-orm/mysql-core';
 
 export const students = mysqlTable('students', {
@@ -19,9 +19,9 @@ export const students = mysqlTable('students', {
   email_verified_at: timestamp('email_verified_at'),
   password_hash: varchar('password_hash', { length: 255 }),
   admission_date: date('admission_date'),
-  added_by_clerk_id: int('added_by_clerk_id'),
+  added_by_staff_id: int('added_by_staff_id'),
   updated_at: timestamp('updated_at').onUpdateNow(),
-  updated_by_clerk_id: int('updated_by_clerk_id'),
+  updated_by_staff_id: int('updated_by_staff_id'),
   student_status: mysqlEnum('student_status', ['ACTIVE', 'DISCONTINUED']).default('ACTIVE'),
   academic_status: mysqlEnum('academic_status', ['REGULAR', 'ACTIVE', 'GRADUATED', 'DETAINED', 'SUSPENDED', 'DROPPED']).default('ACTIVE'),
   academic_offset_years: int('academic_offset_years').default(0),
@@ -64,17 +64,17 @@ export const clerks = mysqlTable('clerks', {
   employeeIdIdx: index('idx_clerks_employee_id').on(table.employee_id),
 }));
 
-export const clerkRegistrationRequests = mysqlTable('clerk_registration_requests', {
+export const staffRegistrationRequests = mysqlTable('staff_registration_requests', {
   id: int('id').autoincrement().primaryKey().notNull(),
   name: varchar('name', { length: 255 }).notNull(),
   email: varchar('email', { length: 255 }).notNull(),
-  employee_id: varchar('employee_id', { length: 255 }).notNull(),
-  staff_category: varchar('staff_category', { length: 50 }).notNull().default('FACULTY'),
-  branch: varchar('branch', { length: 50 }),
-  department: varchar('department', { length: 100 }),
+  employee_id: varchar('employee_id', { length: 255 }),
+  staff_category: varchar('staff_category', { length: 50 }),
+  requested_role: varchar('requested_role', { length: 50 }),
+  academic_affiliations: json('academic_affiliations'),
   designation: varchar('designation', { length: 100 }),
-  mobile: varchar('mobile', { length: 255 }), // Encrypted
-  mobile_hash: varchar('mobile_hash', { length: 64 }), // Searchable Blind Index
+  mobile_hash: varchar('mobile_hash', { length: 255 }),
+  email_verified_at: timestamp('email_verified_at'),
   pfp: text('pfp'),
   signature: text('signature'),
   status: mysqlEnum('status', ['PENDING', 'APPROVED', 'REJECTED']).default('PENDING').notNull(),
@@ -104,7 +104,7 @@ export const principal = mysqlTable('principal', {
 
 export const userSessions = mysqlTable('user_sessions', {
   id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
-  user_type: mysqlEnum('user_type', ['STUDENT', 'CLERK', 'FACULTY', 'HOD', 'ADMIN']),
+  user_type: mysqlEnum('user_type', ['STUDENT', 'STAFF', 'ADMIN', 'SYSTEM']),
   user_id: bigint('user_id', { mode: 'number', unsigned: true }),
   session_token_hash: varchar('session_token_hash', { length: 255 }),
   device_name: varchar('device_name', { length: 255 }),
@@ -127,7 +127,7 @@ export const refreshTokens = mysqlTable('refresh_tokens', {
   id: bigint('id', { mode: 'number', unsigned: true }).autoincrement().primaryKey().notNull(),
   token_hash: varchar('token_hash', { length: 255 }).notNull(),
   user_id: varchar('user_id', { length: 255 }).notNull(),
-  user_type: mysqlEnum('user_type', ['student', 'clerk', 'admin']).notNull(),
+  user_type: mysqlEnum('user_type', ['student', 'staff', 'admin', 'system']).notNull(),
   expires_at: timestamp('expires_at').notNull(),
   created_at: timestamp('created_at').defaultNow().notNull(),
   revoked_at: timestamp('revoked_at'),
@@ -158,4 +158,67 @@ export const passwordResetTokens = mysqlTable('password_reset_tokens', {
 }, (table) => ({
   userTypeIdx: index('idx_password_reset_user').on(table.user_id, table.user_type),
   expiryIdx: index('idx_password_reset_expiry').on(table.expires_at),
+}));
+
+export const staffAccounts = mysqlTable('staff_accounts', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull(),
+  employee_id: varchar('employee_id', { length: 255 }).notNull(),
+  password_hash: varchar('password_hash', { length: 255 }),
+  staff_category: varchar('staff_category', { length: 50 }).notNull(),
+  designation: varchar('designation', { length: 100 }).notNull(),
+  mobile_hash: varchar('mobile_hash', { length: 255 }),
+  pfp: text('pfp'),
+  signature: text('signature'),
+  address: text('address'),
+  last_login_at: timestamp('last_login_at'),
+  last_login_ip: varchar('last_login_ip', { length: 64 }),
+  account_status: mysqlEnum('account_status', ['PENDING_ACTIVATION', 'ACTIVE', 'SUSPENDED']).default('PENDING_ACTIVATION').notNull(),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').onUpdateNow(),
+}, (table) => ({
+  emailIdx: uniqueIndex('idx_staff_email').on(table.email),
+  employeeIdIdx: uniqueIndex('idx_staff_employee_id').on(table.employee_id),
+}));
+
+export const staffRoles = mysqlTable('staff_roles', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  role_code: varchar('role_code', { length: 50 }).notNull().unique('uq_staff_roles_code'),
+  description: text('description'),
+  created_at: timestamp('created_at').defaultNow(),
+});
+
+export const staffAccountRoles = mysqlTable('staff_account_roles', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  staff_account_id: int('staff_account_id').notNull(),
+  role_id: int('role_id').notNull(),
+  assigned_at: timestamp('assigned_at').defaultNow(),
+  assigned_by: int('assigned_by'),
+}, (table) => ({
+  staffIdIdx: index('idx_staff_account_roles_staff').on(table.staff_account_id),
+  roleIdx: index('idx_staff_account_roles_role').on(table.role_id),
+}));
+
+export const staffAcademicAffiliations = mysqlTable('staff_academic_affiliations', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  staff_account_id: int('staff_account_id').notNull(),
+  department_id: int('department_id').notNull(),
+  program_id: int('program_id'),
+  created_at: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  staffIdIdx: index('idx_staff_affil_id').on(table.staff_account_id),
+  deptProgIdx: index('idx_staff_affil_dept_prog').on(table.department_id, table.program_id),
+}));
+
+export const staffAccountActivationTokens = mysqlTable('staff_account_activation_tokens', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  staff_account_id: int('staff_account_id').notNull(),
+  token_hash: varchar('token_hash', { length: 255 }).notNull(),
+  expires_at: timestamp('expires_at').notNull(),
+  used_at: timestamp('used_at'),
+  created_at: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  tokenHashIdx: uniqueIndex('idx_staff_activation_token').on(table.token_hash),
+  staffIdIdx: index('idx_staff_activation_staff').on(table.staff_account_id),
 }));

@@ -75,3 +75,24 @@ export const semesters = mysqlTable('semesters', {
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
 });
+
+export const academicDepartments = mysqlTable('academic_departments', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  department_code: varchar('department_code', { length: 50 }).notNull().unique(),
+  department_name: varchar('department_name', { length: 255 }).notNull(),
+  is_active: boolean('is_active').default(true),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').onUpdateNow(),
+});
+
+export const academicPrograms = mysqlTable('academic_programs', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  department_id: int('department_id').notNull(),
+  program_code: varchar('program_code', { length: 50 }).notNull().unique(),
+  program_name: varchar('program_name', { length: 255 }).notNull(),
+  is_active: boolean('is_active').default(true),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').onUpdateNow(),
+}, (table) => ({
+  deptIdx: index('idx_academic_programs_dept').on(table.department_id),
+}));

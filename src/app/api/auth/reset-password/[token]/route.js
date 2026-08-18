@@ -1,6 +1,6 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { passwordResetTokens, students, clerks, principal } from '@/db/schema';
+import { passwordResetTokens, students, staffAccounts, principal } from '@/db/schema';
 import { eq, and, isNull, _sql } from 'drizzle-orm';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
@@ -84,8 +84,8 @@ export async function POST(req, { params }) {
       // 1. Update the appropriate user table
       if (tokenData.user_type === 'student') {
         await tx.update(students).set({ password_hash: hashedPassword }).where(eq(students.roll_no, tokenData.user_id));
-      } else if (tokenData.user_type === 'clerk') {
-        await tx.update(clerks).set({ password_hash: hashedPassword }).where(eq(clerks.email, tokenData.user_id));
+      } else if (tokenData.user_type === 'staff') {
+        await tx.update(staffAccounts).set({ password_hash: hashedPassword }).where(eq(staffAccounts.email, tokenData.user_id));
       } else if (tokenData.user_type === 'admin') {
         await tx.update(principal).set({ password_hash: hashedPassword }).where(eq(principal.email, tokenData.user_id));
       } else {

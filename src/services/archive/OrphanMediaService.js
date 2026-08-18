@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { 
-  studentImages, studentSignatures, clerks,
+  studentImages, studentSignatures, staffAccounts,
   archiveStudents, archiveStudentPersonalDetails, archiveStudentPayments,
   studentProfileRequests, studentAdmissionDrafts, bugReports, studentRequestImages
 } from '@/db/schema';
@@ -52,7 +52,7 @@ export class OrphanMediaService {
       sigs.forEach(s => s.signature && referenced.add(s.signature.replace(/^\/+/, '')));
 
       // 3. Clerks / Faculty PFP & Signatures
-      const clerkMedia = await db.select({ pfp: clerks.pfp, signature: clerks.signature }).from(clerks);
+      const clerkMedia = await db.select({ pfp: staffAccounts.pfp, signature: staffAccounts.signature }).from(staffAccounts);
       clerkMedia.forEach(c => {
         c.pfp && referenced.add(c.pfp.replace(/^\/+/, ''));
         c.signature && referenced.add(c.signature.replace(/^\/+/, ''));
@@ -114,8 +114,8 @@ export class OrphanMediaService {
     const columnsToScan = [
       { table: 'student_images', column: 'pfp', pkField: 'student_id', query: () => db.select({ pk: studentImages.student_id, val: studentImages.pfp }).from(studentImages) },
       { table: 'student_signatures', column: 'signature', pkField: 'student_id', query: () => db.select({ pk: studentSignatures.student_id, val: studentSignatures.signature }).from(studentSignatures) },
-      { table: 'clerks', column: 'pfp', pkField: 'id', query: () => db.select({ pk: clerks.id, val: clerks.pfp }).from(clerks) },
-      { table: 'clerks', column: 'signature', pkField: 'id', query: () => db.select({ pk: clerks.id, val: clerks.signature }).from(clerks) },
+      { table: 'staff_accounts', column: 'pfp', pkField: 'id', query: () => db.select({ pk: staffAccounts.id, val: staffAccounts.pfp }).from(staffAccounts) },
+      { table: 'staff_accounts', column: 'signature', pkField: 'id', query: () => db.select({ pk: staffAccounts.id, val: staffAccounts.signature }).from(staffAccounts) },
     ];
 
     let totalScanned = 0;

@@ -2,7 +2,7 @@ import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   facultySubjectInterests, 
-  clerks, 
+  staffAccounts, 
   collegeInfo as collegeInfoTable, 
   facultySubjectAssignments 
 } from '@/db/schema';
@@ -20,14 +20,14 @@ export async function GET(_request) {
     const currentAcademicYear = await getCollegeAcademicYear(collegeInfo);
 
     const allocatedSubquery = db.select({
-      names: sql`GROUP_CONCAT(${clerks.name} SEPARATOR ', ')`.as('names'),
+      names: sql`GROUP_CONCAT(${staffAccounts.name} SEPARATOR ', ')`.as('names'),
       subject_code: facultySubjectAssignments.subject_code,
       branch: facultySubjectAssignments.branch,
       course_semester: facultySubjectAssignments.course_semester,
       academic_year: facultySubjectAssignments.academic_year
     })
     .from(facultySubjectAssignments)
-    .innerJoin(clerks, eq(facultySubjectAssignments.faculty_id, clerks.id))
+    .innerJoin(staffAccounts, eq(facultySubjectAssignments.faculty_id, staffAccounts.id))
     .groupBy(
       facultySubjectAssignments.subject_code,
       facultySubjectAssignments.branch,
@@ -47,12 +47,12 @@ export async function GET(_request) {
       status: facultySubjectInterests.status,
       created_at: facultySubjectInterests.created_at,
       updated_at: facultySubjectInterests.updated_at,
-      faculty_name: clerks.name,
-      employee_id: clerks.employee_id,
+      faculty_name: staffAccounts.name,
+      employee_id: staffAccounts.employee_id,
       allocated_faculty_name: allocatedSubquery.names
     })
     .from(facultySubjectInterests)
-    .innerJoin(clerks, eq(facultySubjectInterests.faculty_id, clerks.id))
+    .innerJoin(staffAccounts, eq(facultySubjectInterests.faculty_id, staffAccounts.id))
     .leftJoin(allocatedSubquery, and(
       eq(facultySubjectInterests.subject_code, allocatedSubquery.subject_code),
       eq(facultySubjectInterests.branch, allocatedSubquery.branch),

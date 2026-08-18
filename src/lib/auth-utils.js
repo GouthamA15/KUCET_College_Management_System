@@ -1,7 +1,7 @@
 import { SignJWT, _jwtVerify } from 'jose';
 import crypto from 'crypto';
 import { db } from '@/db';
-import { refreshTokens, students, clerks, principal } from '@/db/schema';
+import { refreshTokens, students, staffAccounts, principal } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 
 export function getJwtSecretKey() {
@@ -57,7 +57,7 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false,
       const SecurityService = (await import('@/services/SecurityService')).default;
       const { cookies } = await import('next/headers');
       const cookieStore = await cookies();
-      const sessionCookieName = `${userType}_session_id`;
+      const sessionCookieName = `${userType.toLowerCase()}_session_id`;
       const existingSessionId = cookieStore.get(sessionCookieName)?.value;
 
       // We need the numeric DB ID for user_sessions
@@ -65,12 +65,10 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false,
       if (userType === 'student') {
         const student = await db.query.students.findFirst({ where: eq(students.roll_no, userId), columns: { id: true } });
         dbId = student?.id;
-      } else if (userType === 'clerk') {
-        const clerk = await db.query.clerks.findFirst({ where: eq(clerks.email, userId), columns: { id: true } });
-        dbId = clerk?.id;
+      } else if (userType === 'staff') {
+        dbId = parseInt(userId);
       } else if (userType === 'admin') {
-        const admin = await db.query.principal.findFirst({ where: eq(principal.email, userId), columns: { id: true } });
-        dbId = admin?.id;
+        dbId = parseInt(userId);
       }
 
       if (dbId) {
@@ -117,6 +115,7 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false,
       }
     } catch (err) {
       console.error('Session management failed:', err);
+      throw new Error('Failed to create user session or refresh token');
     }
   }
 
@@ -138,11 +137,11 @@ export async function issueStudentAuthCookie(response, student, rememberMe = fal
   deleteCookie(response, 'admin_logged_in');
   deleteCookie(response, 'admin_session_id');
   deleteCookie(response, 'admin_refresh_token');
-  deleteCookie(response, 'clerk_auth');
-  deleteCookie(response, 'clerk_logged_in');
-  deleteCookie(response, 'clerk_role');
-  deleteCookie(response, 'clerk_session_id');
-  deleteCookie(response, 'clerk_refresh_token');
+  deleteCookie(response, 'staff_auth');
+  deleteCookie(response, 'staff_logged_in');
+  deleteCookie(response, 'staff_role');
+  deleteCookie(response, 'staff_session_id');
+  deleteCookie(response, 'staff_refresh_token');
 
   const token = await new SignJWT({
     student_id: student.id || student.student_id,
@@ -178,9 +177,9 @@ export async function issueStudentAuthCookie(response, student, rememberMe = fal
 }
 
 /**
- * Generates a clerk auth JWT and attaches it to the provided NextResponse.
+ * Generates a staff auth JWT and attaches it to the provided NextResponse.
  */
-export async function issueClerkAuthCookie(response, clerk, rememberMe = false, ip = null, userAgent = null) {
+export async function issueStaffAuthCookie(response, staff, rememberMe = false, ip = null, userAgent = null) {
   const secret = getJwtSecretKey();
   // Access token: 15 minutes. Refresh token: 14-30 days
   const sessionDuration = '15m';
@@ -198,39 +197,39 @@ export async function issueClerkAuthCookie(response, clerk, rememberMe = false, 
   deleteCookie(response, 'student_refresh_token');
 
   const token = await new SignJWT({
-    id: clerk.id,
-    clerkId: clerk.id,
-    email: clerk.email,
-    role: clerk.role,
-    is_hod: !!clerk.is_hod,
-    branch: clerk.branch,
+    id: staff.id,
+    staffId: staff.id,
+    email: staff.email,
+    role: staff.role,
+    is_hod: !!staff.is_hod,
+    branch: staff.branch,
   })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(sessionDuration)
     .sign(secret);
 
-  setCookie(response, 'clerk_auth', token, {
+  setCookie(response, 'staff_auth', token, {
     httpOnly: true,
     sameSite: 'Strict',
     maxAge: cookieMaxAge,
   });
 
   // Set companion cookies for UI
-  setCookie(response, 'clerk_logged_in', 'true', {
+  setCookie(response, 'staff_logged_in', 'true', {
     httpOnly: false,
     sameSite: 'Lax',
     maxAge: cookieMaxAge,
   });
 
-  setCookie(response, 'clerk_role', clerk.role || '', {
+  setCookie(response, 'staff_role', staff.role || '', {
     httpOnly: false,
     sameSite: 'Lax',
     maxAge: cookieMaxAge,
   });
 
   // Issue Refresh Token
-  await issueRefreshToken(response, clerk.email, 'clerk', rememberMe, ip, userAgent);
+  await issueRefreshToken(response, staff.id, 'staff', rememberMe, ip, userAgent);
 
   return response;
 }
@@ -246,11 +245,11 @@ export async function issueAdminAuthCookie(response, admin, rememberMe = false, 
   const cookieMaxAge = durationDays * 24 * 60 * 60;
 
   // Clear cookies for other roles
-  deleteCookie(response, 'clerk_auth');
-  deleteCookie(response, 'clerk_logged_in');
-  deleteCookie(response, 'clerk_role');
-  deleteCookie(response, 'clerk_session_id');
-  deleteCookie(response, 'clerk_refresh_token');
+  deleteCookie(response, 'staff_auth');
+  deleteCookie(response, 'staff_logged_in');
+  deleteCookie(response, 'staff_role');
+  deleteCookie(response, 'staff_session_id');
+  deleteCookie(response, 'staff_refresh_token');
   deleteCookie(response, 'student_auth');
   deleteCookie(response, 'student_logged_in');
   deleteCookie(response, 'student_session_id');
@@ -280,7 +279,7 @@ export async function issueAdminAuthCookie(response, admin, rememberMe = false, 
   });
 
   // Issue Refresh Token
-  await issueRefreshToken(response, admin.email, 'admin', rememberMe, ip, userAgent);
+  await issueRefreshToken(response, admin.id, 'admin', rememberMe, ip, userAgent);
 
   return response;
 }
@@ -321,13 +320,51 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
       if (!user) return null;
       await issueStudentAuthCookie(response, user, true, ip, userAgent);
       return user;
-    } else if (userType === 'clerk') {
-      const user = await db.query.clerks.findFirst({ where: eq(clerks.email, tokenRecord.user_id) });
-      if (!user || !user.is_active) return null;
-      await issueClerkAuthCookie(response, user, true, ip, userAgent);
-      return user;
+    } else if (userType === 'staff') {
+      const user = await db.query.staffAccounts.findFirst({ where: eq(staffAccounts.id, parseInt(tokenRecord.user_id)) });
+      if (!user || user.account_status !== 'ACTIVE') return null;
+      
+      // We need to resolve the staff role again since issueStaffAuthCookie needs it
+      const { staffAccountRoles, staffRoles, staffAcademicAffiliations, academicDepartments } = await import('@/db/schema');
+      const roleRecords = await db.select({ role_code: staffRoles.role_code })
+        .from(staffAccountRoles)
+        .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
+        .where(eq(staffAccountRoles.staff_account_id, user.id))
+        .limit(1);
+        
+      let resolvedRole = 'faculty';
+      if (roleRecords.length > 0) {
+          const rCode = roleRecords[0].role_code;
+          if (rCode === 'ADMISSION_CLERK') resolvedRole = 'admission';
+          else if (rCode === 'SCHOLARSHIP_CLERK') resolvedRole = 'scholarship';
+      }
+
+      let isHod = false;
+      let branch = null;
+      if (resolvedRole === 'faculty') {
+          const affil = await db.select({ branch_code: academicDepartments.department_code, is_hod: staffAcademicAffiliations.is_hod })
+              .from(staffAcademicAffiliations)
+              .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
+              .where(eq(staffAcademicAffiliations.staff_account_id, user.id))
+              .limit(1);
+          if (affil.length > 0) {
+            branch = affil[0].branch_code;
+            isHod = affil[0].is_hod;
+          }
+      }
+
+      const adaptedStaff = {
+         id: user.id,
+         email: user.email,
+         role: resolvedRole,
+         is_hod: isHod,
+         branch: branch
+      };
+
+      await issueStaffAuthCookie(response, adaptedStaff, true, ip, userAgent);
+      return adaptedStaff;
     } else if (userType === 'admin') {
-      const user = await db.query.principal.findFirst({ where: eq(principal.email, tokenRecord.user_id) });
+      const user = await db.query.principal.findFirst({ where: eq(principal.id, parseInt(tokenRecord.user_id)) });
       if (!user) return null;
       await issueAdminAuthCookie(response, user, true, ip, userAgent);
       return user;

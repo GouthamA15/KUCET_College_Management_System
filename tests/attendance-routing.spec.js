@@ -6,7 +6,7 @@ import { SignJWT } from 'jose';
  * E2E tests for Faculty Attendance Deep-Linking & Refresh Persistence.
  *
  * Validates that the new nested App Router structure under
- * /clerk/faculty/attendance/ correctly handles:
+ * /staff/faculty/attendance/ correctly handles:
  *  - Direct deep-link navigation
  *  - Browser refresh without losing navigation state
  *  - Back/Forward button navigation
@@ -37,12 +37,12 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
   async function bootstrapClerkSession(page) {
     // Set auth cookies
     await page.context().addCookies([
-      { name: 'clerk_auth', value: clerkToken, domain: 'localhost', path: '/' },
-      { name: 'clerk_logged_in', value: 'true', domain: 'localhost', path: '/' },
+      { name: 'staff_auth', value: clerkToken, domain: 'localhost', path: '/' },
+      { name: 'staff_logged_in', value: 'true', domain: 'localhost', path: '/' },
     ]);
 
-    // Mock /api/clerk/me
-    await page.route('/api/clerk/me', async (route) => {
+    // Mock /api/staff/me
+    await page.route('/api/staff/me', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -69,8 +69,8 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
       });
     });
 
-    // Mock /api/clerk/faculty/assignments — always returns the same set
-    await page.route('/api/clerk/faculty/assignments', async (route) => {
+    // Mock /api/staff/faculty/assignments — always returns the same set
+    await page.route('/api/staff/faculty/assignments', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -100,7 +100,7 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
     });
 
     // Mock faculty interest & other satellite APIs
-    await page.route('/api/clerk/faculty/interests', async (route) => {
+    await page.route('/api/staff/faculty/interests', async (route) => {
       await route.fulfill({ status: 200, body: JSON.stringify({ data: [] }) });
     });
 
@@ -108,29 +108,29 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
     await page.route('**/*.{png,jpg,jpeg,svg}', (route) => route.fulfill({ status: 200, body: '' }));
   }
 
-  test('subject list page loads at /clerk/faculty/attendance', async ({ page }) => {
+  test('subject list page loads at /staff/faculty/attendance', async ({ page }) => {
     await bootstrapClerkSession(page);
-    await page.goto('/clerk/faculty/attendance');
+    await page.goto('/staff/faculty/attendance');
 
     // Should show the subject cards
     await expect(page.getByText('Operating Systems')).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Database Management')).toBeVisible();
     
     // Should stay on the same URL
-    expect(page.url()).toContain('/clerk/faculty/attendance');
-    expect(page.url()).not.toContain('/clerk/faculty/attendance/');
+    expect(page.url()).toContain('/staff/faculty/attendance');
+    expect(page.url()).not.toContain('/staff/faculty/attendance/');
   });
 
-  test('clicking a subject navigates to /clerk/faculty/attendance/[id]', async ({ page }) => {
+  test('clicking a subject navigates to /staff/faculty/attendance/[id]', async ({ page }) => {
     await bootstrapClerkSession(page);
-    await page.goto('/clerk/faculty/attendance');
+    await page.goto('/staff/faculty/attendance');
 
     // Wait for and click the first subject
     await expect(page.getByText('Operating Systems')).toBeVisible({ timeout: 10000 });
     await page.getByText('Operating Systems').click();
 
     // Should navigate to the mode selector page
-    await expect(page).toHaveURL(/\/clerk\/faculty\/attendance\/101/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/staff\/faculty\/attendance\/101/, { timeout: 10000 });
     await expect(page.getByText('Select Attendance Mode')).toBeVisible({ timeout: 10000 });
   });
 
@@ -138,7 +138,7 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
     await bootstrapClerkSession(page);
 
     // Navigate directly to the mode selector — simulates bookmark or shared link
-    await page.goto('/clerk/faculty/attendance/101');
+    await page.goto('/staff/faculty/attendance/101');
 
     // Should render the mode selector, NOT redirect back to subject list
     await expect(page.getByText('Select Attendance Mode')).toBeVisible({ timeout: 10000 });
@@ -147,7 +147,7 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
 
   test('refreshing mode selector page stays on the same page', async ({ page }) => {
     await bootstrapClerkSession(page);
-    await page.goto('/clerk/faculty/attendance/101');
+    await page.goto('/staff/faculty/attendance/101');
 
     await expect(page.getByText('Select Attendance Mode')).toBeVisible({ timeout: 10000 });
 
@@ -156,23 +156,23 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
 
     // Should STILL show the mode selector — NOT redirect back
     await expect(page.getByText('Select Attendance Mode')).toBeVisible({ timeout: 10000 });
-    expect(page.url()).toContain('/clerk/faculty/attendance/101');
+    expect(page.url()).toContain('/staff/faculty/attendance/101');
   });
 
   test('direct navigation to history page works and survives refresh', async ({ page }) => {
     await bootstrapClerkSession(page);
     
     // Mock the history API
-    await page.route('/api/clerk/faculty/attendance/full-history*', async (route) => {
+    await page.route('/api/staff/faculty/attendance/full-history*', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ data: [] }),
+        body: JSON.stringify({ data: { attendance: [], uniqueDates: [] } }),
       });
     });
 
     // Navigate directly to history page
-    await page.goto('/clerk/faculty/attendance/101/history');
+    await page.goto('/staff/faculty/attendance/101/history');
 
     await expect(page.getByRole('heading', { name: 'Attendance History', exact: true })).toBeVisible({ timeout: 10000 });
 
@@ -181,21 +181,21 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
 
     // Should still be on history page
     await expect(page.getByRole('heading', { name: 'Attendance History', exact: true })).toBeVisible({ timeout: 10000 });
-    expect(page.url()).toContain('/clerk/faculty/attendance/101/history');
+    expect(page.url()).toContain('/staff/faculty/attendance/101/history');
   });
 
   test('direct navigation to take/manual page works and survives refresh', async ({ page }) => {
     await bootstrapClerkSession(page);
 
     // Mock student list and attendance APIs
-    await page.route('/api/clerk/faculty/students*', async (route) => {
+    await page.route('/api/staff/faculty/students*', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({ data: [] }),
       });
     });
-    await page.route('/api/clerk/faculty/attendance/session*', async (route) => {
+    await page.route('/api/staff/faculty/attendance/session*', async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
           status: 200,
@@ -206,32 +206,32 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
     });
 
     // Navigate directly to manual attendance page
-    await page.goto('/clerk/faculty/attendance/101/take/manual');
+    await page.goto('/staff/faculty/attendance/101/take/manual');
 
     // Should show the attendance sheet, not redirect
     await expect(page.getByText('Manual Entry')).toBeVisible({ timeout: 10000 });
-    expect(page.url()).toContain('/clerk/faculty/attendance/101/take/manual');
+    expect(page.url()).toContain('/staff/faculty/attendance/101/take/manual');
 
     // Refresh
     await page.reload();
 
     // Should STILL be on the manual attendance page
-    expect(page.url()).toContain('/clerk/faculty/attendance/101/take/manual');
+    expect(page.url()).toContain('/staff/faculty/attendance/101/take/manual');
   });
 
   test('invalid mode redirects to mode selector', async ({ page }) => {
     await bootstrapClerkSession(page);
 
-    await page.goto('/clerk/faculty/attendance/101/take/invalid_mode');
+    await page.goto('/staff/faculty/attendance/101/take/invalid_mode');
 
     // Should redirect to the mode selector
-    await expect(page).toHaveURL(/\/clerk\/faculty\/attendance\/101$/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/staff\/faculty\/attendance\/101$/, { timeout: 10000 });
   });
 
   test('non-existent assignment shows "Not Found" state', async ({ page }) => {
     await bootstrapClerkSession(page);
 
-    await page.goto('/clerk/faculty/attendance/99999');
+    await page.goto('/staff/faculty/attendance/99999');
 
     await expect(page.getByText('Assignment Not Found')).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Back to Assignments')).toBeVisible();
@@ -241,12 +241,12 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
     await bootstrapClerkSession(page);
 
     // Start at subject list
-    await page.goto('/clerk/faculty/attendance');
+    await page.goto('/staff/faculty/attendance');
     await expect(page.getByText('Operating Systems')).toBeVisible({ timeout: 10000 });
 
     // Click to go to mode selector
     await page.getByText('Operating Systems').click();
-    await expect(page).toHaveURL(/\/clerk\/faculty\/attendance\/101/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/staff\/faculty\/attendance\/101/, { timeout: 10000 });
     await expect(page.getByText('Select Attendance Mode')).toBeVisible({ timeout: 10000 });
 
     // Press browser back
@@ -254,7 +254,7 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
 
     // Should be back at subject list
     await expect(page.getByText('Select a subject to manage attendance')).toBeVisible({ timeout: 10000 });
-    expect(page.url()).toContain('/clerk/faculty/attendance');
-    expect(page.url()).not.toMatch(/\/clerk\/faculty\/attendance\/\d+/);
+    expect(page.url()).toContain('/staff/faculty/attendance');
+    expect(page.url()).not.toMatch(/\/staff\/faculty\/attendance\/\d+/);
   });
 });

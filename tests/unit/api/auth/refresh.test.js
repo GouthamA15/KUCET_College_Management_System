@@ -9,7 +9,8 @@ vi.mock('@/db', () => ({
       refreshTokens: { findFirst: vi.fn() },
       userSessions: { findFirst: vi.fn() },
       students: { findFirst: vi.fn() },
-      clerks: { findFirst: vi.fn() },
+      staffAccounts: { findFirst: vi.fn() },
+      staffAccountRoles: { findMany: vi.fn() },
       principal: { findFirst: vi.fn() },
     },
     update: vi.fn().mockReturnValue({
@@ -23,7 +24,7 @@ vi.mock('@/db', () => ({
 vi.mock('@/lib/logger', () => ({
   default: {
     info: vi.fn(),
-    error: vi.fn(),
+    error: vi.fn((err, msg) => console.error('LOGGER ERROR:', err, msg)),
     warn: vi.fn(),
   },
 }));
@@ -102,17 +103,18 @@ describe('/api/auth/refresh API Route', () => {
   it('should return 401 if the session is revoked in user_sessions', async () => {
     mockCookies.mockResolvedValue({
       get: vi.fn().mockImplementation((name) => {
-        if (name === 'clerk_refresh_token') return { value: 'some-token' };
-        if (name === 'clerk_session_id') return { value: '123' };
+        if (name === 'staff_refresh_token') return { value: 'some-token' };
+        if (name === 'staff_session_id') return { value: '123' };
         return undefined;
       }),
+      getAll: vi.fn().mockReturnValue([]),
     });
 
     const tokenRecord = {
       id: 1,
       token_hash: 'hash',
       user_id: 'clerk@kucet.com',
-      user_type: 'clerk',
+      user_type: 'staff',
       expires_at: new Date('2026-06-10T10:00:00Z'),
       revoked_at: null,
     };
@@ -129,13 +131,17 @@ describe('/api/auth/refresh API Route', () => {
     const clerkRecord = {
       id: 10,
       email: 'clerk@kucet.com',
-      role: 'clerk',
-      is_active: true
+      role: 'staff',
+      account_status: 'ACTIVE'
     };
-    db.query.clerks.findFirst.mockResolvedValue(clerkRecord);
+    db.query.staffAccounts.findFirst.mockResolvedValue(clerkRecord);
+    db.query.staffAccountRoles.findMany.mockResolvedValue([{ role: { role_code: 'staff' } }]);
 
-    const req = makeMockRequest({ type: 'clerk' });
+    const req = makeMockRequest({ type: 'staff' });
     const res = await POST(req);
+    if (res.status === 500) {
+      console.info(await res.clone().json());
+    }
     expect(res.status).toBe(401);
     const data = await res.json();
     expect(data.error).toBe('Your session has been revoked. Please login again.');

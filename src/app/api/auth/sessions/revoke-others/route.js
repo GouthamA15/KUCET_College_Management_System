@@ -27,11 +27,11 @@ export async function POST(_req) {
       });
       dbId = student?.id;
     } else {
-      const clerk = await db.query.clerks.findFirst({
-        where: (clerks, { eq }) => eq(clerks.email, user.email),
+      const staff = await db.query.staffAccounts.findFirst({
+        where: (staffAccounts, { eq }) => eq(staffAccounts.email, user.email),
         columns: { id: true }
       });
-      dbId = clerk?.id;
+      dbId = staff?.id;
     }
 
     const cookieStore = await cookies();

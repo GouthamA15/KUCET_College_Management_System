@@ -170,7 +170,7 @@ export default function TimeMachine() {
         </div>
         
         <div className="mt-10 text-center">
-           <Link href="/clerk/faculty/dashboard" className="text-[10px] font-black text-blue-500/60 hover:text-blue-500 uppercase tracking-widest transition-colors">&larr; Back to Faculty Console</Link>
+           <Link href="/staff/faculty/dashboard" className="text-[10px] font-black text-blue-500/60 hover:text-blue-500 uppercase tracking-widest transition-colors">&larr; Back to Faculty Console</Link>
         </div>
       </div>
     </div>

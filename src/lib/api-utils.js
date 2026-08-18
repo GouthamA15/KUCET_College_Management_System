@@ -210,14 +210,14 @@ export async function getAuthUser(role = null) {
     // Prioritize middleware-injected headers for silent refresh compatibility
     if (role === 'admin') {
       token = reqHeaders.get('x-admin-auth') || cookieStore.get('admin_auth')?.value;
-    } else if (role === 'clerk') {
-      token = reqHeaders.get('x-clerk-auth') || cookieStore.get('clerk_auth')?.value;
+    } else if (role === 'clerk' || role === 'staff') {
+      token = reqHeaders.get('x-clerk-auth') || reqHeaders.get('x-staff-auth') || cookieStore.get('staff_auth')?.value;
     } else if (role === 'student') {
       token = reqHeaders.get('x-student-auth') || cookieStore.get('student_auth')?.value;
     } else {
       // Try to detect role from available sources
-      token = reqHeaders.get('x-admin-auth') || reqHeaders.get('x-clerk-auth') || reqHeaders.get('x-student-auth') ||
-              cookieStore.get('admin_auth')?.value || cookieStore.get('clerk_auth')?.value || cookieStore.get('student_auth')?.value;
+      token = reqHeaders.get('x-admin-auth') || reqHeaders.get('x-clerk-auth') || reqHeaders.get('x-staff-auth') || reqHeaders.get('x-student-auth') ||
+              cookieStore.get('admin_auth')?.value || cookieStore.get('staff_auth')?.value || cookieStore.get('student_auth')?.value;
     }
 
     if (!token) return null;
@@ -239,7 +239,7 @@ export async function getAuthUser(role = null) {
 
       if (expectedRole === 'student') {
         if (!isStudent) return null;
-      } else if (expectedRole === 'clerk') {
+      } else if (expectedRole === 'clerk' || expectedRole === 'staff') {
         if (!isClerk) return null;
       } else {
         if (actualRole !== expectedRole) return null;

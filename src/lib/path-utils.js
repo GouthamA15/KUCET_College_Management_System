@@ -1,11 +1,11 @@
 export function getDashboardPathByRole(role) {
   switch (role) {
     case 'scholarship':
-      return '/clerk/scholarship/dashboard';
+      return '/staff/scholarship/dashboard';
     case 'admission':
-      return '/clerk/admission/dashboard';
+      return '/staff/admission/dashboard';
     case 'faculty':
-      return '/clerk/faculty/dashboard';
+      return '/staff/faculty/dashboard';
     case 'admin':
       return '/admin/dashboard';
     default:
@@ -23,13 +23,13 @@ export function isDashboardRoot(pathname) {
   const dashboardRoots = [
     '/',
     '/student',
-    '/clerk',
+    '/staff',
     '/faculty',
     '/admin',
     '/admin/dashboard',
-    '/clerk/admission/dashboard',
-    '/clerk/scholarship/dashboard',
-    '/clerk/faculty/dashboard'
+    '/staff/admission/dashboard',
+    '/staff/scholarship/dashboard',
+    '/staff/faculty/dashboard'
   ];
   
   return dashboardRoots.includes(pathname);
@@ -47,7 +47,7 @@ export function isDashboardRoute(pathname) {
 
   return (
     pathname === '/student' || pathname.startsWith('/student/') ||
-    pathname === '/clerk' || pathname.startsWith('/clerk/') ||
+    pathname === '/staff' || pathname.startsWith('/staff/') ||
     pathname === '/admin' || pathname.startsWith('/admin/') ||
     pathname === '/faculty' || pathname.startsWith('/faculty/')
   );
@@ -60,13 +60,13 @@ export function getPortalTitle(pathname) {
   if (!pathname) return 'Portal';
   
   if (pathname.startsWith('/student')) return 'Student Portal';
-  if (pathname.startsWith('/clerk/admission')) return 'Admission Portal';
-  if (pathname.startsWith('/clerk/scholarship')) return 'Scholarship Portal';
-  if (pathname.startsWith('/clerk/faculty')) return 'Faculty Portal';
+  if (pathname.startsWith('/staff/admission')) return 'Admission Portal';
+  if (pathname.startsWith('/staff/scholarship')) return 'Scholarship Portal';
+  if (pathname.startsWith('/staff/faculty')) return 'Faculty Portal';
   if (pathname.startsWith('/faculty')) return 'Faculty Portal';
   if (pathname.startsWith('/admin')) return 'Admin Portal';
 
-  if (pathname.startsWith('/clerk')) return 'Clerk Portal';
+  if (pathname.startsWith('/staff')) return 'Clerk Portal';
   
   // HOD specific detection if needed, otherwise fallback to Faculty
   if (pathname.includes('/hod')) return 'HOD Operations';
