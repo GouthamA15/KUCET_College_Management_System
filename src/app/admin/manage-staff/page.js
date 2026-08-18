@@ -116,15 +116,15 @@ export default function ManageStaffPage() {
   const handleDelete = async () => {
     if (!selectedStaff) return;
     setProcessing(true);
-    const toastId = toast.loading('Deleting staff account...');
+    const toastId = toast.loading('Deactivating staff account...');
     try {
       const res = await fetch(`/api/admin/staff/${selectedStaff.id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to delete staff account');
+        throw new Error(data.error || 'Failed to deactivate staff account');
       }
 
-      toast.success('Staff account permanently deleted!', { id: toastId });
+      toast.success('Staff account deactivated successfully! You can reactivate it at any time.', { id: toastId });
       setIsDeleteModalOpen(false);
       setSelectedStaff(null);
       refreshStaff();
@@ -452,19 +452,35 @@ export default function ManageStaffPage() {
                           </div>
                         )}
                         
-                        <div className="border border-red-200 bg-red-50 rounded-lg p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div className="border border-slate-200 bg-slate-50 rounded-lg p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
                           <div>
-                            <h4 className="text-sm font-semibold text-red-800 flex items-center">
-                              <AlertTriangle className="w-4 h-4 mr-2" /> Danger Zone
+                            <h4 className="text-sm font-semibold text-slate-800 flex items-center">
+                              <AlertTriangle className="w-4 h-4 mr-2 text-amber-600" /> Account Access Control
                             </h4>
-                            <p className="text-xs text-red-700 mt-1">Permanently delete this staff member. This cannot be undone.</p>
+                            <p className="text-xs text-slate-600 mt-1">
+                              {editedStaff.is_active 
+                                ? 'Deactivating revokes active sessions while preserving institutional history.' 
+                                : 'This account is currently deactivated. You can reactivate it at any time.'}
+                            </p>
                           </div>
-                          <button
-                            onClick={() => setIsDeleteModalOpen(true)}
-                            className="px-3 py-1.5 bg-white border border-red-300 text-red-600 rounded text-sm font-medium hover:bg-red-50 transition-colors whitespace-nowrap cursor-pointer"
-                          >
-                            Delete Account
-                          </button>
+                          {editedStaff.is_active ? (
+                            <button
+                              onClick={() => setIsDeleteModalOpen(true)}
+                              className="px-3 py-1.5 bg-white border border-red-300 text-red-600 rounded text-sm font-medium hover:bg-red-50 transition-colors whitespace-nowrap cursor-pointer"
+                            >
+                              Deactivate Account
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setEditedStaff(prev => ({ ...prev, is_active: true }));
+                                toast.success('Status set to Active. Click "Save Changes" to apply.');
+                              }}
+                              className="px-3 py-1.5 bg-emerald-600 text-white rounded text-sm font-medium hover:bg-emerald-700 transition-colors whitespace-nowrap cursor-pointer"
+                            >
+                              Reactivate Account
+                            </button>
+                          )}
                         </div>
 
                       </div>
@@ -490,32 +506,31 @@ export default function ManageStaffPage() {
                   </div>
                 </>
               ) : (
-                <div className="bg-red-50 px-4 py-5 sm:p-6 border-t border-red-200">
+                <div className="bg-amber-50 px-4 py-5 sm:p-6 border-t border-amber-200">
                   <div className="flex items-start">
                     <div className="flex-shrink-0">
-                      <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
+                      <AlertTriangle className="h-6 w-6 text-amber-600" aria-hidden="true" />
                     </div>
                     <div className="ml-3 w-full">
-                      <h3 className="text-sm font-medium text-red-800">Delete Staff Account</h3>
-                      <div className="mt-2 text-sm text-red-700 space-y-2">
-                        <p>Are you sure you want to permanently delete <strong>{selectedStaff.name}</strong>?</p>
-                        <p className="font-semibold underline">WARNING: This action cannot be undone.</p>
-                        <p>Any associated data, audit logs, or student records may be lost or result in database constraint errors. <br/><strong>It is highly recommended to simply set the Account Status to Disabled instead.</strong></p>
+                      <h3 className="text-sm font-medium text-amber-900">Deactivate Staff Account</h3>
+                      <div className="mt-2 text-sm text-amber-800 space-y-2">
+                        <p>Are you sure you want to deactivate <strong>{selectedStaff.name}</strong>?</p>
+                        <p>Their account will be set to <strong>Suspended</strong>, active sessions will be terminated, and they will be prevented from logging in. <br/><strong>All student records, audit history, and academic assignments are safely preserved, and this account can be reactivated at any time.</strong></p>
                       </div>
                       <div className="mt-4 flex flex-col sm:flex-row gap-3">
                         <button
                           type="button"
                           onClick={handleDelete}
                           disabled={processing}
-                          className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 sm:w-auto sm:text-sm disabled:opacity-50 cursor-pointer"
+                          className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-amber-600 text-base font-medium text-white hover:bg-amber-700 sm:w-auto sm:text-sm disabled:opacity-50 cursor-pointer"
                         >
-                          {processing ? 'Deleting...' : 'Yes, Permanently Delete'}
+                          {processing ? 'Deactivating...' : 'Confirm Deactivation'}
                         </button>
                         <button
                           type="button"
                           onClick={() => setIsDeleteModalOpen(false)}
                           disabled={processing}
-                          className="w-full inline-flex justify-center rounded-md border border-red-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 sm:w-auto sm:text-sm disabled:opacity-50 cursor-pointer"
+                          className="w-full inline-flex justify-center rounded-md border border-slate-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 sm:w-auto sm:text-sm disabled:opacity-50 cursor-pointer"
                         >
                           Cancel
                         </button>
