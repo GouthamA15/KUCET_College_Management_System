@@ -2,11 +2,12 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useStaff } from '@/context/StaffContext';
-import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { createPortal } from 'react-dom';
 import { getAssetUrl, invalidateAssetCache } from '@/lib/assets';
+import { useRouter } from 'next/navigation';
+import { Camera, UploadCloud, Info, X } from 'lucide-react';
 
 export default function ClerkEditProfilePage() {
   const router = useRouter();
@@ -28,16 +29,39 @@ export default function ClerkEditProfilePage() {
   const [signatureDataUrl, setSignatureDataUrl] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Email Verification Workflow States
-  const [isEditingEmail, setIsEditingEmail] = useState(false);
-  const [emailVerified, setEmailVerified] = useState(false);
-  const [showOtpInput, setShowOtpInput] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [sendingOtp, setSendingOtp] = useState(false);
-  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  // Help Icon / Bottom Sheet state
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
 
   const fileInputRef = useRef(null);
   const signatureInputRef = useRef(null);
+
+  const displayedPhoto = pfpDataUrl === 'REMOVE' ? null : (pfpDataUrl || getAssetUrl(clerk?.pfp) || null);
+  const displayedSignature = signatureDataUrl === 'REMOVE' ? null : (signatureDataUrl || getAssetUrl(clerk?.signature));
+
+  useEffect(() => {
+    // Resize listener for Info Popover vs Bottom Sheet
+    const handleResize = () => setIsMobileDevice(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Prevent scroll when bottom sheet is open
+  useEffect(() => {
+    if (isBottomSheetOpen && isMobileDevice) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [isBottomSheetOpen, isMobileDevice]);
+
+  useEffect(() => {
+    refreshClerkData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (clerk) {
@@ -88,80 +112,12 @@ export default function ClerkEditProfilePage() {
     }
   };
 
-  const handleRequestEmailChange = async () => {
-    if (!formData.email || !formData.email.includes('@')) {
-      toast.error('Please enter a valid institutional email.');
-      return;
-    }
-    if (formData.email === originalData.email) {
-      toast.error('This is already your registered email.');
-      return;
-    }
-
-    setSendingOtp(true);
-    try {
-      const res = await fetch('/api/auth/send-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email: formData.email,
-          purpose: 'Verification for New Email'
-        })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success(`OTP sent to ${formData.email}`);
-        setShowOtpInput(true);
-      } else {
-        toast.error(data.error || 'Failed to send OTP');
-      }
-    } catch (_e) {
-      toast.error('Network error occurred.');
-    } finally {
-      setSendingOtp(false);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    if (otpCode.length !== 6) {
-      toast.error('Enter a valid 6-digit OTP');
-      return;
-    }
-    setVerifyingOtp(true);
-    try {
-      const res = await fetch('/api/auth/verify-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email: formData.email,
-          submittedOtp: otpCode
-        })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success('New email verified successfully.');
-        setEmailVerified(true);
-        setShowOtpInput(false);
-        setIsEditingEmail(false);
-      } else {
-        toast.error(data.error || 'Invalid OTP');
-      }
-    } catch (_e) {
-      toast.error('Verification failed.');
-    } finally {
-      setVerifyingOtp(false);
-    }
-  };
-
   const hasChanges = () => {
     if (!originalData) return false;
     if (pfpDataUrl || signatureDataUrl) return true;
     
-    const emailChanged = formData.email !== originalData.email;
-    
     return (
       formData.name !== originalData.name ||
-      (emailVerified && emailChanged) ||
       formData.mobile !== originalData.mobile ||
       formData.address !== originalData.address
     );
@@ -169,22 +125,10 @@ export default function ClerkEditProfilePage() {
 
   const onSave = async () => {
     if (!hasChanges()) {
-      // If email is changed but not verified, show a specific error
-      if (formData.email !== originalData.email && !emailVerified) {
-        toast.error('Please verify your new email address before saving.');
-        return;
-      }
       toast.error('No modifications detected.');
       return;
     }
 
-    // Additional check for unverified email change if other changes exist
-    if (formData.email !== originalData.email && !emailVerified) {
-      toast.error('Please verify your new email address or revert it.');
-      return;
-    }
-
-    // Input Validations
     if (formData.name.trim().length < 3) {
       toast.error('Name must be at least 3 characters long.');
       return;
@@ -197,12 +141,10 @@ export default function ClerkEditProfilePage() {
       toast.error('Name can only contain letters and spaces.');
       return;
     }
-
     if (formData.mobile.length !== 10) {
       toast.error('Mobile number must be exactly 10 digits.');
       return;
     }
-
     if (formData.address.length > 255) {
       toast.error('Address cannot exceed 255 characters.');
       return;
@@ -214,7 +156,6 @@ export default function ClerkEditProfilePage() {
     try {
       const payload = { /* empty */ };
       if (formData.name !== originalData.name) payload.name = formData.name;
-      if (emailVerified && formData.email !== originalData.email) payload.email = formData.email;
       if (formData.mobile !== originalData.mobile) payload.mobile = formData.mobile;
       if (formData.address !== originalData.address) payload.address = formData.address;
       if (pfpDataUrl) payload.pfp = pfpDataUrl;
@@ -234,9 +175,11 @@ export default function ClerkEditProfilePage() {
       invalidateAssetCache(originalData?.signature);
       setPfpDataUrl(null);
       setSignatureDataUrl(null);
-      setEmailVerified(false); // Reset after save
-      setIsEditingEmail(false);
       await refreshClerkData();
+      
+      if (clerk?.role) {
+        router.push(`/staff/${clerk.role}/profile`);
+      }
     } catch (e) {
       toast.error(e.message || 'System error occurred.', { id: toastId });
     } finally {
@@ -244,266 +187,288 @@ export default function ClerkEditProfilePage() {
     }
   };
 
-  if (loading && !clerk) {
-    return <LoadingSpinner label="Loading Records" />;
-  }
-
-  return (
-    <div className="w-full max-w-5xl mx-auto space-y-6">
-      <div className="bg-white border border-slate-200 shadow-sm rounded-sm overflow-hidden">
-        
-        {/* Header */}
-        <div className="bg-[#0b3578] px-6 py-5 border-b border-blue-900 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-white uppercase tracking-tight">Staff Profile Settings</h1>
-            <p className="text-blue-100 text-xs mt-1">Institutional Employee Information Management</p>
+  if (loading || !clerk) {
+    return (
+      <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
+        <header className="mb-4">
+          <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-semibold text-gray-800">Edit Profile</h1>
+              <div className="text-slate-400 p-1 rounded-full"><Info size={20} className="shrink-0" /></div>
           </div>
-          <div className="px-3 py-1 bg-blue-900/50 border border-blue-400 text-[10px] font-black text-white uppercase tracking-widest">
-            {String(clerk?.role || 'Staff').toUpperCase()} Portal
+          <p className="text-sm text-gray-600 mt-1">Update your staff information and profile assets.</p>
+        </header>
+
+        <div className="flex flex-col md:flex-row gap-6 items-start">
+          <div className="w-full md:w-[40%] lg:w-[30%] space-y-4">
+             <div className="h-64 skeleton-shimmer rounded-lg border border-gray-200"></div>
+             <div className="h-32 skeleton-shimmer rounded-lg border border-gray-200"></div>
           </div>
-        </div>
-
-        <div className="p-6 md:p-10">
-          <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-12">
-            
-            {/* Left: Avatar & Signature */}
-            <aside className="space-y-10">
-              <div className="text-center">
-                <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Official Portrait</span>
-                <div className="relative inline-block group">
-                  <div className={`w-44 h-44 rounded-full border-4 ${pfpDataUrl ? 'border-[#0b3578]' : 'border-slate-100'} bg-slate-50 overflow-hidden flex items-center justify-center shadow-inner`}>
-                    {(pfpDataUrl || clerk?.pfp) ? (
-                      <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-                        src={pfpDataUrl || getAssetUrl(clerk?.pfp)} 
-                        alt="Profile" 
-                        width={176} 
-                        height={176} 
-                        unoptimized 
-                        className="object-cover w-full h-full" 
-                      />
-                    ) : (
-                      <div className="text-slate-300 flex flex-col items-center">
-                        <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                        <span className="text-[9px] font-bold uppercase mt-2">No Image</span>
-                      </div>
-                    )}
-                  </div>
-                  <button 
-                    onClick={() => fileInputRef.current.click()}
-                    className="absolute bottom-1 right-1 w-10 h-10 bg-[#0b3578] text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-900 transition-all border-2 border-white"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                  </button>
-                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => onFileSelect(e.target.files[0], 'pfp')} />
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Verification Signature</label>
-                <div className={`w-full h-24 border-2 ${signatureDataUrl ? 'border-[#0b3578] bg-blue-50/20' : 'border-dashed border-slate-200 bg-slate-50'} flex items-center justify-center relative group overflow-hidden rounded-sm`}>
-                  {(signatureDataUrl || clerk?.signature) ? (
-                    <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-                      src={signatureDataUrl || getAssetUrl(clerk?.signature)} 
-                      alt="Signature" 
-                      width={200} 
-                      height={96} 
-                      unoptimized 
-                      className="object-contain w-full h-full p-3" 
-                    />
-                  ) : (
-                    <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Unrecorded</span>
-                  )}
-                  <button 
-                    onClick={() => signatureInputRef.current.click()} 
-                    className="absolute inset-0 bg-[#0b3578]/90 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-black uppercase tracking-widest"
-                  >
-                    Upload Signature
-                  </button>
-                </div>
-                <input ref={signatureInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => onFileSelect(e.target.files[0], 'sig')} />
-              </div>
-            </aside>
-
-            {/* Right: Form */}
-            <div className="space-y-10">
-              
-              <section>
-                <h2 className="text-xs font-bold text-slate-800 uppercase tracking-widest border-b border-slate-100 pb-2 mb-6 flex items-center gap-2">
-                  <span className="w-1.5 h-4 bg-[#0b3578] block"></span>
-                  Personal Particulars
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Full Name</label>
-                    <input 
-                      value={formData.name} 
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      maxLength={50}
-                      className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.name !== originalData?.name ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200 hover:border-slate-300'}`}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Employee Contact Number</label>
-                    <input 
-                      value={formData.mobile} 
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                        setFormData({...formData, mobile: val});
-                      }}
-                      maxLength={10}
-                      className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.mobile !== originalData?.mobile ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200 hover:border-slate-300'}`}
-                      placeholder="10-digit mobile number"
-                    />
-                  </div>
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Institutional Email</label>
-                    <div className="flex flex-col md:flex-row gap-3">
-                      <div className="flex-1 relative">
-                        <input 
-                          value={formData.email} 
-                          disabled={!isEditingEmail && !emailVerified}
-                          onChange={(e) => {
-                            setFormData({...formData, email: e.target.value});
-                            if (emailVerified) setEmailVerified(false);
-                          }}
-                          className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${
-                            emailVerified 
-                              ? 'border-green-400 bg-green-50/10' 
-                              : (isEditingEmail ? 'border-amber-400 bg-amber-50/30' : 'bg-slate-50 border-slate-200 text-slate-500 cursor-not-allowed')
-                          }`}
-                        />
-                        {emailVerified && (
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                            <span className="text-[8px] font-black text-green-600 uppercase tracking-tighter">Verified</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {!isEditingEmail && !emailVerified && (
-                        <button 
-                          onClick={() => setIsEditingEmail(true)}
-                          className="px-6 py-3 bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
-                        >
-                          Change Email
-                        </button>
-                      )}
-
-                      {isEditingEmail && !showOtpInput && (
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={handleRequestEmailChange}
-                            disabled={sendingOtp || formData.email === originalData?.email}
-                            className="px-6 py-3 bg-[#0b3578] text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-900 transition-all disabled:opacity-50"
-                          >
-                            {sendingOtp ? 'Sending...' : 'Verify New Email'}
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setIsEditingEmail(false);
-                              setFormData({...formData, email: originalData.email});
-                            }}
-                            className="px-4 py-3 bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      )}
-
-                      {showOtpInput && (
-                        <div className="flex gap-2">
-                          <input 
-                            value={otpCode}
-                            onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                            placeholder="6-DIGIT OTP"
-                            className="w-32 border-2 border-[#0b3578] px-4 py-2 text-center text-sm font-black tracking-[0.2em] outline-none"
-                          />
-                          <button 
-                            onClick={handleVerifyOtp}
-                            disabled={verifyingOtp}
-                            className="px-6 py-3 bg-[#0b3578] text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-900 transition-all"
-                          >
-                            {verifyingOtp ? '...' : 'Verify'}
-                          </button>
-                          <button 
-                            onClick={() => { setShowOtpInput(false); setOtpCode(''); }}
-                            className="px-4 py-3 text-slate-400 hover:text-rose-600 transition-all"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <p className="mt-2 text-[9px] text-slate-400 font-medium italic">
-                      {emailVerified 
-                        ? "* New email address has been verified and is ready to be recorded."
-                        : (isEditingEmail 
-                            ? "* Please enter your new institutional email and verify it via OTP."
-                            : "* Changing your institutional email requires verification of the new address.")}
-                    </p>
-                  </div>
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Permanent Address</label>
-                    <textarea 
-                      value={formData.address} 
-                      onChange={(e) => setFormData({...formData, address: e.target.value})}
-                      rows={3}
-                      maxLength={255}
-                      className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.address !== originalData?.address ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200 hover:border-slate-300'}`}
-                      placeholder="Enter permanent residential address"
-                    />
-                  </div>
-                </div>
-              </section>
-
-              <section>
-                <h2 className="text-xs font-bold text-slate-800 uppercase tracking-widest border-b border-slate-100 pb-2 mb-6 flex items-center gap-2">
-                  <span className="w-1.5 h-4 bg-[#0b3578] block"></span>
-                  Institutional Appointment
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Employee ID</label>
-                    <input value={formData.employee_id} disabled className="w-full bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-400 cursor-not-allowed uppercase" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Designated Role</label>
-                    <input value={formData.role.toUpperCase()} disabled className="w-full bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-400 cursor-not-allowed uppercase" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Department/Branch</label>
-                    <input value={formData.branch || 'INSTITUTIONAL'} disabled className="w-full bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-400 cursor-not-allowed uppercase" />
-                  </div>
-                </div>
-                <p className="mt-4 text-[10px] text-slate-400 font-medium italic">
-                  * Appointment details are fixed by the administrative office. Contact Super Admin for role modifications.
-                </p>
-              </section>
-
-              {/* Actions */}
-              <div className="pt-8 flex items-center justify-end gap-4 border-t border-slate-100">
-                <button 
-                  type="button"
-                  onClick={() => router.back()} 
-                  className="px-4 sm:px-8 py-3 bg-slate-50 text-slate-500 font-bold uppercase tracking-widest hover:bg-slate-100 transition-all text-[10px]"
-                >
-                  Cancel
-                </button>
-                <button 
-                  disabled={saving || !hasChanges()} 
-                  onClick={onSave}
-                  className="px-4 sm:px-10 py-3 bg-[#0b3578] text-white font-bold uppercase tracking-widest hover:bg-blue-900 disabled:opacity-30 disabled:grayscale transition-all text-[10px] shadow-sm"
-                >
-                  {saving ? 'Processing...' : 'Apply Modifications'}
-                </button>
-              </div>
-
-            </div>
+          <div className="w-full md:w-[60%] lg:w-[70%] space-y-4">
+             <div className="h-56 skeleton-shimmer rounded-lg border border-gray-200"></div>
+             <div className="h-56 skeleton-shimmer rounded-lg border border-gray-200"></div>
           </div>
         </div>
       </div>
+    );
+  }
+
+  const bottomSheet = (
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-slate-900/60 backdrop-blur-xs transition-opacity duration-300">
+      <div className="absolute inset-0 cursor-pointer" onClick={() => setIsBottomSheetOpen(false)} />
+      <div 
+        role="dialog" 
+        aria-modal="true" 
+        aria-labelledby="help-sheet-title" 
+        className="relative bg-white w-full rounded-t-2xl shadow-2xl p-6 border-t border-slate-200 z-10 animate-slideUp max-h-[90vh] overflow-y-auto"
+      >
+        <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-5" />
+        <button 
+          onClick={() => setIsBottomSheetOpen(false)}
+          className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 transition-colors p-1"
+          aria-label="Close dialog"
+        >
+          <X size={20} />
+        </button>
+        <h3 id="help-sheet-title" className="text-lg font-bold text-[#0b2447] mb-3">Staff Profile Information</h3>
+        <div className="text-sm text-slate-700 space-y-4 mb-6 leading-relaxed">
+          <p className="text-slate-600">
+            Manage your institutional profile and verify your contact details. Please note:
+          </p>
+          <ul className="list-disc pl-4 space-y-1">
+            <li>Your role and branch are assigned by the administration.</li>
+            <li>To update your email, navigate to the Security / Authentication tab.</li>
+            <li>Profile photos and signatures are used for official documentation.</li>
+            <li>Updates are applied immediately upon successful submission.</li>
+          </ul>
+        </div>
+        <button 
+          onClick={() => setIsBottomSheetOpen(false)} 
+          className="w-full bg-[#0b3578] text-white py-3 rounded-lg font-semibold text-sm hover:bg-[#0a2d66] active:bg-[#092554] transition-colors focus:outline-none"
+        >
+          Got It
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
+      <header className="mb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-semibold text-gray-800">Edit Profile</h1>
+                <div 
+                  className="relative inline-flex items-center"
+                  onMouseEnter={() => !isMobileDevice && setIsHovered(true)}
+                  onMouseLeave={() => !isMobileDevice && setIsHovered(false)}
+                >
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (isMobileDevice) {
+                        setIsBottomSheetOpen(true);
+                      }
+                    }}
+                    className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-full hover:bg-slate-100 focus:outline-none flex items-center justify-center cursor-pointer"
+                    aria-label="Help Information"
+                  >
+                    <Info size={20} className="shrink-0" />
+                  </button>
+
+                  {isHovered && !isMobileDevice && (
+                    <div className="absolute left-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-lg shadow-xl p-4 z-50 text-left animate-slideDown">
+                      <h4 className="text-sm font-bold text-[#0b2447] mb-2">Staff Profile Information</h4>
+                      <p className="text-xs text-slate-600 leading-relaxed mb-3">
+                        Manage your institutional profile and verify your contact details. Please note:
+                      </p>
+                      <ul className="text-xs text-slate-600 leading-relaxed list-disc pl-4 space-y-1">
+                        <li>Your role and branch are assigned by administration.</li>
+                        <li>To update your email, use the Security tab.</li>
+                        <li>Photos/signatures are used for official documents.</li>
+                        <li>Updates are applied immediately upon save.</li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
+            </div>
+            <p className="text-sm text-gray-600 mt-1">Update your staff information and profile assets.</p>
+          </div>
+          <div className="px-3 py-1 bg-blue-50 border border-blue-200 rounded-md text-xs font-semibold text-blue-700 uppercase tracking-widest hidden sm:block">
+            {String(clerk?.role || 'Staff').toUpperCase()} Portal
+          </div>
+        </div>
+      </header>
+
+      <div className="animate-in fade-in duration-300">
+        <div className="flex flex-col md:flex-row gap-6 items-start transition-all duration-300">
+          
+          {/* Left Column (Profile, Signature) */}
+          <div className="w-full md:w-[40%] lg:w-[30%] space-y-4 shrink-0 md:sticky md:top-6">
+            
+            {/* Profile Picture Card */}
+            <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm flex flex-col items-center">
+              <div 
+                className="w-36 h-36 rounded-full border-4 border-gray-100 bg-gray-50 overflow-hidden relative group shadow-sm flex items-center justify-center cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {displayedPhoto ? (
+                  <Image unoptimized src={displayedPhoto} alt="Profile" width={144} height={144} className="object-cover w-full h-full" />
+                ) : (
+                  <span className="text-gray-300 text-4xl">👤</span>
+                )}
+                <div className="absolute inset-0 bg-black/50 text-white opacity-0 md:group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-xs font-semibold">
+                  <Camera size={20} className="mb-1" />
+                  Change Photo
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 mt-4 w-full">
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="md:hidden text-xs font-medium text-[#0b3578] border border-[#0b3578] rounded-md px-3 py-1.5 hover:bg-blue-50 transition-colors flex-1"
+                >
+                  Change Photo
+                </button>
+                {(displayedPhoto || clerk?.pfp) && pfpDataUrl !== 'REMOVE' && (
+                  <button 
+                    onClick={() => setPfpDataUrl('REMOVE')}
+                    className="text-xs font-medium text-red-600 border border-red-200 rounded-md px-3 py-1.5 hover:bg-red-50 transition-colors flex-1 md:w-full"
+                  >
+                    Remove Photo
+                  </button>
+                )}
+              </div>
+              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/jpg,image/webp" className="hidden" onChange={(e) => onFileSelect(e.target.files[0], 'pfp')} />
+            </div>
+
+            {/* Signature Card */}
+            <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
+              <h3 className="text-xs font-semibold text-gray-800 uppercase tracking-wide mb-3">Signature</h3>
+              <div 
+                className="w-full h-24 border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer flex flex-col items-center justify-center relative group overflow-hidden rounded-md transition-colors"
+                onClick={() => signatureInputRef.current.click()}
+              >
+                {displayedSignature ? (
+                  <Image unoptimized src={displayedSignature} alt="Signature" width={200} height={80} className="object-contain w-full h-full p-2" />
+                ) : (
+                  <>
+                    <UploadCloud size={20} className="text-gray-400 mb-1" />
+                    <span className="text-gray-500 text-xs font-medium">Upload Signature</span>
+                  </>
+                )}
+              </div>
+              <input ref={signatureInputRef} type="file" accept="image/jpeg,image/png,image/jpg,image/webp" className="hidden" onChange={(e) => onFileSelect(e.target.files[0], 'sig')} />
+            </div>
+          </div>
+          
+          {/* Right Column (Editable Information) */}
+          <div className="w-full md:w-[60%] lg:w-[70%] space-y-4">
+            
+            {/* Institutional Information (Read Only) */}
+            <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
+              <div className="mb-4">
+                <h2 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">Institutional Appointment</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-600">Employee ID</label>
+                  <input value={formData.employee_id} disabled className="w-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm rounded-md outline-none text-gray-500" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-600">Institutional Email</label>
+                  <input 
+                    value={formData.email} 
+                    disabled 
+                    className="w-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm rounded-md outline-none text-gray-500" 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-600">Department / Branch</label>
+                  <input value={formData.branch || 'INSTITUTIONAL'} disabled className="w-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm rounded-md outline-none text-gray-500 uppercase" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-600">Designated Role</label>
+                  <input 
+                    value={formData.role.toUpperCase()} 
+                    disabled 
+                    className="w-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm rounded-md outline-none text-gray-500" 
+                  />
+                </div>
+              </div>
+              <p className="mt-4 text-[10px] text-gray-400 font-medium italic">
+                * Appointment details are fixed by the administrative office. Email modifications require security authentication.
+              </p>
+            </section>
+
+            {/* Personal Information */}
+            <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
+              <div className="mb-4">
+                <h2 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">Personal Details</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-600">Full Name</label>
+                  <input 
+                    value={formData.name} 
+                    onChange={e => setFormData({...formData, name: e.target.value})} 
+                    maxLength={50}
+                    className="w-full border border-gray-300 px-3 py-1.5 text-sm rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow" 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-600">Mobile Number</label>
+                  <input 
+                    value={formData.mobile} 
+                    onChange={e => setFormData({...formData, mobile: e.target.value.replace(/\D/g, '').slice(0, 10)})} 
+                    maxLength={10}
+                    placeholder="10-digit mobile number"
+                    className="w-full border border-gray-300 px-3 py-1.5 text-sm rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow" 
+                  />
+                </div>
+                
+                <div className="space-y-1 md:col-span-2">
+                  <label className="text-xs font-medium text-gray-600">Permanent Address</label>
+                  <textarea 
+                    value={formData.address} 
+                    onChange={e => setFormData({...formData, address: e.target.value})} 
+                    rows={3}
+                    maxLength={255}
+                    placeholder="Enter permanent residential address"
+                    className="w-full border border-gray-300 px-3 py-2 text-sm rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow" 
+                  />
+                </div>
+              </div>
+            </section>
+
+            {/* Submit Action */}
+            <div className="flex justify-end gap-3 pt-2">
+              <button 
+                onClick={() => {
+                  setFormData(JSON.parse(JSON.stringify(originalData)));
+                  setPfpDataUrl(null);
+                  setSignatureDataUrl(null);
+                }} 
+                className="px-5 py-2.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors font-medium shadow-sm"
+              >
+                Reset Changes
+              </button>
+              <button 
+                onClick={onSave}
+                disabled={saving || !hasChanges()}
+                className="px-6 py-2.5 text-sm text-white bg-[#0b3578] rounded-md hover:bg-blue-900 transition-colors disabled:opacity-50 font-medium shadow-sm flex items-center justify-center gap-2"
+              >
+                {saving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                {saving ? 'Processing...' : 'Apply Modifications'}
+              </button>
+            </div>
+            
+          </div>
+        </div>
+      </div>
+
+      {typeof document !== 'undefined' && isBottomSheetOpen && isMobileDevice && createPortal(bottomSheet, document.body)}
     </div>
   );
 }
+

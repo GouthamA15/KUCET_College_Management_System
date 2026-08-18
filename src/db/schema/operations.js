@@ -57,6 +57,22 @@ export const branchTimetable = mysqlTable('branch_timetable', {
   uqTimetableSlot: uniqueIndex('uq_timetable_slot').on(table.branch, table.semester, table.section, table.day_of_week, table.period_number, table.academic_year),
 }));
 
+export const facultyHodAssignments = mysqlTable('faculty_hod_assignments', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  staff_account_id: int('staff_account_id').notNull(),
+  department_code: varchar('department_code', { length: 20 }).notNull(),
+  academic_year: varchar('academic_year', { length: 9 }).notNull(),
+  start_date: date('start_date').notNull(),
+  end_date: date('end_date'),
+  is_active: boolean('is_active').default(true).notNull(),
+  assigned_by: int('assigned_by'),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').onUpdateNow(),
+}, (table) => ({
+  staffIdIdx: index('idx_hod_staff_id').on(table.staff_account_id),
+  deptIdx: index('idx_hod_dept_code').on(table.department_code),
+}));
+
 export const facultySubjectAssignments = mysqlTable('faculty_subject_assignments', {
   id: int('id').autoincrement().primaryKey().notNull(),
   faculty_id: int('faculty_id').notNull(),

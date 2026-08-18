@@ -41,7 +41,7 @@ export function StaffProvider({ children }) {
 
   const fetchClerk = useCallback(async () => {
     try {
-      const res = await fetch('/api/staff/me');
+      const res = await fetch(`/api/staff/me?t=${Date.now()}`);
       if (res.ok) {
         const data = await res.json();
         setClerkData(data.data);
@@ -119,7 +119,7 @@ export function StaffProvider({ children }) {
   const fetchPendingProfileRequests = useCallback(async () => {
     setIsLoadingRequests(true);
     try {
-      const res = await fetch('/api/staff/admission/student-requests');
+      const res = await fetch(`/api/staff/admission/student-requests?t=${Date.now()}`);
       if (res.ok) {
         const json = await res.json();
         setPendingProfileRequests(json.data || []);
@@ -135,7 +135,7 @@ export function StaffProvider({ children }) {
     if (!role) return;
     setIsLoadingRequests(true);
     try {
-      const res = await fetch(`/api/staff/requests?clerkType=${role}`);
+      const res = await fetch(`/api/staff/requests?clerkType=${role}&t=${Date.now()}`);
       if (res.ok) {
         const json = await res.json();
         setPendingCertificateRequests(json.records || []);
@@ -150,7 +150,7 @@ export function StaffProvider({ children }) {
   const fetchAdmissionDrafts = useCallback(async () => {
     setIsLoadingRequests(true);
     try {
-      const res = await fetch('/api/staff/admission/drafts?status=DRAFT');
+      const res = await fetch(`/api/staff/admission/drafts?status=DRAFT&t=${Date.now()}`);
       const data = await res.json();
       if (res.ok) {
         setAdmissionDrafts(data.data || []);
@@ -165,7 +165,7 @@ export function StaffProvider({ children }) {
   const fetchStudentHistory = useCallback(async (scope = 'my') => {
     setIsLoadingHistory(true);
     try {
-      const res = await fetch(`/api/staff/student-history?scope=${scope}`);
+      const res = await fetch(`/api/staff/student-history?scope=${scope}&t=${Date.now()}`);
       if (res.ok) {
         const json = await res.json();
         setStudentHistory({
@@ -201,7 +201,7 @@ export function StaffProvider({ children }) {
 
     const promise = (async () => {
       try {
-        const clerk = await fetchClerk();
+        await fetchClerk();
         await fetchCollegeInfo();
         
         // Basic identity and config are loaded! Drop the global spinner immediately.
@@ -209,21 +209,9 @@ export function StaffProvider({ children }) {
 
         // Fetch heavy tables sequentially so we don't hammer the database pool 
         // causing 30s delays or deadlocks
-        if (clerk?.role === 'faculty') {
-          await fetchFacultyData();
-          if (clerk?.is_hod) {
-            fetchHODData(); // background
-          }
-        }
-        if (clerk?.role === 'admission') {
-          await fetchPendingProfileRequests();
-          await fetchPendingCertificateRequests('admission');
-          await fetchAdmissionDrafts();
-          await fetchStudentHistory('my');
-        }
-        if (clerk?.role === 'scholarship') {
-          await fetchPendingCertificateRequests('scholarship');
-        }
+        // Removed global fetches for admissionDrafts, pendingProfileRequests, etc.
+        // Data fetching is now scoped to individual components/pages via useEffect
+        
         lastFetchTimeRef.current = Date.now();
       } catch (e) {
         console.error('Failed to refresh clerk data', e);
@@ -234,7 +222,7 @@ export function StaffProvider({ children }) {
 
     activePromiseRef.current = promise;
     return promise;
-  }, [fetchClerk, fetchCollegeInfo, fetchFacultyData, fetchPendingProfileRequests, fetchPendingCertificateRequests, fetchAdmissionDrafts, fetchHODData, fetchStudentHistory]);
+  }, [fetchClerk, fetchCollegeInfo]);
 
   const handleResume = useCallback(async (event) => {
     const now = Date.now();

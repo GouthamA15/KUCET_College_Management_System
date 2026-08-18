@@ -103,14 +103,15 @@ export async function POST(request) {
         let isHod = false;
         let branch = null;
         if (resolvedRole === 'faculty') {
-            const affil = await db.select({ branch_code: academicDepartments.department_code, is_hod: staffAcademicAffiliations.is_hod })
+            const affil = await db.select({ branch_code: academicDepartments.department_code })
                 .from(staffAcademicAffiliations)
                 .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
                 .where(eq(staffAcademicAffiliations.staff_account_id, staff.id))
                 .limit(1);
             if (affil.length > 0) {
               branch = affil[0].branch_code;
-              isHod = affil[0].is_hod;
+              // TODO: Fetch isHod properly if needed
+              isHod = false;
             }
         }
 

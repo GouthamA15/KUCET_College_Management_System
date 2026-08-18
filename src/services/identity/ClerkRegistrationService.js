@@ -88,13 +88,11 @@ export class ClerkRegistrationService {
     }
 
     // 5. Mobile encryption & hashing
-    let encryptedMobile = null;
     let mobileHash = null;
     if (mobile) {
       const cleanMobile = mobile.replace(/[^0-9]/g, '');
       if (cleanMobile) {
-        encryptedMobile = encrypt(cleanMobile);
-        mobileHash = hashForIndex(cleanMobile);
+        mobileHash = encrypt(cleanMobile); // Store the actual encrypted mobile number here as per user instruction
       }
     }
 
@@ -109,7 +107,6 @@ export class ClerkRegistrationService {
       branch: validatedBranch,
       department: validatedBranch || catInfo.label,
       designation: catInfo.label,
-      mobile: encryptedMobile,
       mobile_hash: mobileHash,
       pfp: pfp || null,
       signature: signature || null,

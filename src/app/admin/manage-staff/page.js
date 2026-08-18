@@ -27,12 +27,12 @@ export default function ManageStaffPage() {
   const filteredStaffList = useMemo(() => {
     return staffList.filter((staffMember) => {
       // Role match
-      const roleMatch = staffMember.role === activeTab;
+      const roleMatch = staffMember.roles?.includes(activeTab);
       if (!roleMatch) return false;
 
       // Branch filter (for faculty)
       if (activeTab === 'faculty' && selectedBranch !== 'ALL') {
-        if (staffMember.branch !== selectedBranch) return false;
+        if (!staffMember.branches?.includes(selectedBranch)) return false;
       }
 
       // Search query filter
@@ -41,7 +41,7 @@ export default function ManageStaffPage() {
         const nameMatch = staffMember.name?.toLowerCase().includes(q);
         const emailMatch = staffMember.email?.toLowerCase().includes(q);
         const empIdMatch = staffMember.employee_id?.toLowerCase().includes(q);
-        const branchMatch = staffMember.branch?.toLowerCase().includes(q);
+        const branchMatch = staffMember.branches?.some(b => b.toLowerCase().includes(q));
         if (!nameMatch && !emailMatch && !empIdMatch && !branchMatch) return false;
       }
 
@@ -51,12 +51,12 @@ export default function ManageStaffPage() {
 
   // Tab Stats Summary
   const stats = useMemo(() => {
-    const facultystaffList = staffList.filter(c => c.role === 'faculty');
-    const scholarshipstaffList = staffList.filter(c => c.role === 'scholarship');
-    const admissionstaffList = staffList.filter(c => c.role === 'admission');
+    const facultystaffList = staffList.filter(c => c.roles?.includes('faculty'));
+    const scholarshipstaffList = staffList.filter(c => c.roles?.includes('scholarship'));
+    const admissionstaffList = staffList.filter(c => c.roles?.includes('admission'));
     
     return {
-      total: facultystaffList.length + scholarshipstaffList.length + admissionstaffList.length,
+      total: staffList.length,
       active: staffList.filter(c => c.is_active).length,
       inactive: staffList.filter(c => !c.is_active).length,
       facultyTotal: facultystaffList.length,
@@ -274,13 +274,21 @@ export default function ManageStaffPage() {
                       <span className="text-sm text-slate-900 font-mono bg-slate-100 px-2 py-1 rounded border border-slate-200">{staffMember.employee_id}</span>
                     </td>
                     {activeTab === 'faculty' && (
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-[#0b3578] bg-blue-50 border border-blue-200 px-2 py-0.5 rounded text-[11px]">
-                            {staffMember.branch || 'Unassigned'}
-                          </span>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-row items-center gap-1.5 flex-wrap">
+                          {staffMember.branches && staffMember.branches.length > 0 ? (
+                            staffMember.branches.map(b => (
+                              <span key={b} className="font-bold text-[#0b3578] bg-blue-50 border border-blue-200 px-2 py-0.5 rounded text-[11px] whitespace-nowrap inline-flex">
+                                {b}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded text-[11px]">
+                              Unassigned
+                            </span>
+                          )}
                           {staffMember.is_hod && (
-                            <span className="bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs">
+                            <span className="bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs whitespace-nowrap inline-flex">
                               👑 HOD
                             </span>
                           )}
@@ -355,9 +363,11 @@ export default function ManageStaffPage() {
                               type="email"
                               name="email"
                               value={editedStaff.email ?? ''}
-                              onChange={handleChange}
-                              className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-[#0b3578] outline-none bg-white"
+                              readOnly
+                              disabled
+                              className="w-full border border-slate-200 rounded px-3 py-2 text-sm bg-slate-100 text-slate-500 cursor-not-allowed outline-none"
                             />
+                            <p className="text-[10px] text-slate-500 mt-1">Email cannot be edited directly.</p>
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Employee ID</label>
@@ -395,21 +405,34 @@ export default function ManageStaffPage() {
                         </div>
 
                         {activeTab === 'faculty' && (
-                          <div className="bg-slate-50 rounded-lg p-5 border border-slate-100 mb-6 flex flex-col sm:flex-row gap-6">
-                            <div className="w-full sm:w-1/2">
-                              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Academic Branch</label>
-                              <select
-                                name="branch"
-                                value={editedStaff.branch || 'CSE'}
-                                onChange={handleChange}
-                                className="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-[#0b3578] outline-none"
-                              >
+                          <div className="bg-slate-50 rounded-lg p-5 border border-slate-100 mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="w-full">
+                              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Academic Branches</label>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                 {FACULTY_BRANCHES.map(b => (
-                                  <option key={b} value={b}>{b}</option>
+                                  <label key={b} className="flex items-center gap-2 cursor-pointer bg-white border border-slate-200 rounded px-3 py-2 hover:bg-slate-50">
+                                    <input
+                                      type="checkbox"
+                                      className="rounded border-slate-300 text-[#0b3578] focus:ring-[#0b3578]"
+                                      checked={editedStaff.branches?.includes(b) || false}
+                                      onChange={(e) => {
+                                        const checked = e.target.checked;
+                                        setEditedStaff(prev => {
+                                          const currentBranches = prev.branches || [];
+                                          if (checked) {
+                                            return { ...prev, branches: [...currentBranches, b] };
+                                          } else {
+                                            return { ...prev, branches: currentBranches.filter(branch => branch !== b) };
+                                          }
+                                        });
+                                      }}
+                                    />
+                                    <span className="text-sm font-medium text-slate-700">{b}</span>
+                                  </label>
                                 ))}
-                              </select>
+                              </div>
                             </div>
-                            <div className="w-full sm:w-1/2">
+                            <div className="w-full">
                               <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">HOD Status</label>
                               <div className="flex items-center h-[38px]">
                                 <label className="relative inline-flex items-center cursor-pointer">

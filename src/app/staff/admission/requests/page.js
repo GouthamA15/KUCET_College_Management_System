@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useStaff } from '@/context/StaffContext';
 import RequestTabs from '@/components/staff/requests/RequestTabs';
@@ -15,10 +15,21 @@ function RequestsCenterContent() {
     const { 
         pendingProfileRequests, 
         pendingCertificateRequests,
-        isLoadingRequests 
+        isLoadingRequests,
+        refreshProfileRequests,
+        refreshCertificateRequests,
+        clerkData
     } = useStaff();
 
     const activeTab = searchParams.get('tab') || 'admissions';
+
+    useEffect(() => {
+        if (clerkData?.role) {
+            refreshProfileRequests();
+            refreshCertificateRequests(clerkData.role);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [clerkData?.role]);
 
     const handleTabChange = (tabId) => {
         const params = new URLSearchParams(searchParams);

@@ -111,24 +111,43 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto', options = {
   // Guard: reject serialization corruption
   if (path.includes('[object') || path.includes('undefined')) return '';
 
-  // Pass-through: data URIs, absolute URLs, Next.js API routes (never cached in memory map)
-  if (
-    path.startsWith('data:') ||
-    path.startsWith('http://') ||
-    path.startsWith('https://') ||
-    path.startsWith('/api/')
-  ) {
-    return path;
+  // 1. Normalize and clean the path (strip base URL if present)
+  let cleanPath = path;
+  if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
+    try {
+      const url = new URL(cleanPath);
+      // If it's a Cloudinary URL, try to extract the kucet/ part
+      const kucetIndex = url.pathname.indexOf('kucet/');
+      if (kucetIndex !== -1) {
+        cleanPath = url.pathname.substring(kucetIndex);
+      } else {
+        // If it's already a full external URL and not Cloudinary, just return it
+        return cleanPath;
+      }
+    } catch {
+      // Ignore URL parsing errors and treat as relative path
+    }
+  }
+
+  // 2. Check Static Assets First
+  if (STATIC_ASSETS.has(cleanPath) || (cleanPath.startsWith('/') && !cleanPath.includes('kucet/'))) {
+    return cleanPath;
+  }
+
+  // 3. Prevent Memory Leaks: Bound the cache size (especially on server)
+  if (CLIENT_ASSET_CACHE.size > 5000) {
+    CLIENT_ASSET_CACHE.clear();
   }
 
   // Generate lookup cache key
   const storageType = (
+    options.forceStorageType ||
     process.env.NEXT_PUBLIC_STORAGE_TYPE ||
     process.env.STORAGE_TYPE ||
     'local'
   ).toLowerCase();
 
-  const cacheKey = options.cacheKey || `${storageType}:${path}:${transformations}`;
+  const cacheKey = options.cacheKey || `${storageType}:${cleanPath}:${transformations}`;
 
   // Return cached URL if available and not explicitly bypassed
   if (!options.bypassCache && CLIENT_ASSET_CACHE.has(cacheKey)) {
@@ -136,8 +155,8 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto', options = {
   }
 
   // Normalize: strip leading slash for consistent matching
-  const cleanPath = path.startsWith('/') ? path.substring(1) : path;
-  const normalizedPath = `/${cleanPath}`;
+  const finalCleanPath = cleanPath.startsWith('/') ? cleanPath.substring(1) : cleanPath;
+  const normalizedPath = `/${finalCleanPath}`;
 
   let resolvedUrl = '';
 

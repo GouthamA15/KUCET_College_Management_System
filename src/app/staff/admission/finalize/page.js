@@ -32,7 +32,7 @@ function FinalizeAdmissionContent() {
         if (!selectedBranch || !selectedExam) return;
         setLoading(true);
         try {
-            const res = await fetch(`/api/staff/admission/drafts?branch=${selectedBranch}&entrance_exam=${selectedExam}&status=PROCESSED`);
+            const res = await fetch(`/api/staff/admission/drafts?branch=${selectedBranch}&entrance_exam=${selectedExam}&status=PROCESSED&t=${Date.now()}`);
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to fetch drafts.');
             setDrafts(data.data);
@@ -312,9 +312,8 @@ function FinalizeAdmissionContent() {
                                 <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-200">
                                     <tr>
                                         <th className="px-6 py-5 w-16 border-r border-gray-200">ID</th>
-                                        <th className="px-6 py-5 border-r border-gray-200">Applicant Identity</th>
-                                        <th className="px-6 py-5 border-r border-gray-200">Merit Rank</th>
-                                        <th className="px-6 py-5 w-72 border-r border-gray-200">Institutional Roll Number</th>
+                                        <th className="px-6 py-5 border-r border-gray-200 w-full">Applicant Identity</th>
+                                        <th className="px-6 py-5 w-[18ch] border-r border-gray-200">Institutional Roll Number</th>
                                         <th className="px-6 py-5 text-right ">Operational Actions</th>
                                     </tr>
                                 </thead>
@@ -333,24 +332,20 @@ function FinalizeAdmissionContent() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 border-r border-gray-100">
-                                                    <span className="bg-blue-50 text-[#0b3578] border border-blue-100 px-3 py-1 rounded-md text-sm font-medium shadow-sm">
-                                                        RANK {draft.exam_rank}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 border-r border-gray-100">
-                                                    <div className="space-y-1.5">
+                                                    <div className="space-y-1.5 flex flex-col items-center">
                                                         <input 
                                                             type="text"
+                                                            maxLength={12}
                                                             placeholder={draft.entrance_exam === 'TG ECET' ? "e.g. 235670901L" : "e.g. 23567T0901"}
                                                             value={rollNumbers[draft.id] || ''}
                                                             onChange={e => handleRollNumberChange(draft.id, e.target.value)}
-                                                            className={`block w-full px-3 py-2 border-2 text-sm font-medium focus:outline-none transition-all rounded-md ${
+                                                            className={`block w-[16ch] text-center px-2 py-2 border-2 text-sm font-medium focus:outline-none transition-all rounded-md tracking-widest ${
                                                                 !hasValue ? 'border-gray-100 bg-gray-50' :
                                                                 validation.isValid ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-rose-200 bg-rose-50 text-rose-800'
                                                             }`}
                                                         />
                                                         {hasValue && !validation.isValid && (
-                                                            <div className="text-[9px] text-rose-600 font-medium px-1 flex items-center gap-1">
+                                                            <div className="text-[9px] text-rose-600 font-medium px-1 flex items-center gap-1 w-[16ch] leading-tight text-center">
                                                                 ⚠️ {validation.error}
                                                             </div>
                                                         )}
@@ -392,9 +387,6 @@ function FinalizeAdmissionContent() {
                                                 <span className="font-bold text-gray-800 text-sm">{draft.name}</span>
                                                 <span className="text-[10px] text-gray-400 font-medium lowercase mt-0.5">{draft.email}</span>
                                             </div>
-                                            <span className="bg-blue-50 text-[#0b3578] border border-blue-100 px-2 py-0.5 rounded text-xs font-medium">
-                                                RANK {draft.exam_rank}
-                                            </span>
                                         </div>
                                         
                                         <div className="flex flex-col gap-2">
@@ -402,16 +394,17 @@ function FinalizeAdmissionContent() {
                                             <div className="space-y-1.5">
                                                 <input 
                                                     type="text"
+                                                    maxLength={12}
                                                     placeholder={draft.entrance_exam === 'TG ECET' ? "e.g. 235670901L" : "e.g. 23567T0901"}
                                                     value={rollNumbers[draft.id] || ''}
                                                     onChange={e => handleRollNumberChange(draft.id, e.target.value)}
-                                                    className={`block w-full px-3 py-2 border-2 text-sm font-medium focus:outline-none transition-all rounded-md ${
+                                                    className={`block w-[16ch] text-center px-2 py-2 border-2 text-sm font-medium focus:outline-none transition-all rounded-md tracking-widest ${
                                                         !hasValue ? 'border-gray-100 bg-gray-50' :
                                                         validation.isValid ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-rose-200 bg-rose-50 text-rose-800'
                                                     }`}
                                                 />
                                                 {hasValue && !validation.isValid && (
-                                                    <div className="text-[9px] text-rose-600 font-medium px-1 flex items-center gap-1">
+                                                    <div className="text-[9px] text-rose-600 font-medium px-1 flex items-center gap-1 w-[16ch] leading-tight text-center">
                                                         ⚠️ {validation.error}
                                                     </div>
                                                 )}

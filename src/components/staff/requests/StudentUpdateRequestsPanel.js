@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useStaff } from '@/context/StaffContext';
 import Image from 'next/image';
@@ -21,7 +21,13 @@ const StudentUpdateRequestsPanel = () => {
 
   const requests = useMemo(() => pendingProfileRequests || [], [pendingProfileRequests]);
   const loading = isLoadingRequests && requests.length === 0;
-
+  const fetchedRef = useRef(false);
+  useEffect(() => {
+    if ((!pendingProfileRequests || pendingProfileRequests.length === 0) && !fetchedRef.current) {
+      fetchedRef.current = true;
+      refreshProfileRequests();
+    }
+  }, [pendingProfileRequests, refreshProfileRequests]);
   const filteredRequests = useMemo(() => {
     return requests.filter(req => 
       req.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 

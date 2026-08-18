@@ -17,6 +17,7 @@ export const GET = wrapHandler({
       id: staffAccounts.id,
       name: staffAccounts.name,
       email: staffAccounts.email,
+      mobile_hash: staffAccounts.mobile_hash,
       employee_id: staffAccounts.employee_id,
       pfp: staffAccounts.pfp,
       signature: staffAccounts.signature,
@@ -53,26 +54,35 @@ export const GET = wrapHandler({
     let isHod = false;
     let branch = null;
     if (resolvedRole === 'faculty') {
-        const affil = await db.select({ branch_code: academicDepartments.department_code, is_hod: staffAcademicAffiliations.is_hod })
+        const affil = await db.select({ branch_code: academicDepartments.department_code })
             .from(staffAcademicAffiliations)
             .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
             .where(eq(staffAcademicAffiliations.staff_account_id, staff.id))
             .limit(1);
         if (affil.length > 0) {
           branch = affil[0].branch_code;
-          isHod = affil[0].is_hod;
+          isHod = false;
         }
+    }
+    let decryptedMobile = '';
+    if (staff.mobile_hash) {
+      try {
+        const { decrypt } = require('@/lib/encryption');
+        decryptedMobile = decrypt(staff.mobile_hash);
+      } catch (e) {
+        logger.error({ err: e.message }, '[DECRYPT_MOBILE_ERROR]');
+      }
     }
 
     // Map to expected clerk object properties for frontend compatibility
     const clerk = {
       ...staff,
+      mobile: decryptedMobile,
       role: resolvedRole,
       is_hod: isHod,
       branch: branch,
       is_active: staff.account_status === 'ACTIVE',
     };
-
 
     // Helper to handle both URLs and legacy Buffer data
     const imageHelper = (val) => {

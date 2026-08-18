@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { staffAccounts, staffAcademicAffiliations, academicDepartments } from '@/db/schema';
-import { eq, and, ne } from 'drizzle-orm';
+import { staffAccounts, staffAcademicAffiliations, academicDepartments, academicPrograms, facultyHodAssignments } from '@/db/schema';
+import { eq, and, ne, sql } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
 import { staffSchema } from '@/lib/validations/staff';
 import { z } from 'zod';
@@ -22,11 +22,39 @@ export async function DELETE(req, context) {
       return apiError('Staff not found', 404);
     }
 
-    const [result] = await db.delete(staffAccounts).where(eq(staffAccounts.id, idNum));
-
-    if (result.affectedRows === 0) {
-      return apiError('Failed to delete staff account', 500);
+    // 1. Check for institutional records that should not be cascaded away
+    const importLogs = await db.query.studentImportLogs?.findFirst({
+      where: (logs, { eq }) => eq(logs.staff_id, idNum)
+    });
+    if (importLogs) {
+      return apiError('Cannot delete this staff member because they have associated student import records. Please deactivate the account instead to preserve institutional history.', 409);
     }
+
+    const hodAssignments = await db.query.facultyHodAssignments?.findFirst({
+      where: (hod, { eq }) => eq(hod.staff_account_id, idNum)
+    });
+    if (hodAssignments) {
+      return apiError('Cannot delete this staff member because they are currently assigned as an HOD. Please reassign the HOD role before deleting, or deactivate the account.', 409);
+    }
+
+    await db.transaction(async (tx) => {
+      // 2. Delete sessions and refresh tokens
+      if (tx.userSessions) {
+        await tx.delete(tx.userSessions).where(and(eq(tx.userSessions.user_id, idNum), eq(tx.userSessions.user_type, 'staff')));
+      } else {
+        // Fallback for raw db calls if tx doesn't map them
+        await tx.execute(sql`DELETE FROM user_sessions WHERE user_id = ${idNum} AND user_type = 'staff'`);
+      }
+      
+      await tx.execute(sql`DELETE FROM refresh_tokens WHERE user_id = ${idNum.toString()} AND user_type = 'staff'`);
+
+      // 3. Delete the staff account (cascades roles, affiliations, activations)
+      const [result] = await tx.delete(staffAccounts).where(eq(staffAccounts.id, idNum));
+      
+      if (result.affectedRows === 0) {
+        throw new Error('Failed to delete staff account');
+      }
+    });
 
     // Audit Log
     await logAudit(req, {
@@ -58,13 +86,17 @@ export async function PUT(req, context) {
     const json = await req.json();
 
     // Validate with Zod
-    const updateSchema = staffSchema.extend({
-      is_active: z.boolean().default(true),
-      employee_id: z.string().trim().min(1).max(50)
-    }).partial();
+    const updateSchema = z.object({
+      name: z.string().optional(),
+      email: z.string().email().optional(),
+      employee_id: z.string().trim().min(1).max(50).optional(),
+      is_active: z.boolean().default(true).optional(),
+      is_hod: z.boolean().optional(),
+      branches: z.array(z.string()).optional()
+    });
 
     const validatedData = updateSchema.parse(json);
-    const { name, email, employee_id, role, is_hod, branch, is_active } = validatedData;
+    const { name, email, employee_id, is_hod, branches, is_active } = validatedData;
 
     const staffBefore = await db.query.staffAccounts.findFirst({
       where: eq(staffAccounts.id, idNum)
@@ -87,53 +119,90 @@ export async function PUT(req, context) {
       }
 
       // 2. Handle Branch and HOD Updates (for Faculty)
-      // Only do this if branch or is_hod is explicitly passed
-      if (is_hod !== undefined || branch !== undefined) {
-        let deptId = null;
-        if (branch) {
-          const dept = await tx.query.academicDepartments.findFirst({ where: eq(academicDepartments.code, branch) });
-          if (dept) deptId = dept.id;
-        }
-
-        // STRICT VALIDATION: Only one HOD per branch
-        if (is_hod && deptId) {
-          const existingHODRows = await tx.select({ id: staffAccounts.id, name: staffAccounts.name })
-            .from(staffAcademicAffiliations)
-            .innerJoin(staffAccounts, eq(staffAcademicAffiliations.staff_account_id, staffAccounts.id))
-            .where(and(
-              eq(staffAcademicAffiliations.department_id, deptId),
-              eq(staffAcademicAffiliations.is_hod, true),
-              eq(staffAccounts.account_status, 'ACTIVE'),
-              ne(staffAccounts.id, idNum)
-            ))
-            .limit(1);
-
-          if (existingHODRows.length > 0) {
-            throw new Error(`Conflict: ${existingHODRows[0].name} is already the HOD for ${branch}. Please demote them first.`);
+      if (branches !== undefined || is_hod !== undefined) {
+        
+        let programData = [];
+        let deptCodes = [];
+        // If branches is provided, update affiliations
+        if (branches !== undefined) {
+          // Resolve program IDs and department IDs
+          for (const b of branches) {
+            const prog = await tx.query.academicPrograms.findFirst({ where: eq(academicPrograms.program_code, b) });
+            if (prog) {
+              programData.push({ department_id: prog.department_id, program_id: prog.id });
+            }
           }
+
+          // Wipe existing affiliations
+          await tx.delete(staffAcademicAffiliations).where(eq(staffAcademicAffiliations.staff_account_id, idNum));
+
+          // Insert new affiliations
+          for (const p of programData) {
+             await tx.insert(staffAcademicAffiliations).values({
+               staff_account_id: idNum,
+               department_id: p.department_id,
+               program_id: p.program_id
+             });
+          }
+          
+          const uniqueDeptIds = [...new Set(programData.map(p => p.department_id))];
+          for (const dId of uniqueDeptIds) {
+             const dept = await tx.query.academicDepartments.findFirst({ where: eq(academicDepartments.id, dId) });
+             if (dept) deptCodes.push(dept.department_code);
+          }
+        } else {
+          // We need deptCodes to update HOD status for existing branches if branches wasn't changed
+          const existingAffils = await tx.select({ 
+              code: academicDepartments.department_code 
+            })
+            .from(staffAcademicAffiliations)
+            .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
+            .where(eq(staffAcademicAffiliations.staff_account_id, idNum));
+            
+          deptCodes = [...new Set(existingAffils.map(a => a.code))];
         }
 
-        // Check if affiliation exists
-        const existingAffil = await tx.query.staffAcademicAffiliations.findFirst({
-          where: eq(staffAcademicAffiliations.staff_account_id, idNum)
-        });
+        // HOD Updates
+        if (is_hod !== undefined) {
+           if (is_hod === false) {
+             // Remove HOD status
+             await tx.delete(facultyHodAssignments).where(eq(facultyHodAssignments.staff_account_id, idNum));
+           } else if (is_hod === true && deptCodes.length > 0) {
+             // Add HOD status for all assigned departments
+             const { getCurrentCalendarSession } = await import('@/lib/academic-utils');
+             const currentSession = await getCurrentCalendarSession();
+             
+             for (const dCode of deptCodes) {
+               // Check if someone else is already HOD for this department
+               const existingHOD = await tx.select({ id: staffAccounts.id, name: staffAccounts.name })
+                  .from(facultyHodAssignments)
+                  .innerJoin(staffAccounts, eq(facultyHodAssignments.staff_account_id, staffAccounts.id))
+                  .where(and(
+                    eq(facultyHodAssignments.department_code, dCode),
+                    eq(staffAccounts.account_status, 'ACTIVE'),
+                    ne(staffAccounts.id, idNum)
+                  ))
+                  .limit(1);
 
-        if (existingAffil) {
-           const affilPayload = {};
-           if (is_hod !== undefined) affilPayload.is_hod = !!is_hod;
-           if (deptId !== null) affilPayload.department_id = deptId;
-           
-           if (Object.keys(affilPayload).length > 0) {
-             await tx.update(staffAcademicAffiliations)
-               .set(affilPayload)
-               .where(eq(staffAcademicAffiliations.id, existingAffil.id));
+               if (existingHOD.length > 0) {
+                  throw new Error(`Conflict: ${existingHOD[0].name} is already the HOD for this department. Please demote them first.`);
+               }
+
+               // Check if this user is already HOD
+               const alreadyHOD = await tx.query.facultyHodAssignments.findFirst({
+                 where: and(eq(facultyHodAssignments.department_code, dCode), eq(facultyHodAssignments.staff_account_id, idNum))
+               });
+
+               if (!alreadyHOD) {
+                  await tx.insert(facultyHodAssignments).values({
+                    staff_account_id: idNum,
+                    department_code: dCode,
+                    academic_year: currentSession.academic_year,
+                    start_date: new Date()
+                  });
+               }
+             }
            }
-        } else if (deptId !== null) {
-           await tx.insert(staffAcademicAffiliations).values({
-             staff_account_id: idNum,
-             department_id: deptId,
-             is_hod: !!is_hod
-           });
         }
       }
     });
@@ -146,7 +215,7 @@ export async function PUT(req, context) {
       targetId: idNum,
       targetType: 'staff_accounts',
       before: staffBefore,
-      after: { name, email, employee_id, role, is_hod, branch, is_active }
+      after: { name, email, employee_id, is_hod, branches, is_active }
     });
 
     return apiResponse({ message: 'Staff updated successfully' });

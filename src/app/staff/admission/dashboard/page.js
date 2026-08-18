@@ -1,5 +1,5 @@
 'use client';
-import { Suspense, useEffect, useMemo } from 'react';
+import { Suspense, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStaff } from '@/context/StaffContext';
 import toast from 'react-hot-toast';
@@ -13,7 +13,10 @@ function ClerkDashboardContent() {
     pendingProfileRequests, 
     pendingCertificateRequests,
     isLoadingRequests,
-    studentHistory
+    studentHistory,
+    refreshStudentHistory,
+    refreshProfileRequests,
+    refreshCertificateRequests
   } = useStaff();
 
   const firstName = clerk?.name?.split(' ')[0] || 'Clerk';
@@ -21,6 +24,16 @@ function ClerkDashboardContent() {
   const profilePendingCount = Array.isArray(pendingProfileRequests) ? pendingProfileRequests.length : 0;
   const certificatePendingCount = Array.isArray(pendingCertificateRequests) ? pendingCertificateRequests.length : 0;
   const totalPending = profilePendingCount + certificatePendingCount;
+
+  const fetchedRef = useRef(false);
+  useEffect(() => {
+    if (clerk?.role === 'admission' && !fetchedRef.current) {
+      fetchedRef.current = true;
+      refreshStudentHistory('my');
+      refreshProfileRequests();
+      refreshCertificateRequests('admission');
+    }
+  }, [clerk?.role, refreshStudentHistory, refreshProfileRequests, refreshCertificateRequests]);
 
   const completedTodayCount = useMemo(() => {
     if (!studentHistory?.records) return 0;

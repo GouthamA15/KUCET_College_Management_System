@@ -18,7 +18,7 @@ import { FacultyAttendanceProvider } from '@/context/FacultyAttendanceContext';
 
 export default function FacultyDashboardOverview() {
   const router = useRouter();
-  const { clerkData: clerk, loading } = useStaff();
+  const { clerkData: clerk, loading, facultyAssignments, refreshFaculty, refreshHOD } = useStaff();
 
   const [activeSection, setActiveSection] = useState(null);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
@@ -28,6 +28,17 @@ export default function FacultyDashboardOverview() {
       router.push('/');
     }
   }, [clerk, loading, router]);
+
+  useEffect(() => {
+    if (clerk?.role === 'faculty') {
+      if (!facultyAssignments || facultyAssignments.length === 0) {
+        refreshFaculty();
+      }
+      if (clerk.is_hod) {
+        refreshHOD();
+      }
+    }
+  }, [clerk, facultyAssignments, refreshFaculty, refreshHOD]);
 
   const handleInterestSubmitted = useCallback(() => {
     // Optional: refresh logic

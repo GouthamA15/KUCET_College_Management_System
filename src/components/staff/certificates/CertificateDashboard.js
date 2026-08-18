@@ -44,6 +44,12 @@ export default function CertificateDashboard({ clerkType }) {
     }
   };
 
+  useEffect(() => {
+    if (!pendingCertificateRequests || pendingCertificateRequests.length === 0) {
+      refreshCertificateRequests(clerkType);
+    }
+  }, [clerkType, pendingCertificateRequests, refreshCertificateRequests]);
+
   // Derived records to avoid sync setState in effect
   const displayRecords = useMemo(() => {
     if (workspaceMode === 'active' && appliedFilters.certificateType.length === 0 && appliedFilters.status.length === 0) {

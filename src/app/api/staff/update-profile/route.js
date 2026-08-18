@@ -9,8 +9,8 @@ import { staffSchema } from '@/lib/validations/staff';
 import { z } from 'zod';
 
 export async function POST(req) {
-  const user = await getAuthUser('clerk');
-  if (!user || !user.clerkId) return apiError('Unauthorized', 401);
+  const user = await getAuthUser('staff');
+  if (!user || !user.id) return apiError('Unauthorized', 401);
 
   try {
     const json = await req.json();
@@ -30,7 +30,7 @@ export async function POST(req) {
     const { name, email, mobile, pfp, signature, address } = validatedData;
 
     const currentClerk = await db.query.staffAccounts.findFirst({
-      where: eq(staffAccounts.id, user.clerkId)
+      where: eq(staffAccounts.id, user.id)
     });
 
     if (!currentClerk) return apiError('Clerk not found', 404);
@@ -40,10 +40,8 @@ export async function POST(req) {
     if (name) updateData.name = name;
     if (email) updateData.email = email.toLowerCase();
     if (address !== undefined) updateData.address = address;
-    
     if (mobile) {
-      updateData.mobile = encrypt(mobile);
-      updateData.mobile_hash = hashForIndex(mobile);
+      updateData.mobile_hash = encrypt(mobile);
     }
 
     const { STORAGE_FOLDERS } = await import('@/lib/storage-config');
@@ -65,7 +63,7 @@ export async function POST(req) {
 
     await db.update(staffAccounts)
       .set(updateData)
-      .where(eq(staffAccounts.id, user.clerkId));
+      .where(eq(staffAccounts.id, user.id));
 
     return apiResponse({ success: true, message: 'Profile updated successfully' });
   } catch (error) {
