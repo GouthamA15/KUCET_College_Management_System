@@ -12,7 +12,7 @@ The **KUCET College Management System (CMS)** is an enterprise institutional gov
 - **Zero-Trust Security & Data Protection**: Enterprise role-based access control (RBAC), AES-256-GCM field encryption, blind indexing for PII (Aadhaar & Mobile), and Zod schema validation.
 - **Institutional Governance**: Full lifecycle management of student admissions, roll number allocation, attendance tracking, government scholarships (RTF/MTF), internal marks, and digital certificate verification.
 - **High-Availability Architecture**: Multi-cloud failover storage (S3/R2 → Cloudinary → Local Disk), distributed caching with Redis, serverless TiDB Cloud database, and real-time broadcasting via Supabase Realtime.
-- **Seamless User Experience**: Mobile-first design, Progressive Web App (PWA) offline capabilities, optimistic UI updates (`useOptimistic`), and responsive role-specific portals (Student, Faculty, HOD, Clerk, Admin).
+- **Seamless User Experience**: Mobile-first design, Progressive Web App (PWA) offline capabilities, optimistic UI updates (`useOptimistic`), and responsive role-specific portals (Student, Faculty, HOD, Staff, Admin).
 
 ---
 
@@ -29,12 +29,13 @@ DOCUMENTATION/
 │   ├── backend.md                      # Node.js 20, wrapHandler Zod Validation, EventBus, Pino
 │   ├── database.md                     # TiDB Cloud MySQL, Drizzle ORM Schemas, Connection Pooling
 │   ├── storage.md                      # Universal Storage Layer, Failover Strategy, Key Invariant
+│   ├── solutions-architect-audit-report.md # Comprehensive RSC, Server Action & Frontend Architecture Audit
 │   └── deployment.md                   # VPS Topology, Docker Compose Stack, Nginx, CI/CD Pipeline
 ├── authentication/                     # Security, Auth Flow, JWT Session Management
 ├── database/                           # Extended DB Migrations, Entity Definitions, & Indexing
 ├── deployment/                         # Server Setup, SSL, Environment Specs, Docker Configs
 ├── development/                        # Local Dev Setup, Git Workflow, Code Guidelines
-├── features/                           # Deep Dives into Admissions, Scholarships, Certificates
+├── features/                           # Deep Dives into Admissions, Scholarships, Certificates, Staff Management
 ├── history/                            # System Evolution, Migration History, Changelogs
 ├── pages/                              # Portal Page Mapping & UI Component Catalog
 ├── storage/                            # Media Promotion, Cloudinary Assets, S3/R2 Setup
@@ -54,7 +55,7 @@ To help team members find relevant technical information quickly, follow the tai
 | **Database Administrator (DBA)** | TiDB Cloud, Drizzle Schemas, Connection Pooling, Key Resolution | 1. [database.md](./architecture/database.md)<br>2. [backend.md](./architecture/backend.md)<br>3. [system-architecture.md](./architecture/system-architecture.md) |
 | **DevOps & Infrastructure Engineer** | Hostinger VPS, Docker Compose, Nginx Reverse Proxy, Storage Failover, CI/CD | 1. [deployment.md](./architecture/deployment.md)<br>2. [storage.md](./architecture/storage.md)<br>3. [system-architecture.md](./architecture/system-architecture.md) |
 | **Security Auditor** | JWT Auth, Zod Validation, Pino Redaction, Audit Logging, Cryptography | 1. [backend.md](./architecture/backend.md)<br>2. [database.md](./architecture/database.md)<br>3. [system-architecture.md](./architecture/system-architecture.md) |
-| **Academic Clerk & Domain Lead** | Admissions Engine, Scholarship Rules, Certificate Workflows, Attendance | 1. [system-architecture.md](./architecture/system-architecture.md)<br>2. [backend.md](./architecture/backend.md) |
+| **Institutional Staff & Domain Lead** | Admissions Engine, Scholarship Rules, Certificate Workflows, Attendance | 1. [system-architecture.md](./architecture/system-architecture.md)<br>2. [backend.md](./architecture/backend.md) |
 
 ---
 

@@ -340,11 +340,14 @@ export function StaffProvider({ children }) {
 
   return (
     <StaffContext.Provider value={{
+      staffData: clerkData,
       clerkData,
       collegeInfo,
+      setStaffData: setClerkData,
       setClerkData,
       loading,
       error,
+      refreshStaffData: fetchClerk,
       refreshClerkData: fetchClerk,
       facultyAssignments,
       facultyInterests,

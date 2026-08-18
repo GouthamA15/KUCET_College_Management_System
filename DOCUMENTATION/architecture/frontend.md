@@ -23,23 +23,29 @@ src/app/
 ├── layout.js                     # Root institutional layout (Fonts, Providers, Toast)
 ├── page.js                       # Public landing & portal gateway page
 ├── admission/                    # Public student online application flow
+├── staff-registration/           # Public multi-step staff onboarding wizard
+├── register/staff/activate/      # Token-based staff account activation & password setup
 ├── developers/                   # Institutional project credits & contributor page
 ├── admin/                        # Super Admin Infrastructure & Governance Portal
 │   ├── layout.js                 # Admin sidebar, header navigation & audit context
 │   ├── dashboard/                # Central system metrics & health monitor
 │   ├── infrastructure/           # Database backup controls & DR status
-│   └── manage-clerks/            # Administrative clerk credential issuance
-├── clerk/                        # Academic Clerk Management Portal
-│   ├── layout.js                 # Clerk portal layout with bottom nav & drawer
-│   ├── admission/                # Verification of submitted admission drafts
-│   ├── faculty/                  # Faculty assignment & workload analytics
+│   ├── manage-staff/             # Unified staff credential management
+│   └── staff-requests/           # Self-registration approval pipeline
+├── staff/                        # Staff & Faculty Management Portal
+│   ├── layout.js                 # Staff portal layout with bottom nav & drawer
+│   ├── admission/                # Verification of submitted admission drafts & requests
+│   ├── faculty/                  # Faculty assignment, attendance, marks & syllabus
+│   ├── hod/                      # Departmental timetable, workload & condonation
 │   ├── scholarship/              # Government RTF/MTF reimbursement manager
-│   └── settings/                 # Institutional configuration settings
+│   └── settings/                 # Profile edit & security center
 ├── student/                      # Student Self-Service Portal
 │   ├── layout.js                 # Student layout with bottom bar & active session pill
-│   ├── dashboard/                # Academic progress, GPA & attendance summary
-│   ├── attendance/               # Live class session GPS/PIN attendance form
-│   └── certificates/             # Digital certificate request & PDF downloads
+│   ├── page.js                   # Student home dashboard (RSC shell)
+│   ├── academics/                # Marks, subjects, and attendance history
+│   ├── finances/                 # Fee payments & scholarship proceedings
+│   ├── timetable/                # Weekly semester timetable grid
+│   └── requests/                 # Digital certificate request & ID card downloads
 └── api/                          # Next.js API Route Handlers
 ```
 

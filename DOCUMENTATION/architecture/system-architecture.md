@@ -21,7 +21,7 @@ The KUCET CMS architecture is engineered around the principles of **Domain-Drive
 ```
 +-----------------------------------------------------------------------------------+
 |                                  KUCET CMS UI                                     |
-|           (Student Portal | Faculty & HOD | Administrative Clerk | Admin)         |
+|           (Student Portal | Faculty & HOD | Institutional Staff | Admin)          |
 +-----------------------------------------------------------------------------------+
                                          |
                                          v

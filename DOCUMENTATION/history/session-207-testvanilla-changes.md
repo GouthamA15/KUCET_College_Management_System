@@ -1402,11 +1402,55 @@ test_cloudinary.js
 
 ---
 
+## 19. Production Performance Refactor: RSC, Suspense & Responsive Image Optimization
+
+Based on the architectural audit in `DOCUMENTATION/architecture/solutions-architect-audit-report.md`, a system-wide performance refactoring was executed across all major domain portals:
+
+### 19.1 Summary of Optimizations
+1. **RSC & Client Decoupling**: Converted root `page.js` files from heavyweight client components (`"use client"`) into React Server Components with page-level static `metadata` exports and explicit `<Suspense fallback={<...Skeleton />}>` boundaries.
+2. **Interactive Isolation**: Extracted interactive hooks, contextual consumers (`useStudent`, `useStaff`, `useAdmin`), stateful modals, and client routing into modular `*Client.js` child components.
+3. **Responsive Image Delivery**: Added explicit responsive `sizes` props to next/image instances in Developer team cards, Admission modals, and Student Update request panels, preventing over-fetching full-resolution images on mobile viewports.
+4. **Invariant Preservation**:
+   - 100% adherence to `getAssetUrl(key)` asset resolution and client-side memory caching (`CLIENT_ASSET_CACHE`).
+   - Zero modifications to cookie buffering or JWT multi-role token contracts.
+   - Preserved all DDD domain boundaries and server-side RBAC guards.
+
+### 19.2 Refactored Page Inventory
+| Domain | Route | Architecture | Client Component Extracted | Skeletons / Suspense Fallback |
+|---|---|---|---|---|
+| **Public** | `/offline` | Pure RSC | `OfflineReloadButton.js` | N/A (Static) |
+| **Public** | `/verify` | RSC Shell | `VerifyClient.js` | Spinner fallback |
+| **Public** | `/developers` | RSC Shell | `DevelopersClient.js` | Skeleton pulse |
+| **Student** | `/student` | RSC Shell | `StudentDashboardClient.js` | `StudentDashboardSkeleton` |
+| **Student** | `/student/academics` | RSC Shell | `StudentAcademicsClient.js` | Shimmer table skeleton |
+| **Student** | `/student/finances` | RSC Shell | `StudentFinancesClient.js` | Shimmer grid skeleton |
+| **Student** | `/student/timetable` | Pure RSC | N/A (`ClassTimetable.js`) | Shimmer card skeleton |
+| **Staff** | `/staff/admission/dashboard` | RSC Shell | `AdmissionDashboardClient.js` | `ClerkDashboardSkeleton` |
+| **Staff** | `/staff/scholarship/dashboard` | RSC Shell | `ScholarshipDashboardClient.js` | `ClerkDashboardSkeleton` |
+| **Staff** | `/staff/faculty/dashboard` | RSC Shell | `FacultyDashboardClient.js` | `ClerkDashboardSkeleton` |
+| **Staff** | `/staff/hod/dashboard` | RSC Shell | `HodDashboardClient.js` | Spinner / Shimmer skeleton |
+| **Admin** | `/admin/dashboard` | RSC Shell | `AdminDashboardClient.js` | `AdminDashboardSkeleton` |
+| **Admin** | `/admin/manage-staff` | RSC Shell | `ManageStaffClient.js` | `AdminDashboardSkeleton` |
+| **Admin** | `/admin/staff-requests` | RSC Shell | `StaffRequestsClient.js` | `AdminDashboardSkeleton` |
+| **Admin** | `/admin/payments` | RSC Shell | `PaymentsClient.js` | `AdminDashboardSkeleton` |
+| **Admin** | `/admin/audit-logs` | RSC Shell | `AuditLogsClient.js` | `AdminDashboardSkeleton` |
+| **Admin** | `/admin/infrastructure` | RSC Shell | `InfrastructureClient.js` | `AdminDashboardSkeleton` |
+| **Admin** | `/admin/verifications` | RSC Shell | `VerificationsClient.js` | `AdminDashboardSkeleton` |
+
+### 19.3 Verification Suite Results
+- **ESLint**: 0 errors (`npm run lint`).
+- **Vitest Unit Suite**: 47 test files, 337 tests passed (`npm run test:unit`).
+- **Next.js Production Build**: Clean standalone compilation (`npm run build`).
+
+---
+
 ## Cross-References
 
 - [GEMINI.md](../../GEMINI.md) — Updated with Session 207 commits and new directory map
+- [Solutions Architecture & Next.js Audit Report](../architecture/solutions-architect-audit-report.md) — Architecture audit and RSC blueprint
 - [Authentication Architecture](../authentication/authentication.md) — Cookie engine, JWT claims
 - [Backend Architecture](../architecture/backend.md) — Service layer, API patterns
 - [Database Schema](../database/schema.md) — Full schema reference
 - [Migration History](./migration-history.md) — Session 207 migration entry
 - [Session 206 Release Notes](./session-206-release-notes.md) — Previous release
+

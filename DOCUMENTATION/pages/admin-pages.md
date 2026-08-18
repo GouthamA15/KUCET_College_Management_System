@@ -26,7 +26,7 @@ Access requires an active `admin_auth` JWT cookie signed with Super Admin privil
 ### 1. Executive Dashboard (`/admin/dashboard`)
 Provides real-time visibility into institution metrics:
 - **Enrollment Overview**: Active student count categorized by branch (CSE, ECE, EEE, MECH, CIVIL) and regulation.
-- **Faculty & Staff Status**: Count of active vs inactive clerks, assigned HODs, and teaching faculty.
+- **Faculty & Staff Status**: Count of active vs inactive staff, assigned HODs, and teaching faculty.
 - **System Health Indicators**: Live status of database connections, Redis cache hit rates, Cloudinary storage usage, and Sentry error counts.
 
 ---
@@ -36,7 +36,7 @@ Provides real-time visibility into institution metrics:
 - **Pending Requests Banner (`PendingStaffRequests`)**: Super Admins review pending self-registration requests filtered by staff category directly above each directory.
 - **HOD Promotion & Demotion**: Super Admins assign Head of Department (HOD) roles with atomic checks preventing multiple active HODs per department via `faculty_hod_assignments`.
 - **Multi-Branch Affiliation**: Faculty management supports assigning multiple program/department affiliations and instant text search across employee ID, email, and name.
-- **Access Control & Safe Deletion**: Instant toggle switch to activate or suspend staff access (`account_status: ACTIVE` / `INACTIVE`). Hard delete includes integrity guards preventing deletion if historical student imports or active HOD assignments exist.
+- **Access Control & Safe Deactivation**: Instant toggle switch to activate or suspend staff access (`account_status: ACTIVE` / `SUSPENDED`). Soft deactivation preserves relational history and audit trails.
 
 ---
 
@@ -79,4 +79,5 @@ Governs long-term data lifecycle management to maintain database query performan
 - [Authentication Architecture](../authentication/authentication.md)
 - [Database Schema Reference](../database/schema.md)
 - [Backup Strategy & Disaster Recovery](../database/backup-strategy.md)
-- [Administrative Clerk Portal](./clerk-pages.md)
+- [Institutional Staff Portal](./staff-pages.md)
+- [Staff Management Feature](../features/staff-management.md)

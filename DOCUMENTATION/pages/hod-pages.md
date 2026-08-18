@@ -2,9 +2,9 @@
 
 ## Overview
 
-The Head of Department (HOD) Console (`/clerk/hod/*`) equips department heads with high-level oversight of departmental academic scheduling, faculty workload balances, attendance condonation analytics, and marks approval workflows.
+The Head of Department (HOD) Console (`/staff/hod/*`) equips department heads with high-level oversight of departmental academic scheduling, faculty workload balances, attendance condonation analytics, and marks approval workflows.
 
-Access requires `clerk_auth` credentials where `is_hod: true` and a recognized departmental branch (`CSE`, `ECE`, `EEE`, `MECH`, `CIVIL`).
+Access requires `staff_auth` credentials where `is_hod: true` and a recognized departmental branch (`CSE`, `ECE`, `EEE`, `MECH`, `CIVIL`).
 
 ---
 
@@ -12,11 +12,11 @@ Access requires `clerk_auth` credentials where `is_hod: true` and a recognized d
 
 | Route Path | Feature Module | Core Functionality | Primary RBAC Permissions |
 | :--- | :--- | :--- | :---: |
-| `/clerk/hod/dashboard` | HOD Overview | Department summary, attendance health, faculty status | `VIEW_OWN_RECORDS` |
-| `/clerk/hod/timetable` | Semester Timetable Matrix | Schedule 8 semesters (S1-S8), resolve room conflicts | `ATTENDANCE_EDIT` |
-| `/clerk/hod/workload` | Faculty Workload Tracker | Weekly lecture hour distribution, substitutions | `REPORT_EXPORT` |
-| `/clerk/hod/condonation` | Attendance Condonation | Identify low attendance, generate condonation lists | `REPORT_EXPORT` |
-| `/clerk/hod/approvals` | Subject Allocation & Marks | Approve faculty subject requests, lock internal marks | `MARK_APPROVE` |
+| `/staff/hod/dashboard` | HOD Overview | Department summary, attendance health, faculty status | `VIEW_OWN_RECORDS` |
+| `/staff/hod/timetable` | Semester Timetable Matrix | Schedule 8 semesters (S1-S8), resolve room conflicts | `ATTENDANCE_EDIT` |
+| `/staff/hod/faculty-load` | Faculty Workload Tracker | Weekly lecture hour distribution, substitutions | `REPORT_EXPORT` |
+| `/staff/hod/attendance-analytics` | Attendance Condonation | Identify low attendance, generate condonation lists | `REPORT_EXPORT` |
+| `/staff/hod/subject-assignments` | Subject Allocation & Marks | Approve faculty subject requests, lock internal marks | `MARK_APPROVE` |
 
 ---
 

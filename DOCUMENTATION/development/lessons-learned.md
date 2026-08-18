@@ -95,7 +95,7 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 - **User Enumeration Defense:** Auth routes (`/forgot-password`, `/login`) must return generic success messages (`"If an account exists..."`) regardless of whether an email or roll number exists in the database.
 - **SHA-256 OTP Persistence:** Never persist plaintext OTPs in the database. Store SHA-256 hashes and compare using `crypto.timingSafeEqual()`.
 - **Account Lockouts:** Combine IP-based rate limiting with per-account lockout keys (`login_acct:{id}`) to prevent distributed brute-force attacks.
-- **Role Isolation Cookie Purging:** On authentication as any role, purge all companion cookies belonging to other roles (`clerk_*`, `student_*`, `admin_*`) to guarantee strict domain isolation.
+- **Role Isolation Cookie Purging:** On authentication as any role, purge all companion cookies belonging to other roles (`staff_*`, `clerk_*`, `student_*`, `admin_*`) to guarantee strict domain isolation.
 
 ---
 
