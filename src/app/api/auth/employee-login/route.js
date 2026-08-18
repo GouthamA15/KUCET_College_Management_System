@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { staffAccounts, staffAccountRoles, staffRoles, staffAcademicAffiliations, academicDepartments, principal } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
@@ -110,8 +110,18 @@ export async function POST(request) {
                 .limit(1);
             if (affil.length > 0) {
               branch = affil[0].branch_code;
-              // TODO: Fetch isHod properly if needed
-              isHod = false;
+            }
+
+            const { facultyHodAssignments } = await import('@/db/schema');
+            const hodRow = await db.select({ id: facultyHodAssignments.id })
+                .from(facultyHodAssignments)
+                .where(and(
+                  eq(facultyHodAssignments.staff_account_id, staff.id),
+                  eq(facultyHodAssignments.is_active, true)
+                ))
+                .limit(1);
+            if (hodRow.length > 0) {
+              isHod = true;
             }
         }
 

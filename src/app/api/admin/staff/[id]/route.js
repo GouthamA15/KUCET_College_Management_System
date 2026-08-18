@@ -3,7 +3,6 @@ import { db } from '@/db';
 import { staffAccounts, staffAcademicAffiliations, academicDepartments, academicPrograms, facultyHodAssignments } from '@/db/schema';
 import { eq, and, ne, sql } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
-import { staffSchema } from '@/lib/validations/staff';
 import { z } from 'zod';
 
 export async function DELETE(req, context) {
@@ -167,6 +166,7 @@ export async function PUT(req, context) {
            if (is_hod === false) {
              // Remove HOD status
              await tx.delete(facultyHodAssignments).where(eq(facultyHodAssignments.staff_account_id, idNum));
+             await tx.update(staffAcademicAffiliations).set({ is_hod: false }).where(eq(staffAcademicAffiliations.staff_account_id, idNum));
            } else if (is_hod === true && deptCodes.length > 0) {
              // Add HOD status for all assigned departments
              const { getCurrentCalendarSession } = await import('@/lib/academic-utils');
@@ -202,6 +202,7 @@ export async function PUT(req, context) {
                   });
                }
              }
+             await tx.update(staffAcademicAffiliations).set({ is_hod: true }).where(eq(staffAcademicAffiliations.staff_account_id, idNum));
            }
         }
       }
@@ -211,7 +212,7 @@ export async function PUT(req, context) {
     await logAudit(req, {
       userId: user.id,
       userType: 'admin',
-      action: 'UPDATE_CLERK',
+      action: 'UPDATE_STAFF',
       targetId: idNum,
       targetType: 'staff_accounts',
       before: staffBefore,
