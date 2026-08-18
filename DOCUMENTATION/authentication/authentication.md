@@ -189,36 +189,110 @@ When silent refresh fails inside `src/proxy.js`, explicit HTTP 1970 expiration s
 
 ---
 
-## Clerk & Staff Self-Registration & First-Login Password Change Workflow
+## Session 207 — Staff Onboarding Pipeline (New 4-Stage Workflow)
 
-The system provides a defense-in-depth onboarding pipeline for institutional staff:
+> **Breaking Change in Session 207 (testvanilla):** The clerk self-registration system has been replaced with a formal 4-stage admin-controlled onboarding pipeline. Cookie names have changed. See [Session 207 Change Analysis](../history/session-207-testvanilla-changes.md).
 
-1. **Simplified Staff Self-Registration (`POST /api/auth/clerk-register`)**:
-   - Staff click **"Register Yourself"** on the Clerk login panel.
-   - Self-registration is strictly limited to 3 staff categories:
-     1. **Faculty (`FACULTY`)**: Requires selecting an **Associated Academic Branch** (`CSE`, `CSD`, `ECE`, `EEE`, `MECH`, `CIVIL`, `IT`).
-     2. **Scholarship Clerk (`SCHOLARSHIP_CLERK`)**: Financial / scholarship sanction staff.
-     3. **Admission Clerk (`ADMISSION_CLERK`)**: Student admissions & registration staff.
-   - **Designation Field Deprecation**: Free-text designation inputs have been completely removed to ensure standardized institutional records.
-   - Input is validated against Zod zero-trust schemas, rate-limited, and checked for duplicates in `clerks` and pending `clerk_registration_requests`.
-   - On submission, a record is created in `clerk_registration_requests` with `status: 'PENDING'`.
+### Cookie Name Changes (Session 207)
 
-2. **Administrator Review & Role-Scoped Approval (`/api/admin/clerk-requests`)**:
-   - Super Admins view pending requests organized into role-scoped tabs: **Academic Faculty**, **Scholarship Clerks**, and **Admission Clerks**.
-   - **Approve Action**: System generates a strong random temporary password, creates an active `clerks` record mapped to `role: 'faculty'`, `'scholarship'`, or `'admission'` with `must_change_password: true`, updates request status to `APPROVED`, and sends a transactional email containing login credentials.
-   - **Reject Action**: Administrator provides a rejection reason, updates request status to `REJECTED`, and sends a rejection notification email.
+| Before (Session 206) | After (Session 207) |
+|---|---|
+| `clerk_auth` | `staff_auth` |
+| `clerk_logged_in` | `staff_logged_in` |
+| `clerk_role` | `staff_role` |
+| `clerk_session_id` | `staff_session_id` |
+| `clerk_refresh_token` | `staff_refresh_token` |
 
-3. **Faculty -> HOD Promotion Workflow**:
-   - HOD is **NOT** a self-registration option.
-   - Faculty members register as standard Faculty.
-   - Super Admin promotes an approved Faculty member to HOD via the **Staff Management Console** using **"Promote HOD"**.
-   - The system enforces a strict invariant: **Exactly one active HOD per branch**.
-   - Admin can demote an HOD back to Faculty using **"Demote HOD"** at any time.
+> ⚠️ All existing `clerk_auth` sessions are invalidated on deployment. Staff must re-login.
 
-4. **Mandatory First-Login Password Change**:
-   - Upon first login using the temporary password, `/api/auth/employee-login` returns `mustChangePassword: true`.
-   - The UI enforces a mandatory **Password Reset Modal** requiring a new compliant password before allowing navigation to dashboard routes.
-   - Updating the password calls `/api/auth/change-password/clerk`, sets `must_change_password: false`, updates `password_changed_at`, and grants full access.
+### Auth Function Rename
+
+```javascript
+// Session 206
+issueClerkAuthCookie(response, clerk, rememberMe, ip, userAgent)
+// JWT payload: { id, clerkId, email, role, is_hod, branch }
+// Refresh token user_id = clerk.email (string)
+
+// Session 207
+issueStaffAuthCookie(response, staff, rememberMe, ip, userAgent)
+// JWT payload: { id, staffId, email, role, is_hod, branch }
+// Refresh token user_id = staff.id (integer)
+```
+
+### Stage 1 — Email OTP Verification
+
+```
+POST /api/public/staff-registration/email/send-otp  { email }
+→ Sends 6-digit OTP, 10-minute TTL
+
+POST /api/public/staff-registration/email/verify-otp  { email, otp }
+→ Returns signed JWT verificationToken (purpose: 'staff_registration_email', 30min expiry)
+```
+
+### Stage 2 — Registration Submission
+
+```
+POST /api/public/staff-registration
+  { fullName, email, mobile, requested_role, designation,
+    verificationToken, academic_affiliations }
+
+Validations:
+  - Verify JWT token (email match + purpose check)
+  - Faculty must include department_code + program_codes[]
+  - Non-faculty must have no academic_affiliations
+  - Duplicate check: clerks table, staffAccounts, staffRegistrationRequests
+  - Inserts into staff_registration_requests (status='PENDING')
+```
+
+### Stage 3 — Admin Approval
+
+```
+GET  /api/admin/staff-requests           → List all requests
+POST /api/admin/staff-requests/[id]/approve
+  → db.transaction():
+     1. INSERT staff_accounts (status=PENDING_ACTIVATION)
+     2. INSERT staff_account_roles (role_id FK from staff_roles)
+     3. INSERT staff_academic_affiliations (faculty only)
+     4. crypto.randomBytes(32) → SHA-256 → staff_account_activation_tokens
+     5. UPDATE staff_registration_requests → APPROVED
+     6. INSERT audit_logs
+  → Send activation email with 48hr link
+
+POST /api/admin/staff-requests/[id]/reject       { admin_notes }
+POST /api/admin/staff-requests/[id]/resend-activation  → new token + email
+```
+
+### Stage 4 — Token Activation & Password Setup
+
+```
+GET  /api/public/staff-registration/activate?token=<rawToken>
+  → SHA-256 hash token → lookup in staff_account_activation_tokens
+  → Validate: not expired, used_at IS NULL, account_status=PENDING_ACTIVATION
+  → Returns: { name, email }
+
+POST /api/public/staff-registration/activate  { token, password, confirmPassword }
+  → Re-validates token
+  → bcrypt.hash(password, 10)
+  → UPDATE staff_accounts: password_hash, account_status='ACTIVE'
+  → UPDATE staff_account_activation_tokens: used_at=NOW()
+```
+
+### Token Refresh — Staff (Session 207 Rewrite)
+
+The `refreshAccessToken()` for `userType === 'staff'` now performs 4-table JOINs to reconstruct role/branch/HOD:
+
+```javascript
+// Queries: staffAccounts → staffAccountRoles → staffRoles
+//                        → staffAcademicAffiliations → academicDepartments
+// Resolves: { role, is_hod, branch } before re-issuing staff_auth cookie
+// NOTE: user_id in refresh_tokens is now INTEGER staff ID, not email string
+```
+
+### HOD Promotion (Unchanged Workflow)
+
+- HOD is NOT a self-registration option — Faculty register first, then Admin promotes.
+- Single-HOD-per-branch invariant enforced via `staffAcademicAffiliations.is_hod`.
+- Admin promotes/demotes from the Staff Management Console.
 
 ---
 
@@ -226,7 +300,8 @@ The system provides a defense-in-depth onboarding pipeline for institutional sta
 
 - [Authorization & RBAC Matrix](./authorization.md)
 - [Session Management & Revocation](./session-management.md)
+- [Session 207 Complete Change Analysis](../history/session-207-testvanilla-changes.md)
 - [Backend Architecture & Service Ecosystem](../architecture/backend.md)
-- [Chronological Incident Forensics](../history/resolved-incidents.md#1-session-205-forensic-resolution-of-cookies-remain-but-app-shows-home-screen)
-- [Comprehensive Engineering Lessons Learned](../development/lessons-learned.md#rule-11-never-rely-on-headersgetsetcookie-or-comma-joined-headers-for-multi-cookie-responses-in-nextjs-middleware)
+- [Chronological Incident Forensics](../history/resolved-incidents.md)
+- [Engineering Lessons Learned](../development/lessons-learned.md)
 - [Database Schema (Identity Domain)](../database/schema.md#1-identity-domain)
