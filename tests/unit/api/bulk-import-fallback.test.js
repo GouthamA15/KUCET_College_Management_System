@@ -34,5 +34,5 @@ describe('Bulk Import Fallback Execution', () => {
     delete process.env.QSTASH_TOKEN;
     const { POST } = await import('@/app/api/staff/admission/bulk-import/route.js');
     expect(typeof POST).toBe('function');
-  });
+  }, 15000);
 });

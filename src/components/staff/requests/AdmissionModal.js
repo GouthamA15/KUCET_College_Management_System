@@ -114,7 +114,7 @@ export function MediaSection({ detail, isEditing, onFieldChange }) {
                 <div className="w-full bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden" style={{ aspectRatio: '3 / 4' }}>
                     {detail.pfp ? (
                         <div className="w-full h-full relative">
-                            <Image src={getAssetUrl(detail.pfp)} alt="Student Photo" fill className="object-cover" unoptimized onError={(e) => { e.target.style.display = 'none'; if (e.target.parentNode) e.target.parentNode.innerHTML = '<div class="flex items-center justify-center w-full h-full text-[9px] font-bold text-slate-400 uppercase">Image Unavailable</div>'; }} />
+                            <Image src={getAssetUrl(detail.pfp)} alt="Student Photo" fill sizes="180px" className="object-cover" unoptimized onError={(e) => { e.target.style.display = 'none'; if (e.target.parentNode) e.target.parentNode.innerHTML = '<div class="flex items-center justify-center w-full h-full text-[9px] font-bold text-slate-400 uppercase">Image Unavailable</div>'; }} />
                         </div>
                     ) : (
                         <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">No Record Found</span>
@@ -139,7 +139,7 @@ export function MediaSection({ detail, isEditing, onFieldChange }) {
                 <div className="w-full h-24 bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
                     {detail.signature ? (
                         <div className="w-full h-full relative p-2">
-                            <Image src={getAssetUrl(detail.signature)} alt="Signature" fill className="object-contain" unoptimized />
+                            <Image src={getAssetUrl(detail.signature)} alt="Signature" fill sizes="240px" className="object-contain" unoptimized />
                         </div>
                     ) : (
                         <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">No Record Found</span>

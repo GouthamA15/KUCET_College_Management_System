@@ -188,6 +188,10 @@ Session 205 resolved critical cookie persistence bugs, hardened authentication b
 | `a8a350c3` | Session 207 — Admin Staff Management Continuation | Scaffolding for modern unified staff management console. |
 | `5ab9ff0f` | Session 207 — Admin Staff Management & Staff Edit Profile | Complete implementation of `/admin/manage-staff`, `/api/admin/staff` and `/api/admin/staff/[id]` (GET, PUT, DELETE); Admission Clerk & Faculty `/staff/settings/edit-profile` with image compression; `faculty_hod_assignments` DB table; `StaffContext` lazy sub-resource fetching; `mobile_hash` expanded to `varchar(255)`. |
 | `916cb472` | Session 207 — CI/CD Asset Normalization Fix | `src/lib/assets.js` updated to pass-through `data:` URIs, extract `kucet/` keys from accidental absolute URLs, normalize local `/api/assets/view/` paths, and bound `CLIENT_ASSET_CACHE` (5000 max). |
+| `92854eae` | Session 207 — Unified HOD Resolution Across Auth Pipeline | Unified HOD resolution in `src/app/api/auth/employee-login/route.js`, `src/app/api/staff/me/route.js`, `src/lib/auth-utils.js`, and `src/app/api/admin/staff/[id]/route.js` ensuring consistent `faculty_hod_assignments` querying and `is_hod` boolean propagation in token payload and session. |
+| `b83155a8` | Session 207 — Solutions Architecture & Next.js Audit Report | Added comprehensive solutions architecture and Next.js audit report in `DOCUMENTATION/architecture/solutions-architect-audit-report.md` covering frontend RSC opportunities, server actions, client component inventory, and performance recommendations. |
+| `cfa6b7d8` | Session 207 — Staff Soft Deactivation & Reactivation | Switched staff deletion in `/admin/manage-staff` and `/api/admin/staff/[id]` from hard row deletion (`DELETE FROM staff_accounts`) to soft deactivation (`account_status = 'SUSPENDED'`), terminating sessions/refresh tokens while preserving audit logs, student import logs, and relational history, with UI reactivation support. |
+
 
 ---
 

@@ -318,7 +318,7 @@ const StudentUpdateRequestsPanel = () => {
                               <p className="text-[10px] font-bold text-gray-400 text-center uppercase">Current Record</p>
                               <div className="aspect-square bg-gray-50 border border-gray-200 rounded-md overflow-hidden relative">
                                 {reviewingRequest.old_pfp ? (
-                                  <Image unoptimized src={getAssetUrl(reviewingRequest.old_pfp)} alt="Old" fill className="object-cover" />
+                                  <Image unoptimized src={getAssetUrl(reviewingRequest.old_pfp)} alt="Old" fill sizes="120px" className="object-cover" />
                                 ) : (
                                   <div className="flex items-center justify-center h-full text-xs text-gray-400">None</div>
                                 )}
@@ -331,7 +331,7 @@ const StudentUpdateRequestsPanel = () => {
                                 onClick={() => setViewingImage(reviewingRequest.new_pfp)}
                                 className="w-full aspect-square bg-white border-2 border-purple-200 rounded-md overflow-hidden relative hover:border-purple-500 transition-colors shadow-sm cursor-zoom-in"
                               >
-                                <Image unoptimized src={getAssetUrl(reviewingRequest.new_pfp)} alt="New" fill className="object-cover" />
+                                <Image unoptimized src={getAssetUrl(reviewingRequest.new_pfp)} alt="New" fill sizes="120px" className="object-cover" />
                               </button>
                             </div>
                           </div>
@@ -346,7 +346,7 @@ const StudentUpdateRequestsPanel = () => {
                               <p className="text-[10px] font-bold text-gray-400 uppercase">Current Record</p>
                               <div className="h-16 bg-gray-50 border border-gray-200 rounded-md overflow-hidden relative">
                                 {reviewingRequest.old_signature ? (
-                                  <Image unoptimized src={getAssetUrl(reviewingRequest.old_signature)} alt="Old" fill className="object-contain p-2" />
+                                  <Image unoptimized src={getAssetUrl(reviewingRequest.old_signature)} alt="Old" fill sizes="200px" className="object-contain p-2" />
                                 ) : (
                                   <div className="flex items-center justify-center h-full text-xs text-gray-400">None</div>
                                 )}
@@ -358,7 +358,7 @@ const StudentUpdateRequestsPanel = () => {
                                 onClick={() => setViewingImage(reviewingRequest.new_signature)}
                                 className="w-full h-16 bg-white border-2 border-purple-200 rounded-md overflow-hidden relative hover:border-purple-500 transition-colors shadow-sm cursor-zoom-in"
                               >
-                                <Image unoptimized src={getAssetUrl(reviewingRequest.new_signature)} alt="New" fill className="object-contain p-2" />
+                                <Image unoptimized src={getAssetUrl(reviewingRequest.new_signature)} alt="New" fill sizes="200px" className="object-contain p-2" />
                               </button>
                             </div>
                           </div>
@@ -488,7 +488,7 @@ const StudentUpdateRequestsPanel = () => {
                 </button>
               </div>
               <div className="relative max-w-6xl max-h-[85vh] w-full h-full flex items-center justify-center border-8 border-gray-800 shadow-2xl bg-white rounded-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={getAssetUrl(viewingImage)} alt="Audit Preview" fill unoptimized className="object-contain" />
+                <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={getAssetUrl(viewingImage)} alt="Audit Preview" fill sizes="(max-width: 768px) 90vw, 1100px" unoptimized className="object-contain" />
               </div>
               <div className="mt-8 text-gray-500 text-[10px] font-semibold tracking-[0.4em] animate-pulse">Digital Forensic Environment &bull; High-Resolution View</div>
             </div>

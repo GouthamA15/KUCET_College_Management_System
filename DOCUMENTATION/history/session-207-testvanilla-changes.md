@@ -54,6 +54,12 @@ This is a **breaking change** for all existing sessions: any `clerk_auth` cookie
 | 4 | `7957f29f` | No merge conflicts dw | merge | Conflict resolution |
 | 5 | `a8b68155` | Migration (clerk to staff) — Implemented working module | 212 files, 1,566 ins / 2,483 del | **Global clerk→staff rename across all layers** |
 | 6 | `08b10a4c` | Memory Free deployment + Test CI/CD | 6 files | Build memory fix, admin manage-clerks refactor, E2E test updates |
+| 7 | `a8a350c3` | Admin Staff Management Continuation | Scaffolding | Base scaffolding for unified staff management |
+| 8 | `5ab9ff0f` | Admin Staff Management & Staff Edit Profile | 18 files | Full `/admin/manage-staff`, `/staff/settings/edit-profile`, `faculty_hod_assignments` |
+| 9 | `916cb472` | CI/CD Asset Normalization Fix | 1 file | Pass-through data URIs, relative key extraction, bounded cache |
+| 10 | `92854eae` | Unified HOD Resolution Across Auth Pipeline | 4 files | Unified HOD resolution in login, /api/staff/me, and token refresh |
+| 11 | `b83155a8` | Solutions Architecture & Next.js Audit Report | 1 file | Comprehensive RSC, server actions, and frontend audit |
+| 12 | `cfa6b7d8` | Staff Soft Deactivation & Reactivation | 2 files | Soft deactivation (`SUSPENDED`) instead of hard deletion to preserve history |
 
 ---
 
