@@ -5,9 +5,11 @@ import RealtimeListener from '@/components/RealtimeListener';
 
 export const StudentContext = createContext();
 
+let cachedCollegeInfo = null;
+
 export function StudentProvider({ children }) {
   const [studentData, setStudentData] = useState(null);
-  const [collegeInfo, setCollegeInfo] = useState(null);
+  const [collegeInfo, setCollegeInfo] = useState(cachedCollegeInfo);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [certificateRequests, setCertificateRequests] = useState(null);
@@ -22,25 +24,28 @@ export function StudentProvider({ children }) {
   const isInitializingRef = React.useRef(false);
 
   const fetchCollegeInfo = useCallback(async () => {
+    if (cachedCollegeInfo) {
+      setCollegeInfo(cachedCollegeInfo);
+      return cachedCollegeInfo;
+    }
     try {
       const res = await fetch('/api/public/college-info');
       if (res.ok) {
         const data = await res.json();
+        cachedCollegeInfo = data.collegeInfo;
         setCollegeInfo(data.collegeInfo);
+        return data.collegeInfo;
       }
     } catch (e) {
       console.error('Failed to fetch college info', e);
-    } finally {
-      if (process.env.NODE_ENV === 'development') {
-        console.info('[StudentContext] fetchCollegeInfo() completed');
-      }
     }
+    return null;
   }, []);
 
   const fetchAcademicPerformance = useCallback(async () => {
     setIsLoadingAcademic(true);
     try {
-      const res = await fetch('/api/student/academic-info');
+      const res = await fetch('/api/student/academic-info', { cache: 'no-store' });
       if (res.ok) {
         const json = await res.json();
         setAcademicPerformance(json.data || []);
@@ -50,19 +55,17 @@ export function StudentProvider({ children }) {
       console.error('Failed to fetch academic performance', e);
     } finally {
       setIsLoadingAcademic(false);
-      if (process.env.NODE_ENV === 'development') {
-        console.info('[StudentContext] fetchAcademicPerformance() completed');
-      }
     }
     return null;
   }, []);
 
   const fetchProfile = useCallback(async (rollno) => {
+    if (!rollno) return null;
     try {
       const [profileRes, sigRes, reqRes] = await Promise.all([
-        fetch(`/api/student/${rollno}`, { cache: 'no-store' }),
+        fetch(`/api/student/${encodeURIComponent(rollno)}`, { cache: 'no-store' }),
         fetch('/api/student/signature', { cache: 'no-store' }),
-        fetch(`/api/student/latest-request?rollno=${rollno}`, { cache: 'no-store' })
+        fetch(`/api/student/latest-request?rollno=${encodeURIComponent(rollno)}`, { cache: 'no-store' })
       ]);
       
       if (profileRes.ok) {
@@ -88,13 +91,12 @@ export function StudentProvider({ children }) {
         } catch {
           setError('Failed to fetch profile');
         }
+        if (profileRes.status === 401 || profileRes.status === 403) {
+          setStudentData(null);
+        }
       }
     } catch (_e) {
       setError('Network error');
-    } finally {
-      if (process.env.NODE_ENV === 'development') {
-        console.info('[StudentContext] fetchProfile() completed');
-      }
     }
     return null;
   }, []);
@@ -103,30 +105,38 @@ export function StudentProvider({ children }) {
   const activePromiseRef = useRef(null);
 
   const refreshData = useCallback(async () => {
-    if (process.env.NODE_ENV === 'development') {
-      console.info('[StudentContext] refreshData() started');
-    }
     if (activePromiseRef.current) {
       return activePromiseRef.current;
     }
 
     const promise = (async () => {
       try {
-        if (process.env.NODE_ENV === 'development') {
-          console.info('[StudentContext] /api/student/me request started');
-        }
         const me = await fetch('/api/student/me', { cache: 'no-store' });
-        if (process.env.NODE_ENV === 'development') {
-          console.info('[StudentContext] /api/student/me request completed');
-        }
         if (me.ok) {
           const user = await me.json();
+          if (!user || !user.roll_no) {
+            setStudentData(null);
+            return null;
+          }
+
+          // If current in-memory student doesn't match the newly authenticated roll number, purge previous child states
+          if (studentData && (studentData.student?.roll_no !== user.roll_no && studentData.roll_no !== user.roll_no)) {
+            setStudentData(null);
+            setAcademicPerformance(null);
+            setLatestProfileRequest(null);
+            setLatestCertificateRequest(null);
+            setProfileDetails(null);
+            setCertificateRequests(null);
+          }
+
           await fetchCollegeInfo();
           const profilePromise = fetchProfile(user.roll_no);
           const academicPromise = fetchAcademicPerformance();
           const [profile] = await Promise.all([profilePromise, academicPromise]);
           lastFetchTimeRef.current = Date.now();
           return profile;
+        } else if (me.status === 401 || me.status === 403) {
+          setStudentData(null);
         }
       } catch (_e) {
         setError('Failed to refresh data');
@@ -138,7 +148,7 @@ export function StudentProvider({ children }) {
 
     activePromiseRef.current = promise;
     return promise;
-  }, [fetchProfile, fetchCollegeInfo, fetchAcademicPerformance]);
+  }, [fetchProfile, fetchCollegeInfo, fetchAcademicPerformance, studentData]);
 
   const handleResume = useCallback(async (event) => {
     if (process.env.NODE_ENV === 'development') {
@@ -281,10 +291,10 @@ export function StudentProvider({ children }) {
       latestCertificateRequest,
       profileDetails,
       refreshProfile: async () => {
-        const me = await fetch('/api/student/me');
+        const me = await fetch('/api/student/me', { cache: 'no-store' });
         if (me.ok) {
           const user = await me.json();
-          return fetchProfile(user.roll_no);
+          return fetchProfile(user?.roll_no);
         }
       }
     }}>

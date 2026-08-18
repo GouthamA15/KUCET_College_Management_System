@@ -1,7 +1,11 @@
 import { apiResponse } from '@/lib/api-utils';
 
 export async function POST() {
-  const response = apiResponse({ success: true, message: 'Logout successful' });
+  const response = apiResponse(
+    { success: true, message: 'Logout successful' },
+    200,
+    { 'Clear-Site-Data': '"cache", "storage"' }
+  );
   const cookiesToClear = [
     'staff_auth', 'staff_logged_in', 'staff_refresh_token', 'staff_role', 'staff_session_id', 'session_id'
   ];

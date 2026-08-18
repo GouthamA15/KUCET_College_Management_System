@@ -1,4 +1,5 @@
 // Centralized logout helpers (client-side only)
+import { invalidateAssetCache } from '@/lib/assets';
 
 async function safePost(url) {
   if (!url) return;
@@ -45,6 +46,31 @@ function redirectTo(url = '/') {
   window.location.replace(url);
 }
 
+async function purgeBrowserCaches() {
+  try {
+    invalidateAssetCache();
+  } catch {
+    // ignore
+  }
+
+  try {
+    if (typeof window !== 'undefined' && 'caches' in window) {
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map(name => caches.delete(name)));
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    if (typeof navigator !== 'undefined' && navigator.serviceWorker?.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_ALL_CACHES' });
+    }
+  } catch {
+    // ignore
+  }
+}
+
 async function logoutAndRedirect({
   endpoint,
   localStorageKeys = [],
@@ -54,6 +80,8 @@ async function logoutAndRedirect({
   redirect = '/',
 } = {}) {
   await safePost(endpoint);
+
+  await purgeBrowserCaches();
 
   for (const key of localStorageKeys) safeLocalRemoveItem(key);
 

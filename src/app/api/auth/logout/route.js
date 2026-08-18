@@ -25,7 +25,11 @@ export async function GET(request) {
 }
 
 export async function POST(_request) {
-  const response = apiResponse({ success: true, message: 'Logged out' });
+  const response = apiResponse(
+    { success: true, message: 'Logged out' },
+    200,
+    { 'Clear-Site-Data': '"cache", "storage"' }
+  );
   
   const cookiesToClear = [
     'admin_auth', 'admin_logged_in', 'admin_refresh_token', 'admin_session_id',

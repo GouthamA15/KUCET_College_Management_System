@@ -6,20 +6,38 @@ import { auditLogs } from '@/db/schema';
 import logger from './logger';
 import { z } from 'zod';
 
+const NO_CACHE_HEADERS = {
+  'Cache-Control': 'private, no-cache, no-store, max-age=0, must-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0',
+};
+
 /**
- * Standard API response helper
+ * Standard API response helper with anti-caching headers
  */
-export function apiResponse(data, status = 200) {
-  return NextResponse.json(data, { status });
+export function apiResponse(data, status = 200, headers = {}) {
+  return NextResponse.json(data, {
+    status,
+    headers: {
+      ...NO_CACHE_HEADERS,
+      ...headers
+    }
+  });
 }
 
 /**
- * Standard API error response helper
+ * Standard API error response helper with anti-caching headers
  */
-export function apiError(message, status = 500, details = null) {
+export function apiError(message, status = 500, details = null, headers = {}) {
   const response = { error: message };
   if (details) response.details = details;
-  return NextResponse.json(response, { status });
+  return NextResponse.json(response, {
+    status,
+    headers: {
+      ...NO_CACHE_HEADERS,
+      ...headers
+    }
+  });
 }
 
 /**
@@ -133,8 +151,11 @@ export function wrapHandler({ handler, schema, auth, audit }) {
         // 4. Handle Response
         const response = result instanceof NextResponse ? result : apiResponse(result);
 
-        // 5. Inject Trace ID into headers for debugging
+        // 5. Inject Trace ID & Anti-Caching headers into response
         response.headers.set('x-trace-id', traceId);
+        response.headers.set('Cache-Control', 'private, no-cache, no-store, max-age=0, must-revalidate');
+        response.headers.set('Pragma', 'no-cache');
+        response.headers.set('Expires', '0');
 
         // 6. Audit Logging (If successful and configured)
         if (audit && response.status >= 200 && response.status < 300) {

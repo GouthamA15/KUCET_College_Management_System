@@ -1,5 +1,5 @@
 // Bump version when SW changes to force old SW to be replaced and old caches cleared.
-const CACHE_NAME = 'kucet-cms-v2';
+const CACHE_NAME = 'kucet-cms-v3';
 const OFFLINE_URL = '/offline';
 
 const PRECACHE_ASSETS = [
@@ -8,28 +8,6 @@ const PRECACHE_ASSETS = [
   '/manifest.json'
   // NOTE: Do NOT precache '/' — it redirects based on auth state (middleware)
   // and caching a stale redirect would break the login flow.
-];
-
-const BYPASS_CACHE_PATTERNS = [
-  /\/api\/auth\//,
-  /\/api\/student\/login/,
-  /\/api\/clerk\/login/,
-  /\/api\/admin\/login/,
-  /\/api\/student\/finances\/pay/,
-  /\/api\/auth\/reset-password/,
-  /\/api\/assets\/view\//,
-  /\/uploads\//,
-  /\/api\/student\/image\//,
-  /\/api\/student\/requests\/image\//
-];
-
-const OFFLINE_CACHE_PATTERNS = [
-  /\/student\/requests\/id-card/,
-  /\/api\/student\/requests\/id-card/,
-  /\/student\/finances/,
-  /\/api\/student\/finances\/receipts/,
-  /\/student\/academics/,
-  /\/api\/student\/academics\/timetable/
 ];
 
 self.addEventListener('install', (event) => {
@@ -54,22 +32,31 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Explicit cache purge handler on logout / account switch
+self.addEventListener('message', (event) => {
+  if (event.data && (event.data.type === 'CLEAR_ALL_CACHES' || event.data.type === 'LOGOUT')) {
+    event.waitUntil(
+      caches.keys().then((cacheNames) => {
+        return Promise.all(cacheNames.map((name) => caches.delete(name)));
+      })
+    );
+  }
+});
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // 1. Explicitly bypass sensitive auth and payment POST requests (and all non-GET)
-  if (BYPASS_CACHE_PATTERNS.some((pattern) => pattern.test(url.pathname)) || request.method !== 'GET') {
+  // 1. CRITICAL INVARIANT: ALL /api/* requests MUST BYPASS the Service Worker cache completely.
+  // Dynamic API routes represent authenticated user session data and must NEVER be cached
+  // across users or sessions by the Service Worker.
+  if (url.pathname.startsWith('/api/') || request.method !== 'GET') {
     return;
   }
 
-  // 2. CRITICAL FIX: Navigation requests (HTML page loads) MUST always go to the
-  // network. The auth middleware returns different responses (redirects vs. 200) based
-  // on cookie state. Serving a stale cached navigation response causes the browser to
-  // hydrate with auth state that no longer matches the server, leading to redirect loops
-  // and ERR_FAILED after the session expires.
-  //
-  // We only fall back to cache/offline if the network request fails entirely.
+  // 2. Navigation requests (HTML page loads) MUST always go to the network.
+  // The auth middleware returns different responses (redirects vs. 200) based on cookie state.
+  // Serving a stale cached navigation response causes the browser to hydrate with stale auth state.
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request).catch(async () => {
@@ -84,31 +71,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Offline Priority Routes (ID Card, Fee Receipts, Timetable) — network-first with cache fallback
-  if (OFFLINE_CACHE_PATTERNS.some((pattern) => pattern.test(url.pathname))) {
-    event.respondWith(
-      (async () => {
-        try {
-          const networkResponse = await fetch(request);
-          if (networkResponse && networkResponse.ok) {
-            const cache = await caches.open(CACHE_NAME);
-            await cache.put(request, networkResponse.clone());
-          }
-          return networkResponse;
-        } catch (_error) {
-          const cachedResponse = await caches.match(request);
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          return new Response('Network error', { status: 503, statusText: 'Service Unavailable' });
-        }
-      })()
-    );
-    return;
-  }
-
-  // 4. Stale-While-Revalidate for static assets (JS, CSS, images, fonts)
-  // Navigation requests have already been handled above — this only covers assets.
+  // 3. Stale-While-Revalidate ONLY for static web assets (_next/static, images, CSS, fonts)
   event.respondWith(
     (async () => {
       const cachedResponse = await caches.match(request);

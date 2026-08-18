@@ -4,6 +4,7 @@ import { useState, _useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { validateRollNo } from '@/lib/rollNumber'; // Import validateRollNo
 import { getDashboardPathByRole } from '@/lib/path-utils';
+import { invalidateAssetCache } from '@/lib/assets';
 import Link from 'next/link';
 
 export default function LoginPanel({ activePanel, onClose, _onStudentLogin, variant = 'modal', dismissable = true }) {
@@ -123,6 +124,14 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
       });
       const data = await res.json();
       if (res.ok && data.student) {
+        invalidateAssetCache();
+        try {
+          if (typeof window !== 'undefined' && 'caches' in window) {
+            caches.keys().then(names => Promise.all(names.map(n => caches.delete(n)))).catch(() => {});
+          }
+        } catch (_err) {
+          // ignore cache deletion error on login
+        }
         toast.success('Login successful!', { id: toastId });
         window.location.replace('/student');
       } else {
@@ -357,6 +366,14 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
       const data = await res.json();
 
       if (res.ok) {
+        invalidateAssetCache();
+        try {
+          if (typeof window !== 'undefined' && 'caches' in window) {
+            caches.keys().then(names => Promise.all(names.map(n => caches.delete(n)))).catch(() => {});
+          }
+        } catch (_err) {
+          // ignore cache deletion error on login
+        }
         toast.success('Login successful!', { id: toastId });
         const targetRole = data.role || (isStaff ? 'staff' : 'admin');
         let targetPath = getDashboardPathByRole(targetRole);

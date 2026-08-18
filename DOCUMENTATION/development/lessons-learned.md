@@ -99,7 +99,29 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 
 ---
 
-## 6. Incident Summary Matrix
+## 6. Cross-Session Caching & State Hygiene Invariants (Rule 13)
+
+> [!CAUTION]
+> **LESSON LEARNED: Dynamic Authenticated APIs Must Never Be Cached by Service Workers or HTTP Proxies!**  
+> In Session 207, when Student A (e.g., Gautam) logged in on a shared computer after Student B (e.g., Uzair), Student B's profile data was served from the browser's Service Worker cache. This occurred because `public/sw.js` executed Stale-While-Revalidate caching on all unspecified `GET` requests without bypassing `/api/*`, and API routes lacked explicit anti-caching HTTP headers.
+
+### Inviolable Cross-Session Hygiene Protocol:
+1. **Service Worker `/api/` Bypass**: `public/sw.js` must bypass ALL `/api/*` paths unconditionally (`url.pathname.startsWith('/api/')`).
+2. **Strict HTTP Anti-Caching Headers**: `apiResponse()`, `apiError()`, and `wrapHandler` must always emit:
+   ```http
+   Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate
+   Pragma: no-cache
+   Expires: 0
+   ```
+3. **Session-Scoped Storage**: Browser `localStorage` and `sessionStorage` keys that track student activity (e.g., notification dismissals, request statuses) must always be roll-number-scoped (`key_${rollno}`) rather than global.
+4. **Client & Service Worker Cache Purge on Login/Logout**:
+   - On logout (`/api/*/logout`), servers must send `Clear-Site-Data: "cache", "storage"`.
+   - On client logout and login switch, frontend must clear `caches.keys()`, `CLIENT_ASSET_CACHE` via `invalidateAssetCache()`, `sessionStorage`, and `localStorage`.
+5. **Context Roll Mismatch Validation**: `StudentContext` must verify that newly fetched `/api/student/me` roll number matches the current state; if not, all child states (`academicPerformance`, `latestRequest`, `profileDetails`) are immediately purged.
+
+---
+
+## 7. Incident Summary Matrix
 
 | Incident Tag | Root Cause | Engineering Fix Applied |
 | :--- | :--- | :--- |
@@ -107,10 +129,11 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 | **Session 204 DB Throttling** | High-frequency academic session queries | Added 5-minute in-memory cache to `getCurrentCalendarSession()`. |
 | **Session 200 Storage Collision** | Mixed SDK calls and raw filenames | Enforced UUID v4 names and relative keys (`kucet/...`). |
 | **Session 206 Webhook Vulnerability** | Unprotected asynchronous webhook endpoints | Added `verifySignatureAppRouter` across all 7 QStash routes. |
+| **Session 207 Cross-Student Profile Leakage** | Service Worker SW Stale-While-Revalidate caching of `/api/*` & unscoped storage | Bypassed all `/api/*` in SW, bumped to `v3`, enforced `no-store` headers, roll-scoped storage keys, and complete login/logout cache purge. |
 
 ---
 
-## 7. Cross-References & Related Documentation
+## 8. Cross-References & Related Documentation
 
 - [Engineering Coding Standards](./coding-standards.md)
 - [Project Architecture Conventions](./project-conventions.md)
