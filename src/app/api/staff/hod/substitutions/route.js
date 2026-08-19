@@ -78,7 +78,7 @@ export async function POST(req) {
       original_assignment_id: assignment_id,
       substitute_faculty_id: substitute_faculty_id,
       substitution_date: date,
-      created_by_staff_account_id: user.id
+      created_by_staff_id: user.id
     });
 
     return apiResponse({ message: 'Substitution created successfully' });

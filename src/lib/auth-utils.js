@@ -342,14 +342,13 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
       let isHod = false;
       let branch = null;
       if (resolvedRole === 'faculty') {
-          const affil = await db.select({ branch_code: academicDepartments.department_code, is_hod: staffAcademicAffiliations.is_hod })
+          const affil = await db.select({ branch_code: academicDepartments.department_code })
               .from(staffAcademicAffiliations)
               .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
               .where(eq(staffAcademicAffiliations.staff_account_id, user.id))
               .limit(1);
           if (affil.length > 0) {
             branch = affil[0].branch_code;
-            isHod = !!affil[0].is_hod;
           }
 
           const { facultyHodAssignments } = await import('@/db/schema');

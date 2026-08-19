@@ -33,9 +33,9 @@ export async function GET(_request) {
     const session = await getCurrentCalendarSession();
 
     const assignmentsWithActivity = assignments.map((asgn) => {
-      let active = false;
-      if (session) {
-        active = session.academicYear === asgn.academic_year && (session.semester % 2 === asgn.course_semester % 2);
+      let active = asgn.is_active !== false;
+      if (session && session.academicYear) {
+        active = (session.academicYear === asgn.academic_year && (session.semester % 2 === asgn.course_semester % 2));
       }
       return {
         ...asgn,

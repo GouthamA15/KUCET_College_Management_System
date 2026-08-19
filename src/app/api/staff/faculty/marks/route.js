@@ -32,6 +32,7 @@ export async function GET(request) {
     // Fetch assignment details
     const assignments = await db.select({
       id: facultySubjectAssignments.id,
+      faculty_id: facultySubjectAssignments.faculty_id,
       mid_max: facultySubjectAssignments.mid_max,
       branch: facultySubjectAssignments.branch,
       course_semester: facultySubjectAssignments.course_semester,
@@ -40,10 +41,7 @@ export async function GET(request) {
       subject_code: facultySubjectAssignments.subject_code
     })
     .from(facultySubjectAssignments)
-    .where(and(
-      eq(facultySubjectAssignments.id, assignment_id),
-      eq(facultySubjectAssignments.faculty_id, user.id)
-    ))
+    .where(eq(facultySubjectAssignments.id, assignment_id))
     .limit(1);
 
     if (assignments.length === 0) {
@@ -51,6 +49,9 @@ export async function GET(request) {
     }
 
     const assignment = assignments[0];
+    if (assignment.faculty_id !== user.id && !(user.is_hod && (user.branch === assignment.branch || !assignment.branch))) {
+      return apiError('Unauthorized for this assignment', 403);
+    }
     const { branch, course_semester, academic_year, subject_name, subject_code } = assignment;
     const midMax = assignment.mid_max || 20;
     const isLab = subject_name?.toLowerCase().includes('lab');
@@ -201,8 +202,10 @@ export async function POST(request) {
     const validatedData = validationSchema.parse(json);
     const { assignment_id, marks_data, mid_max, publish: publishFlag } = validatedData;
 
+    // Fetch assignment details
     const assignments = await db.select({
       id: facultySubjectAssignments.id,
+      faculty_id: facultySubjectAssignments.faculty_id,
       subject_code: facultySubjectAssignments.subject_code,
       branch: facultySubjectAssignments.branch,
       course_semester: facultySubjectAssignments.course_semester,
@@ -210,10 +213,7 @@ export async function POST(request) {
       subject_name: facultySubjectAssignments.subject_name
     })
     .from(facultySubjectAssignments)
-    .where(and(
-      eq(facultySubjectAssignments.id, assignment_id),
-      eq(facultySubjectAssignments.faculty_id, user.id)
-    ))
+    .where(eq(facultySubjectAssignments.id, assignment_id))
     .limit(1);
 
     if (assignments.length === 0) {
@@ -221,6 +221,9 @@ export async function POST(request) {
     }
 
     const assignment = assignments[0];
+    if (assignment.faculty_id !== user.id && !(user.is_hod && (user.branch === assignment.branch || !assignment.branch))) {
+      return apiError('Unauthorized for this assignment', 403);
+    }
     const { subject_code, branch, course_semester, academic_year, subject_name } = assignment;
     const isLab = subject_name?.toLowerCase().includes('lab');
 

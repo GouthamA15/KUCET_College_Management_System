@@ -178,7 +178,7 @@ export class StaffRegistrationService {
     let roleId = null;
     if (roleRows.length > 0) roleId = roleRows[0].id;
     else {
-      const [rRes] = await db.insert(staffRoles).values({ role_code: targetRole, role_name: targetRole });
+      const [rRes] = await db.insert(staffRoles).values({ role_code: targetRole, description: targetRole });
       roleId = rRes.insertId;
     }
 
@@ -207,13 +207,12 @@ export class StaffRegistrationService {
       let deptId = null;
       if (deptRows.length > 0) deptId = deptRows[0].id;
       else {
-         const [dRes] = await db.insert(academicDepartments).values({ code: targetBranch, name: targetBranch });
+         const [dRes] = await db.insert(academicDepartments).values({ department_code: targetBranch, department_name: targetBranch });
          deptId = dRes.insertId;
       }
       await db.insert(staffAcademicAffiliations).values({
         staff_account_id: newStaffId,
-        department_id: deptId,
-        is_hod: false
+        department_id: deptId
       });
     }
 
