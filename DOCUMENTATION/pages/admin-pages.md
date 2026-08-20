@@ -13,8 +13,8 @@ Access requires an active `admin_auth` JWT cookie signed with Super Admin privil
 | Route Path | Feature Module | Core Functionality | Primary Services / APIs |
 | :--- | :--- | :--- | :--- |
 | `/admin/dashboard` | Executive Dashboard | Institution-wide metrics, system health, revenue counters | `HealthService.js`, `StudentService.js` |
-| `/admin/manage-clerks` | Staff & Faculty Directory | View, search, filter, edit, or deactivate staff accounts | `/api/admin/clerks` |
-| `/admin/create-clerk` | Staff Onboarding | Provision new Clerk, Faculty, or HOD accounts | `/api/admin/create-clerk` |
+| `/admin/manage-staff` | Staff & Faculty Directory | Unified directory to view, search, filter, edit, assign HOD/branches, or deactivate staff | `/api/admin/staff`, `/api/admin/staff/[id]` |
+| `/admin/staff-requests` | Staff Registration Requests | Review, approve, reject, or resend activation for onboarding requests | `/api/admin/staff-requests` |
 | `/admin/infrastructure` | Infrastructure & Backups | Server health, DB pool monitoring, backup execution & restore | `BackupService.js`, `DisasterRecoveryService.js` |
 | `/admin/archive` | Archive & Retention Center | Data archiving jobs, policy configuration, record restore | `ArchiveService.js`, `ArchiveRestoreService.js` |
 | `/admin/audit-logs` | Security Audit Trail | Complete system-wide security log inspector | `SecurityService.js` |
@@ -26,17 +26,17 @@ Access requires an active `admin_auth` JWT cookie signed with Super Admin privil
 ### 1. Executive Dashboard (`/admin/dashboard`)
 Provides real-time visibility into institution metrics:
 - **Enrollment Overview**: Active student count categorized by branch (CSE, ECE, EEE, MECH, CIVIL) and regulation.
-- **Faculty & Staff Status**: Count of active vs inactive clerks, assigned HODs, and teaching faculty.
+- **Faculty & Staff Status**: Count of active vs inactive staff, assigned HODs, and teaching faculty.
 - **System Health Indicators**: Live status of database connections, Redis cache hit rates, Cloudinary storage usage, and Sentry error counts.
 
 ---
 
-### 2. Staff & Faculty Account Management (`/admin/manage-clerks`, `/admin/create-clerk`)
-- **Role-Isolated 3-Tab Console**: Redesigned into distinct sections for **Academic Faculty**, **Scholarship Clerks**, and **Admission Clerks**.
-- **Tab-Scoped Pending Requests**: Super Admins review pending self-registration requests filtered by staff category directly above each directory.
-- **HOD Promotion & Demotion**: Super Admins promote approved Faculty members to Head of Department (HOD) using **"Promote HOD"** or demote them using **"Demote HOD"**. System enforces a strict **single-HOD-per-branch** invariant.
-- **Branch Filtering & Search**: Faculty management supports branch-level filtering (`CSE`, `CSD`, `ECE`, `EEE`, `MECH`, `CIVIL`, `IT`) and instant text search across employee ID, email, and name.
-- **Access Control Toggles**: Instant toggle switch to activate or suspend staff access (`is_active: false`), revoking active sessions.
+### 2. Staff & Faculty Account Management (`/admin/manage-staff`, `/admin/staff-requests`)
+- **Role-Isolated 3-Tab Console**: Separated into distinct views for **Academic Faculty**, **Scholarship Clerks**, and **Admission Clerks**.
+- **Pending Requests Banner (`PendingStaffRequests`)**: Super Admins review pending self-registration requests filtered by staff category directly above each directory.
+- **HOD Promotion & Demotion**: Super Admins assign Head of Department (HOD) roles with atomic checks preventing multiple active HODs per department via `faculty_hod_assignments`.
+- **Multi-Branch Affiliation**: Faculty management supports assigning multiple program/department affiliations and instant text search across employee ID, email, and name.
+- **Access Control & Safe Deactivation**: Instant toggle switch to activate or suspend staff access (`account_status: ACTIVE` / `SUSPENDED`). Soft deactivation preserves relational history and audit trails.
 
 ---
 
@@ -79,4 +79,5 @@ Governs long-term data lifecycle management to maintain database query performan
 - [Authentication Architecture](../authentication/authentication.md)
 - [Database Schema Reference](../database/schema.md)
 - [Backup Strategy & Disaster Recovery](../database/backup-strategy.md)
-- [Administrative Clerk Portal](./clerk-pages.md)
+- [Institutional Staff Portal](./staff-pages.md)
+- [Staff Management Feature](../features/staff-management.md)

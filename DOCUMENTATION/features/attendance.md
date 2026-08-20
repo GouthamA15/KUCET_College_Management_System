@@ -94,7 +94,7 @@ stateDiagram-v2
 
 ## 4. Alphanumeric QR Code Scanning (`QRScannerPanel.js`)
 
-The front-end scanner component (`src/components/clerk/faculty/QRScannerPanel.js`) provides an interactive camera interface for scanning dynamic session QR codes.
+The front-end scanner component (`src/components/staff/faculty/QRScannerPanel.js`) provides an interactive camera interface for scanning dynamic session QR codes.
 
 ### Key Technical Characteristics
 - **Dynamic Encoding**: The QR code encodes a high-entropy session URL:  
@@ -138,7 +138,7 @@ To comply with NBA/NAAC syllabus coverage audits, faculty members must log the c
 ### Workflow Integration
 1. When faculty clicks **"Stop Session"**, the `LectureTopicModal.js` component renders.
 2. Faculty enters topic descriptions (e.g., `"Unit 3: Graph Traversal Algorithms - BFS & DFS Implementation"`).
-3. The API updates `attendance_sessions.topic_covered` via `POST /api/clerk/faculty/attendance/session/topic`.
+3. The API updates `attendance_sessions.topic_covered` via `POST /api/staff/faculty/attendance/session/topic`.
 4. Topic logs are surfaced in HOD analytics and student syllabus progress trackers.
 
 ---

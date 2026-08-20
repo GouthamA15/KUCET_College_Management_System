@@ -32,13 +32,16 @@ API endpoints are declared under `src/app/api/` following Next.js 16 conventions
 src/app/api/
 ├── admin/
 │   ├── payments/route.js             # Financial transaction auditing
-│   └── clerks/route.js               # Administrative clerk management
-├── clerk/
+│   ├── staff/route.js                # Unified staff management
+│   └── staff-requests/route.js       # Staff registration approvals
+├── staff/
 │   ├── admission/
 │   │   ├── students/route.js         # Finalizing student admissions
 │   │   └── bulk-import/route.js      # Excel migration batch processing
 │   ├── scholarship/
 │   │   └── summary/[rollno]/route.js # RTF/MTF scholarship status per student
+│   ├── faculty/
+│   │   └── attendance/route.js       # Attendance session recording
 │   └── students/[rollno]/route.js    # Student record retrieval and updates
 ├── student/
 │   ├── login/route.js                # Student authentication & JWT issuance

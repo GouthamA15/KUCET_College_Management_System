@@ -53,7 +53,7 @@ Archival operations can be triggered by cohort batch or by specific semester fil
 ```javascript
 // Source: src/services/archive/ArchiveService.js
 export class ArchiveService {
-  static async archiveGraduatedCohort({ batch, clerkId }) {
+  static async archiveGraduatedCohort({ batch, staffId }) {
     return await db.transaction(async (tx) => {
       // 1. Identify active students matching batch (e.g. '2020-2024')
       const targetStudents = await tx.select().from(students)
@@ -77,7 +77,7 @@ export class ArchiveService {
         action: 'ARCHIVE_COHORT',
         batch,
         record_count: targetStudents.length,
-        executed_by: clerkId
+        executed_by: staffId
       });
     });
   }

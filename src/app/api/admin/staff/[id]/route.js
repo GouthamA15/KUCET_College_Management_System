@@ -3,7 +3,6 @@ import { db } from '@/db';
 import { staffAccounts, staffAcademicAffiliations, academicDepartments, academicPrograms, facultyHodAssignments } from '@/db/schema';
 import { eq, and, ne, sql } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
-import { staffSchema } from '@/lib/validations/staff';
 import { z } from 'zod';
 
 export async function DELETE(req, context) {
@@ -22,37 +21,23 @@ export async function DELETE(req, context) {
       return apiError('Staff not found', 404);
     }
 
-    // 1. Check for institutional records that should not be cascaded away
-    const importLogs = await db.query.studentImportLogs?.findFirst({
-      where: (logs, { eq }) => eq(logs.staff_id, idNum)
-    });
-    if (importLogs) {
-      return apiError('Cannot delete this staff member because they have associated student import records. Please deactivate the account instead to preserve institutional history.', 409);
-    }
-
-    const hodAssignments = await db.query.facultyHodAssignments?.findFirst({
-      where: (hod, { eq }) => eq(hod.staff_account_id, idNum)
-    });
-    if (hodAssignments) {
-      return apiError('Cannot delete this staff member because they are currently assigned as an HOD. Please reassign the HOD role before deleting, or deactivate the account.', 409);
-    }
-
     await db.transaction(async (tx) => {
-      // 2. Delete sessions and refresh tokens
+      // 1. Revoke active sessions and refresh tokens
       if (tx.userSessions) {
         await tx.delete(tx.userSessions).where(and(eq(tx.userSessions.user_id, idNum), eq(tx.userSessions.user_type, 'staff')));
       } else {
-        // Fallback for raw db calls if tx doesn't map them
         await tx.execute(sql`DELETE FROM user_sessions WHERE user_id = ${idNum} AND user_type = 'staff'`);
       }
       
       await tx.execute(sql`DELETE FROM refresh_tokens WHERE user_id = ${idNum.toString()} AND user_type = 'staff'`);
 
-      // 3. Delete the staff account (cascades roles, affiliations, activations)
-      const [result] = await tx.delete(staffAccounts).where(eq(staffAccounts.id, idNum));
+      // 2. Soft-deactivate staff account without dropping data rows (preserves history & allows reactivation)
+      const [result] = await tx.update(staffAccounts)
+        .set({ account_status: 'SUSPENDED' })
+        .where(eq(staffAccounts.id, idNum));
       
       if (result.affectedRows === 0) {
-        throw new Error('Failed to delete staff account');
+        throw new Error('Failed to deactivate staff account');
       }
     });
 
@@ -60,18 +45,28 @@ export async function DELETE(req, context) {
     await logAudit(req, {
       userId: user.id,
       userType: 'admin',
-      action: 'HARD_DELETE_STAFF',
+      action: 'DEACTIVATE_STAFF',
       targetId: idNum,
       targetType: 'staff_accounts',
       before: staffBefore
     });
 
-    return apiResponse({ message: 'Staff account permanently deleted' });
-  } catch (error) {
-    logger.error('Error deleting staff:', error);
-    if (error && error.code === 'ER_ROW_IS_REFERENCED_2') {
-      return apiError('Cannot delete this staff member because they have associated records (e.g., student imports, audits). Please deactivate the account instead.', 409);
+    // Realtime Broadcast
+    try {
+      const { broadcastUpdate } = await import('@/lib/sse');
+      await broadcastUpdate('STAFF_STATUS_CHANGED', {
+        id: idNum,
+        is_active: false,
+        account_status: 'SUSPENDED',
+        updated_at: new Date().toISOString()
+      });
+    } catch (_e) {
+      // Non-blocking
     }
+
+    return apiResponse({ message: 'Staff account deactivated successfully' });
+  } catch (error) {
+    logger.error('Error deactivating staff:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -112,7 +107,7 @@ export async function PUT(req, context) {
       if (name !== undefined) updatePayload.name = name;
       if (email !== undefined) updatePayload.email = email.toLowerCase();
       if (employee_id !== undefined) updatePayload.employee_id = employee_id;
-      if (is_active !== undefined) updatePayload.account_status = is_active ? 'ACTIVE' : 'INACTIVE';
+      if (is_active !== undefined) updatePayload.account_status = is_active ? 'ACTIVE' : 'SUSPENDED';
       
       if (Object.keys(updatePayload).length > 0) {
         await tx.update(staffAccounts).set(updatePayload).where(eq(staffAccounts.id, idNum));
@@ -167,6 +162,7 @@ export async function PUT(req, context) {
            if (is_hod === false) {
              // Remove HOD status
              await tx.delete(facultyHodAssignments).where(eq(facultyHodAssignments.staff_account_id, idNum));
+             await tx.update(staffAcademicAffiliations).set({ is_hod: false }).where(eq(staffAcademicAffiliations.staff_account_id, idNum));
            } else if (is_hod === true && deptCodes.length > 0) {
              // Add HOD status for all assigned departments
              const { getCurrentCalendarSession } = await import('@/lib/academic-utils');
@@ -202,6 +198,7 @@ export async function PUT(req, context) {
                   });
                }
              }
+             await tx.update(staffAcademicAffiliations).set({ is_hod: true }).where(eq(staffAcademicAffiliations.staff_account_id, idNum));
            }
         }
       }
@@ -211,12 +208,29 @@ export async function PUT(req, context) {
     await logAudit(req, {
       userId: user.id,
       userType: 'admin',
-      action: 'UPDATE_CLERK',
+      action: 'UPDATE_STAFF',
       targetId: idNum,
       targetType: 'staff_accounts',
       before: staffBefore,
       after: { name, email, employee_id, is_hod, branches, is_active }
     });
+
+    // Realtime Broadcast
+    try {
+      const { broadcastUpdate } = await import('@/lib/sse');
+      await broadcastUpdate('STAFF_UPDATED', {
+        id: idNum,
+        name: name !== undefined ? name : staffBefore.name,
+        email: email !== undefined ? email.toLowerCase() : staffBefore.email,
+        employee_id: employee_id !== undefined ? employee_id : staffBefore.employee_id,
+        is_active: is_active !== undefined ? is_active : (staffBefore.account_status === 'ACTIVE'),
+        is_hod: is_hod,
+        branches: branches,
+        updated_at: new Date().toISOString()
+      });
+    } catch (_e) {
+      // Non-blocking
+    }
 
     return apiResponse({ message: 'Staff updated successfully' });
   } catch (error) {

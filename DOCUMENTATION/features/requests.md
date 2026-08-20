@@ -19,10 +19,10 @@ flowchart TD
     E --> G[(student_requests table\nStatus: PENDING)]
     F --> H[(student_request_images sidecar table)]
     
-    G --> I[Clerk Review Portal /clerk/admission/student-requests]
+    G --> I[Staff Review Portal /staff/admission/requests]
     H --> I
     
-    I --> J{Clerk Verification Decision}
+    I --> J{Staff Verification Decision}
     J -->|Reject Request| K[Mark Status: REJECTED\nStore Rejection Reason]
     J -->|Approve Request| L[Mark Status: APPROVED]
     
@@ -46,7 +46,7 @@ Students can request updates to personal information (e.g., father's name, mothe
 1. **Pending Request Guard**: A student cannot submit a new profile update request while a previous request is in `PENDING` status.
 2. **Sidecar Data Packaging**: Proposed field changes are stored as a JSON object in `student_requests.proposed_changes`.
 3. **Staging Storage**: New profile pictures or signatures uploaded by the student are saved in temporary staging folders (`requests/pfp/` and `requests/signatures/`).
-4. **Approval & Promotion**: Upon clerk approval, `StudentProfileService` applies changes to active tables, and `MediaPromotionService` moves staged assets to permanent paths (`students/pfp/` and `students/signatures/`).
+4. **Approval & Promotion**: Upon staff approval, `StudentProfileService` applies changes to active tables, and `MediaPromotionService` moves staged assets to permanent paths (`students/pfp/` and `students/signatures/`).
 
 ---
 
@@ -70,22 +70,22 @@ Students apply for certificates (Bonafide, Migration, TC, Custodian, Conduct, IT
 ```
 
 ### Attendance Calculation for Bonafide Certificates
-For Bonafide Certificates, the clerk verification endpoint calculates the student's current semester attendance percentage from `student_attendance` records:
+For Bonafide Certificates, the staff verification endpoint calculates the student's current semester attendance percentage from `student_attendance` records:
 - Evaluates total sessions held vs. present count for the student's active semester.
 - Saves the calculated percentage (e.g., `84.5%`) into `student_requests.generated_attendance`.
 - Automatically renders this verified attendance figure inside the generated PDF.
 
 ---
 
-## 4. Clerk Approval & Rejection Pipeline
+## 4. Staff Approval & Rejection Pipeline
 
-Clerks review pending requests through the `/clerk/admission/student-requests` module (`/api/clerk/admission/student-requests`).
+Staff review pending requests through the `/staff/admission/requests` module (`/api/staff/admission/student-requests`).
 
 ```mermaid
 stateDiagram-v2
     [*] --> PENDING : Student Submits Request
-    PENDING --> APPROVED : Clerk Approves Request
-    PENDING --> REJECTED : Clerk Rejects Request
+    PENDING --> APPROVED : Staff Approves Request
+    PENDING --> REJECTED : Staff Rejects Request
     
     state APPROVED {
         [*] --> MediaPromotion : Move Temp Media to Permanent
@@ -94,15 +94,15 @@ stateDiagram-v2
     }
     
     state REJECTED {
-        [*] --> StoreReason : Save Clerk Remarks
+        [*] --> StoreReason : Save Staff Remarks
         StoreReason --> NotifyStudent : Send Notification
     }
 ```
 
-### Clerk Decision Handlers (`PUT /api/clerk/admission/student-requests`)
+### Staff Decision Handlers (`PUT /api/staff/admission/student-requests`)
 - **Approval Payload**: `{ "status": "APPROVED", "remarks": "Documents verified." }`
 - **Rejection Payload**: `{ "status": "REJECTED", "rejection_reason": "Incomplete fee receipt attachment." }`
-- **Audit Logging**: Every approval or rejection logs an entry with clerk ID, target student ID, and timestamp.
+- **Audit Logging**: Every approval or rejection logs an entry with staff ID, target student ID, and timestamp.
 
 ---
 

@@ -8,7 +8,7 @@ The system ensures financial integrity through **Idempotent Transaction Processi
 
 ```mermaid
 flowchart TD
-    A[Student / Accounts Clerk] -->|Submit Fee Payment| B[POST /api/student/finances/pay]
+    A[Student / Accounts Staff] -->|Submit Fee Payment| B[POST /api/student/finances/pay]
     B -->|Check HTTP Header| C{Idempotency-Key Present?}
     
     C -->|Yes| D[IdempotencyService.start key]
@@ -84,7 +84,7 @@ export const scholarshipSanctions = mysqlTable('scholarship_sanctions', {
 
 ### Scholarship Lifecycle Rules
 - **Application Tracking**: Links student profile to state portal `application_no`.
-- **Proceeding Disbursal**: When government releases tranches, clerks update `proceeding_no` and `released_amount`.
+- **Proceeding Disbursal**: When government releases tranches, staff members update `proceeding_no` and `released_amount`.
 - **Biometric Thumb Verification**: Tracks biometric authentication status (`thumb_status: PENDING | COMPLETED | FAILED`) required by government scholarship portals.
 
 ---

@@ -171,13 +171,55 @@ export const POST = wrapHandler({
       });
 
       return {
+        requestId,
+        newAccountId,
         email: request.email,
         name: request.name,
         employeeId: employeeId,
         role: roleToAssign,
+        staffCategory: request.staff_category,
+        branches: request.staff_category === 'FACULTY' && request.academic_affiliations ? 
+          (() => {
+            try {
+              const aff = typeof request.academic_affiliations === 'string' ? JSON.parse(request.academic_affiliations) : request.academic_affiliations;
+              return Array.isArray(aff) ? aff.map(a => a.department_code) : [];
+            } catch { return []; }
+          })() : [],
         rawToken // pass out of tx to send email
       };
     });
+
+    // Realtime Broadcasts after transaction successfully committed
+    try {
+      const { broadcastUpdate } = await import('@/lib/sse');
+      let mappedRole = 'faculty';
+      if (result.role === 'ADMISSION_CLERK') mappedRole = 'admission';
+      else if (result.role === 'SCHOLARSHIP_CLERK') mappedRole = 'scholarship';
+
+      await broadcastUpdate('STAFF_REGISTRATION_APPROVED', {
+        id: result.requestId,
+        status: 'APPROVED',
+        account_status: 'PENDING_ACTIVATION',
+        new_staff_id: result.newAccountId,
+        employee_id: result.employeeId,
+        processed_at: new Date().toISOString()
+      });
+
+      await broadcastUpdate('STAFF_CREATED', {
+        id: result.newAccountId,
+        name: result.name,
+        email: result.email,
+        employee_id: result.employeeId,
+        roles: [mappedRole],
+        branches: result.branches || [],
+        is_active: false, // PENDING_ACTIVATION
+        is_hod: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+    } catch (_e) {
+      // Non-blocking
+    }
 
     // 10. Send Activation Email (after transaction commits)
     const baseUrl = getBaseUrl();

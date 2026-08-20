@@ -8,12 +8,12 @@ The system enforces strict regulation rules (such as R22/R20 academic regulation
 
 ```mermaid
 flowchart TD
-    A[Faculty / Clerk Panel] -->|Select Subject & Batch| B[GET /api/clerk/faculty/marks]
+    A[Faculty / Staff Panel] -->|Select Subject & Batch| B[GET /api/staff/faculty/marks]
     B --> C[Fetch Assigned Students & Version Numbers]
     
     C --> D[Faculty Enters / Edits Marks Grid]
     D --> E[Submit Batch Marks Payload]
-    E --> F[POST /api/clerk/faculty/marks]
+    E --> F[POST /api/staff/faculty/marks]
     
     F --> G{For Each Student Mark Record}
     G --> H[Validate Max Bounds against branch_config / mid_max]

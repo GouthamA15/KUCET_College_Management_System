@@ -7,11 +7,13 @@ const STORAGE_COUNT_KEY = 'profileStatusBarCount';
 const STORAGE_SEEN_ID_KEY = 'profileStatusBarSeenRequestId';
 const STORAGE_SEEN_STATUS_KEY = 'profileStatusBarSeenStatus';
 
+const getStorageKey = (baseKey, roll) => (roll ? `${baseKey}_${roll}` : baseKey);
+
 export const ProfileActivityContext = createContext(null);
 
 export function ProfileActivityProvider({ children }) {
   const { studentData } = useStudent();
-  const rollno = studentData?.student?.roll_no;
+  const rollno = studentData?.student?.roll_no || studentData?.roll_no;
 
   const [latestRequest, setLatestRequest] = useState(null);
   const [scholarshipThumbUpdate, setScholarshipThumbUpdate] = useState({ active: false });
@@ -24,17 +26,23 @@ export function ProfileActivityProvider({ children }) {
 
   useEffect(() => {
     const id = setTimeout(() => {
+      if (!rollno) {
+        setDismissCount(0);
+        setSeenRequestId(null);
+        setSeenStatus(null);
+        return;
+      }
       try {
-        setDismissCount(Number(localStorage.getItem(STORAGE_COUNT_KEY) || '0'));
-        setSeenRequestId(localStorage.getItem(STORAGE_SEEN_ID_KEY) || null);
-        setSeenStatus(localStorage.getItem(STORAGE_SEEN_STATUS_KEY) || null);
+        setDismissCount(Number(localStorage.getItem(getStorageKey(STORAGE_COUNT_KEY, rollno)) || '0'));
+        setSeenRequestId(localStorage.getItem(getStorageKey(STORAGE_SEEN_ID_KEY, rollno)) || null);
+        setSeenStatus(localStorage.getItem(getStorageKey(STORAGE_SEEN_STATUS_KEY, rollno)) || null);
       } catch (error) {
         console.error('Profile activity storage hydrate error:', error);
       }
     }, 0);
 
     return () => clearTimeout(id);
-  }, []);
+  }, [rollno]);
 
   // Latest certificate request (fetch once per rollno)
   useEffect(() => {
@@ -52,7 +60,7 @@ export function ProfileActivityProvider({ children }) {
 
     const fetchData = async () => {
       try {
-        const res = await fetch(`/api/student/latest-request?rollno=${encodeURIComponent(rollno)}`);
+        const res = await fetch(`/api/student/latest-request?rollno=${encodeURIComponent(rollno)}`, { cache: 'no-store' });
         if (!mounted) return;
 
         if (res.ok) {
@@ -71,9 +79,9 @@ export function ProfileActivityProvider({ children }) {
               setSeenStatus(incomingStatus);
 
               try {
-                localStorage.setItem(STORAGE_COUNT_KEY, '0');
-                if (incomingId) localStorage.setItem(STORAGE_SEEN_ID_KEY, incomingId);
-                if (incomingStatus) localStorage.setItem(STORAGE_SEEN_STATUS_KEY, incomingStatus);
+                localStorage.setItem(getStorageKey(STORAGE_COUNT_KEY, rollno), '0');
+                if (incomingId) localStorage.setItem(getStorageKey(STORAGE_SEEN_ID_KEY, rollno), incomingId);
+                if (incomingStatus) localStorage.setItem(getStorageKey(STORAGE_SEEN_STATUS_KEY, rollno), incomingStatus);
               } catch (e) {
                 console.error('Storage error:', e);
               }
@@ -92,9 +100,7 @@ export function ProfileActivityProvider({ children }) {
     return () => {
       mounted = false;
     };
-    // We intentionally depend only on rollno so this fetch runs once per student session.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rollno]);
+  }, [rollno, seenRequestId, seenStatus]);
 
   // Student activity (scholarship thumb + hardcopy notifications)
   useEffect(() => {
@@ -105,7 +111,7 @@ export function ProfileActivityProvider({ children }) {
 
     const fetchActivity = async () => {
       try {
-        const res = await fetch('/api/student/activity');
+        const res = await fetch('/api/student/activity', { cache: 'no-store' });
         if (!mounted) return;
         if (!res.ok) {
           setScholarshipThumbUpdate({ active: false });
@@ -138,25 +144,25 @@ export function ProfileActivityProvider({ children }) {
 
   const incrementVisit = () => {
     try {
-      const next = Number(localStorage.getItem(STORAGE_COUNT_KEY) || '0') + 1;
-      localStorage.setItem(STORAGE_COUNT_KEY, String(next));
+      const next = Number(localStorage.getItem(getStorageKey(STORAGE_COUNT_KEY, rollno)) || '0') + 1;
+      localStorage.setItem(getStorageKey(STORAGE_COUNT_KEY, rollno), String(next));
       setDismissCount(next);
     } catch (_e) { /* empty */ }
   };
 
   const dismiss = () => {
     try {
-      const next = Number(localStorage.getItem(STORAGE_COUNT_KEY) || '0') + 1;
-      localStorage.setItem(STORAGE_COUNT_KEY, String(next));
+      const next = Number(localStorage.getItem(getStorageKey(STORAGE_COUNT_KEY, rollno)) || '0') + 1;
+      localStorage.setItem(getStorageKey(STORAGE_COUNT_KEY, rollno), String(next));
       setDismissCount(next);
     } catch (_e) { /* empty */ }
   };
 
   const reset = () => {
     try {
-      localStorage.removeItem(STORAGE_COUNT_KEY);
-      localStorage.removeItem(STORAGE_SEEN_ID_KEY);
-      localStorage.removeItem(STORAGE_SEEN_STATUS_KEY);
+      localStorage.removeItem(getStorageKey(STORAGE_COUNT_KEY, rollno));
+      localStorage.removeItem(getStorageKey(STORAGE_SEEN_ID_KEY, rollno));
+      localStorage.removeItem(getStorageKey(STORAGE_SEEN_STATUS_KEY, rollno));
     } catch (_e) { /* empty */ }
     setDismissCount(0);
     setSeenRequestId(null);

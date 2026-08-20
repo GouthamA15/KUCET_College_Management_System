@@ -2,7 +2,7 @@
 
 ## 1. Overview & Architecture
 
-The **KUCET Multi-Stage Admission System** manages the entire lifecycle of student onboarding at Kakatiya University College of Engineering & Technology. It provides a secure public application portal, a multi-stage verification workflow for admission clerks, automated roll number generation according to institutional standards, and atomic database provisioning.
+The **KUCET Multi-Stage Admission System** manages the entire lifecycle of student onboarding at Kakatiya University College of Engineering & Technology. It provides a secure public application portal, a multi-stage verification workflow for admission staff, automated roll number generation according to institutional standards, and atomic database provisioning.
 
 The system handles both **Regular B.Tech (TG EAPCET)** and **Lateral Entry B.Tech (TG ECET)** admissions, standardizing complex category allocations, SC sub-castes, EWS reservations, and sensitive Personally Identifiable Information (PII) encryption.
 
@@ -15,12 +15,12 @@ flowchart TD
     E -->|Upload PFP & Signature| F[Stage in Storage: admission_drafts/]
     F -->|Insert Record| G[(student_admission_drafts table\nStatus: DRAFT)]
     
-    G --> H[Clerk Admission Portal /clerk/admission]
+    G --> H[Staff Admission Portal /staff/admission/student-management]
     H -->|Review & Audit Details| I{Verification Decision}
     I -->|Reject / Request Edit| J[Update Status: DRAFT / REJECTED]
     I -->|Approve & Verify| K[Update Status: PROCESSED]
     
-    K --> L[Finalize Admission Step]
+    K --> L[Finalize Admission Step /staff/admission/finalize]
     L -->|Validate Roll Number Format| M{rollNumber.js Checks}
     M -->|Invalid Branch / Type| N[Return 400 Mismatch Error]
     M -->|Valid Format| O[Execute DB Transaction]
@@ -62,7 +62,7 @@ The public admission portal allows prospective students to submit their demograp
 
 ---
 
-## 3. Draft Management & Clerk Review Pipeline
+## 3. Draft Management & Staff Review Pipeline
 
 To ensure data integrity, public submissions are not placed directly into the active student registry. Instead, they follow a state machine pattern stored in the `student_admission_drafts` table.
 
@@ -71,21 +71,21 @@ To ensure data integrity, public submissions are not placed directly into the ac
 ```mermaid
 stateDiagram-v2
     [*] --> DRAFT : Public Form Submission
-    DRAFT --> PROCESSED : Clerk Review & Verification
+    DRAFT --> PROCESSED : Staff Review & Verification
     DRAFT --> REJECTED : Data Error / Document Rejection
     PROCESSED --> FINALIZED : Roll Number Assignment & Provisioning
     FINALIZED --> [*]
 ```
 
 1. **`DRAFT`**: The initial state upon public submission. Sensitive details are encrypted, blind indices are created, and assets are saved in temporary staging storage (`admission_drafts/pfp/` and `admission_drafts/signatures/`).
-2. **`PROCESSED`**: The admission clerk inspects physical certificates (SSC memo, Intermediate/Diploma memo, Caste certificate, Income certificate) and marks the draft verified.
-3. **`FINALIZED`**: The clerk assigns an institutional roll number and finalizes admission. The record is migrated to active student tables, and temporary draft storage is cleaned up.
+2. **`PROCESSED`**: The admission staff inspects physical certificates (SSC memo, Intermediate/Diploma memo, Caste certificate, Income certificate) and marks the draft verified.
+3. **`FINALIZED`**: The staff member assigns an institutional roll number and finalizes admission. The record is migrated to active student tables, and temporary draft storage is cleaned up.
 
-### Clerk Management Features (`/clerk/admission`)
+### Staff Management Features (`/staff/admission/student-management`)
 
-- **Bulk Import**: Allows admission clerks to upload CSV/Excel files containing draft records via `POST /api/clerk/admission/bulk-import`.
+- **Bulk Import**: Allows admission staff to upload CSV/Excel files containing draft records via `POST /api/staff/admission/bulk-import`.
 - **Search & Uniqueness Guard**: Generic anti-enumeration error messages (`"Please check your details and try again."`) prevent malicious users from checking if a mobile or Aadhaar number exists in the system.
-- **Draft Correction**: Clerks can update any field in the draft via `PUT /api/clerk/admission/drafts/[id]` before finalization.
+- **Draft Correction**: Staff can update any field in the draft via `PUT /api/staff/admission/drafts/[id]` before finalization.
 
 ---
 
@@ -165,10 +165,10 @@ graph LR
 
 ## 7. Atomic Finalization & Student Provisioning
 
-When an admission clerk finalizes a verified draft via `POST /api/clerk/admission/drafts/[id]/finalize`, the system executes an atomic transaction.
+When an admission staff member finalizes a verified draft via `POST /api/staff/admission/drafts/[id]/finalize`, the system executes an atomic transaction.
 
 ```javascript
-// Source: src/app/api/clerk/admission/drafts/[id]/finalize/route.js
+// Source: src/app/api/staff/admission/drafts/[id]/finalize/route.js
 const result = await db.transaction(async (tx) => {
   // 1. Lock draft row for update
   const draft = await tx.select().from(studentAdmissionDrafts)

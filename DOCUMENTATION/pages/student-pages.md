@@ -105,4 +105,4 @@ Empowers students to manage their account security:
 - [Authentication Architecture](../authentication/authentication.md)
 - [Session Management & Revocation](../authentication/session-management.md)
 - [Faculty Attendance Entry](./faculty-pages.md#attendance-entry-modes)
-- [Clerk Certificate Verification](./clerk-pages.md#certificate-requests-review)
+- [Staff Certificate Verification](./staff-pages.md#21-admission-staff-portal-staffadmission)

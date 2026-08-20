@@ -3,7 +3,11 @@ import { apiResponse, apiError } from '@/lib/api-utils';
 
 export async function POST() {
   try {
-    const response = apiResponse({ success: true, message: 'Admin logout successful' });
+    const response = apiResponse(
+      { success: true, message: 'Admin logout successful' },
+      200,
+      { 'Clear-Site-Data': '"cache", "storage"' }
+    );
 
     // Clear admin cookies
     const cookiesToClear = [

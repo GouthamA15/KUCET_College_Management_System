@@ -110,7 +110,7 @@ const handler = async (req, { data }) => {
   const mappedCategory = requested_role === 'FACULTY' ? 'FACULTY' : 'NON_TEACHING';
 
   // Insert registration request
-  await db.insert(staffRegistrationRequests).values({
+  const [insertRes] = await db.insert(staffRegistrationRequests).values({
     name: fullName,
     email: email,
     staff_category: mappedCategory,
@@ -121,6 +121,26 @@ const handler = async (req, { data }) => {
     email_verified_at: new Date(),
     status: 'PENDING',
   });
+
+  const newRequestId = insertRes?.insertId;
+
+  // Realtime Broadcast for Admin Staff Requests
+  try {
+    const { broadcastUpdate } = await import('@/lib/sse');
+    await broadcastUpdate('STAFF_REGISTRATION_CREATED', {
+      id: newRequestId,
+      name: fullName,
+      email: email,
+      staff_category: mappedCategory,
+      requested_role: requested_role,
+      designation: designation,
+      academic_affiliations: academic_affiliations,
+      status: 'PENDING',
+      created_at: new Date().toISOString()
+    });
+  } catch (_e) {
+    // Non-blocking
+  }
 
   return apiResponse({ message: 'Registration submitted successfully. Your application is now pending administrative verification.' }, 201);
 };

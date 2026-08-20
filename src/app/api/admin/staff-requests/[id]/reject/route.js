@@ -57,6 +57,19 @@ export const POST = wrapHandler({
       });
     });
 
+    // Realtime Broadcast
+    try {
+      const { broadcastUpdate } = await import('@/lib/sse');
+      await broadcastUpdate('STAFF_REGISTRATION_REJECTED', {
+        id: requestId,
+        status: 'REJECTED',
+        rejection_reason: data.rejectionReason,
+        processed_at: new Date().toISOString()
+      });
+    } catch (_e) {
+      // Non-blocking
+    }
+
     return { success: true, message: 'Request rejected' };
   }
 });

@@ -1,12 +1,16 @@
-'use client';
-
 import React from 'react';
 import Link from 'next/link';
 import { WifiOff, CreditCard, Calendar, User } from 'lucide-react';
+import OfflineReloadButton from './OfflineReloadButton';
+
+export const metadata = {
+  title: 'You are Offline | KUCET CMS',
+  description: 'Offline fallback page for KUCET College Management System',
+};
 
 export default function OfflinePage() {
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col items-center justify-center p-6 font-sans">
       <div className="max-w-md w-full text-center space-y-6 bg-slate-800/80 p-8 rounded-2xl border border-slate-700 shadow-xl backdrop-blur">
         <div className="w-16 h-16 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center mx-auto">
           <WifiOff className="w-8 h-8" />
@@ -54,12 +58,7 @@ export default function OfflinePage() {
           </Link>
         </div>
 
-        <button
-          onClick={() => window.location.reload()}
-          className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 font-medium rounded-xl text-sm transition-colors"
-        >
-          Try Reconnecting
-        </button>
+        <OfflineReloadButton />
       </div>
     </div>
   );

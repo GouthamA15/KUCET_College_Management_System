@@ -1,12 +1,12 @@
 # Database & Infrastructure Migration Log
 
-**Last Updated:** August 11, 2026  
+**Last Updated:** August 18, 2026  
 **Status:** Historical & Architectural Log  
-**Scope:** Drizzle ORM Schema Migrations (`0000` to `0011`), Storage Key Transformations, and Infrastructure Upgrades.
+**Scope:** Drizzle ORM Schema Migrations (`0000` to `0013`), Storage Key Transformations, and Infrastructure Upgrades.
 
 ---
 
-## 1. Drizzle ORM Migration Evolution (`0000` to `0011`)
+## 1. Drizzle ORM Migration Evolution (`0000` to `0013`)
 
 The database schema evolution is managed version-by-version using Drizzle Kit. Each migration SQL script in `drizzle/` represents a milestone in database structure and data integrity.
 
@@ -26,6 +26,7 @@ The database schema evolution is managed version-by-version using Drizzle Kit. E
 | **`0011`** | `0011_curious_terrax.sql` | **Payment Screenshot Consolidation:** Consolidated request payment evidence into `student_request_images` sidecar table and safely dropped legacy redundant column `student_requests.payment_screenshot`. |
 | **`0012`** | `0012_clerk_registration_requests.sql` | **Staff Onboarding & Branch Verification:** Added `clerk_registration_requests` table for multi-role pending staff approvals and HOD branch constraint validation. |
 | **`0013`** | `0013_thin_outlaw_kid.sql` | **Performance & Foreign Key Indexes:** Optimized indexes across active operations and registration lookup tables. |
+| **`Session 207`** | *(pending generation)* | **Staff Identity System Overhaul:** See Section 5 below. 8 new/modified tables. Must run `db:generate` + `db:migrate` before deploying `testvanilla`. |
 
 ---
 
@@ -59,6 +60,7 @@ graph TD
 - **Legacy Column Drop (`student_requests.payment_screenshot`):** Consolidated into sidecar table `student_request_images` via migration `0011_curious_terrax.sql`.
 - **Legacy Category Enum (`OC-EWS`):** Standardized to `EWS` across database constraints, validation schemas, and import sanitizers.
 - **Legacy Local Path Fallbacks (`process.cwd() + '/public/uploads'`):** Replaced with central configuration `src/lib/storage-config.js` and `LocalStorageProvider.getLocalStorageBasePath()`.
+- **Session 207 — `clerk_registration_requests` renamed → `staff_registration_requests`:** Columns `branch`, `department`, `mobile` dropped; new columns `requested_role`, `academic_affiliations` (JSON), `email_verified_at` added.
 
 ---
 
@@ -71,9 +73,60 @@ graph TD
 
 ---
 
-## 5. Cross-References & Related Documentation
+## 5. Session 207 (testvanilla) — Staff Identity System Overhaul
+
+> ⚠️ **Migration not yet run.** This branch is pre-merge. Run `npm run db:generate` then `npm run db:migrate` before deploying.
+
+### New Tables Introduced
+
+| Table | Schema File | Purpose |
+|---|---|---|
+| `staff_accounts` | `identity.js` | Unified staff identity (replaces `clerks` for new hires) |
+| `staff_roles` | `identity.js` | Role code lookup (`FACULTY`, `ADMISSION_CLERK`, `SCHOLARSHIP_CLERK`) |
+| `staff_account_roles` | `identity.js` | Many-to-many: staff ↔ roles with `assigned_by` audit |
+| `staff_academic_affiliations` | `identity.js` | Faculty → department + program links (replaces `clerks.branch`) |
+| `staff_account_activation_tokens` | `identity.js` | SHA-256 hashed one-time activation tokens (48hr expiry) |
+| `academic_departments` | `academic.js` | Institutional department registry |
+| `academic_programs` | `academic.js` | Programs/courses per department |
+
+### Modified Table
+
+| Table | Was | Change |
+|---|---|---|
+| `staff_registration_requests` | `clerk_registration_requests` | Renamed + 3 cols dropped + 3 cols added (`requested_role`, `academic_affiliations JSON`, `email_verified_at`) |
+
+### Required Seed SQL After Migration
+
+```sql
+-- Seed staff_roles
+INSERT INTO staff_roles (role_code, description) VALUES
+  ('FACULTY',           'Teaching staff — course and attendance management'),
+  ('ADMISSION_CLERK',   'Manages student admissions and enrollment'),
+  ('SCHOLARSHIP_CLERK', 'Manages scholarship applications and payments');
+
+-- Seed academic_departments
+INSERT INTO academic_departments (department_code, department_name, is_active) VALUES
+  ('CSE',   'Computer Science & Engineering', 1),
+  ('ECE',   'Electronics & Communication Engineering', 1),
+  ('MECH',  'Mechanical Engineering', 1),
+  ('CIVIL', 'Civil Engineering', 1),
+  ('EEE',   'Electrical & Electronics Engineering', 1),
+  ('IT',    'Information Technology', 1);
+```
+
+### Cookie Invalidation Warning
+All `clerk_auth` sessions are invalidated on deployment. Staff must re-login. Existing `clerks` table records remain intact — only new registrations go to `staff_accounts`.
+
+### Full Analysis
+See [Session 207 Complete Change Analysis](./session-207-testvanilla-changes.md) for exhaustive schema definitions, API reference, workflow diagrams, and deployment checklist.
+
+---
+
+## 6. Cross-References & Related Documentation
 
 - [System Architectural Decision Records (ADRs)](./architectural-decisions.md)
 - [Chronological Forensics of Resolved Incidents](./resolved-incidents.md)
 - [Old Cloudinary Storage Migration History](./old-cloudinary-migration.md)
 - [Drizzle Migration Rules & Coding Standards](../development/coding-standards.md)
+- [Session 207 Complete Change Analysis](./session-207-testvanilla-changes.md)
+

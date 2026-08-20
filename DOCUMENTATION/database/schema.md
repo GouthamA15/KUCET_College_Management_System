@@ -4,6 +4,8 @@
 
 The KUCET CMS database architecture is divided into 8 modular domains using Drizzle ORM (`drizzle-orm/mysql-core`). The MySQL database is configured with UTF-8 character encoding and InnoDB engine support to ensure ACID transactional compliance.
 
+> **Session 207 Note:** 7 new tables were added and 1 renamed in the `testvanilla` branch. See [Section 1b](#1b-session-207-new-staff-identity-tables) and [Session 207 Change Analysis](../history/session-207-testvanilla-changes.md).
+
 ---
 
 ## Domain Architecture Overview
@@ -55,7 +57,8 @@ Primary identity table for enrolled students.
 - `password_changed_at` (`TIMESTAMP`)
 
 ### Table: `clerks`
-Identity table for Clerks, Faculty, and HODs.
+Legacy identity table for Clerks, Faculty, and HODs (pre-Session 207 accounts).
+⚠️ New staff registered via Session 207 onboarding go into `staff_accounts` instead.
 - `id` (`INT`, PK, Auto-Increment)
 - `name` (`VARCHAR(255)`, Not Null)
 - `email` (`VARCHAR(255)`, Not Null, Index: `idx_clerks_email`)
@@ -97,6 +100,110 @@ Active device tracking and session storage.
 - `last_seen_at` (`TIMESTAMP`, Index: `idx_user_sessions_last_seen`)
 - `created_at` (`TIMESTAMP`, Default: `NOW()`)
 - `expires_at` (`TIMESTAMP`)
+
+---
+
+## 1b. Session 207 — New Staff Identity Tables
+
+> Added in `testvanilla` branch (Session 207). Migration pending.
+
+### Table: `staff_accounts`
+Unified identity table for all staff registered via the new onboarding pipeline. Replaces `clerks` for new hires.
+- `id` (`INT`, PK, Auto-Increment)
+- `name` (`VARCHAR(255)`, Not Null)
+- `email` (`VARCHAR(255)`, Not Null, Unique Index: `idx_staff_email`)
+- `employee_id` (`VARCHAR(255)`, Not Null, Unique Index: `idx_staff_employee_id`)
+- `password_hash` (`VARCHAR(255)`) — null until activation
+- `staff_category` (`VARCHAR(50)`, Not Null) — `'FACULTY'` | `'NON_TEACHING'`
+- `designation` (`VARCHAR(100)`, Not Null)
+- `mobile_hash` (`VARCHAR(255)`) — AES-256 encrypted mobile string (expanded in Session 207 from 64 to 255)
+- `pfp` (`TEXT`) — relative storage key
+- `signature` (`TEXT`) — relative storage key
+- `address` (`TEXT`)
+- `account_status` (`ENUM('PENDING_ACTIVATION', 'ACTIVE', 'SUSPENDED')`, Default: `'PENDING_ACTIVATION'`)
+- `created_at` (`TIMESTAMP`, Default: `NOW()`)
+- `updated_at` (`TIMESTAMP`, On Update: `NOW()`)
+
+### Table: `faculty_hod_assignments`
+Tracks Head of Department (HOD) faculty assignments per academic year and department.
+- `id` (`INT`, PK, Auto-Increment)
+- `staff_account_id` (`INT`, Not Null, Index: `idx_hod_staff_id`) → FK `staff_accounts.id`
+- `department_code` (`VARCHAR(20)`, Not Null, Index: `idx_hod_dept_code`)
+- `academic_year` (`VARCHAR(9)`, Not Null)
+- `start_date` (`DATE`, Not Null)
+- `end_date` (`DATE`)
+- `is_active` (`BOOLEAN`, Default: `true`, Not Null)
+- `assigned_by` (`INT`) → FK `principal.id` (nullable)
+- `created_at` (`TIMESTAMP`, Default: `NOW()`)
+- `updated_at` (`TIMESTAMP`, On Update: `NOW()`)
+
+### Table: `staff_roles`
+Lookup table of valid role codes. Prevents hardcoded strings across the codebase.
+- `id` (`INT`, PK, Auto-Increment)
+- `role_code` (`VARCHAR(50)`, Not Null, Unique: `uq_staff_roles_code`)
+- `description` (`TEXT`)
+- `created_at` (`TIMESTAMP`, Default: `NOW()`)
+
+**Seed rows required:** `FACULTY`, `ADMISSION_CLERK`, `SCHOLARSHIP_CLERK`
+
+### Table: `staff_account_roles`
+Many-to-many junction between `staff_accounts` and `staff_roles`. Supports future multi-role assignment.
+- `id` (`INT`, PK, Auto-Increment)
+- `staff_account_id` (`INT`, Not Null, Index: `idx_staff_account_roles_staff`) → FK `staff_accounts.id`
+- `role_id` (`INT`, Not Null, Index: `idx_staff_account_roles_role`) → FK `staff_roles.id`
+- `assigned_at` (`TIMESTAMP`, Default: `NOW()`)
+- `assigned_by` (`INT`) → FK `principal.id` (nullable)
+
+### Table: `staff_academic_affiliations`
+Links faculty staff to their department and optionally a specific program. Replaces flat `clerks.branch` column.
+- `id` (`INT`, PK, Auto-Increment)
+- `staff_account_id` (`INT`, Not Null, Index: `idx_staff_affil_id`) → FK `staff_accounts.id`
+- `department_id` (`INT`, Not Null) → FK `academic_departments.id`
+- `program_id` (`INT`) — nullable → FK `academic_programs.id`
+- `is_hod` (`BOOLEAN`, Default: `false`) — HOD flag per department
+- `created_at` (`TIMESTAMP`, Default: `NOW()`)
+
+### Table: `staff_account_activation_tokens`
+Secure one-time tokens for email-based account activation. Raw token is never stored — only SHA-256 hash.
+- `id` (`INT`, PK, Auto-Increment)
+- `staff_account_id` (`INT`, Not Null, Index: `idx_staff_activation_staff`) → FK `staff_accounts.id`
+- `token_hash` (`VARCHAR(255)`, Not Null, Unique Index: `idx_staff_activation_token`)
+- `expires_at` (`TIMESTAMP`, Not Null) — 48 hours from creation
+- `used_at` (`TIMESTAMP`) — set on successful activation (null = unused)
+- `created_at` (`TIMESTAMP`, Default: `NOW()`)
+
+### Table: `academic_departments`
+Institutional department registry. Used for faculty affiliation and registration validation.
+- `id` (`INT`, PK, Auto-Increment)
+- `department_code` (`VARCHAR(50)`, Not Null, Unique)
+- `department_name` (`VARCHAR(255)`, Not Null)
+- `is_active` (`BOOLEAN`, Default: `true`)
+- `created_at` (`TIMESTAMP`)
+- `updated_at` (`TIMESTAMP`, On Update: `NOW()`)
+
+### Table: `academic_programs`
+Programs/courses offered by each department.
+- `id` (`INT`, PK, Auto-Increment)
+- `department_id` (`INT`, Not Null, Index: `idx_academic_programs_dept`) → FK `academic_departments.id`
+- `program_code` (`VARCHAR(50)`, Not Null, Unique)
+- `program_name` (`VARCHAR(255)`, Not Null)
+- `is_active` (`BOOLEAN`, Default: `true`)
+- `created_at` (`TIMESTAMP`)
+- `updated_at` (`TIMESTAMP`, On Update: `NOW()`)
+
+### Table: `staff_registration_requests` *(Renamed from `clerk_registration_requests`)*
+Pending staff self-registration requests awaiting admin approval.
+- `id` (`INT`, PK, Auto-Increment)
+- `name`, `email`, `designation` — applicant details
+- `requested_role` (`VARCHAR(50)`) — **NEW:** `'FACULTY'` | `'ADMISSION_CLERK'` | `'SCHOLARSHIP_CLERK'`
+- `academic_affiliations` (`JSON`) — **NEW:** `[{department_code, program_codes[]}]`
+- `mobile_hash` (`VARCHAR(64)`) — blind index
+- `email_verified_at` (`TIMESTAMP`) — **NEW:** set when OTP verified
+- `status` (`ENUM('PENDING', 'APPROVED', 'REJECTED')`, Default: `'PENDING'`)
+- `admin_notes` (`TEXT`)
+- `created_at`, `updated_at`
+
+**Dropped columns (Session 207):** `branch`, `department`, `mobile` (encrypted)
 
 ---
 

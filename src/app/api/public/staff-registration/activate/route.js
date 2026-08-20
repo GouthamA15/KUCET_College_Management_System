@@ -22,7 +22,7 @@ export const POST = wrapHandler({
 
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
-    await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       // Find token
       const [tokenRecord] = await tx
         .select()
@@ -88,8 +88,22 @@ export const POST = wrapHandler({
         ip_address: context?.ip || '127.0.0.1'
       });
 
-      return { success: true, employeeId: account.employee_id };
+      return { success: true, staffId: account.id, employeeId: account.employee_id, email: account.email };
     });
+
+    // Realtime Broadcast
+    try {
+      const { broadcastUpdate } = await import('@/lib/sse');
+      await broadcastUpdate('STAFF_STATUS_CHANGED', {
+        id: result.staffId,
+        is_active: true,
+        account_status: 'ACTIVE',
+        email: result.email,
+        updated_at: new Date().toISOString()
+      });
+    } catch (_e) {
+      // Non-blocking
+    }
 
     return { success: true, message: 'Account activated successfully.' };
   }

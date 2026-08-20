@@ -349,7 +349,19 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
               .limit(1);
           if (affil.length > 0) {
             branch = affil[0].branch_code;
-            isHod = affil[0].is_hod;
+            isHod = !!affil[0].is_hod;
+          }
+
+          const { facultyHodAssignments } = await import('@/db/schema');
+          const hodRow = await db.select({ id: facultyHodAssignments.id })
+              .from(facultyHodAssignments)
+              .where(and(
+                eq(facultyHodAssignments.staff_account_id, user.id),
+                eq(facultyHodAssignments.is_active, true)
+              ))
+              .limit(1);
+          if (hodRow.length > 0) {
+            isHod = true;
           }
       }
 

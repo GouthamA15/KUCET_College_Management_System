@@ -73,7 +73,7 @@ To prevent static credential leakage and enforce zero-trust security:
 3. **Bcrypt Password Hashing**: The initial passphrase is immediately hashed using `bcrypt` (`saltRounds = 10`) before database storage (`password_hash`). Raw passphrases are never stored or logged.
 4. **Institutional Welcome Email**: The single-use temporary passphrase is emailed directly to the approved staff member's institutional email address.
 5. **Mandatory First-Login Reset**: The account is flagged with `must_change_password = true`.
-6. **First-Login Enforcement**: Upon initial login, the staff member is redirected to `/clerk/settings/security` (or password change prompt) and forced to set a new password. Once updated, `must_change_password` is set to `false`.
+6. **First-Login Enforcement**: Upon initial login, the staff member is redirected to `/staff/settings/security` (or password change prompt) and forced to set a new password. Once updated, `must_change_password` is set to `false`.
 
 ---
 

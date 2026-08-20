@@ -1,9 +1,9 @@
 # KUCET College Management System - Technical Index & Core Architecture
 
-**System Version:** Session 205 Production Release  
-**Last Updated:** August 15, 2026  
-**Status:** Stable / Production-Ready  
-**Test Suite Verification:** 44 test files (325 unit & integration tests) — 100% PASSING
+**System Version:** Session 207 (testvanilla) — In Development  
+**Last Updated:** August 18, 2026  
+**Status:** Active Development / Pre-Merge  
+**Test Suite Verification:** 44+ test files — testvanilla branch ahead by 6 commits
 
 ---
 
@@ -66,6 +66,10 @@ DOCUMENTATION/
 - 🔍 [Chronological Forensics of Resolved Incidents](./DOCUMENTATION/history/resolved-incidents.md)
 - 🤖 [AI Coding Agent Operating Blueprint](./DOCUMENTATION/development/ai-agent-guide.md)
 - 🗄️ [Database & Infrastructure Migration Log](./DOCUMENTATION/history/migration-history.md)
+- 📋 [Session 206 Release Notes](./DOCUMENTATION/history/session-206-release-notes.md)
+- 🚧 [Session 207 (testvanilla) Change Analysis](./DOCUMENTATION/history/session-207-testvanilla-changes.md)
+- 🔍 [Session 207 PR Changes & Workflow Forensic Audit](./DOCUMENTATION/history/session-207-pr-changes-and-workflow-audit.md)
+- 🏗️ [Solutions Architecture & Next.js Audit Report](./DOCUMENTATION/architecture/solutions-architect-audit-report.md)
 
 ---
 
@@ -81,7 +85,7 @@ DOCUMENTATION/
 | **Storage** | Strategy Pattern Provider | Cloudinary, Local Disk (`/var/www/kucet-storage`), S3/R2 |
 | **Logging** | Pino Logger | Structured JSON logging via `@/lib/logger` (no bare `console.log`) |
 | **Validation** | Zod & `wrapHandler` | Zero-trust input validation on all API endpoints |
-| **Testing** | Vitest & Playwright | 39 test files (294 unit tests), E2E test suites |
+| **Testing** | Vitest & Playwright | 47 test files (337 unit tests), E2E test suites |
 | **Infrastructure** | Docker Compose & Nginx | Hostinger VPS, Tailscale mesh network, PM2 runner |
 
 ---
@@ -92,16 +96,22 @@ DOCUMENTATION/
 CMS/
 ├── DEPLOYMENT_PACKAGE/        # Production deployment scripts, Docker Compose, Nginx configs
 ├── DOCUMENTATION/             # System documentation knowledge base (see Master Index above)
-├── drizzle/                   # Drizzle Kit migration SQL scripts (0000_... to 0011_...)
-├── public/                    # Static public web assets (favicon, manifest)
+├── drizzle/                   # Drizzle Kit migration SQL scripts (0000_... to 0013_...)
+├── public/                    # Static public web assets (favicon, manifest, sw.js)
 ├── scripts/                   # System automation, load testing, & storage migration scripts
 ├── src/
 │   ├── app/                   # Next.js App Router (Pages, Layouts, API Routes)
-│   │   ├── admin/             # Super Admin console
-│   │   ├── api/               # Server API routes (/api/admin/*, /api/clerk/*, /api/student/*)
-│   │   ├── clerk/             # Clerk & HOD console
+│   │   ├── admin/             # Super Admin console (including /admin/manage-staff & /admin/staff-requests)
+│   │   ├── api/               # Server API routes (/api/admin/*, /api/staff/*, /api/student/*, /api/public/*)
+│   │   ├── staff/             # Staff & HOD console (RENAMED from /clerk/ in Session 207)
+│   │   ├── staff-registration/# Public multi-step staff onboarding wizard (NEW in Session 207)
+│   │   ├── register/staff/activate/ # Token-based account activation (NEW in Session 207)
 │   │   └── student/           # Student portal
 │   ├── components/            # React UI components grouped by domain/role
+│   │   ├── admin/             # Admin components (PendingStaffRequests, AdminSidebar, etc.)
+│   │   └── staff/             # Staff components (RENAMED from components/clerk/)
+│   ├── context/               # React context providers
+│   │   └── StaffContext.js    # Staff context (RENAMED from ClerkContext.js)
 │   ├── db/                    # Drizzle ORM modular database schemas & client
 │   ├── hooks/                 # Custom React hooks (useSecurityEvents, etc.)
 │   ├── lib/                   # Utility libraries, clock, security, assets, storage config
@@ -144,7 +154,7 @@ CMS/
 
 ---
 
-## 7. Session 205 Historical Development & Commit Breakdown
+## 7. Session 205, 206 & 207 Historical Development & Commit Breakdown
 
 Session 205 resolved critical cookie persistence bugs, hardened authentication boundaries, introduced high-performance academic session caching, and standardized explicit logout expiration.
 
@@ -168,7 +178,22 @@ Session 205 resolved critical cookie persistence bugs, hardened authentication b
 | `699d376` | Client-Side Image Caching Layer | Added in-memory client image cache in `getAssetUrl()` and `AssetContext.js` with selective invalidation (`invalidateAssetCache`), zero duplicate network requests, and 100% storage-provider independence. |
 | `8547ad2` | Scratch & Trace Markdown File Cleanup | Removed 6 obsolete root markdown debugging and operational trace files (`IMAGE_PIPELINE_TRACE.md`, `IMAGE_RENDER_FORENSICS.md`, `OPERATIONAL_RUNBOOK.md`, `ROOT_CAUSE.md`, `SELF_DEPLOYMENT_SERVER_STATUS.md`, `STORAGE_ARCHITECTURE_RECOMMENDATION.md`). |
 | `fe02e1c` | Institutional Email Logo Delivery Pipeline | Fixed College Logo resolution in transactional email templates (`getEmailLogoUrl()` in `src/lib/email.js`) to serve `public/assets/ku-college-logo.png` via environment-aware public HTTPS base URL with canonical fallback, preserving distinction between static build assets and dynamic user storage. |
-| `session-206` | Controlled Hardening & Environment Sync | 1. Secured all 7 QStash webhook endpoints with `verifySignatureAppRouter`. 2. Removed deprecated Google/NextAuth configuration from schemas and templates. 3. Standardized queue URL resolution with `NEXT_PUBLIC_BASE_URL`. 4. Added synchronous fallback transaction for bulk student import. 5. Implemented Web Push notification dispatch with VAPID key rotation and 404/410 subscription cleanup in `PushNotificationService`. 6. Connected EventBus domain event publishing for attendance and payments. 7. Completely synchronized `.env.example` and `DEPLOYMENT_PACKAGE/.env.production.template` with actual codebase usage. |
+| `2d8049c` | Session 206 — Security Hardening, Web Push & Sentry | 1. **QStash Security**: Added `verifySignatureAppRouter` to 4 previously unguarded webhooks (`archive-job`, `generate-pdf`, `notification-dispatch`, `report-generation`). Strengthened all 7 webhook guards to require both `QSTASH_TOKEN` AND `QSTASH_CURRENT_SIGNING_KEY`. 2. **Web Push**: Replaced `PushNotificationService.sendToRecipients()` stub with full VAPID implementation using `web-push@^3.6.7`; queries `push_subscriptions` table, sends real browser notifications, auto-purges stale 404/410 endpoints. 3. **Service Worker**: Added `push` and `notificationclick` event handlers to `public/sw.js`. 4. **Sentry**: Created `src/instrumentation.js`, `src/instrumentation-client.js`, `src/app/global-error.jsx`; hardened all 3 Sentry config files (conditional DSN, `enableLogs`); upgraded `@sentry/nextjs` from `^10.43.0` → `^10.70.0`. 5. **Bulk Import Fallback**: Replaced hard QStash-only path with tiered strategy — QStash when available, synchronous `db.transaction()` fallback when not; fixed broken `_prefixed` imports. 6. **EventBus**: Connected `ATTENDANCE_SUBMITTED` publish from `attendance/route.js` and `FEE_PAID` publish from `payments/route.js`. 7. **Queue URL**: Standardized `enqueueJob()` to use `NEXT_PUBLIC_BASE_URL`, strip trailing slashes, normalize endpoint paths, use Pino logger. 8. **Env Schema**: Removed `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` from required Zod schema; added `test` to valid `NODE_ENV` values; default changed to `production`. 9. **Env Files**: Completely restructured `.env.example` into 12 labeled sections; mirrored in `.env.production.template`; documented VAPID, Sentry DSN, QStash signing keys. 10. **Tests**: 4 new test files — `bulk-import-fallback`, `queue-url`, `qstash-webhooks-security`, `PushNotificationService` VAPID-absent test. |
+| `d55c026` | Session 206 — Documentation Sync | Updated `DOCUMENTATION/architecture/backend.md` (+27 lines), `DOCUMENTATION/development/lessons-learned.md` (+29 lines: Rule 12 dual-key guard), `DOCUMENTATION/features/notifications.md` (+71 lines: full Web Push docs), `DOCUMENTATION/history/migration-history.md` (+13 lines: Session 206 entry). Created `DOCUMENTATION/history/session-206-release-notes.md` (comprehensive change log). |
+| `8b9d4e4c` | Session 207 — Staff Registration & Admin Approval Workflow | **New DB Tables**: `staff_accounts`, `staff_roles`, `staff_account_roles`, `staff_academic_affiliations`, `staff_account_activation_tokens`, `academic_departments`, `academic_programs`. **New public API**: `/api/public/staff-registration` (submit request, OTP email verify). **New admin API**: `/api/admin/staff-requests` (list, approve, reject, resend-activation). **New UI**: `/staff-registration` 746-line multi-step wizard. **Approval flow**: Admin approval creates `staff_accounts` (status=PENDING_ACTIVATION), generates SHA-256 activation token, sends email with 48hr expiry link. **Schema**: Renamed `clerk_registration_requests` → `staff_registration_requests`; added `requested_role`, `academic_affiliations` (JSON), `email_verified_at`; removed encrypted mobile column. |
+| `b66c8899` | Session 207 — Staff Account Token Verification + Password Setup | **New UI**: `/register/staff/activate` landing page + `PasswordSetupClient.js`. **New API**: `/api/public/staff-registration/activate` (GET: validate token; POST: set password, mark token used, activate account). **Schema refinements**: `staffRoles` lookup table added; `staffAccountRoles` updated with `role_id` FK to `staffRoles`; `staffAcademicAffiliations.staff_id` → `staff_account_id`; activation token index changed to `uniqueIndex`. |
+| `dc3cfe02` | Session 207 — Admin Approval + Token + Password Setup (Working Module) | **Polish commit**: `PasswordSetupClient.js` expanded to 167 lines with password strength indicator; activation route hardened with additional status checks; forgot-password clerk route updated for new staff table; Navbar minor fix. |
+| `a8b68155` | Session 207 — Global clerk → staff Migration (212 files) | **BREAKING**: Complete system-wide rename across all layers. `src/app/clerk/` → `src/app/staff/`, `src/app/api/clerk/` → `src/app/api/staff/`, `src/components/clerk/` → `src/components/staff/`, `ClerkContext.js` → `StaffContext.js`. **Auth**: `issueClerkAuthCookie` → `issueStaffAuthCookie`; all cookies renamed (`clerk_auth` → `staff_auth`, `clerk_logged_in` → `staff_logged_in`, etc.); refresh token `user_id` changed from email string → integer ID. **Token refresh for staff**: Now JOINs `staffAccountRoles` + `staffRoles` + `staffAcademicAffiliations` + `academicDepartments` to fully resolve role/branch/HOD before re-issuing cookie. **New**: `/api/staff/me`, `/api/staff/send-update-email-otp`, `/api/staff/verify-update-email-otp`. **Deleted**: old `/register/staff/page.js`, `test_cloudinary.js`. |
+| `08b10a4c` | Session 207 — Memory Free Deployment + Test CI/CD | `next.config.mjs` memory optimizations for standalone deployment (`productionBrowserSourceMaps: false`, Sentry sourcemap disable). `manage-clerks/page.js` refactored to integrate `staffAccounts` table. E2E tests updated for `/staff/` route paths. |
+| `a8a350c3` | Session 207 — Admin Staff Management Continuation | Scaffolding for modern unified staff management console. |
+| `5ab9ff0f` | Session 207 — Admin Staff Management & Staff Edit Profile | Complete implementation of `/admin/manage-staff`, `/api/admin/staff` and `/api/admin/staff/[id]` (GET, PUT, DELETE); Admission Clerk & Faculty `/staff/settings/edit-profile` with image compression; `faculty_hod_assignments` DB table; `StaffContext` lazy sub-resource fetching; `mobile_hash` expanded to `varchar(255)`. |
+| `916cb472` | Session 207 — CI/CD Asset Normalization Fix | `src/lib/assets.js` updated to pass-through `data:` URIs, extract `kucet/` keys from accidental absolute URLs, normalize local `/api/assets/view/` paths, and bound `CLIENT_ASSET_CACHE` (5000 max). |
+| `92854eae` | Session 207 — Unified HOD Resolution Across Auth Pipeline | Unified HOD resolution in `src/app/api/auth/employee-login/route.js`, `src/app/api/staff/me/route.js`, `src/lib/auth-utils.js`, and `src/app/api/admin/staff/[id]/route.js` ensuring consistent `faculty_hod_assignments` querying and `is_hod` boolean propagation in token payload and session. |
+| `b83155a8` | Session 207 — Solutions Architecture & Next.js Audit Report | Added comprehensive solutions architecture and Next.js audit report in `DOCUMENTATION/architecture/solutions-architect-audit-report.md` covering frontend RSC opportunities, server actions, client component inventory, and performance recommendations. |
+| `cfa6b7d8` | Session 207 — Staff Soft Deactivation & Reactivation | Switched staff deletion in `/admin/manage-staff` and `/api/admin/staff/[id]` from hard row deletion (`DELETE FROM staff_accounts`) to soft deactivation (`account_status = 'SUSPENDED'`), terminating sessions/refresh tokens while preserving audit logs, student import logs, and relational history, with UI reactivation support. |
+| `81e28e94` | Session 207 — Real-Time Staff Management & Zero-Refetch Updaters | Implemented transactional post-commit realtime event broadcasting across staff registration, approval, rejection, profile modification, and deactivation. Integrated `RealtimeListener` into `StaffRequestsClient`, `ManageStaffClient`, `AdminContext`, and `StaffContext` with targeted in-place array updaters; eradicated all remaining clerk terminology. |
+| `pending` | Session 207 — Cross-Student Profile Cache Leakage Fix & State Hygiene | Hardened `public/sw.js` (bumped to v3, unconditional bypass of all `/api/*` routes, `CLEAR_ALL_CACHES` handler); added strict `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate` across all API responses in `src/lib/api-utils.js`; added `Clear-Site-Data: "cache", "storage"` to logout endpoints; roll-number scoped localStorage keys in `ProfileActivityContext.js`; implemented roll mismatch resets in `StudentContext.js`. |
+
 
 ---
 

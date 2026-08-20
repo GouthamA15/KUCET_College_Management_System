@@ -140,7 +140,7 @@ export async function getCurrentCalendarSession() {
 | **Variables & Functions** | `camelCase` | `studentProfile`, `calculateCondonationRisk()` |
 | **Constants & Enums** | `UPPER_SNAKE_CASE` | `STORAGE_FOLDERS`, `MAX_UPLOAD_SIZE_MB` |
 | **React Components** | `PascalCase` | `StudentHistoryCard.js`, `AttendanceSheet.js` |
-| **API Routes & URLs** | `kebab-case` | `/api/clerk/admission/student-management` |
+| **API Routes & URLs** | `kebab-case` | `/api/staff/admission/student-management` |
 | **SQL Tables & Columns** | `snake_case` | `student_personal_details`, `fee_reimbursement` |
 | **Storage Keys** | Canonical relative key | `requests/pfp/7a59662b-8a4e.webp` |
 

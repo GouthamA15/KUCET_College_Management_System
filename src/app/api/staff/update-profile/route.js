@@ -4,7 +4,7 @@ import { staffAccounts } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { storage } from '@/lib/providers';
-import { encrypt, hashForIndex } from '@/lib/encryption';
+import { encrypt } from '@/lib/encryption';
 import { staffSchema } from '@/lib/validations/staff';
 import { z } from 'zod';
 
@@ -65,12 +65,25 @@ export async function POST(req) {
       .set(updateData)
       .where(eq(staffAccounts.id, user.id));
 
+    // Realtime Broadcast
+    try {
+      const { broadcastUpdate } = await import('@/lib/sse');
+      await broadcastUpdate('STAFF_UPDATED', {
+        id: user.id,
+        name: updateData.name || currentClerk.name,
+        email: updateData.email || currentClerk.email,
+        updated_at: new Date().toISOString()
+      });
+    } catch (_e) {
+      // Non-blocking
+    }
+
     return apiResponse({ success: true, message: 'Profile updated successfully' });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
     }
-    logger.error('Error updating clerk profile:', error);
+    logger.error('Error updating staff profile:', error);
     return apiError('Internal Server Error', 500, error.message);
   }
 }

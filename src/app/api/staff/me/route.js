@@ -61,7 +61,19 @@ export const GET = wrapHandler({
             .limit(1);
         if (affil.length > 0) {
           branch = affil[0].branch_code;
-          isHod = false;
+        }
+
+        const { facultyHodAssignments } = await import('@/db/schema');
+        const { and } = await import('drizzle-orm');
+        const hodRow = await db.select({ id: facultyHodAssignments.id })
+            .from(facultyHodAssignments)
+            .where(and(
+              eq(facultyHodAssignments.staff_account_id, staff.id),
+              eq(facultyHodAssignments.is_active, true)
+            ))
+            .limit(1);
+        if (hodRow.length > 0) {
+          isHod = true;
         }
     }
     let decryptedMobile = '';

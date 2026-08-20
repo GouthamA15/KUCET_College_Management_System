@@ -17,7 +17,7 @@ export async function POST(req) {
       clientIp = xff ? xff.split(',')[0].trim() : `anon-${crypto.randomBytes(4).toString('hex')}`;
     }
 
-    const rateCheck = await checkRateLimit(`forgot_pwd_clerk:${clientIp}`, 3, 900); // 3 per 15 min
+    const rateCheck = await checkRateLimit(`forgot_pwd_staff:${clientIp}`, 3, 900); // 3 per 15 min
     if (!rateCheck.success) {
       const retryAfter = rateCheck.resetIn || rateCheck.ttl || rateCheck.reset || 900;
       return NextResponse.json(
@@ -51,7 +51,6 @@ export async function POST(req) {
       }
     });
 
-    // ─── FIX #3: Was returning 404 "Clerk not found" — now always 200 generic ───
     // SECURITY: Do NOT reveal whether the account exists or not unless it's a specific activation block.
     const GENERIC_OK = apiResponse({ message: 'If an account with this email exists, a password reset link has been sent.' });
 
@@ -60,11 +59,9 @@ export async function POST(req) {
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
-    // ─── FIX #14: Use getNow() (IST clock) instead of Date.now() ───
     const { getNow } = await import('@/lib/clock');
     const now = getNow();
 
-    // ─── FIX #15: Reset token expiry raised from 10 min → 60 min ───
     const expires_at = new Date(now.getTime() + 60 * 60 * 1000); // 60 minutes
 
     await db.insert(passwordResetTokens).values({
@@ -78,16 +75,16 @@ export async function POST(req) {
     const baseUrl = getBaseUrl();
     const resetLink = `${baseUrl}/reset-password/${token}`;
 
-    const subject = 'KUCET Clerk Password Reset Request';
-    const title = 'Clerk Password Reset Request';
+    const subject = 'KUCET Staff Password Reset Request';
+    const title = 'Staff Password Reset Request';
 
     const bodyHtml = `
-      <p>Dear Clerk,</p>
+      <p>Dear Staff Member,</p>
       <p>A request has been received to reset the password for your KUCET College Portal account.</p>
       <p>Please use the button below to securely reset your password.</p>
     `;
 
-    const bodyText = `Dear Clerk,
+    const bodyText = `Dear Staff Member,
 
 A request has been received to reset the password for your KUCET College Portal account.
 Please use the link below to securely reset your password:

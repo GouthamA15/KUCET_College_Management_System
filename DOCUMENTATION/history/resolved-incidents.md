@@ -10,6 +10,7 @@
 
 | Session | Date | Category | Affected Subsystem | Primary Root Cause Summary | Resolution Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Session 207** | Aug 18, 2026 | Caching & State | Service Worker & Student State | `public/sw.js` Stale-While-Revalidate caching of `/api/*` across student logins; un-scoped `localStorage` keys | **RESOLVED** |
 | **Session 206** | Aug 14, 2026 | Security & Media | Storage & Upload Pipeline | `FailoverStorageProvider` forwarded options object as `publicId` producing `[object Object].webp`; API routes assigned `StorageResult` object directly to DB string columns | **RESOLVED** |
 | **Session 205** | Aug 11, 2026 | Auth / Proxy | Cookie Engine (`src/proxy.js`) | Next.js Edge header comma-merging corruption of `Set-Cookie` strings | **RESOLVED** |
 | **Session 204** | Aug 11, 2026 | Auth / Routing | Super Admin Login | Client panel state mismatch in `LoginPanel.js` | **RESOLVED** |
@@ -23,7 +24,36 @@
 
 ## Detailed Forensics & Technical Resolutions
 
-### 1. Session 206: Forensic Resolution of Private Storage Security & `[object Object].webp` Image Upload Bug
+### 1. Session 207: Forensic Resolution of Cross-Student Profile Cache Leakage
+
+#### Incident Summary
+When a student (Student A, e.g., Gautam) logged in on a browser previously used by another student (Student B, e.g., Uzair), Student B's profile data, signature, and activity notifications appeared instead of Student A's data.
+
+#### Root Cause Analysis
+Forensic investigation revealed three contributing root causes:
+
+1. **Service Worker Stale-While-Revalidate Caching on Dynamic API Routes (`public/sw.js`)**:
+   - `public/sw.js` implemented a general Stale-While-Revalidate caching strategy for all non-navigation `GET` requests that were not explicitly listed in `BYPASS_CACHE_PATTERNS`.
+   - `BYPASS_CACHE_PATTERNS` only exempted `/api/auth/` and `/api/student/login`.
+   - Consequently, when Student B fetched `/api/student/me`, `/api/student/signature`, `/api/student/academic-info`, and `/api/student/latest-request`, the Service Worker saved the JSON response payloads into CacheStorage (`kucet-cms-v2`).
+   - When Student A authenticated subsequently, the Service Worker intercepted the `GET` API requests and served Student B's cached responses directly from CacheStorage before the network request could complete.
+
+2. **Missing Anti-Caching HTTP Headers on API Endpoints (`src/lib/api-utils.js`)**:
+   - `apiResponse()`, `apiError()`, and `wrapHandler` returned `NextResponse.json()` without `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate` and `Pragma: no-cache` headers, permitting intermediate and browser HTTP caches to hold authenticated student payloads.
+
+3. **Global Unscoped `localStorage` Keys in `ProfileActivityContext.js`**:
+   - Notification counts and seen request IDs (`profileStatusBarSeenRequestId`, `profileStatusBarCount`) were stored using global keys without roll number scoping, causing Student A to inherit Student B's notification read/dismiss states.
+
+#### Resolution Steps
+- **Unconditional `/api/` Bypass in Service Worker (`public/sw.js`)**: Configured `public/sw.js` to immediately bypass the Service Worker for ALL requests starting with `/api/` (`url.pathname.startsWith('/api/')`), bumped cache version to `kucet-cms-v3`, and added a `CLEAR_ALL_CACHES` message listener.
+- **Strict Anti-Caching Headers Across All API Responses (`src/lib/api-utils.js`)**: Enforced `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate`, `Pragma: no-cache`, and `Expires: 0` on `apiResponse`, `apiError`, and `wrapHandler`.
+- **`Clear-Site-Data` Header on Logout (`/api/*/logout`)**: Added `Clear-Site-Data: "cache", "storage"` header across all role logout routes (`/api/student/logout`, `/api/staff/logout`, `/api/admin/logout`, `/api/auth/logout`).
+- **Client Cache Purging on Login and Logout (`src/lib/logout.js` & `LoginPanel.js`)**: On logout and successful login, purged all browser CacheStorage (`caches.keys()`), in-memory image cache (`invalidateAssetCache()`), `sessionStorage`, and `localStorage`.
+- **Roll-Scoped Context State & Mismatch Reset (`src/context/StudentContext.js` & `ProfileActivityContext.js`)**: Added roll number scoping to local storage keys (`key_${rollno}`) and implemented roll-mismatch state resets in `StudentContext` ensuring that if an authenticated student changes, all previous state objects are cleared immediately.
+
+---
+
+### 2. Session 206: Forensic Resolution of Private Storage Security & `[object Object].webp` Image Upload Bug
 
 #### Incident Summary
 Users reported two distinct media asset issues:

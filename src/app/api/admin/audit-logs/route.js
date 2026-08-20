@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { auditLogs, _clerks, _principal } from '@/db/schema';
+import { auditLogs } from '@/db/schema';
 import { eq, and, desc, _like, sql, _or } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import logger from '@/lib/logger';

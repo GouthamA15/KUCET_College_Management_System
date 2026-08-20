@@ -87,12 +87,12 @@ graph TD
     C -->|Yes| D[Allow Request]
     C -->|No| E[Redirect to / or 401 API Error]
     
-    B -->|/clerk/*| F{clerk_auth valid?}
+    B -->|/staff/*| F{staff_auth valid?}
     F -->|No| E
     F -->|Yes| G{Subpath Check}
-    G -->|/clerk/scholarship| H{role === 'scholarship'?}
-    G -->|/clerk/admission| I{role === 'admission'?}
-    G -->|/clerk/faculty| J{role === 'faculty'?}
+    G -->|/staff/scholarship| H{role === 'scholarship' / 'scholarship_clerk'?}
+    G -->|/staff/admission| I{role === 'admission' / 'admission_clerk'?}
+    G -->|/staff/faculty| J{role === 'faculty' / is_hod?}
     H -->|Yes| D
     H -->|No| K[Redirect to Role Dashboard]
     I -->|Yes| D
@@ -111,10 +111,11 @@ graph TD
 
 ### Route Defense Specifications
 1. **Admin Routes (`/admin/*`, `/api/admin/*`)**: Strictly requires a valid `admin_auth` cookie containing `role: 'admin'`.
-2. **Clerk Routes (`/clerk/*`, `/api/clerk/*`)**: Requires a valid `clerk_auth` cookie. Sub-route checking ensures role segregation:
-   - `/clerk/scholarship/*` restricts to `scholarship` clerks.
-   - `/clerk/admission/*` restricts to `admission` clerks.
-   - `/clerk/faculty/*` restricts to `faculty` / `hod` clerks.
+2. **Staff Routes (`/staff/*`, `/api/staff/*`)**: Requires a valid `staff_auth` cookie. Sub-route checking ensures role segregation:
+   - `/staff/scholarship/*` restricts to `scholarship_clerk` / `scholarship` staff.
+   - `/staff/admission/*` restricts to `admission_clerk` / `admission` staff.
+   - `/staff/faculty/*` restricts to `faculty` / `hod` staff.
+   - `/staff/hod/*` requires `is_hod: true`.
 3. **Student Routes (`/student/*`)**: Requires `student_auth`. Unverified students (who haven't set up passwords or verified email) are restricted exclusively to `/student`, `/student/profile`, and `/student/settings/security`.
 
 ---
@@ -123,5 +124,5 @@ graph TD
 
 - [Authentication Architecture](./authentication.md)
 - [Session Management](./session-management.md)
-- [Clerk Portal Documentation](../pages/clerk-pages.md)
+- [Staff Portal Documentation](../pages/staff-pages.md)
 - [HOD Console Documentation](../pages/hod-pages.md)
