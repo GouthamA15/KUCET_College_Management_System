@@ -10,8 +10,8 @@ import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
   try {
-    const user = await getAuthUser('clerk');
-    if (!user || !user.is_hod) {
+    const user = await getAuthUser('hod');
+    if (!user || (!((user.role === 'faculty' && user.is_hod) || user.role === 'admin'))) {
       return apiError('Unauthorized', 401);
     }
 
@@ -49,8 +49,8 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    const user = await getAuthUser('clerk');
-    if (!user || !user.is_hod) {
+    const user = await getAuthUser('hod');
+    if (!user || (!((user.role === 'faculty' && user.is_hod) || user.role === 'admin'))) {
       return apiError('Unauthorized', 401);
     }
 
@@ -90,8 +90,8 @@ export async function POST(req) {
 
 export async function DELETE(req) {
   try {
-    const user = await getAuthUser('clerk');
-    if (!user || !user.is_hod) {
+    const user = await getAuthUser('hod');
+    if (!user || (!((user.role === 'faculty' && user.is_hod) || user.role === 'admin'))) {
       return apiError('Unauthorized', 401);
     }
 

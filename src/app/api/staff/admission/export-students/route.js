@@ -5,7 +5,7 @@ import { apiError, apiResponse } from '@/lib/api-utils';
 
 export async function GET(req) {
   try {
-    const user = await getAuthUser('clerk');
+    const user = await getAuthUser('staff');
     if (!user) {
       return apiError('Unauthorized', 401);
     }

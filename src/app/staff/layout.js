@@ -11,7 +11,7 @@ import { usePathname } from 'next/navigation';
 import { getPortalTitle } from '@/lib/path-utils';
 import { MOBILE_NAV_MODE } from '@/lib/college-config';
 
-export default function ClerkLayout({ children }) {
+export default function StaffLayout({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const resolvedTitle = getPortalTitle(pathname);
@@ -24,14 +24,14 @@ export default function ClerkLayout({ children }) {
         {/* Sidebar */}
         {MOBILE_NAV_MODE === 'sidebar' ? (
           <Sidebar 
-            role="clerk" 
+            role="staff" 
             isMobileOpen={isMobileMenuOpen} 
             setIsMobileOpen={setIsMobileMenuOpen} 
           />
         ) : (
           <div className="hidden lg:block">
             <Sidebar 
-              role="clerk" 
+              role="staff" 
               isMobileOpen={isMobileMenuOpen} 
               setIsMobileOpen={setIsMobileMenuOpen} 
             />
@@ -46,7 +46,7 @@ export default function ClerkLayout({ children }) {
             {MOBILE_NAV_MODE === 'sidebar' ? (
               <MobileTopbar onMenuClick={() => setIsMobileMenuOpen(true)} title={resolvedTitle} />
             ) : (
-              <Navbar role="clerk" brandLabel={resolvedTitle} />
+              <Navbar role="staff" brandLabel={resolvedTitle} />
             )}
           </div>
 

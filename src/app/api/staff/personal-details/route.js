@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function POST(req) {
-  const user = await getAuthUser('clerk');
+  const user = await getAuthUser('staff');
   if (!user) return apiError('Unauthorized', 401);
 
   try {

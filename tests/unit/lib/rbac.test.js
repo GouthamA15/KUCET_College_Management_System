@@ -22,12 +22,12 @@ describe('Enterprise RBAC', () => {
   });
 
   it('should verify hasAnyPermission and hasAllPermissions logic', () => {
-    expect(hasAnyPermission('clerk', [PERMISSIONS.FEE_VERIFY, PERMISSIONS.ARCHIVE_RUN])).toBe(true);
-    expect(hasAllPermissions('clerk', [PERMISSIONS.FEE_VERIFY, PERMISSIONS.FEE_EDIT])).toBe(true);
-    expect(hasAllPermissions('clerk', [PERMISSIONS.FEE_VERIFY, PERMISSIONS.ARCHIVE_RUN])).toBe(false);
+    expect(hasAnyPermission('scholarship', [PERMISSIONS.FEE_VERIFY, PERMISSIONS.ARCHIVE_RUN])).toBe(true);
+    expect(hasAllPermissions('scholarship', [PERMISSIONS.FEE_VERIFY, PERMISSIONS.FEE_EDIT])).toBe(true);
+    expect(hasAllPermissions('scholarship', [PERMISSIONS.FEE_VERIFY, PERMISSIONS.ARCHIVE_RUN])).toBe(false);
   });
 
-  it('should grant expected permissions for scholarship and admission clerk aliases', () => {
+  it('should grant expected permissions for scholarship and admission staff roles', () => {
     expect(hasPermission('scholarship', PERMISSIONS.FEE_VERIFY)).toBe(true);
     expect(hasPermission('scholarship', PERMISSIONS.ATTENDANCE_MARK)).toBe(false);
     expect(hasPermission('admission', PERMISSIONS.CERTIFICATE_APPROVE)).toBe(true);

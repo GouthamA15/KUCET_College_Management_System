@@ -65,6 +65,7 @@ const nextConfig = {
     const cspHeader = `
       default-src 'self';
       script-src 'self' 'unsafe-eval' 'unsafe-inline';
+      worker-src 'self' blob:;
       style-src 'self' 'unsafe-inline';
       img-src 'self' blob: data: res.cloudinary.com *.cloudinary.com *.s3.amazonaws.com *.r2.dev *.tailf6b4a7.ts.net *.onrender.com;
       font-src 'self' data:;

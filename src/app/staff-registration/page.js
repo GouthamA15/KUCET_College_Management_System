@@ -349,7 +349,7 @@ export default function StaffRegistrationPage() {
                 Institutional Staff Registration
               </h1>
               <p className="text-[10px] sm:text-xs font-semibold text-gray-600 mt-2 bg-gray-50 border border-gray-200 inline-block px-3 sm:px-4 py-1 sm:py-1.5 rounded-full shadow-sm">
-                Faculty &amp; Clerk Onboarding Portal
+                Faculty &amp; Staff Onboarding Portal
               </p>
             </div>
           </div>

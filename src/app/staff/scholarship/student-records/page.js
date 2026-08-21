@@ -16,7 +16,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { Info } from 'lucide-react';
 
 function StudentRecordsContent() {
-  const { clerkData: clerk, loading: isClerkLoading } = useStaff();
+  const { staffData: staff, loading: isStaffLoading } = useStaff();
   const { state, setField, resetStudent, setState } = useScholarshipDashboard();
   const {
     roll,
@@ -134,10 +134,10 @@ function StudentRecordsContent() {
   };
 
   useEffect(() => {
-    if (!isClerkLoading && clerk && clerk.role !== 'scholarship') {
+    if (!isStaffLoading && staff && staff.role !== 'scholarship') {
       toast.error('Access Denied');
     }
-  }, [clerk, isClerkLoading]);
+  }, [staff, isStaffLoading]);
 
   const toDmy = (val) => formatDate(val) || '-';
 
@@ -511,10 +511,10 @@ function StudentRecordsContent() {
     }
   }
 
-  if (isClerkLoading && !clerk) {
+  if (isStaffLoading && !staff) {
     return <LoadingSpinner label="Loading Workspace..." />;
   }
-  if (!clerk) return null;
+  if (!staff) return null;
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-16 px-4 md:px-8 animate-fadeIn font-sans antialiased text-slate-600">

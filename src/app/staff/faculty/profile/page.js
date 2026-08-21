@@ -12,36 +12,36 @@ import ProfileCardShell from '@/components/profile/ProfileCardShell';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 export default function FacultyProfilePage() {
-  const { clerkData: clerk, loading: isLoading } = useStaff();
+  const { staffData: staff, loading: isLoading } = useStaff();
   const [activeTab, setActiveTab] = useState('personal');
 
   useEffect(() => {
-    if (!isLoading && clerk && clerk.role !== 'faculty') {
+    if (!isLoading && staff && staff.role !== 'faculty') {
       toast.error('Access Denied');
     }
-  }, [clerk, isLoading]);
+  }, [staff, isLoading]);
 
   const personalItems = useMemo(() => {
     return [
-      { key: 'email', label: 'Email', value: clerk?.email || '-' },
-      { key: 'mobile', label: 'Mobile', value: clerk?.mobile || '-' },
-      { key: 'employee_id', label: 'Employee ID', value: clerk?.employee_id || '-' },
-      { key: 'role', label: 'Role', value: clerk?.role ? String(clerk.role).toUpperCase() : '-' },
-      { key: 'branch', label: 'Branch', value: clerk?.branch || '-' },
-      { key: 'hod', label: 'HOD', value: clerk?.is_hod ? 'Yes' : 'No' },
-      { key: 'address', label: 'Address', value: clerk?.address || '-' },
+      { key: 'email', label: 'Email', value: staff?.email || '-' },
+      { key: 'mobile', label: 'Mobile', value: staff?.mobile || '-' },
+      { key: 'employee_id', label: 'Employee ID', value: staff?.employee_id || '-' },
+      { key: 'role', label: 'Role', value: staff?.role ? String(staff.role).toUpperCase() : '-' },
+      { key: 'branch', label: 'Branch', value: staff?.branch || '-' },
+      { key: 'hod', label: 'HOD', value: staff?.is_hod ? 'Yes' : 'No' },
+      { key: 'address', label: 'Address', value: staff?.address || '-' },
     ];
-  }, [clerk]);
+  }, [staff]);
 
-  if (isLoading && !clerk) {
+  if (isLoading && !staff) {
     return <LoadingSpinner label="Loading Profile" />;
   }
 
-  if (!clerk) return null;
+  if (!staff) return null;
 
-  const name = clerk?.name || 'Faculty';
-  const primaryId = clerk?.employee_id || 'FACULTY';
-  const title = clerk?.is_hod ? 'HOD Office' : 'Faculty';
+  const name = staff?.name || 'Faculty';
+  const primaryId = staff?.employee_id || 'FACULTY';
+  const title = staff?.is_hod ? 'HOD Office' : 'Faculty';
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-fadeIn">
@@ -51,7 +51,7 @@ export default function FacultyProfilePage() {
             <ProfileHeaderCard
               name={name}
               primaryId={primaryId}
-              photoUrl={clerk?.pfp}
+              photoUrl={staff?.pfp}
               editHref="/staff/settings/edit-profile"
               editTitle="Modify Records"
               fallback="initials"
@@ -62,8 +62,8 @@ export default function FacultyProfilePage() {
               <ProfileStatusBar
                 title={title}
                 lines={[
-                  { label: 'Designation', value: clerk?.is_hod ? 'Head of Department' : 'Faculty' },
-                  { label: 'Department', value: clerk?.branch || '-' },
+                  { label: 'Designation', value: staff?.is_hod ? 'Head of Department' : 'Faculty' },
+                  { label: 'Department', value: staff?.branch || '-' },
                 ]}
               />
               <ProfileTabs

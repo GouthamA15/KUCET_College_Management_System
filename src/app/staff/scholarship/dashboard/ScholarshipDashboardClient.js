@@ -7,7 +7,7 @@ import CertificateDashboard from '@/components/staff/certificates/CertificateDas
 import ScholarshipMetricsCards from '@/components/staff/scholarship/ScholarshipMetricsCards';
 import ScholarshipWindowCard from '@/components/staff/scholarship/ScholarshipWindowCard';
 import toast from 'react-hot-toast';
-import { ClerkDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
+import { StaffDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
 import { smoothScrollToId } from '@/lib/scroll-utils';
 import { Search, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
@@ -15,12 +15,12 @@ import Link from 'next/link';
 export default function ScholarshipDashboardClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { clerkData: clerk, loading: isClerkLoading } = useStaff();
+  const { staffData: staff, loading: isStaffLoading } = useStaff();
 
   const [view, setView] = useState('dashboard');
 
-  const firstName = clerk?.name?.split(' ')[0] || 'Clerk';
-  const employeeId = clerk?.employee_id || (clerk?.role ? String(clerk.role).toUpperCase() : 'SCHOLARSHIP');
+  const firstName = staff?.name?.split(' ')[0] || 'Staff';
+  const employeeId = staff?.employee_id || (staff?.role ? String(staff.role).toUpperCase() : 'SCHOLARSHIP');
 
   const backToDashboard = () => {
     setView('dashboard');
@@ -60,16 +60,16 @@ export default function ScholarshipDashboardClient() {
   const [metricsRefreshToken, setMetricsRefreshToken] = useState(0);
 
   useEffect(() => {
-    if (!isClerkLoading && clerk && clerk.role !== 'scholarship') {
+    if (!isStaffLoading && staff && staff.role !== 'scholarship') {
       toast.error('Access Denied');
     }
-  }, [clerk, isClerkLoading]);
+  }, [staff, isStaffLoading]);
 
-  if (isClerkLoading && !clerk) {
-    return <ClerkDashboardSkeleton />;
+  if (isStaffLoading && !staff) {
+    return <StaffDashboardSkeleton />;
   }
 
-  if (!clerk) return null;
+  if (!staff) return null;
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-16 px-4 md:px-8 animate-fadeIn font-sans antialiased text-slate-600">
@@ -82,7 +82,7 @@ export default function ScholarshipDashboardClient() {
           <p className="text-blue-200 text-[10px] font-bold uppercase tracking-widest">Workspace Hero</p>
           <h1 className="text-2xl md:text-3xl font-normal tracking-tight">Welcome, {firstName}</h1>
           <p className="text-blue-100/90 text-xs font-medium tracking-wide mt-1">
-            {employeeId} &bull; Scholarship Clerk
+            {employeeId} &bull; Scholarship Staff
           </p>
         </div>
 

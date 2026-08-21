@@ -171,7 +171,7 @@ function ensureSupabaseChannel() {
 export default function RealtimeListener({ onUpdate, enableNotifications = false }) {
   const { studentData } = useContext(StudentContext) || { /* empty */ };
   const staffContext = useContext(StaffContext) || { /* empty */ };
-  const currentStaff = staffContext.staffData || staffContext.clerkData;
+  const currentStaff = staffContext.staffData;
   
   const studentDataRef = useRef(studentData);
   const staffDataRef = useRef(currentStaff);
@@ -201,7 +201,7 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
     }
 
     if (event === 'REQUEST_CREATED' || event === 'REQUEST_UPDATED') {
-      if (stData && (payload.staffType === stData.role || payload.clerkType === stData.role || payload.role === stData.role)) {
+      if (stData && (payload.staffType === stData.role || payload.role === stData.role)) {
          toast(`New request: ${payload.certificate_type || payload.type || 'Student Request'}`, { icon: '🔔' });
       }
       if (sData && payload.student_id === sData.id) {

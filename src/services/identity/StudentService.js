@@ -102,8 +102,8 @@ export class StudentService {
   /**
    * Upsert a student record with all related details
    */
-  static async upsertStudent(data, clerkId, tx = null) {
-    return StudentProfileService.upsertStudent(data, clerkId, tx);
+  static async upsertStudent(data, staffId, tx = null) {
+    return StudentProfileService.upsertStudent(data, staffId, tx);
   }
 
   /**

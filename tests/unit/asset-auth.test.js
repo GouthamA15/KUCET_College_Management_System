@@ -14,7 +14,7 @@ vi.mock('@/db', () => ({
           return { id: 1 };
         })
       },
-      clerks: {
+      staffAccounts: {
         findFirst: vi.fn().mockImplementation(async ({ where: _where }) => {
           return { id: 10, is_active: true };
         })
@@ -75,7 +75,7 @@ describe('Asset Authorization & Path Normalization Engine', () => {
     });
 
     it('should strip domain and version prefixes', () => {
-      expect(normalizeAssetPath('https://server.com/api/assets/view/v1778/kucet/clerks/pfp/clerk1.jpg')).toBe('clerks/pfp/clerk1.jpg');
+      expect(normalizeAssetPath('https://server.com/api/assets/view/v1778/kucet/staff/pfp/staff1.jpg')).toBe('staff/pfp/staff1.jpg');
     });
   });
 

@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import FacultyDashboardClient from './FacultyDashboardClient';
-import { ClerkDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
+import { StaffDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
 
 export const metadata = {
   title: 'Faculty Dashboard | KUCET CMS',
@@ -9,7 +9,7 @@ export const metadata = {
 
 export default function FacultyDashboardOverview() {
   return (
-    <Suspense fallback={<ClerkDashboardSkeleton />}>
+    <Suspense fallback={<StaffDashboardSkeleton />}>
       <FacultyDashboardClient />
     </Suspense>
   );

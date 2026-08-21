@@ -8,8 +8,8 @@ import { getNow } from '@/lib/clock';
 import { sendInstitutionalEmail } from '@/lib/email';
 
 export async function GET() {
-  const user = await getAuthUser('clerk');
-  if (!user) return apiError('Unauthorized', 401);
+  const user = await getAuthUser('scholarship');
+  if (!user || (user.role !== 'scholarship' && user.role !== 'admin')) return apiError('Unauthorized', 401);
 
   try {
     const win = await db.query.scholarshipWindows.findFirst({
@@ -46,8 +46,8 @@ export async function GET() {
 }
 
 export async function POST(req) {
-  const user = await getAuthUser('clerk');
-  if (!user) return apiError('Unauthorized', 401);
+  const user = await getAuthUser('scholarship');
+  if (!user || (user.role !== 'scholarship' && user.role !== 'admin')) return apiError('Unauthorized', 401);
 
   try {
     const body = await req.json();

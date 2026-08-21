@@ -16,8 +16,8 @@ import { getNow } from '@/lib/clock';
  */
 export async function GET(request) {
   try {
-    const user = await getAuthUser('clerk');
-    if (!user || user.role !== 'faculty') {
+    const user = await getAuthUser('faculty');
+    if (!user || (user.role !== 'faculty' && user.role !== 'admin')) {
       return apiError('Unauthorized', 401);
     }
 
@@ -61,8 +61,8 @@ export async function GET(request) {
  */
 export async function POST(request) {
   try {
-    const user = await getAuthUser('clerk');
-    if (!user || user.role !== 'faculty') {
+    const user = await getAuthUser('faculty');
+    if (!user || (user.role !== 'faculty' && user.role !== 'admin')) {
       return apiError('Unauthorized', 401);
     }
 
@@ -186,8 +186,8 @@ export async function POST(request) {
  */
 export async function DELETE(request) {
   try {
-    const user = await getAuthUser('clerk');
-    if (!user || user.role !== 'faculty') {
+    const user = await getAuthUser('faculty');
+    if (!user || (user.role !== 'faculty' && user.role !== 'admin')) {
       return apiError('Unauthorized', 401);
     }
 

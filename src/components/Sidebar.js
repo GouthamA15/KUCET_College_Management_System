@@ -110,31 +110,24 @@ const Icons = {
   },
 };
 
-function normalizeRole({ roleProp, clerkData }) {
+function normalizeRole({ roleProp, staffData }) {
   let effectiveRole = roleProp || 'guest';
 
   // Compatibility alias: some callers may use "admin" while the menu config uses "superAdmin"
   if (effectiveRole === 'admin') effectiveRole = 'superAdmin';
 
-  // Keep backward-compatible role names
-  if (effectiveRole === 'admission') effectiveRole = 'clerkAdmission';
-  if (effectiveRole === 'scholarship') effectiveRole = 'clerkScholarship';
-
-  // If a clerk is logged in, refine based on stored clerk role
-  if (effectiveRole === 'clerk' && clerkData?.role) {
-    if (clerkData.role === 'admission') effectiveRole = 'clerkAdmission';
-    else if (clerkData.role === 'scholarship') effectiveRole = 'clerkScholarship';
-    else if (clerkData.role === 'faculty') effectiveRole = 'faculty';
+  if (effectiveRole === 'staff' && staffData?.role) {
+    effectiveRole = staffData.role;
   }
 
   return effectiveRole;
 }
 
-function buildMenuItems({ effectiveRole, studentData, clerkData }) {
+function buildMenuItems({ effectiveRole, studentData, staffData }) {
   const menuItemsRaw = NAV_MENU_CONFIG[effectiveRole] || NAV_MENU_CONFIG['guest'] || [
     { label: 'ADMISSION', route: '/admission' },
     { label: 'STUDENT LOGIN', action: 'open-panel-student' },
-    { label: 'STAFF LOGIN', action: 'open-panel-clerk' },
+    { label: 'STAFF LOGIN', action: 'open-panel-staff' },
   ];
 
   // Mirror Navbar.js student verification gating
@@ -155,7 +148,7 @@ function buildMenuItems({ effectiveRole, studentData, clerkData }) {
   }
 
   // Add HOD Dashboard dynamically
-  if (effectiveRole === 'faculty' && clerkData?.is_hod) {
+  if (effectiveRole === 'faculty' && staffData?.is_hod) {
     // Clone array to avoid mutating the constant menu config
     const enhancedMenu = [...menuItemsRaw];
     // Insert after DASHBOARD (index 1)
@@ -238,7 +231,7 @@ async function performAction({ action, effectiveRole, onLogout, router, setActiv
       router.push('/student/settings/security');
       return;
     }
-    if (String(effectiveRole).startsWith('clerk')) {
+    if (['staff', 'admission', 'scholarship', 'faculty', 'hod'].includes(effectiveRole)) {
       router.push('/staff/settings/security');
       return;
     }
@@ -270,21 +263,21 @@ function SidebarInner({
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const clerkContext = useContext(StaffContext);
+  const staffContext = useContext(StaffContext);
   const studentContext = useContext(StudentContext);
-  const clerkData = clerkContext?.clerkData;
+  const staffData = staffContext?.staffData;
   const studentData = studentContext?.studentData;
-  const isClerkLoading = clerkContext?.loading;
+  const isStaffLoading = staffContext?.loading;
 
   const effectiveRole = useMemo(
-    () => normalizeRole({ roleProp, clerkData }),
-    [roleProp, clerkData]
+    () => normalizeRole({ roleProp, staffData }),
+    [roleProp, staffData]
   );
 
   const menu = useMemo(() => {
-    if (effectiveRole === 'clerk' && isClerkLoading) return [];
-    return buildMenuItems({ effectiveRole, studentData, clerkData });
-  }, [effectiveRole, isClerkLoading, studentData, clerkData]);
+    if (effectiveRole === 'staff' && isStaffLoading) return [];
+    return buildMenuItems({ effectiveRole, studentData, staffData });
+  }, [effectiveRole, isStaffLoading, studentData, staffData]);
 
   const [isExpanded, setIsExpanded] = useState(true);
 

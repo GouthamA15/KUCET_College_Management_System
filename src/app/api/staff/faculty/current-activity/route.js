@@ -7,8 +7,8 @@ import { getNow } from '@/lib/clock';
 
 export async function GET(_req) {
   try {
-    const user = await getAuthUser('clerk');
-    if (!user || user.role !== 'faculty') return apiError('Unauthorized', 401);
+    const user = await getAuthUser('faculty');
+    if (!user || (user.role !== 'faculty' && user.role !== 'admin')) return apiError('Unauthorized', 401);
 
     const now = await getNow();
     const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
@@ -28,7 +28,7 @@ export async function GET(_req) {
       return apiResponse({ active: false, message: 'Outside college hours or Weekend' });
     }
 
-    const clerkId = user.id || user.clerkId;
+    const facultyId = user.staffId || user.id;
     const semRows = await db.select({ academic_year: semesters.academic_year })
       .from(semesters)
       .orderBy(desc(semesters.id))
@@ -46,7 +46,7 @@ export async function GET(_req) {
     .from(branchTimetable)
     .leftJoin(syllabusSubjects, eq(branchTimetable.subject_code, syllabusSubjects.subject_code))
     .where(and(
-      eq(branchTimetable.faculty_id, clerkId),
+      eq(branchTimetable.faculty_id, facultyId),
       eq(branchTimetable.day_of_week, day),
       eq(branchTimetable.period_number, period),
       or(

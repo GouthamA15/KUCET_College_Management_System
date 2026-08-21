@@ -5,7 +5,7 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { encrypt } from '@/lib/encryption';
 import { sendInstitutionalEmail, getBaseUrl } from '@/lib/email';
-import { STAFF_CATEGORIES, FACULTY_BRANCHES } from '@/lib/staff-config';
+import { STAFF_CATEGORIES, FACULTY_BRANCHES, isValidStaffCategory } from '@/lib/staff-config';
 import logger from '@/lib/logger';
 
 /**
@@ -44,8 +44,8 @@ export class StaffRegistrationService {
     const category = staff_category?.trim()?.toUpperCase();
 
     // 1. Validate Category
-    if (!category || !STAFF_CATEGORIES[category]) {
-      throw new Error('Invalid staff registration category. Only Faculty, Scholarship Clerk, and Admission Clerk may self-register.');
+    if (!isValidStaffCategory(staff_category)) {
+      throw new Error('Invalid staff registration category. Only Faculty, Scholarship Staff, and Admission Staff may self-register.');
     }
 
     // 2. Validate Branch for Faculty
@@ -256,7 +256,6 @@ export class StaffRegistrationService {
     return {
       success: true,
       staffId: newStaffId,
-      clerkId: newStaffId,
       emailSent: !!emailSent?.success,
       message: 'Staff account created successfully and welcome credentials email sent.'
     };
@@ -359,5 +358,3 @@ export class StaffRegistrationService {
     };
   }
 }
-
-export const ClerkRegistrationService = StaffRegistrationService;

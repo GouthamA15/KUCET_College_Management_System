@@ -63,7 +63,7 @@ function SubjectCard({ assignment, onSelect }) {
 
 function AttendanceSubjectList() {
   const router = useRouter();
-  const { clerkData: _clerk, loading: _isLoading } = useStaff();
+  const { staffData: _staff, loading: _isLoading } = useStaff();
   const [assignments, setAssignments] = useState([]);
   const [loadingAssignments, setLoadingAssignments] = useState(true);
 

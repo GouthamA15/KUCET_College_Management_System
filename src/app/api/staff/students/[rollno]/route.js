@@ -11,10 +11,10 @@ import { encrypt, hashForIndex } from '@/lib/encryption';
 
 /**
  * GET /api/staff/students/[rollno]
- * Fetch full student profile for clerk view
+ * Fetch full student profile for staff view
  */
 export const GET = wrapHandler({
-  auth: 'clerk',
+  auth: 'staff',
   handler: async (req, { context }) => {
     const { rollno } = await context.params;
     const profile = await StudentService.getStudentProfile(rollno);
@@ -32,7 +32,7 @@ export const GET = wrapHandler({
  * Update student core details
  */
 export const PUT = wrapHandler({
-  auth: 'clerk',
+  auth: 'staff',
   schema: studentUpdateSchema,
   handler: async (req, { data, context }) => {
     const { rollno } = await context.params;

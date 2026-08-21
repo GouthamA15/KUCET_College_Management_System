@@ -70,11 +70,11 @@ describe('Admin Authentication & Routing Audit', () => {
       expect(getDashboardPathByRole('admin')).toBe('/admin/dashboard');
     });
 
-    it('should map admission clerk role to /staff/admission/dashboard', () => {
+    it('should map admission staff role to /staff/admission/dashboard', () => {
       expect(getDashboardPathByRole('admission')).toBe('/staff/admission/dashboard');
     });
 
-    it('should map scholarship clerk role to /staff/scholarship/dashboard', () => {
+    it('should map scholarship staff role to /staff/scholarship/dashboard', () => {
       expect(getDashboardPathByRole('scholarship')).toBe('/staff/scholarship/dashboard');
     });
 
@@ -129,9 +129,9 @@ describe('Admin Authentication & Routing Audit', () => {
       expect(adminLoggedInCookie).toBeDefined();
     });
 
-    it('should successfully authenticate Clerk and return specific clerk role', async () => {
-      const hashedPassword = await bcrypt.hash('ClerkPassword123!', 10);
-      const clerkRecord = {
+    it('should successfully authenticate Staff and return specific staff role', async () => {
+      const hashedPassword = await bcrypt.hash('StaffPassword123!', 10);
+      const staffRecord = {
         id: 10,
         email: 'admission@kucet.ac.in',
         role: 'admission',
@@ -150,11 +150,11 @@ describe('Admin Authentication & Routing Audit', () => {
         }),
       });
 
-      // 2. Staff query returns clerkRecord
+      // 2. Staff query returns staffRecord
       db.select.mockReturnValueOnce({
         from: vi.fn().mockReturnValueOnce({
           where: vi.fn().mockReturnValueOnce({
-            limit: vi.fn().mockResolvedValueOnce([clerkRecord]),
+            limit: vi.fn().mockResolvedValueOnce([staffRecord]),
           }),
         }),
       });
@@ -172,7 +172,7 @@ describe('Admin Authentication & Routing Audit', () => {
 
       const req = makeMockRequest({
         email: 'admission@kucet.ac.in',
-        password: 'ClerkPassword123!',
+        password: 'StaffPassword123!',
         rememberMe: false,
       });
 

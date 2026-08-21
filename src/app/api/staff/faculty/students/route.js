@@ -15,8 +15,8 @@ import { getAssetUrl } from '@/lib/assets';
 
 export async function GET(request) {
   try {
-    const user = await getAuthUser('clerk');
-    if (!user || user.role !== 'faculty') return apiError('Unauthorized', 401);
+    const user = await getAuthUser('faculty');
+    if (!user || (user.role !== 'faculty' && user.role !== 'admin')) return apiError('Unauthorized', 401);
 
     const { searchParams } = new URL(request.url);
     const assignment_id = searchParams.get('assignment_id') ? parseInt(searchParams.get('assignment_id')) : null;

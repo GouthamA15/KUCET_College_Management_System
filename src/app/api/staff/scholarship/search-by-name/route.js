@@ -5,8 +5,8 @@ import { eq, and, like, _sql } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
-  const user = await getAuthUser('clerk');
-  if (!user) return apiError('Unauthorized', 401);
+  const user = await getAuthUser('scholarship');
+  if (!user || (user.role !== 'scholarship' && user.role !== 'admin')) return apiError('Unauthorized', 401);
 
   try {
     const url = req.nextUrl;

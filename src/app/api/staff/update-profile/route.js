@@ -29,11 +29,11 @@ export async function POST(req) {
     const validatedData = updateSchema.parse(json);
     const { name, email, mobile, pfp, signature, address } = validatedData;
 
-    const currentClerk = await db.query.staffAccounts.findFirst({
+    const currentStaff = await db.query.staffAccounts.findFirst({
       where: eq(staffAccounts.id, user.id)
     });
 
-    if (!currentClerk) return apiError('Clerk not found', 404);
+    if (!currentStaff) return apiError('Staff not found', 404);
 
     const updateData = {};
 
@@ -46,13 +46,13 @@ export async function POST(req) {
 
     const { STORAGE_FOLDERS } = await import('@/lib/storage-config');
     if (pfp && pfp.startsWith('data:image')) {
-      if (currentClerk.pfp) await storage.delete(currentClerk.pfp);
+      if (currentStaff.pfp) await storage.delete(currentStaff.pfp);
       const res = await storage.upload(pfp, STORAGE_FOLDERS.STAFF_PFP);
       updateData.pfp = typeof res === 'string' ? res : res?.path;
     }
 
     if (signature && signature.startsWith('data:image')) {
-      if (currentClerk.signature) await storage.delete(currentClerk.signature);
+      if (currentStaff.signature) await storage.delete(currentStaff.signature);
       const res = await storage.upload(signature, STORAGE_FOLDERS.STAFF_SIGNATURES);
       updateData.signature = typeof res === 'string' ? res : res?.path;
     }
@@ -70,8 +70,8 @@ export async function POST(req) {
       const { broadcastUpdate } = await import('@/lib/sse');
       await broadcastUpdate('STAFF_UPDATED', {
         id: user.id,
-        name: updateData.name || currentClerk.name,
-        email: updateData.email || currentClerk.email,
+        name: updateData.name || currentStaff.name,
+        email: updateData.email || currentStaff.email,
         updated_at: new Date().toISOString()
       });
     } catch (_e) {

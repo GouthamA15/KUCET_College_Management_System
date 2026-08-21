@@ -90,8 +90,8 @@ export async function isUserActive(user) {
       return !!adminRecord;
     }
 
-    if (['scholarship', 'admission', 'faculty', 'staff'].includes(role) || user.is_hod || user.staffId || user.clerkId) {
-      const staffId = user.id || user.staffId || user.clerkId;
+    if (['scholarship', 'admission', 'faculty', 'staff'].includes(role) || user.is_hod || user.staffId) {
+      const staffId = user.id || user.staffId;
       if (!staffId && !user.email) return false;
 
       const staffRecord = await db.query.staffAccounts.findFirst({
@@ -161,9 +161,9 @@ export async function canUserAccessAsset(user, rawPath) {
     return false;
   }
 
-  // 3. CLERK / FACULTY / HOD STAFF ACCESS CONTROL
+  // 3. STAFF / FACULTY / HOD ACCESS CONTROL
   if (['scholarship', 'admission', 'faculty', 'staff'].includes(userRole) || user.is_hod || user.staffId) {
-    // Staff members are authorized for operational media (student photos, signatures, admission drafts, payment proofs, clerk photos/signatures, bug reports)
+    // Staff members are authorized for operational media (student photos, signatures, admission drafts, payment proofs, staff photos/signatures, bug reports)
     return true;
   }
 
@@ -292,8 +292,8 @@ export async function canUserAccessAsset(user, rawPath) {
         }
       }
 
-      // f) Faculty/Staff signature check on verified documents/memos (including legacy clerks/ path)
-      if (cleanPath.startsWith('staffAccounts/') || cleanPath.startsWith('staffs/') || cleanPath.startsWith('clerks/signatures') || cleanPath.startsWith('clerks/pfp')) {
+      // f) Faculty/Staff signature check on verified documents/memos
+      if (cleanPath.startsWith('staffAccounts/') || cleanPath.startsWith('staff/') || cleanPath.startsWith('staffs/')) {
         return true;
       }
 

@@ -29,21 +29,19 @@ export const DEFAULT_ROLE_PERMISSIONS = Object.freeze({
     PERMISSIONS.MARK_ENTRY,
     PERMISSIONS.VIEW_OWN_RECORDS,
   ],
-  clerk: [
-    PERMISSIONS.FEE_VERIFY,
-    PERMISSIONS.FEE_EDIT,
+  admission: [
     PERMISSIONS.CERTIFICATE_APPROVE,
     PERMISSIONS.REPORT_EXPORT,
     PERMISSIONS.VIEW_OWN_RECORDS,
   ],
-  scholarship_clerk: [
+  scholarship: [
     PERMISSIONS.FEE_VERIFY,
     PERMISSIONS.FEE_EDIT,
     PERMISSIONS.REPORT_EXPORT,
+    PERMISSIONS.VIEW_OWN_RECORDS,
   ],
-  admission_clerk: [
-    PERMISSIONS.CERTIFICATE_APPROVE,
-    PERMISSIONS.REPORT_EXPORT,
+  staff: [
+    PERMISSIONS.VIEW_OWN_RECORDS,
   ],
   student: [
     PERMISSIONS.VIEW_OWN_RECORDS,
@@ -56,8 +54,6 @@ export const DEFAULT_ROLE_PERMISSIONS = Object.freeze({
 export function getRolePermissions(role) {
   if (!role) return [];
   const normalizedRole = String(role).toLowerCase();
-  if (normalizedRole === 'scholarship') return DEFAULT_ROLE_PERMISSIONS.scholarship_clerk;
-  if (normalizedRole === 'admission') return DEFAULT_ROLE_PERMISSIONS.admission_clerk;
   return DEFAULT_ROLE_PERMISSIONS[normalizedRole] || [];
 }
 

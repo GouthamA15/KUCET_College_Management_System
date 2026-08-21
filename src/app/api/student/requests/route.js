@@ -76,7 +76,7 @@ export async function POST(request) {
 
     const formData = await request.formData();
     const certificateType = formData.get("certificateType");
-    const clerkType = formData.get("clerkType");
+    const staffType = formData.get("staffType");
     const paymentAmount = formData.get("paymentAmount");
     const transactionId = formData.get("transactionId")?.toString().trim();
     const purposeType = formData.get("purpose_type")?.toString().trim() || formData.get("purpose")?.toString().trim();
@@ -85,7 +85,7 @@ export async function POST(request) {
     const toDateStr = formData.get("toDate");
     const paymentScreenshotFile = formData.get("paymentScreenshot");
 
-    if (!certificateType || !clerkType || paymentAmount === null) {
+    if (!certificateType || !staffType || paymentAmount === null) {
       return apiError("Missing required fields", 400);
     }
 
@@ -275,11 +275,11 @@ export async function POST(request) {
       });
       requestId = result[0].insertId;
 
-      // REAL-TIME: Broadcast to clerks
+      // REAL-TIME: Broadcast to staff
       try {
         const { broadcastUpdate } = await import('@/lib/sse');
         broadcastUpdate('REQUEST_CREATED', {
-          clerkType,
+          staffType,
           certificateType,
           student_id: user.student_id,
           roll_no: user.roll_no,

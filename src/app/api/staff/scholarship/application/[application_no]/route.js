@@ -19,8 +19,8 @@ import { decrypt } from '@/lib/encryption';
 import { getAssetUrl } from '@/lib/assets';
 
 export async function GET(req, ctx) {
-  const user = await getAuthUser('clerk');
-  if (!user) return apiError('Unauthorized', 401);
+  const user = await getAuthUser('scholarship');
+  if (!user || (user.role !== 'scholarship' && user.role !== 'admin')) return apiError('Unauthorized', 401);
 
   try {
     const params = await ctx.params;

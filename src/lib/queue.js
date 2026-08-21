@@ -41,10 +41,10 @@ export const enqueueJob = async (endpoint, payload, options = {}) => {
 
 export const Queue = {
   // 1. Bulk Import Queue
-  enqueueBulkImportChunk: async (chunk, clerkId, importFileName) => {
+  enqueueBulkImportChunk: async (chunk, staffId, importFileName) => {
     return await enqueueJob('/api/webhooks/qstash/bulk-import', {
       chunk,
-      clerkId,
+      staffId,
       importFileName
     });
   },

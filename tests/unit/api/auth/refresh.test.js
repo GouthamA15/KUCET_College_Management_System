@@ -113,7 +113,7 @@ describe('/api/auth/refresh API Route', () => {
     const tokenRecord = {
       id: 1,
       token_hash: 'hash',
-      user_id: 'clerk@kucet.com',
+      user_id: 'staff@kucet.com',
       user_type: 'staff',
       expires_at: new Date('2026-06-10T10:00:00Z'),
       revoked_at: null,
@@ -128,13 +128,13 @@ describe('/api/auth/refresh API Route', () => {
     };
     db.query.userSessions.findFirst.mockResolvedValue(sessionRecord);
 
-    const clerkRecord = {
+    const staffRecord = {
       id: 10,
-      email: 'clerk@kucet.com',
+      email: 'staff@kucet.com',
       role: 'staff',
       account_status: 'ACTIVE'
     };
-    db.query.staffAccounts.findFirst.mockResolvedValue(clerkRecord);
+    db.query.staffAccounts.findFirst.mockResolvedValue(staffRecord);
     db.query.staffAccountRoles.findMany.mockResolvedValue([{ role: { role_code: 'staff' } }]);
 
     const req = makeMockRequest({ type: 'staff' });

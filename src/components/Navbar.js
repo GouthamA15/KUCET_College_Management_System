@@ -6,12 +6,10 @@ import { _useStaff, StaffContext } from '@/context/StaffContext';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import ChangePasswordModal from './ChangePasswordModal';
-// import NotificationDropdown from './NotificationDropdown';
-// import ClerkNotificationDropdown from './staff/ClerkNotificationDropdown';
 import { NAV_MENU_CONFIG } from '@/lib/menu-config';
 import { logoutByRole } from '@/lib/logout';
 
-export default function Navbar({ activePanel, setActivePanel, role, studentProfileMode = false, onLogout, _clerkMinimal = false, _activeTab, _setActiveTab, _isSubPage = false, sticky = true, minimalNav = false, brandLabel = 'LOGIN PORTAL' }) {
+export default function Navbar({ activePanel, setActivePanel, role, studentProfileMode = false, onLogout, _staffMinimal = false, _activeTab, _setActiveTab, _isSubPage = false, sticky = true, minimalNav = false, brandLabel = 'LOGIN PORTAL' }) {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -19,42 +17,30 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
   // Use useContext directly to avoid throwing when Provider is missing (e.g. guest home)
-  // Hooks must be called unconditionally at the top level
   const studentContext = useContext(StudentContext);
-  const clerkContext = useContext(StaffContext);
+  const staffContext = useContext(StaffContext);
 
   const studentData = studentContext?.studentData;
-  const clerkData = clerkContext?.clerkData;
+  const staffData = staffContext?.staffData;
 
-  // Get student and clerk names for greeting
+  // Get student and staff names for greeting
   let _studentName = null;
-  let _clerkName = null;
+  let _staffName = null;
 
   if (role === 'student' || studentProfileMode) {
     _studentName = studentData?.student?.name || studentData?.name || null;
   }
-  if (role === 'clerk' || role === 'clerkAdmission' || role === 'clerkScholarship') {
-    _clerkName = clerkData?.name || null;
+  if (['staff', 'admission', 'scholarship', 'faculty', 'hod'].includes(role)) {
+    _staffName = staffData?.name || null;
   }
-  // (menu definitions moved to top-level `NAV_MENU_CONFIG` for reuse)
 
   // Role selection: prefer explicit `role` prop. Fall back to studentProfileMode for backward compatibility.
   let effectiveRole = role || (studentProfileMode ? 'student' : 'guest');
 
-  // Map specific clerk sub-roles and admin to their distinct menu variants
-  if (effectiveRole === 'admission') {
-    effectiveRole = 'clerkAdmission';
-  } else if (effectiveRole === 'scholarship') {
-    effectiveRole = 'clerkScholarship';
-  } else if (effectiveRole === 'admin') {
+  if (effectiveRole === 'admin') {
     effectiveRole = 'superAdmin';
-  }
-
-  // If a clerk is logged in, refine based on stored clerk role
-  if (effectiveRole === 'clerk' && clerkData?.role) {
-    if (clerkData.role === 'admission') effectiveRole = 'clerkAdmission';
-    else if (clerkData.role === 'scholarship') effectiveRole = 'clerkScholarship';
-    else if (clerkData.role === 'faculty') effectiveRole = 'faculty';
+  } else if (effectiveRole === 'staff' && staffData?.role) {
+    effectiveRole = staffData.role;
   }
 
   // Determine if student is fully verified to control menu visibility
@@ -68,7 +54,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
 
   const menuItemsRaw = NAV_MENU_CONFIG[effectiveRole] || NAV_MENU_CONFIG['guest'] || [
     { label: 'STUDENT LOGIN', action: 'open-panel-student' },
-    { label: 'STAFF LOGIN', action: 'open-panel-clerk' }
+    { label: 'STAFF LOGIN', action: 'open-panel-staff' }
   ];
 
   // Filter student menu if unverified

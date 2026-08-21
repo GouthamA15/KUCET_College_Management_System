@@ -13,7 +13,7 @@ import { NextResponse } from 'next/server';
 async function handler(req) {
   try {
     const body = await req.json();
-    const { chunk, clerkId, importFileName } = body;
+    const { chunk, staffId, importFileName } = body;
 
     if (!chunk || !chunk.length) {
       return NextResponse.json({ success: true, message: 'Empty chunk' });
@@ -80,7 +80,7 @@ async function handler(req) {
           ...student,
           ...personal,
           ...academic
-        }, clerkId, tx);
+        }, staffId, tx);
 
         if (student.email) processedEmails.add(student.email);
 
@@ -90,7 +90,7 @@ async function handler(req) {
 
       if (insertedCount > 0 || updatedCount > 0) {
         await tx.insert(studentImportLogs).values({ 
-          clerk_id: clerkId, 
+          staff_id: staffId, 
           total_records: insertedCount + updatedCount, 
           file_name: importFileName 
         });

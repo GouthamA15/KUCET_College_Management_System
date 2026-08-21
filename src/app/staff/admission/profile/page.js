@@ -11,35 +11,35 @@ import ProfileInfoList from '@/components/profile/ProfileInfoList';
 import ProfileCardShell from '@/components/profile/ProfileCardShell';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
-export default function AdmissionClerkProfilePage() {
-  const { clerkData: clerk, loading: isLoading } = useStaff();
+export default function AdmissionStaffProfilePage() {
+  const { staffData: staff, loading: isLoading } = useStaff();
   const [activeTab, setActiveTab] = useState('personal');
 
   useEffect(() => {
-    if (!isLoading && clerk && clerk.role !== 'admission') {
+    if (!isLoading && staff && staff.role !== 'admission') {
       toast.error('Access Denied');
     }
-  }, [clerk, isLoading]);
+  }, [staff, isLoading]);
 
   const personalItems = useMemo(() => {
     return [
-      { key: 'email', label: 'Email', value: clerk?.email || '-' },
-      { key: 'mobile', label: 'Mobile', value: clerk?.mobile || '-' },
-      { key: 'employee_id', label: 'Employee ID', value: clerk?.employee_id || '-' },
-      { key: 'role', label: 'Role', value: clerk?.role ? String(clerk.role).toUpperCase() : '-' },
-      { key: 'branch', label: 'Branch', value: clerk?.branch || '-' },
-      { key: 'address', label: 'Address', value: clerk?.address || '-' },
+      { key: 'email', label: 'Email', value: staff?.email || '-' },
+      { key: 'mobile', label: 'Mobile', value: staff?.mobile || '-' },
+      { key: 'employee_id', label: 'Employee ID', value: staff?.employee_id || '-' },
+      { key: 'role', label: 'Role', value: staff?.role ? String(staff.role).toUpperCase() : '-' },
+      { key: 'branch', label: 'Branch', value: staff?.branch || '-' },
+      { key: 'address', label: 'Address', value: staff?.address || '-' },
     ];
-  }, [clerk]);
+  }, [staff]);
 
-  if (isLoading && !clerk) {
+  if (isLoading && !staff) {
     return <LoadingSpinner label="Loading Profile" />;
   }
 
-  if (!clerk) return null;
+  if (!staff) return null;
 
-  const name = clerk?.name || 'Admission Clerk';
-  const primaryId = clerk?.employee_id || (clerk?.role ? String(clerk.role).toUpperCase() : 'ADMISSION');
+  const name = staff?.name || 'Admission Staff';
+  const primaryId = staff?.employee_id || (staff?.role ? String(staff.role).toUpperCase() : 'ADMISSION');
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-fadeIn">
@@ -49,7 +49,7 @@ export default function AdmissionClerkProfilePage() {
             <ProfileHeaderCard
               name={name}
               primaryId={primaryId}
-              photoUrl={clerk?.pfp}
+              photoUrl={staff?.pfp}
               editHref="/staff/settings/edit-profile"
               editTitle="Modify Records"
               fallback="initials"
@@ -60,7 +60,7 @@ export default function AdmissionClerkProfilePage() {
               <ProfileStatusBar
                 title="Admissions Office"
                 lines={[
-                  { label: 'Designation', value: 'Admission Clerk' },
+                  { label: 'Designation', value: 'Admission Staff' },
                   { label: 'Responsibilities', value: 'Requests • Finalize • Certificates' },
                 ]}
               />

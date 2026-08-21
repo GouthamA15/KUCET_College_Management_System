@@ -6,11 +6,11 @@ import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(_req) {
   try {
-    const user = await getAuthUser('clerk');
-    if (!user || user.role !== 'faculty') return apiError('Unauthorized', 401);
+    const user = await getAuthUser('faculty');
+    if (!user || (user.role !== 'faculty' && user.role !== 'admin')) return apiError('Unauthorized', 401);
 
-    const clerkId = user.id || user.clerkId;
-    if (!clerkId) return apiError('Faculty ID missing.', 400);
+    const facultyId = user.staffId || user.id;
+    if (!facultyId) return apiError('Faculty ID missing.', 400);
 
     const semRows = await db.select({ academic_year: semesters.academic_year })
       .from(semesters)
@@ -31,7 +31,7 @@ export async function GET(_req) {
     .from(branchTimetable)
     .leftJoin(syllabusSubjects, eq(branchTimetable.subject_code, syllabusSubjects.subject_code))
     .where(and(
-      eq(branchTimetable.faculty_id, clerkId),
+      eq(branchTimetable.faculty_id, facultyId),
       or(
         like(branchTimetable.academic_year, yearPattern),
         eq(branchTimetable.academic_year, '2025-26')

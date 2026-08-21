@@ -132,7 +132,7 @@ export class StudentProfileService {
   /**
    * Upsert a student record with all related details (personal, academic, images)
    */
-  static async upsertStudent(data, clerkId, tx = null) {
+  static async upsertStudent(data, staffId, tx = null) {
     const {
       admission_no, roll_no, name, date_of_birth, gender, email, mobile,
       father_name, mother_name, nationality, religion, category, sub_caste,
@@ -232,7 +232,7 @@ export class StudentProfileService {
     const executeUpsert = async (innerTx) => {
       // 1. Upsert Student
       await innerTx.insert(studentsTable)
-        .values({ ...studentValues, added_by_staff_id: clerkId })
+        .values({ ...studentValues, added_by_staff_id: staffId })
         .onDuplicateKeyUpdate({ set: studentValues });
 
       const existing = await innerTx.select({ id: studentsTable.id })

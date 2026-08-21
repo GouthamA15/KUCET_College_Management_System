@@ -1,20 +1,20 @@
 import { z } from 'zod';
 
 /**
- * Zod schema for Clerk/Staff roles.
+ * Zod schema for Staff roles.
  */
 export const staffRoleSchema = z.enum([
   'admin',
-  'clerkAdmission',
-  'clerkScholarship',
-  'clerkAcademics',
+  'admission',
+  'scholarship',
   'faculty',
   'principal',
-  'hod'
+  'hod',
+  'staff'
 ]);
 
 /**
- * Zod schema for creating/updating a clerk record.
+ * Zod schema for creating/updating a staff record.
  * Used by Super Admin.
  */
 export const staffSchema = z.object({

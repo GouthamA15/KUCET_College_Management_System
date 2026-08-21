@@ -15,8 +15,8 @@ import { storage } from '@/lib/providers';
 import { decrypt, hashForIndex } from '@/lib/encryption';
 
 export async function GET(_req) {
-  const user = await getAuthUser('clerk');
-  if (!user) return apiError('Unauthorized', 401);
+  const user = await getAuthUser('admission');
+  if (!user || (user.role !== 'admission' && user.role !== 'admin')) return apiError('Unauthorized', 401);
 
   try {
     const rows = await db.select({
@@ -160,14 +160,14 @@ export async function GET(_req) {
 
     return apiResponse({ data });
   } catch (err) {
-    logger.error(err, 'Clerk profile request fetch error');
+    logger.error(err, 'Staff profile request fetch error');
     return apiError('Server error', 500, err.message);
   }
 }
 
 export async function PUT(req) {
-  const user = await getAuthUser('clerk');
-  if (!user) return apiError('Unauthorized', 401);
+  const user = await getAuthUser('admission');
+  if (!user || (user.role !== 'admission' && user.role !== 'admin')) return apiError('Unauthorized', 401);
 
   try {
     const body = await req.json();
@@ -296,7 +296,7 @@ export async function PUT(req) {
 
     return apiResponse({ success: true });
   } catch (err) {
-    logger.error(err, 'Clerk profile request process error');
+    logger.error(err, 'Staff profile request process error');
     return apiError('Server error', 500, err.message);
   }
 }

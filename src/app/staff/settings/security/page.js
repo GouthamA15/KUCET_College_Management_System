@@ -22,11 +22,11 @@ import {
   SecurityLoadingState
 } from '@/components/security';
 
-export default function ClerkSecurityPage() {
-  const { clerkData, loading, refreshClerkData } = useStaff();
+export default function StaffSecurityPage() {
+  const { staffData, loading, refreshStaffData } = useStaff();
   const [activeTab, setActiveTab] = useState('overview');
   
-  const { securityEvents, eventsLoading, fetchEvents } = useSecurityEvents(clerkData?.id);
+  const { securityEvents, eventsLoading, fetchEvents } = useSecurityEvents(staffData?.id);
   const { sessions, sessionsLoading, handleRevokeSession, handleRevokeOtherSessions } = useSecuritySessions(activeTab);
   const { 
     notifications, 
@@ -37,10 +37,10 @@ export default function ClerkSecurityPage() {
   } = useSecurityNotifications();
 
   const emailVerification = useEmailVerification(
-    clerkData?.id, 
-    clerkData?.email, 
+    staffData?.id, 
+    staffData?.email, 
     async () => {
-      if (refreshClerkData) await refreshClerkData();
+      if (refreshStaffData) await refreshStaffData();
       fetchEvents();
     }, 
     'staff'
@@ -51,16 +51,16 @@ export default function ClerkSecurityPage() {
     onSuccess: fetchEvents
   });
 
-  if (loading && !clerkData) return <SecurityLoadingState message="Loading Security Center..." />;
-  if (!clerkData) return <div className="p-4 sm:p-8 text-center text-red-500">Staff session not found.</div>;
+  if (loading && !staffData) return <SecurityLoadingState message="Loading Security Center..." />;
+  if (!staffData) return <div className="p-4 sm:p-8 text-center text-red-500">Staff session not found.</div>;
 
   return (
     <SecurityCenter
       title="Security Center"
-      description={`Staff security portal for ${clerkData.name}`}
+      description={`Staff security portal for ${staffData.name}`}
       headerBadge={
         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200 uppercase tracking-tight">
-          {clerkData.role}
+          {staffData.role}
         </span>
       }
       activeTab={activeTab}
@@ -70,32 +70,32 @@ export default function ClerkSecurityPage() {
         <SecurityOverview title="Staff Account Status" description="Overview of your institutional credentials and activity.">
           <SecurityStatusItem 
             label="Staff Identity" 
-            value={clerkData.email} 
+            value={staffData.email} 
             subValue={
               <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="font-bold text-indigo-600 uppercase">{clerkData.role}</span>
+                <span className="font-bold text-indigo-600 uppercase">{staffData.role}</span>
                 <span className="text-gray-400">|</span>
                 <span>Institutional Role</span>
               </div>
             }
-            ok={clerkData.is_active}
-            okLabel={clerkData.is_active ? "Active" : "Inactive"}
+            ok={staffData.is_active}
+            okLabel={staffData.is_active ? "Active" : "Inactive"}
           />
           <SecurityStatusItem 
             label="Password Security" 
             value="Enterprise Protected" 
-            subValue={clerkData.password_changed_at ? `Last changed ${formatInstitutionalDate(clerkData.password_changed_at)}` : "Standard Security Policy"}
+            subValue={staffData.password_changed_at ? `Last changed ${formatInstitutionalDate(staffData.password_changed_at)}` : "Standard Security Policy"}
             ok={true}
           />
           <SecurityStatusItem 
             label="Last System Access" 
-            value={clerkData.last_login_at ? formatInstitutionalDateTime(clerkData.last_login_at) : 'Never logged in'} 
-            subValue={clerkData.last_login_ip ? formatIPAddress(clerkData.last_login_ip) : "No IP record"}
-            ok={!!clerkData.last_login_at}
+            value={staffData.last_login_at ? formatInstitutionalDateTime(staffData.last_login_at) : 'Never logged in'} 
+            subValue={staffData.last_login_ip ? formatIPAddress(staffData.last_login_ip) : "No IP record"}
+            ok={!!staffData.last_login_at}
           />
           <SecurityStatusItem 
             label="Staff Record Created" 
-            value={formatInstitutionalDate(clerkData.created_at)} 
+            value={formatInstitutionalDate(staffData.created_at)} 
             subValue="Official Institutional Record"
             ok={true}
           />
@@ -139,7 +139,7 @@ export default function ClerkSecurityPage() {
                   {!emailVerification.emailEditing ? (
                     <button onClick={() => emailVerification.setEmailEditing(true)} className="text-[#0b3578] font-semibold hover:underline text-xs">Edit Email</button>
                   ) : (
-                    <button onClick={() => { emailVerification.setEmailEditing(false); emailVerification.setEmailInput(clerkData.email); emailVerification.setOtpSent(false); }} className="text-gray-500 font-semibold hover:underline text-xs">Cancel</button>
+                    <button onClick={() => { emailVerification.setEmailEditing(false); emailVerification.setEmailInput(staffData.email); emailVerification.setOtpSent(false); }} className="text-gray-500 font-semibold hover:underline text-xs">Cancel</button>
                   )}
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
@@ -156,7 +156,7 @@ export default function ClerkSecurityPage() {
                   {emailVerification.emailEditing && !emailVerification.otpSent && (
                     <button 
                       onClick={emailVerification.handleSendOtp}
-                      disabled={emailVerification.emailSending || !emailVerification.isEmailValid || emailVerification.emailInput === clerkData.email}
+                      disabled={emailVerification.emailSending || !emailVerification.isEmailValid || emailVerification.emailInput === staffData.email}
                       className="bg-[#0b3578] text-white px-4 py-2 rounded-md font-medium hover:bg-[#0a2d66] disabled:opacity-50 text-sm"
                     >
                       {emailVerification.emailSending ? '...' : 'Verify'}

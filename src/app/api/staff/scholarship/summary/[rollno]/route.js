@@ -16,7 +16,7 @@ import { getAssetUrl } from '@/lib/assets';
  * Fetch comprehensive financial and scholarship summary for a student
  */
 export const GET = wrapHandler({
-  auth: 'clerk',
+  auth: 'scholarship',
   handler: async (req, { context }) => {
     const { rollno } = await context.params;
     const url = new URL(req.url);

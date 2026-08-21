@@ -6,7 +6,7 @@ import { ScholarshipService } from '@/services/ScholarshipService';
  * Fetch aggregate scholarship metrics and window status
  */
 export const GET = wrapHandler({
-  auth: 'clerk',
+  auth: 'scholarship',
   handler: async () => {
     return await ScholarshipService.getMetrics();
   }

@@ -5,9 +5,9 @@ import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
 
 export async function DELETE(req, ctx) {
-  const user = await getAuthUser('clerk');
-  // Security Hardening: Ensure only scholarship clerks can delete records
-  if (!user || user.role !== 'scholarship') return apiError('Unauthorized', 403);
+  const user = await getAuthUser('scholarship');
+  // Security Hardening: Ensure only scholarship staff or admin can delete records
+  if (!user || (user.role !== 'scholarship' && user.role !== 'admin')) return apiError('Forbidden', 403);
 
   try {
     const params = await ctx.params;
@@ -23,8 +23,8 @@ export async function DELETE(req, ctx) {
       await db.delete(scholarshipSanctions).where(eq(scholarshipSanctions.id, id));
       
       await logAudit(req, {
-        userId: user.clerkId || user.id,
-        userType: 'clerk',
+        userId: user.staffId || user.id,
+        userType: 'STAFF',
         action: 'DELETE_SCHOLARSHIP_SANCTION',
         targetId: id,
         targetType: 'scholarship',

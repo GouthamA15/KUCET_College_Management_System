@@ -1,13 +1,13 @@
 "use client";
 import React, { useState } from 'react';
 import BulkImportStudents from '@/components/BulkImportStudents';
-import AddNewStudent from './staff/student-management/AddNewStudent';
-import FetchStudent from './staff/student-management/FetchStudent';
-import ViewEditStudent from './staff/student-management/ViewEditStudent';
-import ExportStudents from './staff/student-management/ExportStudents';
-import StudentHistoryCard from './staff/student-management/StudentHistoryCard';
+import AddNewStudent from './student-management/AddNewStudent';
+import FetchStudent from './student-management/FetchStudent';
+import ViewEditStudent from './student-management/ViewEditStudent';
+import ExportStudents from './student-management/ExportStudents';
+import StudentHistoryCard from './student-management/StudentHistoryCard';
 
-export default function ClerkStudentManagement({ clerkId }) {
+export default function StaffStudentManagement({ staffId }) {
   const [activeAction, setActiveAction] = useState('fetch');
   const [fetchedStudent, setFetchedStudent] = useState(null);
   const [_personalFull, setPersonalFull] = useState({ /* empty */ });
@@ -75,7 +75,7 @@ export default function ClerkStudentManagement({ clerkId }) {
           />
         )}
         {activeAction === 'history' && (
-          <StudentHistoryCard currentClerkId={clerkId} />
+          <StudentHistoryCard currentStaffId={staffId} />
         )}
       </div>
     </div>

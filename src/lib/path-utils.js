@@ -66,7 +66,7 @@ export function getPortalTitle(pathname) {
   if (pathname.startsWith('/faculty')) return 'Faculty Portal';
   if (pathname.startsWith('/admin')) return 'Admin Portal';
 
-  if (pathname.startsWith('/staff')) return 'Clerk Portal';
+  if (pathname.startsWith('/staff')) return 'Staff Portal';
   
   // HOD specific detection if needed, otherwise fallback to Faculty
   if (pathname.includes('/hod')) return 'HOD Operations';

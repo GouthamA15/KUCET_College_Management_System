@@ -35,8 +35,6 @@ export const STORAGE_FOLDERS = Object.freeze({
   // Faculty / Staff Media
   STAFF_PFP: 'staff/pfp',
   STAFF_SIGNATURES: 'staff/signatures',
-  CLERKS_PFP: 'staff/pfp', // Backward compatibility alias
-  CLERKS_SIGNATURES: 'staff/signatures', // Backward compatibility alias
 
   // Operations & Maintenance
   BUG_REPORTS: 'bug_reports',

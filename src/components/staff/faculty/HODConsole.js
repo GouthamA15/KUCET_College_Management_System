@@ -18,7 +18,7 @@ const INSTITUTIONAL_ACTIVITIES = [
 export default function HODConsole({ workstreams = null, onSelectWorkstream = null, onActiveSubTabChange = null }) {
   const searchParams = useSearchParams();
   const activeSubTab = searchParams.get('tab') || 'workload';
-  const { clerkData, hodBranchData, refreshHOD, isLoadingHOD } = useStaff();
+  const { staffData, hodBranchData, refreshHOD, isLoadingHOD } = useStaff();
   const [editingSlot, setEditingSlot] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const formRef = useRef(null);
@@ -85,8 +85,8 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
   const officialAssignments = hodBranchData?.officialAssignments || [];
   
   const departmentalFaculty = useMemo(() => {
-    return collegeFaculty.filter(f => f.home_branch === clerkData.branch);
-  }, [collegeFaculty, clerkData.branch]);
+    return collegeFaculty.filter(f => f.home_branch === staffData?.branch);
+  }, [collegeFaculty, staffData?.branch]);
 
   const handleCopyPrevious = () => {
     if (!editingSlot || editingSlot.period === 1) return;
@@ -116,7 +116,7 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
       subject_code: formData.get('subject_code'),
       faculty_id: formData.get('faculty_id'),
       room_no: formData.get('room_no'),
-      academic_year: clerkData?.academic_year || '2025-26'
+      academic_year: staffData?.academic_year || '2025-26'
     };
 
     if (!payload.subject_code) return toast.error('Please select a subject or activity');
@@ -194,7 +194,7 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
     }
   };
 
-  if (!clerkData?.is_hod) return null;
+  if (!staffData?.is_hod) return null;
 
   return (
     <div className="bg-white border border-slate-200 shadow-sm mt-8">
@@ -204,7 +204,7 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
             <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-3">
               <span>Departmental Management Matrix</span>
               <span className="bg-white/10 text-blue-100 text-[9px] px-2 py-0.5 border border-white/20 uppercase tracking-[0.2em]">
-                {clerkData.branch} Engineering
+                {staffData?.branch} Engineering
               </span>
             </h2>
             <p className="text-blue-200/60 text-[9px] font-medium uppercase tracking-widest mt-1">Official HOD Control Panel &bull; Registry V4.0</p>
@@ -234,7 +234,7 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
           <div className="overflow-x-auto">
             {activeSubTab === 'workload' && (
               <div className="space-y-10">
-                <WorkloadView data={departmentalFaculty} branch={clerkData.branch} />
+                <WorkloadView data={departmentalFaculty} branch={staffData?.branch} />
 
                 {Array.isArray(workstreams) && workstreams.length > 0 && typeof onSelectWorkstream === 'function' ? (
                   <section className="space-y-6">
@@ -332,9 +332,9 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
                 refresh={refreshHOD}
               />
             )}
-            {activeSubTab === 'syllabus' && <SyllabusManager branch={clerkData.branch} />}
-            {activeSubTab === 'analytics' && <BranchAnalytics branch={clerkData.branch} />}
-            {activeSubTab === 'config' && <BranchConfig config={hodBranchData?.config} branch={clerkData.branch} refresh={refreshHOD} />}
+            {activeSubTab === 'syllabus' && <SyllabusManager branch={staffData?.branch} />}
+            {activeSubTab === 'analytics' && <BranchAnalytics branch={staffData?.branch} />}
+            {activeSubTab === 'config' && <BranchConfig config={hodBranchData?.config} branch={staffData?.branch} refresh={refreshHOD} />}
             {activeSubTab === 'interests' && <FacultyInterestsView refreshHOD={refreshHOD} />}
           </div>
         )}

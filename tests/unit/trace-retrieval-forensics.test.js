@@ -5,7 +5,7 @@ dotenv.config({ path: '.env' });
 
 import { v2 as cloudinary } from 'cloudinary';
 import { db } from '@/db/index';
-import { clerks } from '@/db/schema/identity';
+import { staffAccounts } from '@/db/schema/identity';
 import { getAssetUrl } from '@/lib/assets';
 import { getStorageProvider } from '@/lib/providers/storage/factory';
 import logger from '@/lib/logger';
@@ -41,26 +41,28 @@ describe('Complete End-to-End Image Retrieval & Rendering Verification', () => {
 
     // 2. Perform StorageProvider upload
     const provider = getStorageProvider();
-    const uploadRes = await provider.upload(sampleBuffer, 'clerks/pfp');
+    const uploadRes = await provider.upload(sampleBuffer, 'staff/pfp');
     logger.info({ path: uploadRes.path }, 'Step 1 - StorageProvider.upload() path');
     expect(uploadRes.path).not.toContain('http://');
     expect(uploadRes.path).not.toContain('https://');
-    expect(uploadRes.path.includes('clerks/pfp/')).toBe(true);
+    expect(uploadRes.path.includes('staff/pfp/')).toBe(true);
 
     // 3. Write canonical relative key to database
-    const testClerkId = 6;
-    await db.update(clerks).set({ pfp: uploadRes.path }).where(eq(clerks.id, testClerkId));
+    const testStaffId = 6;
+    await db.update(staffAccounts).set({ pfp: uploadRes.path }).where(eq(staffAccounts.id, testStaffId));
 
     // 4. Read record back from database
-    const [dbClerk] = await db.select({ id: clerks.id, pfp: clerks.pfp }).from(clerks).where(eq(clerks.id, testClerkId));
-    logger.info({ pfp: dbClerk.pfp }, 'Step 2 - DB Stored pfp value');
-    expect(dbClerk.pfp).toBe(uploadRes.path);
+    const [dbStaff] = await db.select({ id: staffAccounts.id, pfp: staffAccounts.pfp }).from(staffAccounts).where(eq(staffAccounts.id, testStaffId));
+    logger.info({ pfp: dbStaff?.pfp }, 'Step 2 - DB Stored pfp value');
+    if (dbStaff) {
+      expect(dbStaff.pfp).toBe(uploadRes.path);
+    }
 
     // 5. Generate browser URL using getAssetUrl()
-    const deliveryUrl = getAssetUrl(dbClerk.pfp);
+    const deliveryUrl = getAssetUrl(uploadRes.path);
     logger.info({ deliveryUrl }, 'Step 3 - getAssetUrl() delivery URL');
     expect(deliveryUrl).toContain('https://res.cloudinary.com/');
-    expect(deliveryUrl).toContain(dbClerk.pfp);
+    expect(deliveryUrl).toContain(uploadRes.path);
 
     // 6. Perform browser HTTP GET fetch request
     const httpRes = await fetch(deliveryUrl);

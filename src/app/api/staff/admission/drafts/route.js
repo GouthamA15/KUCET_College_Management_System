@@ -5,9 +5,9 @@ import { eq, and, asc } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
-  const user = await getAuthUser('clerk');
-  if (!user || user.role !== 'admission') {
-    return apiError('Forbidden: Only admission clerks can view drafts.', 403);
+  const user = await getAuthUser('admission');
+  if (!user || (user.role !== 'admission' && user.role !== 'admin')) {
+    return apiError('Forbidden: Only admission staff can view drafts.', 403);
   }
 
   try {

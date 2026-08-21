@@ -24,7 +24,7 @@ describe('OrphanMediaService - Storage Cleanup Engine', () => {
     db.select
       .mockImplementationOnce(() => ({ from: vi.fn().mockResolvedValue([{ pfp: 'uploads/pfp/student1.jpg' }]) }))
       .mockImplementationOnce(() => ({ from: vi.fn().mockResolvedValue([{ signature: 'uploads/signatures/sig1.png' }]) }))
-      .mockImplementationOnce(() => ({ from: vi.fn().mockResolvedValue([{ pfp: 'uploads/pfp/clerk1.jpg', signature: null }]) }))
+      .mockImplementationOnce(() => ({ from: vi.fn().mockResolvedValue([{ pfp: 'uploads/pfp/staff1.jpg', signature: null }]) }))
       .mockImplementationOnce(() => ({ from: vi.fn().mockResolvedValue([{ path: 'uploads/payments/pay1.png' }]) }));
 
     const paths = await OrphanMediaService.getReferencedMediaPaths();

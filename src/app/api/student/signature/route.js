@@ -200,7 +200,7 @@ export async function POST(req) {
         const overlaps = newFields.filter(f => existingFields.includes(f));
         
         if (overlaps.length > 0) {
-          return apiError(`You already have a pending request for: ${overlaps.map(f => f.replace(/_/g, ' ')).join(', ')}. Please wait for clerk approval before submitting new changes for these fields.`, 400);
+          return apiError(`You already have a pending request for: ${overlaps.map(f => f.replace(/_/g, ' ')).join(', ')}. Please wait for staff approval before submitting new changes for these fields.`, 400);
         }
 
         if (signature && pending.new_signature) {
@@ -240,7 +240,7 @@ export async function POST(req) {
       throw dbError;
     }
 
-    // REAL-TIME: Broadcast to admission clerks
+    // REAL-TIME: Broadcast to admission staff
     try {
       const { broadcastUpdate } = await import('@/lib/sse');
       broadcastUpdate('PROFILE_UPDATE_REQUESTED', {
@@ -251,7 +251,7 @@ export async function POST(req) {
       logger.error(e, 'SSE Broadcast error');
     }
 
-    return apiResponse({ success: true, message: 'Profile update request submitted for clerk approval.' });
+    return apiResponse({ success: true, message: 'Profile update request submitted for staff approval.' });
   } catch (err) {
     logger.error(err, 'Profile request error');
     return apiError('Server error', 500, err.message);

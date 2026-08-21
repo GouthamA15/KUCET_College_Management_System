@@ -13,12 +13,12 @@ import { SignJWT } from 'jose';
  */
 test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
   /** @type {string} */
-  let clerkToken;
+  let staffToken;
 
   test.beforeAll(async () => {
     const jwtSecret = process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long';
     const secret = new TextEncoder().encode(jwtSecret);
-    clerkToken = await new SignJWT({
+    staffToken = await new SignJWT({
       id: 42,
       email: 'faculty@kucet.ac.in',
       name: 'MOCK FACULTY',
@@ -31,13 +31,13 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
   });
 
   /**
-   * Helper: set clerk auth cookies and mock core APIs so
+   * Helper: set staff auth cookies and mock core APIs so
    * the app doesn't crash on missing backend.
    */
-  async function bootstrapClerkSession(page) {
+  async function bootstrapStaffSession(page) {
     // Set auth cookies
     await page.context().addCookies([
-      { name: 'staff_auth', value: clerkToken, domain: 'localhost', path: '/' },
+      { name: 'staff_auth', value: staffToken, domain: 'localhost', path: '/' },
       { name: 'staff_logged_in', value: 'true', domain: 'localhost', path: '/' },
     ]);
 
@@ -109,7 +109,7 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
   }
 
   test('subject list page loads at /staff/faculty/attendance', async ({ page }) => {
-    await bootstrapClerkSession(page);
+    await bootstrapStaffSession(page);
     await page.goto('/staff/faculty/attendance');
 
     // Should show the subject cards
@@ -122,7 +122,7 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
   });
 
   test('clicking a subject navigates to /staff/faculty/attendance/[id]', async ({ page }) => {
-    await bootstrapClerkSession(page);
+    await bootstrapStaffSession(page);
     await page.goto('/staff/faculty/attendance');
 
     // Wait for and click the first subject
@@ -135,7 +135,7 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
   });
 
   test('direct navigation to mode selector page works', async ({ page }) => {
-    await bootstrapClerkSession(page);
+    await bootstrapStaffSession(page);
 
     // Navigate directly to the mode selector — simulates bookmark or shared link
     await page.goto('/staff/faculty/attendance/101');
@@ -146,7 +146,7 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
   });
 
   test('refreshing mode selector page stays on the same page', async ({ page }) => {
-    await bootstrapClerkSession(page);
+    await bootstrapStaffSession(page);
     await page.goto('/staff/faculty/attendance/101');
 
     await expect(page.getByText('Select Attendance Mode')).toBeVisible({ timeout: 10000 });
@@ -160,7 +160,7 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
   });
 
   test('direct navigation to history page works and survives refresh', async ({ page }) => {
-    await bootstrapClerkSession(page);
+    await bootstrapStaffSession(page);
     
     // Mock the history API
     await page.route('/api/staff/faculty/attendance/full-history*', async (route) => {
@@ -185,7 +185,7 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
   });
 
   test('direct navigation to take/manual page works and survives refresh', async ({ page }) => {
-    await bootstrapClerkSession(page);
+    await bootstrapStaffSession(page);
 
     // Mock student list and attendance APIs
     await page.route('/api/staff/faculty/students*', async (route) => {
@@ -220,7 +220,7 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
   });
 
   test('invalid mode redirects to mode selector', async ({ page }) => {
-    await bootstrapClerkSession(page);
+    await bootstrapStaffSession(page);
 
     await page.goto('/staff/faculty/attendance/101/take/invalid_mode');
 
@@ -229,7 +229,7 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
   });
 
   test('non-existent assignment shows "Not Found" state', async ({ page }) => {
-    await bootstrapClerkSession(page);
+    await bootstrapStaffSession(page);
 
     await page.goto('/staff/faculty/attendance/99999');
 
@@ -238,7 +238,7 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
   });
 
   test('browser back button returns to previous route', async ({ page }) => {
-    await bootstrapClerkSession(page);
+    await bootstrapStaffSession(page);
 
     // Start at subject list
     await page.goto('/staff/faculty/attendance');

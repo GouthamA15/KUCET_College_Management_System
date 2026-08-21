@@ -7,8 +7,8 @@ import { getCurrentCalendarSession } from '@/lib/academic-utils';
 
 export async function GET(_request) {
   try {
-    const user = await getAuthUser('clerk');
-    if (!user || user.role !== 'faculty') {
+    const user = await getAuthUser('faculty');
+    if (!user || (user.role !== 'faculty' && user.role !== 'admin')) {
       return apiError('Unauthorized', 401);
     }
 

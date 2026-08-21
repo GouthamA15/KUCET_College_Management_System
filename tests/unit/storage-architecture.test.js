@@ -21,7 +21,7 @@ const VALID_STORAGE_KEYS = [
   'kucet/admission_drafts/pfp/ghi789.webp',
   'kucet/requests/proofs/jkl012.jpg',
   'kucet/bug_reports/mno345.jpg',
-  'kucet/clerks/pfp/pqr678.jpg',
+  'kucet/staff/pfp/pqr678.jpg',
   'archive/students/2026/CSE/pfp/stu901.jpg',
 ];
 

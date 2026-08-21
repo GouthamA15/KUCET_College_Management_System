@@ -13,7 +13,7 @@ const CertificateRequestsPanel = () => {
             </div>
 
             <div className="bg-white">
-                <CertificateDashboard clerkType="admission" />
+                <CertificateDashboard staffType="admission" />
             </div>
         </div>
     );

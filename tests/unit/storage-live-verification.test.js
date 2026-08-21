@@ -26,12 +26,12 @@ describe('Live Verification: Storage Provider Operations', () => {
     const provider = getStorageProvider();
 
     // 1. Upload Image - Verify canonical storage key contract
-    const uploadRes = await provider.upload(sampleBuffer, 'clerks/pfp');
+    const uploadRes = await provider.upload(sampleBuffer, 'staff/pfp');
     expect(uploadRes).toHaveProperty('path');
     expect(uploadRes.path).not.toContain('http://');
     expect(uploadRes.path).not.toContain('https://');
     expect(uploadRes.path).not.toContain('[object');
-    expect(uploadRes.path.includes('clerks/pfp/')).toBe(true);
+    expect(uploadRes.path.includes('staff/pfp/')).toBe(true);
 
     // Verify filename is randomized & not predictable
     const filename = uploadRes.filename || uploadRes.path.split('/').pop();
@@ -55,8 +55,8 @@ describe('Live Verification: Storage Provider Operations', () => {
     expect(fetchRes.status === 200 || fetchRes.status === 404).toBe(true);
 
     // 4. Update Image (re-upload creates new UUID key)
-    const updateRes = await provider.upload(sampleBuffer, 'clerks/pfp');
-    expect(updateRes.path.includes('clerks/pfp/')).toBe(true);
+    const updateRes = await provider.upload(sampleBuffer, 'staff/pfp');
+    expect(updateRes.path.includes('staff/pfp/')).toBe(true);
     expect(updateRes.path).not.toBe(uploadRes.path); // Unpredictable new filename
 
     // 5. Delete Images
@@ -76,12 +76,12 @@ describe('Live Verification: Storage Provider Operations', () => {
     const localProvider = new LocalStorageProvider();
 
     // 1. Upload Image - Verify canonical storage key contract
-    const uploadRes = await localProvider.upload(sampleBuffer, 'clerks/pfp');
+    const uploadRes = await localProvider.upload(sampleBuffer, 'staff/pfp');
     expect(uploadRes).toHaveProperty('path');
     expect(uploadRes.path).not.toContain('http://');
     expect(uploadRes.path).not.toContain('https://');
     expect(uploadRes.path).not.toContain('[object');
-    expect(uploadRes.path.includes('clerks/pfp/')).toBe(true);
+    expect(uploadRes.path.includes('staff/pfp/')).toBe(true);
 
     // Verify filename is randomized & extension is correct
     const filename = uploadRes.filename || uploadRes.path.split('/').pop();

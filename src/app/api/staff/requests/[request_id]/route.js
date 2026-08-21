@@ -6,7 +6,7 @@ import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
 import crypto from 'crypto';
 
-const clerkToTypes = {
+const roleToTypes = {
     admission: [
         'Bonafide Certificate', 'No Objection Certificate', 'Course Completion Certificate',
         'Transfer Certificate (TC)', 'Migration Certificate', 'Study Conduct Certificate',
@@ -15,9 +15,9 @@ const clerkToTypes = {
 };
 
 export async function PUT(request, { params }) {
-    const clerk = await getAuthUser('clerk');
-    if (!clerk) return apiError('Unauthorized', 401);
-    if (!clerk.id) return apiError('Clerk identity missing. Approval blocked.', 500);
+    const staff = await getAuthUser('staff');
+    if (!staff) return apiError('Unauthorized', 401);
+    if (!staff.id) return apiError('Staff identity missing. Approval blocked.', 500);
 
     const resolvedParams = await params;
     const { request_id } = resolvedParams;
@@ -50,7 +50,7 @@ export async function PUT(request, { params }) {
             return apiError('This request has already been processed', 409);
         }
 
-        const allowedTypes = clerkToTypes[clerk.role] || [];
+        const allowedTypes = roleToTypes[staff.role] || [];
         if (!allowedTypes.includes(requestToUpdate.certificate_type)) return apiError('Forbidden', 403);
 
         let generatedCertId = requestToUpdate.generated_certificate_id;
@@ -69,13 +69,13 @@ export async function PUT(request, { params }) {
             if (!reject_reason || String(reject_reason).trim().length === 0) return apiError('Rejection reason is required', 400);
             updateData.reject_reason = String(reject_reason).trim();
             updateData.completed_at = now;
-            updateData.action_by_staff_id = clerk.id;
-            updateData.action_by_role = clerk.role;
+            updateData.action_by_staff_id = staff.id;
+            updateData.action_by_role = staff.role;
         } else if (status === 'APPROVED') {
             updateData.reject_reason = null;
             updateData.completed_at = now;
-            updateData.action_by_staff_id = clerk.id;
-            updateData.action_by_role = clerk.role;
+            updateData.action_by_staff_id = staff.id;
+            updateData.action_by_role = staff.role;
             updateData.generated_certificate_id = generatedCertId;
         }
 
@@ -89,8 +89,8 @@ export async function PUT(request, { params }) {
         if (result.affectedRows === 1) {
             // Audit Log
             await logAudit(request, {
-                userId: clerk.id,
-                userType: 'clerk',
+                userId: staff.id,
+                userType: 'STAFF',
                 action: status === 'APPROVED' ? 'APPROVE_CERTIFICATE' : 'REJECT_CERTIFICATE',
                 targetId: requestIdNum,
                 targetType: 'certificate_request',
@@ -119,8 +119,8 @@ export async function PUT(request, { params }) {
 }
 
 export async function GET(request, { params }) {
-    const clerk = await getAuthUser('clerk');
-    if (!clerk) return apiError('Unauthorized', 401);
+    const staff = await getAuthUser('staff');
+    if (!staff) return apiError('Unauthorized', 401);
 
     const resolvedParams = await params;
     const { request_id } = resolvedParams;
@@ -142,9 +142,9 @@ export async function GET(request, { params }) {
             updated_at: studentRequests.updated_at,
             completed_at: studentRequests.completed_at,
             reject_reason: studentRequests.reject_reason,
-            action_by_clerk_id: studentRequests.action_by_staff_id,
+            action_by_staff_id: studentRequests.action_by_staff_id,
             action_by_role: studentRequests.action_by_role,
-            action_by_clerk_name: staffAccounts.name
+            action_by_staff_name: staffAccounts.name
         })
         .from(studentRequests)
         .innerJoin(students, eq(studentRequests.student_id, students.id))
@@ -155,7 +155,7 @@ export async function GET(request, { params }) {
 
         if (rows.length === 0) return apiError('Request not found', 404);
         
-        const allowedTypes = clerkToTypes[clerk.role] || [];
+        const allowedTypes = roleToTypes[staff.role] || [];
         if (!allowedTypes.includes(rows[0].certificate_type)) return apiError('Forbidden', 403);
 
         const { parsePurpose, formatPurpose } = require('@/lib/certificate-utils');

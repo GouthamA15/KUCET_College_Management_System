@@ -9,8 +9,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(_req) {
   let user;
   try {
-    user = await getAuthUser('clerk');
-    if (!user || user.role !== 'faculty' || !user.is_hod) {
+    user = await getAuthUser('hod');
+    if (!user || (!((user.role === 'faculty' && user.is_hod) || user.role === 'admin'))) {
       return apiError('Unauthorized', 401);
     }
 

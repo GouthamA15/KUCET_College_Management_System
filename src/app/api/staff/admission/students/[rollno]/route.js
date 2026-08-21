@@ -19,12 +19,12 @@ const toNull = (value) => (value === undefined || value === '' ? null : value);
 
 /**
  * GET /api/staff/admission/students/[rollno]
- * Fetch full student profile for admission clerk
+ * Fetch full student profile for admission staff
  */
 export async function GET(req, context) {
-  const user = await getAuthUser('clerk');
-  if (!user || user.role !== 'admission') {
-    return apiError('Forbidden: Only admission clerks can access this data', 403);
+  const user = await getAuthUser('admission');
+  if (!user || (user.role !== 'admission' && user.role !== 'admin')) {
+    return apiError('Forbidden: Only admission staff can access this data', 403);
   }
 
   try {
@@ -37,23 +37,23 @@ export async function GET(req, context) {
 
     return apiResponse(profile);
   } catch (error) {
-    logger.error(error, 'Error fetching student profile for admission clerk');
+    logger.error(error, 'Error fetching student profile for admission staff');
     return apiError('Failed to fetch student details', 500, error.message);
   }
 }
 
 /**
  * PUT /api/staff/admission/students/[rollno]
- * Update student details by admission clerk
+ * Update student details by admission staff
  */
 export async function PUT(req, context) {
-  const user = await getAuthUser('clerk');
-  if (!user || user.role !== 'admission') {
-    return apiError('Forbidden: Only admission clerks can update student details', 403);
+  const user = await getAuthUser('admission');
+  if (!user || (user.role !== 'admission' && user.role !== 'admin')) {
+    return apiError('Forbidden: Only admission staff can update student details', 403);
   }
 
-  const clerkId = user?.clerkId || user.id || null;
-  if (!clerkId) return apiError('Unauthorized: clerk id missing in token', 401);
+  const staffId = user?.staffId || user?.id || null;
+  if (!staffId) return apiError('Unauthorized: staff id missing in token', 401);
 
   try {
     const params = await context.params;
@@ -103,12 +103,12 @@ export async function PUT(req, context) {
       
       if (Object.keys(studentUpdate).length > 0) {
         await tx.update(studentsTable)
-          .set({ ...studentUpdate, updated_at: new Date(), updated_by_clerk_id: clerkId })
+          .set({ ...studentUpdate, updated_at: new Date(), updated_by_staff_id: staffId })
           .where(eq(studentsTable.id, studentId));
       } else {
         // Just audit update if other tables change
         await tx.update(studentsTable)
-          .set({ updated_at: new Date(), updated_by_clerk_id: clerkId })
+          .set({ updated_at: new Date(), updated_by_staff_id: staffId })
           .where(eq(studentsTable.id, studentId));
       }
 
@@ -212,7 +212,7 @@ export async function PUT(req, context) {
 
     return apiResponse({ success: true, message: 'Student details updated successfully' });
   } catch (error) {
-    logger.error(error, 'Error updating student details for clerk');
+    logger.error(error, 'Error updating student details for staff');
     return apiError('Failed to update student details', 500, error.message);
   }
 }

@@ -131,7 +131,7 @@ describe('SecurityService', () => {
       expect(db.update).toHaveBeenCalledWith(userSessions);
     });
 
-    it('should handle CLERK and ADMIN revocation', async () => {
+    it('should handle STAFF and ADMIN revocation', async () => {
         db.select.mockReturnValue({ from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), limit: vi.fn().mockResolvedValue([{ id: 1 }]) });
         await SecurityService.revokeSession({ sessionId: 1, userId: 1, userType: 'staff' });
         await SecurityService.revokeSession({ sessionId: 1, userId: 1, userType: 'ADMIN' });

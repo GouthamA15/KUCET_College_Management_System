@@ -195,7 +195,7 @@ export const bugReports = mysqlTable('bug_reports', {
   status: mysqlEnum('status', ['OPEN', 'RESOLVED', 'CLOSED']).default('OPEN').notNull(),
   severity: mysqlEnum('severity', ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']).default('MEDIUM').notNull(),
   submitted_by: varchar('submitted_by', { length: 255 }).notNull(),
-  user_type: mysqlEnum('user_type', ['student', 'clerk', 'admin']).notNull(),
+  user_type: mysqlEnum('user_type', ['student', 'staff', 'admin']).notNull(),
   affected_page: varchar('affected_page', { length: 255 }),
   browser_info: text('browser_info'),
   fixed_by: varchar('fixed_by', { length: 255 }),

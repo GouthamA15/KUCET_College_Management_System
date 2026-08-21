@@ -56,7 +56,7 @@ export default function PrivacyPolicy() {
 
           <h2 className="text-xl font-semibold text-white mt-8 mb-4">5. Data Sharing and Disclosure</h2>
           <p className="text-neutral-300 leading-relaxed mb-6">
-            We <strong>do not sell, trade, or rent</strong> your personal information to third parties. Your data is only shared with authorized university staff (HODs, Clerks, Principal) on a strictly need-to-know basis. We may disclose your information to government entities for statutory compliance, scholarship disbursements, or if required by law.
+            We <strong>do not sell, trade, or rent</strong> your personal information to third parties. Your data is only shared with authorized university staff (HODs, Faculty, Institutional Staff, Principal) on a strictly need-to-know basis. We may disclose your information to government entities for statutory compliance, scholarship disbursements, or if required by law.
           </p>
 
           <h2 className="text-xl font-semibold text-white mt-8 mb-4">6. Cookies and Local Storage</h2>

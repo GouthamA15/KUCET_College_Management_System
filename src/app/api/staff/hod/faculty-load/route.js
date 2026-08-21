@@ -4,9 +4,9 @@ import { apiError, wrapHandler } from '@/lib/api-utils';
 export const dynamic = 'force-dynamic';
 
 export const GET = wrapHandler({
-  auth: 'clerk',
+  auth: 'hod',
   handler: async (req, { user }) => {
-    if (user.role !== 'faculty' || !user.is_hod) {
+    if (!user || (!((user.role === 'faculty' && user.is_hod) || user.role === 'admin'))) {
       return apiError('Unauthorized', 401);
     }
 

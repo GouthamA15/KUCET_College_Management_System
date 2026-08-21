@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 
-export default function StudentHistoryCard({ _currentClerkId }) {
+export default function StudentHistoryCard({ _currentStaffId }) {
   // State
   const [historyScope, setHistoryScope] = useState('my'); // 'my' | 'all'
   const DEFAULT_FILTERS = { actionTypes: [], dateRange: 'all' };
@@ -251,7 +251,7 @@ export default function StudentHistoryCard({ _currentClerkId }) {
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
-                        By: <span className="font-medium text-gray-700">{historyScope === 'all' && act.clerkName ? act.clerkName : 'Me'}</span>
+                        By: <span className="font-medium text-gray-700">{historyScope === 'all' && act.staffName ? act.staffName : 'Me'}</span>
                       </div>
                     </div>
                   </div>

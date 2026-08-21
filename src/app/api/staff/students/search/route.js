@@ -14,7 +14,7 @@ import { decrypt } from '@/lib/encryption';
  * Search students by name, roll no, or admission no
  */
 export const GET = wrapHandler({
-  auth: 'clerk',
+  auth: 'staff',
   handler: async (req) => {
     const url = req.nextUrl;
     const name = url.searchParams.get('name');

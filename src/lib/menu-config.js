@@ -2,7 +2,7 @@
 export const NAV_MENU_CONFIG = {
   guest: [
     { label: 'STUDENT LOGIN', action: 'open-panel-student' },
-    { label: 'STAFF LOGIN', action: 'open-panel-clerk' }
+    { label: 'STAFF LOGIN', action: 'open-panel-staff' }
   ],
   student: [
     { label: 'HOME', route: '/student' },
@@ -31,6 +31,34 @@ export const NAV_MENU_CONFIG = {
       ]
     },
   ],
+  admission: [
+    { label: 'DASHBOARD', route: '/staff/admission/dashboard' },
+    { label: 'PROFILE', route: '/staff/admission/profile' },
+    { label: 'STUDENT RECORDS', children: [
+        { label: 'Student Registry', route: '/staff/admission/student-management' },
+        { label: 'Student Requests', route: '/staff/admission/requests' },
+        { label: 'Finalize', route: '/staff/admission/finalize' }
+      ]
+    },
+    { label: 'ACADEMIC CALENDAR', route: '/staff/academic-calendar' },
+    { label: 'SETTINGS', children: [
+        { label: 'Edit Profile', route: '/staff/settings/edit-profile' },
+        { label: 'Security & Privacy', route: '/staff/settings/security' }
+      ]
+    },
+  ],
+  scholarship: [
+    { label: 'DASHBOARD', route: '/staff/scholarship/dashboard' },
+    { label: 'PROFILE', route: '/staff/scholarship/profile' },
+    { label: 'STUDENT RECORDS', route: '/staff/scholarship/student-records' },
+    { label: 'REQUESTS', route: '/staff/scholarship/dashboard?view=requests&scroll=1' },
+    { label: 'VERIFICATION', route: '/staff/scholarship/dashboard?view=certificates&scroll=1' },
+    { label: 'SETTINGS', children: [
+        { label: 'Edit Profile', route: '/staff/settings/edit-profile' },
+        { label: 'Security & Privacy', route: '/staff/settings/security' }
+      ]
+    },
+  ],
   staffAdmission: [
     { label: 'DASHBOARD', route: '/staff/admission/dashboard' },
     { label: 'PROFILE', route: '/staff/admission/profile' },
@@ -48,44 +76,6 @@ export const NAV_MENU_CONFIG = {
     },
   ],
   staffScholarship: [
-    { label: 'DASHBOARD', route: '/staff/scholarship/dashboard' },
-    { label: 'PROFILE', route: '/staff/scholarship/profile' },
-    { label: 'STUDENT RECORDS', route: '/staff/scholarship/student-records' },
-    { label: 'REQUESTS', route: '/staff/scholarship/dashboard?view=requests&scroll=1' },
-    { label: 'VERIFICATION', route: '/staff/scholarship/dashboard?view=certificates&scroll=1' },
-    { label: 'SETTINGS', children: [
-        { label: 'Edit Profile', route: '/staff/settings/edit-profile' },
-        { label: 'Security & Privacy', route: '/staff/settings/security' }
-      ]
-    },
-  ],
-  clerk: [
-    { label: 'DASHBOARD', route: '/staff/admission/dashboard' },
-    { label: 'PROFILE', route: '/staff/admission/profile' },
-    { label: 'ACADEMIC CALENDAR', route: '/staff/academic-calendar' },
-    { label: 'SETTINGS', children: [
-        { label: 'Edit Profile', route: '/staff/settings/edit-profile' },
-        { label: 'Security & Privacy', route: '/staff/settings/security' }
-      ]
-    },
-  ],
-  clerkAdmission: [
-    { label: 'DASHBOARD', route: '/staff/admission/dashboard' },
-    { label: 'PROFILE', route: '/staff/admission/profile' },
-    { label: 'STUDENT RECORDS', children: [
-        { label: 'Student Registry', route: '/staff/admission/student-management' },
-        { label: 'Student Requests', route: '/staff/admission/requests' },
-        { label: 'Finalize', route: '/staff/admission/finalize' }
-      ]
-    },
-    { label: 'ACADEMIC CALENDAR', route: '/staff/academic-calendar' },
-    { label: 'SETTINGS', children: [
-        { label: 'Edit Profile', route: '/staff/settings/edit-profile' },
-        { label: 'Security & Privacy', route: '/staff/settings/security' }
-      ]
-    },
-  ],
-  clerkScholarship: [
     { label: 'DASHBOARD', route: '/staff/scholarship/dashboard' },
     { label: 'PROFILE', route: '/staff/scholarship/profile' },
     { label: 'STUDENT RECORDS', route: '/staff/scholarship/student-records' },

@@ -11,7 +11,7 @@ describe('Client-Side Image Caching Layer', () => {
     process.env.STORAGE_TYPE = 'cloudinary';
     process.env.NEXT_PUBLIC_STORAGE_TYPE = 'cloudinary';
 
-    const path = 'kucet/clerks/pfp/c70735b60f3d4d43b72eef4b2a26e270.webp';
+    const path = 'kucet/staff/pfp/c70735b60f3d4d43b72eef4b2a26e270.webp';
 
     // 1st request - resolves and populates cache
     const url1 = getAssetUrl(path);
@@ -35,8 +35,8 @@ describe('Client-Side Image Caching Layer', () => {
     process.env.STORAGE_TYPE = 'cloudinary';
     process.env.NEXT_PUBLIC_STORAGE_TYPE = 'cloudinary';
 
-    const pfpPath = 'kucet/clerks/pfp/clerk1_photo.webp';
-    const sigPath = 'kucet/clerks/signatures/clerk1_signature.webp';
+    const pfpPath = 'kucet/staff/pfp/staff1_photo.webp';
+    const sigPath = 'kucet/staff/signatures/staff1_signature.webp';
 
     // Populate cache with 2 assets
     const pfpUrl1 = getAssetUrl(pfpPath);

@@ -5,21 +5,21 @@ import { eq, and, inArray, sql, desc } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(request) {
-  const clerk = await getAuthUser('clerk');
-  if (!clerk) return apiError('Unauthorized', 401);
+  const staff = await getAuthUser('staff');
+  if (!staff) return apiError('Unauthorized', 401);
 
   const { searchParams } = new URL(request.url);
-  const clerkType = searchParams.get('clerkType');
+  const staffType = searchParams.get('staffType') || searchParams.get('type') || searchParams.get('role');
   const workspace = searchParams.get('workspace');
   const scope = (searchParams.get('scope') || 'my').toString();
   const statusFilterRaw = searchParams.getAll('status');
   const certificateTypeFilterRaw = searchParams.getAll('certificateType') || searchParams.getAll('certificate_type');
 
-  if (!clerkType || clerk.role !== clerkType) return apiError('Forbidden', 403);
-  if (!clerk.id) return apiError('Clerk identity missing in token', 401);
+  if (!staffType || (staff.role !== staffType && staff.role !== 'admin')) return apiError('Forbidden', 403);
+  if (!staff.id) return apiError('Staff identity missing in token', 401);
 
   try {
-    const clerkToTypes = {
+    const roleToTypes = {
       admission: [
         'Bonafide Certificate', 'No Objection Certificate', 'Course Completion Certificate',
         'Transfer Certificate (TC)', 'Migration Certificate', 'Study Conduct Certificate',
@@ -27,8 +27,8 @@ export async function GET(request) {
       scholarship: ['Income Tax (IT) Certificate', 'Custodian Certificate'],
     };
 
-    const certTypes = clerkToTypes[clerkType];
-    if (!certTypes || certTypes.length === 0) return apiError('No certificate types configured for this clerk', 400);
+    const certTypes = roleToTypes[staffType];
+    if (!certTypes || certTypes.length === 0) return apiError('No certificate types configured for this staff role', 400);
 
     const certificateTypeFilter = [];
     certificateTypeFilterRaw.forEach(v => {
@@ -45,7 +45,7 @@ export async function GET(request) {
 
     if (workspace === 'history') {
       const historyConditions = [...baseConditions, inArray(studentRequests.status, ['APPROVED', 'REJECTED'])];
-      if (scope === 'my') historyConditions.push(eq(studentRequests.action_by_staff_id, clerk.id));
+      if (scope === 'my') historyConditions.push(eq(studentRequests.action_by_staff_id, staff.id));
       if (certificateTypeFilter.length > 0) historyConditions.push(inArray(studentRequests.certificate_type, certificateTypeFilter));
       if (statusFilter.length > 0) historyConditions.push(inArray(studentRequests.status, statusFilter));
 
@@ -64,7 +64,7 @@ export async function GET(request) {
         completed_at: studentRequests.completed_at,
         updated_at: studentRequests.updated_at,
         reject_reason: studentRequests.reject_reason,
-        action_by_clerk_id: studentRequests.action_by_staff_id,
+        action_by_staff_id: studentRequests.action_by_staff_id,
         action_by_role: studentRequests.action_by_role,
         is_flagged: studentRequests.is_flagged,
         flag_details: studentRequests.flag_details,
@@ -84,7 +84,7 @@ export async function GET(request) {
       if (statusFilter.length > 0) baseHistoryConds.push(inArray(studentRequests.status, statusFilter));
 
       const allCountRows = await countBase(baseHistoryConds);
-      const myCountRows = await countBase([...baseHistoryConds, eq(studentRequests.action_by_staff_id, clerk.id)]);
+      const myCountRows = await countBase([...baseHistoryConds, eq(studentRequests.action_by_staff_id, staff.id)]);
 
       const { parsePurpose, formatPurpose } = require('@/lib/certificate-utils');
       const mappedRows = rows.map(r => {
@@ -143,7 +143,7 @@ export async function GET(request) {
       return apiResponse({ records: mappedRows });
     }
   } catch (error) {
-    logger.error('Error fetching clerk requests:', error);
+    logger.error('Error fetching staff requests:', error);
     return apiError('Failed to fetch requests', 500);
   }
 }

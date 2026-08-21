@@ -38,32 +38,6 @@ export const students = mysqlTable('students', {
   createdAtIdx: index('idx_students_created_at').on(table.created_at),
 }));
 
-export const clerks = mysqlTable('clerks', {
-  id: int('id').autoincrement().primaryKey().notNull(),
-  name: varchar('name', { length: 255 }).notNull(),
-  email: varchar('email', { length: 255 }).notNull(),
-  employee_id: varchar('employee_id', { length: 255 }),
-  password_hash: varchar('password_hash', { length: 255 }).notNull(),
-  role: varchar('role', { length: 50 }).default('scholarship').notNull(),
-  mobile: varchar('mobile', { length: 255 }), // Encrypted
-  mobile_hash: varchar('mobile_hash', { length: 64 }), // Searchable Blind Index
-  pfp: text('pfp'),
-  signature: text('signature'),
-  address: text('address'),
-  is_active: boolean('is_active').default(true).notNull(),
-  created_at: timestamp('created_at').defaultNow(),
-  updated_at: timestamp('updated_at').onUpdateNow(),
-  is_hod: boolean('is_hod').default(false),
-  branch: varchar('branch', { length: 50 }),
-  last_login_at: timestamp('last_login_at'),
-  last_login_ip: varchar('last_login_ip', { length: 64 }),
-  password_changed_at: timestamp('password_changed_at'),
-  must_change_password: boolean('must_change_password').default(false).notNull(),
-}, (table) => ({
-  emailIdx: index('idx_clerks_email').on(table.email),
-  employeeIdIdx: index('idx_clerks_employee_id').on(table.employee_id),
-}));
-
 export const staffRegistrationRequests = mysqlTable('staff_registration_requests', {
   id: int('id').autoincrement().primaryKey().notNull(),
   name: varchar('name', { length: 255 }).notNull(),
@@ -84,10 +58,10 @@ export const staffRegistrationRequests = mysqlTable('staff_registration_requests
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
 }, (table) => ({
-  emailIdx: index('idx_clerk_req_email').on(table.email),
-  employeeIdIdx: index('idx_clerk_req_employee_id').on(table.employee_id),
-  statusIdx: index('idx_clerk_req_status').on(table.status),
-  categoryIdx: index('idx_clerk_req_category').on(table.staff_category),
+  emailIdx: index('idx_staff_req_email').on(table.email),
+  employeeIdIdx: index('idx_staff_req_employee_id').on(table.employee_id),
+  statusIdx: index('idx_staff_req_status').on(table.status),
+  categoryIdx: index('idx_staff_req_category').on(table.staff_category),
 }));
 
 export const principal = mysqlTable('principal', {
@@ -151,7 +125,7 @@ export const passwordResetTokens = mysqlTable('password_reset_tokens', {
   id: bigint('id', { mode: 'number', unsigned: true }).autoincrement().primaryKey().notNull(),
   token_hash: varchar('token_hash', { length: 255 }).notNull(),
   user_id: varchar('user_id', { length: 255 }).notNull(),
-  user_type: mysqlEnum('user_type', ['student', 'clerk', 'admin']).notNull(),
+  user_type: mysqlEnum('user_type', ['student', 'staff', 'admin']).notNull(),
   created_at: timestamp('created_at').defaultNow().notNull(),
   expires_at: timestamp('expires_at').notNull(),
   used_at: timestamp('used_at'),

@@ -14,9 +14,9 @@ import IdempotencyService from '@/services/IdempotencyService';
 import { StudentService } from '@/services/StudentService';
 
 export const POST = wrapHandler({
-  auth: 'staff',
+  auth: 'admission',
   handler: async (req, { user, context }) => {
-    if (user.role !== 'admission') return apiError('Forbidden', 403);
+    if (user.role !== 'admission' && user.role !== 'admin') return apiError('Forbidden', 403);
 
     const idempotencyKey = req.headers.get('idempotency-key');
     let idempotencyStarted = false;
@@ -92,7 +92,7 @@ export const POST = wrapHandler({
         };
 
         // 3. Perform Upsert via Service
-        const studentId = await StudentService.upsertStudent(studentData, user.clerkId || user.id, tx);
+        const studentId = await StudentService.upsertStudent(studentData, user.staffId || user.id, tx);
         if (!studentId) throw new Error('UPSERT_FAILED');
 
         // 4. Mark draft as FINALIZED and cleanup large strings

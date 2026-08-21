@@ -12,34 +12,34 @@ import ProfileCardShell from '@/components/profile/ProfileCardShell';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 export default function ScholarshipProfilePage() {
-  const { clerkData: clerk, loading: isLoading } = useStaff();
+  const { staffData: staff, loading: isLoading } = useStaff();
   const [activeTab, setActiveTab] = useState('personal');
 
   useEffect(() => {
-    if (!isLoading && clerk && clerk.role !== 'scholarship') {
+    if (!isLoading && staff && staff.role !== 'scholarship') {
       toast.error('Access Denied');
     }
-  }, [clerk, isLoading]);
+  }, [staff, isLoading]);
 
   const personalItems = useMemo(() => {
     return [
-      { key: 'email', label: 'Email', value: clerk?.email || '-' },
-      { key: 'mobile', label: 'Mobile', value: clerk?.mobile || '-' },
-      { key: 'employee_id', label: 'Employee ID', value: clerk?.employee_id || '-' },
-      { key: 'role', label: 'Role', value: clerk?.role ? String(clerk.role).toUpperCase() : '-' },
-      { key: 'branch', label: 'Branch', value: clerk?.branch || '-' },
-      { key: 'address', label: 'Address', value: clerk?.address || '-' },
+      { key: 'email', label: 'Email', value: staff?.email || '-' },
+      { key: 'mobile', label: 'Mobile', value: staff?.mobile || '-' },
+      { key: 'employee_id', label: 'Employee ID', value: staff?.employee_id || '-' },
+      { key: 'role', label: 'Role', value: staff?.role ? String(staff.role).toUpperCase() : '-' },
+      { key: 'branch', label: 'Branch', value: staff?.branch || '-' },
+      { key: 'address', label: 'Address', value: staff?.address || '-' },
     ];
-  }, [clerk]);
+  }, [staff]);
 
-  if (isLoading && !clerk) {
+  if (isLoading && !staff) {
     return <LoadingSpinner label="Loading Profile" />;
   }
 
-  if (!clerk) return null;
+  if (!staff) return null;
 
-  const name = clerk?.name || 'Scholarship Clerk';
-  const primaryId = clerk?.employee_id || (clerk?.role ? String(clerk.role).toUpperCase() : 'SCHOLARSHIP');
+  const name = staff?.name || 'Scholarship Staff';
+  const primaryId = staff?.employee_id || (staff?.role ? String(staff.role).toUpperCase() : 'SCHOLARSHIP');
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-fadeIn">
@@ -49,7 +49,7 @@ export default function ScholarshipProfilePage() {
             <ProfileHeaderCard
               name={name}
               primaryId={primaryId}
-              photoUrl={clerk?.pfp}
+              photoUrl={staff?.pfp}
               editHref="/staff/settings/edit-profile"
               editTitle="Modify Records"
               fallback="initials"
@@ -60,7 +60,7 @@ export default function ScholarshipProfilePage() {
               <ProfileStatusBar
                 title="Scholarship Office"
                 lines={[
-                  { label: 'Designation', value: 'Scholarship Clerk' },
+                  { label: 'Designation', value: 'Scholarship Staff' },
                   { label: 'Responsibilities', value: 'Verification • Requests • Sanction Workflow' },
                 ]}
               />

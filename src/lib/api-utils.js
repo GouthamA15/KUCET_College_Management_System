@@ -108,7 +108,7 @@ export function wrapHandler({ handler, schema, auth, audit }) {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
     const userAgent = req.headers.get('user-agent') || 'Unknown';
     const method = req.method;
-    const url = req.nextUrl.pathname;
+    const url = req.nextUrl?.pathname || (req.url ? new URL(req.url, 'http://localhost').pathname : '');
 
     return logger.runWithContext({ traceId }, async () => {
       try {
@@ -231,13 +231,14 @@ export async function getAuthUser(role = null) {
     // Prioritize middleware-injected headers for silent refresh compatibility
     if (role === 'admin') {
       token = reqHeaders.get('x-admin-auth') || cookieStore.get('admin_auth')?.value;
-    } else if (role === 'staff') {
-      token = reqHeaders.get('x-staff-auth') || reqHeaders.get('x-clerk-auth') || cookieStore.get('staff_auth')?.value;
+    } else if (['staff', 'admission', 'scholarship', 'faculty', 'hod'].includes(role)) {
+      token = reqHeaders.get('x-staff-auth') || reqHeaders.get('x-admin-auth') ||
+              cookieStore.get('staff_auth')?.value || cookieStore.get('admin_auth')?.value;
     } else if (role === 'student') {
       token = reqHeaders.get('x-student-auth') || cookieStore.get('student_auth')?.value;
     } else {
       // Try to detect role from available sources
-      token = reqHeaders.get('x-admin-auth') || reqHeaders.get('x-staff-auth')|| reqHeaders.get('x-student-auth') ||
+      token = reqHeaders.get('x-admin-auth') || reqHeaders.get('x-staff-auth') || reqHeaders.get('x-student-auth') ||
               cookieStore.get('admin_auth')?.value || cookieStore.get('staff_auth')?.value || cookieStore.get('student_auth')?.value;
     }
 
@@ -252,6 +253,9 @@ export async function getAuthUser(role = null) {
 
     if (!payload) return null;
 
+    // Normalize ID aliases for consistency
+    if (payload.id && !payload.staffId) payload.staffId = payload.id;
+
     // Optional role validation
     if (expectedRole) {
       const actualRole = payload.role;
@@ -261,7 +265,15 @@ export async function getAuthUser(role = null) {
       if (expectedRole === 'student') {
         if (!isStudent) return null;
       } else if (expectedRole === 'staff') {
-        if (!isStaff) return null;
+        if (!isStaff && actualRole !== 'admin') return null;
+      } else if (expectedRole === 'admission') {
+        if (actualRole !== 'admission' && actualRole !== 'admin') return null;
+      } else if (expectedRole === 'scholarship') {
+        if (actualRole !== 'scholarship' && actualRole !== 'admin') return null;
+      } else if (expectedRole === 'faculty') {
+        if (actualRole !== 'faculty' && actualRole !== 'admin') return null;
+      } else if (expectedRole === 'hod') {
+        if (!((actualRole === 'faculty' && payload.is_hod) || actualRole === 'admin')) return null;
       } else {
         if (actualRole !== expectedRole) return null;
       }

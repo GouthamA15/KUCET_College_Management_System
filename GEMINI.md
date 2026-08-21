@@ -70,6 +70,7 @@ DOCUMENTATION/
 - 🚧 [Session 207 (testvanilla) Change Analysis](./DOCUMENTATION/history/session-207-testvanilla-changes.md)
 - 🔍 [Session 207 PR Changes & Workflow Forensic Audit](./DOCUMENTATION/history/session-207-pr-changes-and-workflow-audit.md)
 - 🏗️ [Solutions Architecture & Next.js Audit Report](./DOCUMENTATION/architecture/solutions-architect-audit-report.md)
+- 🚀 [Session 207 Hard Clerk → Staff Migration Report](./DOCUMENTATION/history/session-207-hard-clerk-to-staff-migration.md)
 
 ---
 

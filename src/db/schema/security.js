@@ -41,7 +41,7 @@ export const rateLimits = mysqlTable('rate_limits', {
 
 export const auditLogs = mysqlTable('audit_logs', {
   id: int('id').autoincrement().primaryKey().notNull(),
-  user_id: int('user_id'), // ID of the Admin or Clerk
+  user_id: int('user_id'), // ID of the Admin or Staff
   user_type: mysqlEnum('user_type', ['STUDENT', 'STAFF', 'ADMIN', 'SYSTEM']).notNull(),
   action: varchar('action', { length: 100 }).notNull(), // e.g., 'UPDATE_MARKS', 'APPROVE_CERTIFICATE'
   target_id: varchar('target_id', { length: 255 }), // ID of the entity being modified
@@ -60,7 +60,7 @@ export const auditLogs = mysqlTable('audit_logs', {
 export const pushSubscriptions = mysqlTable('push_subscriptions', {
   id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
   user_id: varchar('user_id', { length: 255 }).notNull(),
-  user_type: mysqlEnum('user_type', ['student', 'clerk', 'faculty', 'hod', 'admin']).notNull(),
+  user_type: mysqlEnum('user_type', ['student', 'staff', 'faculty', 'hod', 'admin']).notNull(),
   endpoint: text('endpoint').notNull(),
   p256dh: text('p256dh').notNull(),
   auth_secret: text('auth_secret').notNull(),
@@ -72,7 +72,7 @@ export const pushSubscriptions = mysqlTable('push_subscriptions', {
 export const notificationPreferences = mysqlTable('notification_preferences', {
   id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
   user_id: varchar('user_id', { length: 255 }).notNull(),
-  user_type: mysqlEnum('user_type', ['student', 'clerk', 'faculty', 'hod', 'admin']).notNull(),
+  user_type: mysqlEnum('user_type', ['student', 'staff', 'faculty', 'hod', 'admin']).notNull(),
   categories: json('categories').notNull(), // JSON map of enabled categories e.g. { attendance: true, marks: true }
   updated_at: timestamp('updated_at').defaultNow(),
 }, (table) => ({

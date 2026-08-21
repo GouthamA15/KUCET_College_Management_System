@@ -18,7 +18,7 @@ export class AttendanceService {
    * @param {string} params.date YYYY-MM-DD
    * @param {number} params.sessionNumber 1-8
    * @param {string|null} params.topicCovered Text up to 500 chars
-   * @param {Object} params.user Authenticated clerk/faculty user
+   * @param {Object} params.user Authenticated staff/faculty user
    */
   static async updateLectureTopic({ assignmentId, date, sessionNumber, topicCovered, user }) {
     if (!user || user.role !== 'faculty') {

@@ -24,7 +24,7 @@ export function StudentDashboardSkeleton() {
   );
 }
 
-export function ClerkDashboardSkeleton() {
+export function StaffDashboardSkeleton() {
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-16 px-4 md:px-8 font-sans">
       {/* Banner */}

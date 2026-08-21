@@ -115,7 +115,7 @@ export default function CertificateActionPanel({ request }) {
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-36 text-sm text-gray-500">Action By</div>
-                    <div className="font-semibold text-gray-800">{request?.action_by_clerk_name ?? request?.action_by_role ?? request?.action_by_staff_id ?? '—'}</div>
+                    <div className="font-semibold text-gray-800">{request?.action_by_staff_name ?? request?.action_by_role ?? request?.action_by_staff_id ?? '—'}</div>
                   </div>
                 </div>
               ) : null}

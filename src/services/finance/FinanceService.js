@@ -132,7 +132,7 @@ export class FinanceService {
             'academic_year', ${studentRequests.academic_year},
             'completed_at', ${studentRequests.completed_at},
             'action_by_staff_id', ${studentRequests.action_by_staff_id},
-            'action_by_clerk_name', ${staffAccounts.name},
+            'action_by_staff_name', ${staffAccounts.name},
             'action_by_role', ${studentRequests.action_by_role},
             'reject_reason', ${studentRequests.reject_reason},
             'payment_screenshot', ${studentRequestImages.payment_screenshot},

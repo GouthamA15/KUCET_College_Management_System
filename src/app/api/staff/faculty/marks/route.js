@@ -17,8 +17,8 @@ import { z } from 'zod';
 
 export async function GET(request) {
   try {
-    const user = await getAuthUser('clerk');
-    if (!user || user.role !== 'faculty') {
+    const user = await getAuthUser('faculty');
+    if (!user || (user.role !== 'faculty' && user.role !== 'admin')) {
       return apiError('Unauthorized', 401);
     }
 
@@ -170,8 +170,8 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const user = await getAuthUser('clerk');
-    if (!user || user.role !== 'faculty') {
+    const user = await getAuthUser('faculty');
+    if (!user || (user.role !== 'faculty' && user.role !== 'admin')) {
       return apiError('Unauthorized', 401);
     }
 
@@ -362,7 +362,7 @@ export async function POST(request) {
     // Audit Log
     await logAudit(request, {
       userId: user.id,
-      userType: 'clerk',
+      userType: 'STAFF',
       action: 'BULK_UPDATE_MARKS',
       targetId: targetAssignmentId,
       targetType: 'assignment',

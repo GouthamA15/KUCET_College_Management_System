@@ -22,7 +22,7 @@ export async function GET(_req) {
 
     // We need the database ID. getAuthUser might return different things based on role.
     // For student it usually returns { roll_no, ... }
-    // For clerk it usually returns { email, ... }
+    // For staff it usually returns { email, ... }
     
     let dbId;
     if (userType === 'STUDENT') {

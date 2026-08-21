@@ -86,8 +86,8 @@ export const GET = wrapHandler({
       }
     }
 
-    // Map to expected clerk object properties for frontend compatibility
-    const clerk = {
+    // Construct staff object properties
+    const staffData = {
       ...staff,
       mobile: decryptedMobile,
       role: resolvedRole,
@@ -96,7 +96,7 @@ export const GET = wrapHandler({
       is_active: staff.account_status === 'ACTIVE',
     };
 
-    // Helper to handle both URLs and legacy Buffer data
+    // Helper to handle both URLs and Buffer data
     const imageHelper = (val) => {
       if (!val) return null;
       if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:') || val.startsWith('/api/'))) return val;
@@ -108,8 +108,8 @@ export const GET = wrapHandler({
       return null;
     };
 
-    clerk.pfp = imageHelper(clerk.pfp);
-    clerk.signature = imageHelper(clerk.signature);
+    staffData.pfp = imageHelper(staffData.pfp);
+    staffData.signature = imageHelper(staffData.signature);
 
     try {
       const semRows = await db.select({ academic_year: semesters.academic_year })
@@ -117,12 +117,12 @@ export const GET = wrapHandler({
         .orderBy(desc(semesters.id))
         .limit(1);
       
-      clerk.academic_year = semRows[0]?.academic_year || '2025-26';
+      staffData.academic_year = semRows[0]?.academic_year || '2025-26';
     } catch (semErr) {
       logger.error({ err: semErr.message }, '[STAFF_ME_SEMESTER_FAILED]');
-      clerk.academic_year = '2025-26';
+      staffData.academic_year = '2025-26';
     }
 
-    return { data: clerk };
+    return { data: staffData };
   }
 });

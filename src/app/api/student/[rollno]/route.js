@@ -33,7 +33,7 @@ export async function GET(req, context) {
     rollno = String(rollno || '').trim().toUpperCase();
 
     // SECURITY GUARD: A student can ONLY access their own profile.
-    // Staff (clerk/admin) can access any profile.
+    // Staff (admission/scholarship/faculty/admin) can access authorized profiles.
     const isStudent = !!user.roll_no;
     if (isStudent && user.roll_no !== rollno) {
       logger.warn(`[SECURITY_ALERT] Student ${user.roll_no} tried to access profile ${rollno}`);

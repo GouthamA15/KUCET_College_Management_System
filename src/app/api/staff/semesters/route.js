@@ -6,7 +6,7 @@ import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(request) {
   try {
-    const user = await getAuthUser('clerk');
+    const user = await getAuthUser('staff');
     if (!user) return apiError('Unauthorized', 401);
 
     const { searchParams } = new URL(request.url);

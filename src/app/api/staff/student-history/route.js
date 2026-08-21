@@ -6,11 +6,11 @@ import { unionAll } from 'drizzle-orm/mysql-core';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
-  const user = await getAuthUser('clerk');
+  const user = await getAuthUser('staff');
   if (!user) return apiError('Unauthorized', 401);
 
-  const currentClerkId = user?.staffAccountId || user.id || null;
-  if (!currentClerkId) return apiError('Unauthorized: clerk id missing in token', 401);
+  const currentStaffId = user?.staffId || user?.staffAccountId || user.id || null;
+  if (!currentStaffId) return apiError('Unauthorized: staff id missing in token', 401);
 
   try {
     const url = new URL(req.url);
@@ -71,7 +71,7 @@ export async function GET(req) {
     }
 
     if (scope !== 'all') {
-      conditions.push(eq(activityUnion.staffAccountId, currentClerkId));
+      conditions.push(eq(activityUnion.staffAccountId, currentStaffId));
     }
 
     // Use a CTE or subquery for joining staffAccounts to ensure high performance
@@ -83,7 +83,7 @@ export async function GET(req) {
         actionTime: activityUnion.actionTime,
         totalRecords: activityUnion.totalRecords,
         staffAccountId: activityUnion.staffAccountId,
-        clerkName: sql`NULL`.as('clerkName')
+        staffName: sql`NULL`.as('staffName')
       })
       .from(activityUnion);
     } else {
@@ -93,7 +93,7 @@ export async function GET(req) {
         actionTime: activityUnion.actionTime,
         totalRecords: activityUnion.totalRecords,
         staffAccountId: activityUnion.staffAccountId,
-        clerkName: staffAccounts.name
+        staffName: staffAccounts.name
       })
       .from(activityUnion)
       .leftJoin(staffAccounts, eq(activityUnion.staffAccountId, staffAccounts.id));
@@ -134,9 +134,9 @@ export async function GET(req) {
       db.select({ count: sql`COUNT(*)` }).from(students).where(and(...addedConds)),
       db.select({ count: sql`COUNT(*)` }).from(students).where(and(...updatedConds)),
       db.select({ count: sql`COUNT(*)` }).from(studentImportLogs).where(and(...importedConds)),
-      db.select({ count: sql`COUNT(*)` }).from(students).where(and(...addedConds, eq(students.added_by_staff_id, currentClerkId))),
-      db.select({ count: sql`COUNT(*)` }).from(students).where(and(...updatedConds, eq(students.updated_by_staff_id, currentClerkId))),
-      db.select({ count: sql`COUNT(*)` }).from(studentImportLogs).where(and(...importedConds, eq(studentImportLogs.staff_id, currentClerkId)))
+      db.select({ count: sql`COUNT(*)` }).from(students).where(and(...addedConds, eq(students.added_by_staff_id, currentStaffId))),
+      db.select({ count: sql`COUNT(*)` }).from(students).where(and(...updatedConds, eq(students.updated_by_staff_id, currentStaffId))),
+      db.select({ count: sql`COUNT(*)` }).from(studentImportLogs).where(and(...importedConds, eq(studentImportLogs.staff_id, currentStaffId)))
     ]);
 
     const allCount = Number(addedCountRows[0]?.count || 0) + Number(updatedCountRows[0]?.count || 0) + Number(importedCountRows[0]?.count || 0);

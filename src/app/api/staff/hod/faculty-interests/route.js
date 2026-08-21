@@ -17,9 +17,9 @@ const interestUpdateSchema = z.object({
 });
 
 export const GET = wrapHandler({
-  auth: 'clerk',
+  auth: 'hod',
   handler: async (_request, { user }) => {
-    if (!user || user.role !== 'faculty' || !user.is_hod) {
+    if (!user || (!((user.role === 'faculty' && user.is_hod) || user.role === 'admin'))) {
       return apiError('Unauthorized - HOD Access Required', 401);
     }
 
@@ -82,10 +82,10 @@ export const GET = wrapHandler({
 });
 
 export const POST = wrapHandler({
-  auth: 'clerk',
+  auth: 'hod',
   schema: interestUpdateSchema,
   handler: async (_request, { user, data }) => {
-    if (!user || user.role !== 'faculty' || !user.is_hod) {
+    if (!user || (!((user.role === 'faculty' && user.is_hod) || user.role === 'admin'))) {
       return apiError('Unauthorized - HOD Access Required', 401);
     }
 

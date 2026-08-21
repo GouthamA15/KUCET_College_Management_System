@@ -18,18 +18,18 @@ function RequestsCenterContent() {
         isLoadingRequests,
         refreshProfileRequests,
         refreshCertificateRequests,
-        clerkData
+        staffData
     } = useStaff();
 
     const activeTab = searchParams.get('tab') || 'admissions';
 
     useEffect(() => {
-        if (clerkData?.role) {
+        if (staffData?.role) {
             refreshProfileRequests();
-            refreshCertificateRequests(clerkData.role);
+            refreshCertificateRequests(staffData.role);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [clerkData?.role]);
+    }, [staffData?.role]);
 
     const handleTabChange = (tabId) => {
         const params = new URLSearchParams(searchParams);

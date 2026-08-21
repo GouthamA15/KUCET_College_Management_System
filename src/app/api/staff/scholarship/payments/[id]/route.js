@@ -5,8 +5,8 @@ import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
 
 export async function DELETE(req, ctx) {
-  const user = await getAuthUser('clerk');
-  if (!user) return apiError('Unauthorized', 401);
+  const user = await getAuthUser('scholarship');
+  if (!user || (user.role !== 'scholarship' && user.role !== 'admin')) return apiError('Unauthorized', 401);
 
   try {
     const params = await ctx.params;
@@ -22,8 +22,8 @@ export async function DELETE(req, ctx) {
       await db.delete(studentFeePayments).where(eq(studentFeePayments.id, id));
       
       await logAudit(req, {
-        userId: user.clerkId || user.id,
-        userType: 'clerk',
+        userId: user.staffId || user.id,
+        userType: 'STAFF',
         action: 'DELETE_FEE_PAYMENT',
         targetId: id,
         targetType: 'finance',

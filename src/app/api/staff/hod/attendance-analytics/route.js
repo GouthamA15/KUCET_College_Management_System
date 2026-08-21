@@ -7,8 +7,8 @@ import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 export async function GET(req) {
   let user;
   try {
-    user = await getAuthUser('clerk');
-    if (!user || user.role !== 'faculty' || !user.is_hod) {
+    user = await getAuthUser('hod');
+    if (!user || (!((user.role === 'faculty' && user.is_hod) || user.role === 'admin'))) {
       return apiError('Unauthorized', 401);
     }
 

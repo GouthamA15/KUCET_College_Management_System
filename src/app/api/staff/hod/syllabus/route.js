@@ -9,8 +9,8 @@ import { z } from 'zod';
 export async function GET(req) {
   let user;
   try {
-    user = await getAuthUser('clerk');
-    if (!user || user.role !== 'faculty' || !user.is_hod) {
+    user = await getAuthUser('hod');
+    if (!user || (!((user.role === 'faculty' && user.is_hod) || user.role === 'admin'))) {
       return apiError('Unauthorized', 401);
     }
 
@@ -50,8 +50,8 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    const user = await getAuthUser('clerk');
-    if (!user || user.role !== 'faculty' || !user.is_hod) {
+    const user = await getAuthUser('hod');
+    if (!user || (!((user.role === 'faculty' && user.is_hod) || user.role === 'admin'))) {
       return apiError('Unauthorized', 401);
     }
 

@@ -325,7 +325,7 @@ export const POST = wrapHandler({
 
       if (inserted > 0 || updated > 0) {
         await tx.insert(studentImportLogs).values({
-          clerk_id: staffId,
+          staff_id: staffId,
           total_records: inserted + updated,
           file_name: importFileName
         });

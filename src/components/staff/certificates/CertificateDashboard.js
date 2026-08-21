@@ -13,7 +13,7 @@ import FiltersPopover from "./FiltersPopover";
 import FiltersButton from "./FiltersButton";
 import { createPortal } from 'react-dom';
 
-export default function CertificateDashboard({ clerkType }) {
+export default function CertificateDashboard({ staffType }) {
   const { pendingCertificateRequests, _isLoadingRequests, refreshCertificateRequests } = useStaff();
   const [workspaceMode, setWorkspaceMode] = useState("active"); // "active" | "history"
   const [_selectedDate, setSelectedDate] = useState(null); // string | null
@@ -46,9 +46,9 @@ export default function CertificateDashboard({ clerkType }) {
 
   useEffect(() => {
     if (!pendingCertificateRequests || pendingCertificateRequests.length === 0) {
-      refreshCertificateRequests(clerkType);
+      refreshCertificateRequests(staffType);
     }
-  }, [clerkType, pendingCertificateRequests, refreshCertificateRequests]);
+  }, [staffType, pendingCertificateRequests, refreshCertificateRequests]);
 
   // Derived records to avoid sync setState in effect
   const displayRecords = useMemo(() => {
@@ -61,7 +61,7 @@ export default function CertificateDashboard({ clerkType }) {
     return records;
   }, [workspaceMode, appliedFilters, pendingCertificateRequests, records]);
 
-  // Fetch records whenever mode/date/clerkType changes
+  // Fetch records whenever mode/date/staffType changes
   const fetchRecords = useCallback(async () => {
     if (workspaceMode === 'active' && appliedFilters.certificateType.length === 0 && appliedFilters.status.length === 0) {
        return;
@@ -76,7 +76,7 @@ export default function CertificateDashboard({ clerkType }) {
       const params = new URLSearchParams();
       params.set('workspace', workspaceMode);
       if (workspaceMode === 'history') params.set('scope', historyScope);
-      if (clerkType) params.set('clerkType', clerkType);
+      if (staffType) params.set('staffType', staffType);
       
       if (Array.isArray(appliedFilters.certificateType) && appliedFilters.certificateType.length > 0) {
         appliedFilters.certificateType.forEach(v => params.append('certificateType', v));
@@ -107,7 +107,7 @@ export default function CertificateDashboard({ clerkType }) {
     } finally {
       setLoadingRecords(false);
     }
-  }, [workspaceMode, historyScope, clerkType, appliedFilters]);
+  }, [workspaceMode, historyScope, staffType, appliedFilters]);
 
   // Effects
   useEffect(() => {
@@ -364,7 +364,7 @@ export default function CertificateDashboard({ clerkType }) {
                       });
                       if (res.ok) {
                         closeDialog();
-                        await refreshCertificateRequests(clerkType);
+                        await refreshCertificateRequests(staffType);
                         await fetchRecords();
                       }
                     } catch { /* empty */ }
@@ -414,7 +414,7 @@ export default function CertificateDashboard({ clerkType }) {
                   if (res.ok) {
                     setRejectReasonOpen(false);
                     closeDialog();
-                    await refreshCertificateRequests(clerkType);
+                    await refreshCertificateRequests(staffType);
                     await fetchRecords();
                   }
                 } catch { /* empty */ }

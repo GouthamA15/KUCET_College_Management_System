@@ -131,7 +131,7 @@ export async function logoutByRole({ role = 'guest', onLogout, redirect = '/' } 
     return;
   }
 
-  if (role === 'clerk' || role === 'clerkAdmission' || role === 'clerkScholarship' || role === 'faculty') {
+  if (['staff', 'admission', 'scholarship', 'faculty', 'hod'].includes(role)) {
     await logoutAndRedirect({ endpoint: '/api/staff/logout', redirect });
     return;
   }

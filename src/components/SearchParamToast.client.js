@@ -8,10 +8,10 @@ export default function SearchParamToast({ serverError }) {
     if (!error) return;
 
     switch (error) {
-      case 'ClerkNotFound':
+      case 'StaffNotFound':
         toast.error('This email is not registered as an employee.');
         break;
-      case 'ClerkInactive':
+      case 'StaffInactive':
         toast.error('Your employee account is inactive. Please contact support.');
         break;
       case 'GoogleAuthError':

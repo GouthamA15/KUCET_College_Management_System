@@ -4,7 +4,7 @@ import { apiError, apiResponse, wrapHandler } from '@/lib/api-utils';
 import { studentCreateSchema } from '@/lib/validations/student';
 
 export const GET = wrapHandler({
-  auth: 'clerk',
+  auth: 'staff',
   handler: async (req) => {
     const year = req.nextUrl.searchParams.get('year');
     const branch = req.nextUrl.searchParams.get('branch');
@@ -19,25 +19,25 @@ export const GET = wrapHandler({
 });
 
 export const POST = wrapHandler({
-  auth: 'clerk',
+  auth: 'staff',
   schema: studentCreateSchema,
   handler: async (req, { data, user, ip, userAgent }) => {
-    const clerkId = user.clerkId || user.id;
-    if (!clerkId) {
-      return apiError('Missing clerk ID in auth user', 400);
+    const staffId = user.staffId || user.id;
+    if (!staffId) {
+      return apiError('Missing staff ID in auth user', 400);
     }
     
-    const studentId = await StudentService.createStudent(data, clerkId);
+    const studentId = await StudentService.createStudent(data, staffId);
     
     // Audit log for student creation (excludes PII)
     logger.info({
       action: 'student_created',
-      clerkId,
+      staffId,
       studentId,
       rollNo: data.roll_no,
       clientIp: ip,
       userAgent: userAgent.substring(0, 255)
-    }, 'Student record created by clerk');
+    }, 'Student record created by staff');
     
     return apiResponse({ message: 'Student added successfully', studentId }, 201);
   }

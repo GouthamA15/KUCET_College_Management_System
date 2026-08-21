@@ -51,9 +51,9 @@ export class OrphanMediaService {
       const sigs = await db.select({ signature: studentSignatures.signature }).from(studentSignatures);
       sigs.forEach(s => s.signature && referenced.add(s.signature.replace(/^\/+/, '')));
 
-      // 3. Clerks / Faculty PFP & Signatures
-      const clerkMedia = await db.select({ pfp: staffAccounts.pfp, signature: staffAccounts.signature }).from(staffAccounts);
-      clerkMedia.forEach(c => {
+      // 3. Staff / Faculty PFP & Signatures
+      const staffMedia = await db.select({ pfp: staffAccounts.pfp, signature: staffAccounts.signature }).from(staffAccounts);
+      staffMedia.forEach(c => {
         c.pfp && referenced.add(c.pfp.replace(/^\/+/, ''));
         c.signature && referenced.add(c.signature.replace(/^\/+/, ''));
       });

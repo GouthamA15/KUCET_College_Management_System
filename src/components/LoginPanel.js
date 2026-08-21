@@ -44,7 +44,7 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
   const [fpRollnoError, setFpRollnoError] = useState(''); // New state for specific roll number errors
 
 
-  // Employee forgot-password states (used for clerk/admin)
+  // Employee forgot-password states (used for staff/admin)
   const [fpEmail, setFpEmail] = useState('');
   const [fpEmailLoading, setFpEmailLoading] = useState(false);
   const [fpEmailMessage, setFpEmailMessage] = useState('');
@@ -315,7 +315,7 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
     }
   };
 
-  // --- Employee forgot-password handler (reused from clerk page) ---
+  // --- Employee forgot-password handler ---
   const handleForgotEmployeeSubmit = async (e) => {
     e.preventDefault();
     setFpEmailLoading(true);
@@ -345,7 +345,7 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
 
   const handleEmployeeSubmit = async (e) => {
     e.preventDefault();
-    const isStaff = activePanel === 'staff' || activePanel === 'clerk';
+    const isStaff = activePanel === 'staff';
     const errorSetter = isStaff ? setStaffError : setAdminError;
     const formData = isStaff ? staffForm : adminForm;
     const rememberMe = isStaff ? staffRememberMe : adminRememberMe;
@@ -626,12 +626,12 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
           {/* Unified Staff Login Panel (Staff/Admin) */}
           <div 
             className={`transition-all duration-400 ease-out ${
-              (activePanel === 'staff' || activePanel === 'clerk' || activePanel === 'admin')
+              (activePanel === 'staff' || activePanel === 'admin')
                 ? 'opacity-100 transform translate-y-0' 
                 : 'opacity-0 transform -translate-y-4 absolute inset-0 pointer-events-none'
             }`}
           >
-            {(activePanel === 'staff' || activePanel === 'clerk' || activePanel === 'admin') && (
+            {(activePanel === 'staff' || activePanel === 'admin') && (
               <div className={isModal ? 'bg-white rounded-xl border shadow-sm p-6 md:p-8' : 'bg-white rounded-sm border border-slate-200 shadow-none p-4 sm:p-5'}>
                 <div className={isModal ? 'flex items-start justify-between gap-4 mb-6' : 'flex items-start justify-between gap-3 mb-4'}>
                   <div>

@@ -3,18 +3,18 @@
 import { useStaff } from '@/context/StaffContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import ClerkStudentManagement from '@/components/ClerkStudentManagement';
+import StaffStudentManagement from '@/components/staff/StaffStudentManagement';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 export default function StudentManagementPage() {
     const _router = useRouter();
-    const { clerkData: clerk, loading: isLoading } = useStaff();
+    const { staffData: staff, loading: isLoading } = useStaff();
 
-    if (isLoading && !clerk) {
+    if (isLoading && !staff) {
         return <LoadingSpinner label="Opening Student Registry..." />;
     }
 
-    if (!clerk) return null;
+    if (!staff) return null;
 
     return (
         <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
@@ -32,7 +32,7 @@ export default function StudentManagementPage() {
             </header>
 
             <section className="space-y-4">
-                <ClerkStudentManagement clerkId={clerk?.id} />
+                <StaffStudentManagement staffId={staff?.id} />
             </section>
         </div>
     );

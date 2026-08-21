@@ -9,9 +9,9 @@ import { getAssetUrl, invalidateAssetCache } from '@/lib/assets';
 import { useRouter } from 'next/navigation';
 import { Camera, UploadCloud, Info, X } from 'lucide-react';
 
-export default function ClerkEditProfilePage() {
+export default function StaffEditProfilePage() {
   const router = useRouter();
-  const { clerkData: clerk, refreshClerkData } = useStaff();
+  const { staffData: staff, refreshStaffData } = useStaff();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -37,8 +37,8 @@ export default function ClerkEditProfilePage() {
   const fileInputRef = useRef(null);
   const signatureInputRef = useRef(null);
 
-  const displayedPhoto = pfpDataUrl === 'REMOVE' ? null : (pfpDataUrl || getAssetUrl(clerk?.pfp) || null);
-  const displayedSignature = signatureDataUrl === 'REMOVE' ? null : (signatureDataUrl || getAssetUrl(clerk?.signature));
+  const displayedPhoto = pfpDataUrl === 'REMOVE' ? null : (pfpDataUrl || getAssetUrl(staff?.pfp) || null);
+  const displayedSignature = signatureDataUrl === 'REMOVE' ? null : (signatureDataUrl || getAssetUrl(staff?.signature));
 
   useEffect(() => {
     // Resize listener for Info Popover vs Bottom Sheet
@@ -59,20 +59,20 @@ export default function ClerkEditProfilePage() {
   }, [isBottomSheetOpen, isMobileDevice]);
 
   useEffect(() => {
-    refreshClerkData();
+    refreshStaffData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (clerk) {
+    if (staff) {
       const data = {
-        name: clerk.name || '',
-        email: clerk.email || '',
-        mobile: clerk.mobile || '',
-        employee_id: clerk.employee_id || '',
-        role: clerk.role || '',
-        branch: clerk.branch || '',
-        address: clerk.address || ''
+        name: staff.name || '',
+        email: staff.email || '',
+        mobile: staff.mobile || '',
+        employee_id: staff.employee_id || '',
+        role: staff.role || '',
+        branch: staff.branch || '',
+        address: staff.address || ''
       };
       const id = setTimeout(() => {
         setFormData(data);
@@ -82,7 +82,7 @@ export default function ClerkEditProfilePage() {
       return () => clearTimeout(id);
     }
     return undefined;
-  }, [clerk]);
+  }, [staff]);
 
   const onFileSelect = async (file, type) => {
     if (file) {
@@ -175,10 +175,12 @@ export default function ClerkEditProfilePage() {
       invalidateAssetCache(originalData?.signature);
       setPfpDataUrl(null);
       setSignatureDataUrl(null);
-      await refreshClerkData();
+      await refreshStaffData();
       
-      if (clerk?.role) {
-        router.push(`/staff/${clerk.role}/profile`);
+      if (staff?.role) {
+        router.push(`/staff/${staff.role}/profile`);
+      } else {
+        router.push('/staff/admission/profile');
       }
     } catch (e) {
       toast.error(e.message || 'System error occurred.', { id: toastId });
@@ -187,7 +189,7 @@ export default function ClerkEditProfilePage() {
     }
   };
 
-  if (loading || !clerk) {
+  if (loading || !staff) {
     return (
       <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
         <header className="mb-4">
@@ -296,7 +298,7 @@ export default function ClerkEditProfilePage() {
             <p className="text-sm text-gray-600 mt-1">Update your staff information and profile assets.</p>
           </div>
           <div className="px-3 py-1 bg-blue-50 border border-blue-200 rounded-md text-xs font-semibold text-blue-700 uppercase tracking-widest hidden sm:block">
-            {String(clerk?.role || 'Staff').toUpperCase()} Portal
+            {String(staff?.role || 'Staff').toUpperCase()} Portal
           </div>
         </div>
       </header>
@@ -330,7 +332,7 @@ export default function ClerkEditProfilePage() {
                 >
                   Change Photo
                 </button>
-                {(displayedPhoto || clerk?.pfp) && pfpDataUrl !== 'REMOVE' && (
+                {(displayedPhoto || staff?.pfp) && pfpDataUrl !== 'REMOVE' && (
                   <button 
                     onClick={() => setPfpDataUrl('REMOVE')}
                     className="text-xs font-medium text-red-600 border border-red-200 rounded-md px-3 py-1.5 hover:bg-red-50 transition-colors flex-1 md:w-full"

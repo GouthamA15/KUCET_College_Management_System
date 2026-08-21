@@ -3,15 +3,15 @@ import { StudentService } from '@/services/StudentService';
 import { studentCreateSchema } from '@/lib/validations/student';
 
 export const POST = wrapHandler({
-  auth: 'clerk',
+  auth: 'admission',
   schema: studentCreateSchema,
   handler: async (req, { data, user }) => {
-    if (user.role !== 'admission') {
-      return apiError('Forbidden: Only admission clerks can add students', 403);
+    if (user.role !== 'admission' && user.role !== 'admin') {
+      return apiError('Forbidden: Only admission staff can add students', 403);
     }
 
-    const clerkId = user.clerkId || user.id;
-    const studentId = await StudentService.upsertStudent(data, clerkId);
+    const staffId = user.staffId || user.id;
+    const studentId = await StudentService.upsertStudent(data, staffId);
 
     return { 
       success: true, 

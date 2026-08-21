@@ -143,7 +143,7 @@ export function StaffProvider({ children }) {
     if (!role) return;
     setIsLoadingRequests(true);
     try {
-      const res = await fetch(`/api/staff/requests?clerkType=${role}&t=${Date.now()}`);
+      const res = await fetch(`/api/staff/requests?staffType=${role}&t=${Date.now()}`);
       if (res.ok) {
         const json = await res.json();
         setPendingCertificateRequests(json.records || []);
@@ -347,14 +347,11 @@ export function StaffProvider({ children }) {
   return (
     <StaffContext.Provider value={{
       staffData,
-      clerkData: staffData,
       collegeInfo,
       setStaffData,
-      setClerkData: setStaffData,
       loading,
       error,
       refreshStaffData: fetchStaffData,
-      refreshClerkData: fetchStaffData,
       facultyAssignments,
       facultyInterests,
       isLoadingFaculty,

@@ -11,34 +11,34 @@ import InterestStatusList from '@/components/staff/faculty/InterestStatusList';
 import ClassList from '@/components/staff/faculty/ClassList';
 import PersonalSchedule from '@/components/staff/faculty/PersonalSchedule';
 import FacultyActivityBar from '@/components/staff/faculty/FacultyActivityBar';
-import { ClerkDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
+import { StaffDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
 
 import { useStaff } from '@/context/StaffContext';
 import { FacultyAttendanceProvider } from '@/context/FacultyAttendanceContext';
 
 export default function FacultyDashboardClient() {
   const router = useRouter();
-  const { clerkData: clerk, loading, facultyAssignments, refreshFaculty, refreshHOD } = useStaff();
+  const { staffData: staff, loading, facultyAssignments, refreshFaculty, refreshHOD } = useStaff();
 
   const [activeSection, setActiveSection] = useState(null);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
 
   useEffect(() => {
-    if (!loading && !clerk) {
+    if (!loading && !staff) {
       router.push('/');
     }
-  }, [clerk, loading, router]);
+  }, [staff, loading, router]);
 
   useEffect(() => {
-    if (clerk?.role === 'faculty') {
+    if (staff?.role === 'faculty') {
       if (!facultyAssignments || facultyAssignments.length === 0) {
         refreshFaculty();
       }
-      if (clerk.is_hod) {
+      if (staff.is_hod) {
         refreshHOD();
       }
     }
-  }, [clerk, facultyAssignments, refreshFaculty, refreshHOD]);
+  }, [staff, facultyAssignments, refreshFaculty, refreshHOD]);
 
   const handleInterestSubmitted = useCallback(() => {
     // Optional: refresh logic
@@ -60,11 +60,11 @@ export default function FacultyDashboardClient() {
   };
 
   if (loading) {
-    return <ClerkDashboardSkeleton />;
+    return <StaffDashboardSkeleton />;
   }
 
-  const firstName = clerk?.name?.split(' ')[0] || 'Faculty';
-  const employeeLabel = clerk?.employee_id || (clerk?.role ? String(clerk.role).toUpperCase() : 'FACULTY');
+  const firstName = staff?.name?.split(' ')[0] || 'Faculty';
+  const employeeLabel = staff?.employee_id || (staff?.role ? String(staff.role).toUpperCase() : 'FACULTY');
   const roleLabel = 'Faculty';
 
   const modules = [

@@ -11,8 +11,8 @@ import IdempotencyService from '@/services/IdempotencyService';
 import { FinanceService } from '@/services/FinanceService';
 
 export async function POST(req) {
-  const user = await getAuthUser('clerk');
-  if (!user) return apiError('Unauthorized', 401);
+  const user = await getAuthUser('scholarship');
+  if (!user || (user.role !== 'scholarship' && user.role !== 'admin')) return apiError('Unauthorized', 401);
 
   const idempotencyKey = req.headers.get('idempotency-key');
   let idempotencyStarted = false;
@@ -95,7 +95,7 @@ export async function POST(req) {
         const expectedRTF = isScholarshipStudent ? calculateExpectedRTF(student, totalCourseFee) : 0;
         
         // RELAXED LIMIT: Allow payments up to a generous threshold to accommodate miscellaneous fees or overpayments.
-        // We warn but don't block at the exact 35k/70k limit to prevent clerk frustration.
+        // We warn but don't block at the exact 35k/70k limit to prevent staff frustration.
         const absoluteLimit = 150000; 
         const recommendedPayableLimit = Math.max(0, totalCourseFee - expectedRTF);
 

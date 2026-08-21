@@ -8,9 +8,9 @@ import { sendInstitutionalEmail } from '@/lib/email';
 import { encrypt, decrypt } from '@/lib/encryption';
 
 export const GET = wrapHandler({
-  auth: 'clerk',
+  auth: 'admission',
   handler: async (req, { user, context }) => {
-    if (user.role !== 'admission') return apiError('Forbidden', 403);
+    if (user.role !== 'admission' && user.role !== 'admin') return apiError('Forbidden', 403);
 
     const params = await context.params;
     const id = parseInt(params.id);
@@ -47,9 +47,9 @@ export const GET = wrapHandler({
 });
 
 export const PUT = wrapHandler({
-  auth: 'clerk',
+  auth: 'admission',
   handler: async (req, { user, context }) => {
-    if (user.role !== 'admission') return apiError('Forbidden', 403);
+    if (user.role !== 'admission' && user.role !== 'admin') return apiError('Forbidden', 403);
   
     const params = await context.params;
     const id = parseInt(params.id);

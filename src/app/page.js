@@ -6,7 +6,7 @@ import Footer from '@/app/components/Footer/Footer';
 export default async function Home({ searchParams }) {
   const sp = await searchParams;
   const error = Array.isArray(sp?.error) ? sp.error[0] : sp?.error ?? null;
-  const login = sp?.login === 'true' ? 'clerk' : 'student';
+  const login = sp?.login === 'true' ? 'staff' : 'student';
 
   const isTesting = process.env.NEXT_PUBLIC_WORKING_ENV === 'testing';
 

@@ -14,8 +14,8 @@ import { scholarshipSanctionSchema } from '@/lib/validations/staff';
 import { z } from 'zod';
 
 export async function POST(req) {
-  const user = await getAuthUser('clerk');
-  if (!user) return apiError('Unauthorized', 401);
+  const user = await getAuthUser('scholarship');
+  if (!user || (user.role !== 'scholarship' && user.role !== 'admin')) return apiError('Unauthorized', 401);
 
   const idempotencyKey = req.headers.get('idempotency-key');
   let idempotencyStarted = false;
