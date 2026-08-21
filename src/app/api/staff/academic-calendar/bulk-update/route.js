@@ -7,7 +7,7 @@ import { safeJsonParse } from '@/lib/json-utils';
 
 export async function POST(request) {
   try {
-    const user = await getAuthUser('clerk');
+    const user = await getAuthUser('staff');
     if (!user) return apiError('Unauthorized', 401);
     
     const body = await request.json();

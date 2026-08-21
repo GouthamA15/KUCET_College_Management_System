@@ -159,15 +159,15 @@ export function wrapHandler({ handler, schema, auth, audit }) {
 
         // 6. Audit Logging (If successful and configured)
         if (audit && response.status >= 200 && response.status < 300) {
-          // Normalize role for enum compliance
+          // Normalize role for enum compliance (STUDENT, STAFF, ADMIN, SYSTEM)
           const rawRole = user?.role || 'student';
-          let normalizedType = 'student';
-          if (rawRole === 'admin') normalizedType = 'admin';
-          else if (rawRole.toLowerCase().includes('clerk') || ['faculty', 'hod', 'principal'].includes(rawRole)) normalizedType = 'clerk';
+          let normalizedType = 'STUDENT';
+          if (rawRole === 'admin') normalizedType = 'ADMIN';
+          else if (['faculty', 'hod', 'admission', 'scholarship', 'staff'].some(r => rawRole.toLowerCase().includes(r))) normalizedType = 'STAFF';
 
           // Run audit in background to not block response
           logAudit(req, {
-            userId: user?.id || user?.student_id || user?.clerkId,
+            userId: user?.id || user?.student_id || user?.staffId ,
             userType: normalizedType,
             action: audit.action,
             targetId: audit.getTargetId ? audit.getTargetId(validatedData, result) : null,
@@ -231,13 +231,13 @@ export async function getAuthUser(role = null) {
     // Prioritize middleware-injected headers for silent refresh compatibility
     if (role === 'admin') {
       token = reqHeaders.get('x-admin-auth') || cookieStore.get('admin_auth')?.value;
-    } else if (role === 'clerk' || role === 'staff') {
-      token = reqHeaders.get('x-clerk-auth') || reqHeaders.get('x-staff-auth') || cookieStore.get('staff_auth')?.value;
+    } else if (role === 'staff') {
+      token = reqHeaders.get('x-staff-auth') || reqHeaders.get('x-clerk-auth') || cookieStore.get('staff_auth')?.value;
     } else if (role === 'student') {
       token = reqHeaders.get('x-student-auth') || cookieStore.get('student_auth')?.value;
     } else {
       // Try to detect role from available sources
-      token = reqHeaders.get('x-admin-auth') || reqHeaders.get('x-clerk-auth') || reqHeaders.get('x-staff-auth') || reqHeaders.get('x-student-auth') ||
+      token = reqHeaders.get('x-admin-auth') || reqHeaders.get('x-staff-auth')|| reqHeaders.get('x-student-auth') ||
               cookieStore.get('admin_auth')?.value || cookieStore.get('staff_auth')?.value || cookieStore.get('student_auth')?.value;
     }
 
@@ -256,12 +256,12 @@ export async function getAuthUser(role = null) {
     if (expectedRole) {
       const actualRole = payload.role;
       const isStudent = actualRole === 'student' || !!payload.roll_no;
-      const isClerk = ['admission', 'scholarship', 'faculty', 'clerk'].includes(actualRole);
+      const isStaff = ['admission', 'scholarship', 'faculty', 'staff'].includes(actualRole);
 
       if (expectedRole === 'student') {
         if (!isStudent) return null;
-      } else if (expectedRole === 'clerk' || expectedRole === 'staff') {
-        if (!isClerk) return null;
+      } else if (expectedRole === 'staff') {
+        if (!isStaff) return null;
       } else {
         if (actualRole !== expectedRole) return null;
       }

@@ -162,7 +162,12 @@ export async function serveAssetResponse(assetValue, options = {}) {
         '.jpeg': 'image/jpeg',
         '.webp': 'image/webp',
         '.svg': 'image/svg+xml',
-        '.pdf': 'application/pdf'
+        '.pdf': 'application/pdf',
+        '.heic': 'image/heic',
+        '.heif': 'image/heif',
+        '.mp3': 'audio/mpeg',
+        '.mp4': 'video/mp4',
+        '.webm': 'video/webm'
       };
       const contentType = mimeTypes[ext] || 'image/jpeg';
 

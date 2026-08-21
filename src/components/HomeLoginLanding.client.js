@@ -18,7 +18,7 @@ function getSessionType() {
 
 export default function HomeLoginLanding({ serverError, initialPanel }) {
   const [activePanel, setActivePanel] = useState(() => {
-    if (initialPanel === 'clerk' || initialPanel === 'student') return initialPanel;
+    if (initialPanel === 'staff' || initialPanel === 'student') return initialPanel;
     return 'student';
   });
 
@@ -59,9 +59,9 @@ export default function HomeLoginLanding({ serverError, initialPanel }) {
         if (sessionType === 'admin') {
           destination = '/admin/dashboard';
         } else if (sessionType === 'staff') {
-          const clerkRoleMatch = document.cookie.match(/staff_role=([^;]+)/);
-          const clerkRole = clerkRoleMatch?.[1];
-          destination = getDashboardPathByRole(clerkRole) || '/staff';
+          const staffRoleMatch = document.cookie.match(/staff_role=([^;]+)/);
+          const staffRole = staffRoleMatch?.[1];
+          destination = getDashboardPathByRole(staffRole) || '/staff';
         }
         console.info('[AuthRestore] Success! Hard navigating to:', destination);
         

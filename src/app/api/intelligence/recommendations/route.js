@@ -1,7 +1,7 @@
 import { wrapHandler, apiResponse } from '@/lib/api-utils';
 import { RecommendationEngine } from '@/intelligence/recommendation/RecommendationEngine';
 
-export const GET = wrapHandler({ role: ['admin', 'hod', 'faculty', 'clerk', 'student'] }, async (req, ctx) => {
+export const GET = wrapHandler({ role: ['admin', 'hod', 'faculty', 'staff', 'student'] }, async (req, ctx) => {
   const url = new URL(req.url);
   const queryRole = url.searchParams.get('role');
   
@@ -16,7 +16,7 @@ export const GET = wrapHandler({ role: ['admin', 'hod', 'faculty', 'clerk', 'stu
     if (role === 'student') {
       recommendations = await RecommendationEngine.generateForStudent?.(userId) || [];
       appliedRules.push('RecommendationEngine.generateForStudent');
-    } else if (role === 'faculty' || role === 'clerk') {
+    } else if (role === 'faculty' || role === 'staff') {
       recommendations = await RecommendationEngine.generateForFaculty?.(userId) || [];
       appliedRules.push('RecommendationEngine.generateForFaculty');
     } else if (role === 'hod') {

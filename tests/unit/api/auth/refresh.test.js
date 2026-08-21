@@ -41,7 +41,7 @@ vi.mock('next/headers', () => ({
 
 vi.mock('@/lib/auth-utils', () => ({
   issueStudentAuthCookie: vi.fn().mockResolvedValue({}),
-  issueClerkAuthCookie: vi.fn().mockResolvedValue({}),
+  issueStaffAuthCookie: vi.fn().mockResolvedValue({}),
   issueAdminAuthCookie: vi.fn().mockResolvedValue({}),
   setCookie: vi.fn(),
   getJwtSecretKey: () => new TextEncoder().encode(process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long'),

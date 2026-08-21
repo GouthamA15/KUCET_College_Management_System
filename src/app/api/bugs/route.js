@@ -105,7 +105,7 @@ export async function POST(req) {
     let userIdentifier = user.roll_no || user.email;
 
     if (user.role) {
-      userType = user.role === 'admin' ? 'admin' : 'clerk';
+      userType = user.role === 'admin' ? 'admin' : 'staff';
     }
 
     const browserInfo = req.headers.get('user-agent') || 'Unknown';

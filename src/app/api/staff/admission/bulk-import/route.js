@@ -109,11 +109,11 @@ function normalizeDateToMySQL(value) {
 }
 
 export const POST = wrapHandler({
-  auth: 'clerk',
+  auth: 'staff',
   handler: async (req, { user, _ip }) => {
     if (user.role !== 'admission') return apiError('Forbidden', 403);
 
-    const clerkId = user.clerkId || user.id;
+    const staffId = user.staffId || user.id;
     const contentType = req.headers.get('content-type') || '';
     let totalRows = 0;
     const errors = [];
@@ -237,7 +237,7 @@ export const POST = wrapHandler({
         const chunkPromises = [];
         for (let i = 0; i < prepared.length; i += CHUNK_SIZE) {
           const chunk = prepared.slice(i, i + CHUNK_SIZE);
-          chunkPromises.push(Queue.enqueueBulkImportChunk(chunk, clerkId, importFileName));
+          chunkPromises.push(Queue.enqueueBulkImportChunk(chunk, staffId, importFileName));
         }
         
         const results = await Promise.all(chunkPromises);
@@ -315,7 +315,7 @@ export const POST = wrapHandler({
           ...student,
           ...personal,
           ...academic
-        }, clerkId, tx);
+        }, staffId, tx);
 
         if (student.email) processedEmails.add(student.email);
 
@@ -325,7 +325,7 @@ export const POST = wrapHandler({
 
       if (inserted > 0 || updated > 0) {
         await tx.insert(studentImportLogs).values({
-          clerk_id: clerkId,
+          clerk_id: staffId,
           total_records: inserted + updated,
           file_name: importFileName
         });

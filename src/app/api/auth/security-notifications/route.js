@@ -9,8 +9,8 @@ export async function GET(_req) {
     let user = await getAuthUser('student');
     let userType = 'STUDENT';
     if (!user) {
-      user = await getAuthUser('clerk');
-      userType = 'CLERK';
+      user = await getAuthUser('staff');
+      userType = 'STAFF';
     }
     if (!user) return apiError('Unauthorized', 401);
 
@@ -58,8 +58,8 @@ export async function PATCH(req) {
     let user = await getAuthUser('student');
     let userType = 'STUDENT';
     if (!user) {
-      user = await getAuthUser('clerk');
-      userType = 'CLERK';
+      user = await getAuthUser('staff');
+      userType = 'STAFF';
     }
     if (!user) return apiError('Unauthorized', 401);
 

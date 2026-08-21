@@ -8,38 +8,44 @@ The self-hosted storage architecture of the KUCET Management System is engineere
 flowchart TD
     Client[Browser / Mobile Client] --> Proxy[Nginx Reverse Proxy :80/:443]
     
-    Proxy -->|1. Direct Disk Lookup /uploads/*| Disk[(VPS Host Disk: /var/www/kucet-storage/public)]
+    Proxy -->|1. Direct Disk Lookup (X-Accel-Redirect)| Disk[(VPS Host Disk: /var/www/kucet-storage/kucet)]
     
-    Proxy -.->|2. Fallback /api/assets/view/* if missing| App[Next.js Container :3000]
-    App -->|Read via getLocalStorageBasePath| Mount[(Docker Bind Mount: /app/public/uploads)]
+    Proxy -->|2. Next.js App /api/assets/view/*| App[Next.js Container :3000]
+    App -->|Read via getLocalStorageBasePath| Mount[(Docker Bind Mount: /app/storage)]
 ```
 
 ### Dual-Layer Delivery Strategy
 
-1. **Layer 1 (Nginx Direct Serve - Fast Path)**: Nginx maps static route `/uploads/` directly to host storage. Serving binary files through Nginx bypasses Node.js runtime overhead, achieving sub-20ms TTFB.
-2. **Layer 2 (Next.js Proxy API - Fallback Path)**: If Nginx encounters missing file permissions or un-indexed assets, it proxies requests to [`/api/assets/view/[...path]/route.js`](file:///D:/User/Desktop/CMS/src/app/api/assets/view/%5B...path%5D/route.js), which inspects the filesystem using `LocalStorageProvider` and streams the Buffer back to the client.
+1. **Layer 1 (Authorized Private Proxy - Standard Path)**: Client requests `/api/assets/view/[...path]`. Next.js authenticates and authorizes the user via `canUserAccessAsset(user, path)`. Next.js either returns the file buffer directly from `/app/storage/kucet/...` (with memory caching & ETag support) or issues an internal `X-Accel-Redirect: /internal_uploads/...` header to Nginx.
+2. **Layer 2 (Nginx Internal X-Accel-Redirect - Fast Path)**: When `USE_NGINX_X_ACCEL=true`, Nginx directly streams the authorized static binary file from host storage `/var/www/kucet-storage/kucet/...`, achieving sub-10ms response time while preserving 100% access control security.
 
 ---
 
 ## 2. Host Disk Directory Structure
 
-On the production Ubuntu VPS host, all persistent assets reside outside the ephemeral Docker container file tree.
+On the production Ubuntu VPS host, all persistent assets reside under the `/var/www/kucet-storage/` vault:
 
 ```
 /var/www/kucet-storage/
-└── public/                           # Primary Host Storage Vault
-    ├── uploads/                      # General File Storage Sub-Tree
-    │   ├── kucet/
-    │   │   ├── students/
-    │   │   │   ├── pfp/              # Permanent Student Photos
-    │   │   │   └── signatures/       # Permanent Student Signatures
-    │   │   ├── requests/             # Temporary Staging
-    │   │   ├── certificates/         # Payment Evidence
-    │   │   └── admission_drafts/     # Draft Application Media
-    └── assets/                       # Static Institutional Media Vault
-        ├── ku-logo.png               # University Emblem
-        ├── ku-college-seal.png       # Official College Seal
-        └── principal-sign.png        # Principal Digital Signature
+└── kucet/                            # Primary Institutional Sub-Tree
+    ├── students/
+    │   ├── pfp/                      # Permanent Student Photos
+    │   └── signatures/               # Permanent Student Signatures
+    ├── requests/                     # Student Profile Updates & Proofs
+    │   ├── pfp/
+    │   ├── signatures/
+    │   └── proofs/
+    ├── certificates/                 # Certificate Evidence
+    │   └── payments/                 # Payment Screenshots
+    ├── admission_drafts/             # Draft Application Media
+    │   ├── pfp/
+    │   └── signatures/
+    ├── clerks/                       # Staff Profiles & Signatures
+    │   ├── pfp/
+    │   └── signatures/
+    ├── bug_reports/                  # Bug Report Attachments
+    ├── ku-college-seal.png           # Official College Seal
+    └── principal-sign.png            # Principal Digital Signature
 ```
 
 ---
@@ -56,10 +62,11 @@ services:
     image: kucet-cms:latest
     container_name: kucet-cms-app
     volumes:
-      - /var/www/kucet-storage/public:/app/public/uploads
+      - /var/www/kucet-storage:/app/storage
     environment:
-      - LOCAL_STORAGE_PATH=/app/public/uploads
+      - STORAGE_PROVIDER=local
       - NEXT_PUBLIC_STORAGE_TYPE=local
+      - LOCAL_STORAGE_PATH=/app/storage
 ```
 
 ### Path Resolution Helper ([`LocalStorageProvider.js`](file:///D:/User/Desktop/CMS/src/lib/providers/storage/LocalStorageProvider.js))

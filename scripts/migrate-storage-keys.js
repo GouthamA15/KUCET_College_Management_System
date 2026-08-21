@@ -133,7 +133,13 @@ const IMAGE_COLUMNS = [
   // student_admission_drafts
   { table: 'student_admission_drafts', column: 'pfp', pk: 'id' },
   { table: 'student_admission_drafts', column: 'signature', pk: 'id' },
-  // clerks
+  // staff_accounts (Session 207+)
+  { table: 'staff_accounts', column: 'pfp', pk: 'id' },
+  { table: 'staff_accounts', column: 'signature', pk: 'id' },
+  // staff_registration_requests (Session 207+)
+  { table: 'staff_registration_requests', column: 'pfp', pk: 'id' },
+  { table: 'staff_registration_requests', column: 'signature', pk: 'id' },
+  // clerks (legacy)
   { table: 'clerks', column: 'pfp', pk: 'id' },
   { table: 'clerks', column: 'signature', pk: 'id' },
   // student_requests (payment screenshots)

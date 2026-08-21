@@ -170,20 +170,21 @@ function ensureSupabaseChannel() {
 
 export default function RealtimeListener({ onUpdate, enableNotifications = false }) {
   const { studentData } = useContext(StudentContext) || { /* empty */ };
-  const { clerkData } = useContext(StaffContext) || { /* empty */ };
+  const staffContext = useContext(StaffContext) || { /* empty */ };
+  const currentStaff = staffContext.staffData || staffContext.clerkData;
   
   const studentDataRef = useRef(studentData);
-  const clerkDataRef = useRef(clerkData);
+  const staffDataRef = useRef(currentStaff);
   const [_status, setStatus] = useState(sharedStatus);
 
   useEffect(() => {
     studentDataRef.current = studentData;
-    clerkDataRef.current = clerkData;
-  }, [studentData, clerkData]);
+    staffDataRef.current = currentStaff;
+  }, [studentData, currentStaff]);
 
   const handleNotification = useCallback((event, payload) => {
     const sData = studentDataRef.current;
-    const cData = clerkDataRef.current;
+    const stData = staffDataRef.current;
 
     // console.info('📡 [Realtime Event]', event, payload);
 
@@ -200,11 +201,11 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
     }
 
     if (event === 'REQUEST_CREATED' || event === 'REQUEST_UPDATED') {
-      if (cData && payload.clerkType === cData.role) {
-         toast(`New request: ${payload.certificate_type}`, { icon: '🔔' });
+      if (stData && (payload.staffType === stData.role || payload.clerkType === stData.role || payload.role === stData.role)) {
+         toast(`New request: ${payload.certificate_type || payload.type || 'Student Request'}`, { icon: '🔔' });
       }
       if (sData && payload.student_id === sData.id) {
-         toast(`Request status updated: ${payload.certificate_type}`, { icon: '📄' });
+         toast(`Request status updated: ${payload.certificate_type || payload.type || 'Student Request'}`, { icon: '📄' });
       }
     }
   }, []);

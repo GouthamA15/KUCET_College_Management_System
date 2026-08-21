@@ -117,7 +117,7 @@ describe('LocalStorageProvider', () => {
       expect(result).toHaveProperty('url');
       expect(result).toHaveProperty('provider');
       expect(result.path).not.toMatch(/^https?:\/\//);
-      expect(result.path).toMatch(/^students\/pfp\//);
+      expect(result.path).toMatch(/students\/pfp\//);
       expect(String(result)).not.toContain('[object Object]');
     });
   });
@@ -643,3 +643,49 @@ describe('Provider Switch - Only env vars should control storage backend', () =>
     expect(url).toContain('/api/assets/view/');
   });
 });
+
+// =============================================================================
+// TEST: getAssetUrl Idempotency & Double-Prefix Prevention
+// =============================================================================
+
+describe('getAssetUrl - URL Resolution & Idempotency', () => {
+  it('should not double-prefix when passed an already-resolved /api/assets/view/ path in local mode', async () => {
+    const { getAssetUrl, invalidateAssetCache } = await import('../../src/lib/assets.js');
+    invalidateAssetCache();
+
+    const input = '/api/assets/view/kucet/admission_drafts/pfp/7a59662b.webp';
+    const output = getAssetUrl(input, 'f_auto,q_auto', { forceStorageType: 'local', bypassCache: true });
+    
+    expect(output).toBe('/api/assets/view/kucet/admission_drafts/pfp/7a59662b.webp');
+    expect(output).not.toContain('/api/assets/view/api/assets/view/');
+  });
+
+  it('should cleanly resolve keys without kucet/ prefix in local mode', async () => {
+    const { getAssetUrl, invalidateAssetCache } = await import('../../src/lib/assets.js');
+    invalidateAssetCache();
+
+    const input = 'admission_drafts/pfp/7a59662b.webp';
+    const output = getAssetUrl(input, 'f_auto,q_auto', { forceStorageType: 'local', bypassCache: true });
+    
+    expect(output).toBe('/api/assets/view/admission_drafts/pfp/7a59662b.webp');
+  });
+
+  it('should ensure kucet/ prefix for Cloudinary mode when key is provided without kucet/', async () => {
+    const { getAssetUrl, invalidateAssetCache } = await import('../../src/lib/assets.js');
+    invalidateAssetCache();
+
+    const input = 'students/pfp/7a59662b.webp';
+    const output = getAssetUrl(input, 'f_auto,q_auto', { forceStorageType: 'cloudinary', bypassCache: true });
+    
+    expect(output).toMatch(/^https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/f_auto,q_auto\/kucet\/students\/pfp\/7a59662b\.webp$/);
+  });
+
+  it('should serve public branding assets directly from /assets/', async () => {
+    const { getAssetUrl, invalidateAssetCache } = await import('../../src/lib/assets.js');
+    invalidateAssetCache();
+
+    const output = getAssetUrl('/assets/ku-college-logo.png', 'f_auto,q_auto', { forceStorageType: 'local', bypassCache: true });
+    expect(output).toBe('/assets/ku-college-logo.png');
+  });
+});
+

@@ -18,7 +18,7 @@ function validatePasswordStrength(password) {
 
 export async function POST(req) {
   try {
-    const user = await getAuthUser('clerk');
+    const user = await getAuthUser('staff');
 
     if (!user) {
       return apiError('Unauthorized', 401);
@@ -60,7 +60,6 @@ export async function POST(req) {
       .set({ 
         password_hash: hashedPassword,
         password_changed_at: now,
-        must_change_password: false
       })
       .where(eq(staffAccounts.email, user.email));
 
@@ -73,7 +72,7 @@ export async function POST(req) {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
     const SecurityService = (await import('@/services/SecurityService')).default;
     await SecurityService.logSecurityEvent({
-      userType: 'CLERK',
+      userType: 'STAFF',
       userId: fullStaff.id,
       eventType: 'PASSWORD_CHANGED',
       ipAddress: ip

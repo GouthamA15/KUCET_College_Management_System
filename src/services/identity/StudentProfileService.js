@@ -232,7 +232,7 @@ export class StudentProfileService {
     const executeUpsert = async (innerTx) => {
       // 1. Upsert Student
       await innerTx.insert(studentsTable)
-        .values({ ...studentValues, added_by_clerk_id: clerkId })
+        .values({ ...studentValues, added_by_staff_id: clerkId })
         .onDuplicateKeyUpdate({ set: studentValues });
 
       const existing = await innerTx.select({ id: studentsTable.id })

@@ -4,7 +4,7 @@ import { FacultyAnalytics } from '@/intelligence/analytics/FacultyAnalytics';
 import { ScoringEngine } from '@/intelligence/scoring/ScoringEngine';
 import { RecommendationEngine } from '@/intelligence/recommendation/RecommendationEngine';
 
-export const GET = wrapHandler({ role: ['faculty', 'clerk'] }, async (req, ctx) => {
+export const GET = wrapHandler({ role: ['faculty', 'staff'] }, async (req, ctx) => {
   const facultyId = ctx.user?.id || 'TEST_FACULTY';
   const academicYear = '2025-26';
 

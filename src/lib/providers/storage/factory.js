@@ -9,6 +9,8 @@ export function getStorageProvider() {
   if (instance) return instance;
 
   const storageType = (
+    process.env.STORAGE_PROVIDER ||
+    process.env.NEXT_PUBLIC_STORAGE_PROVIDER ||
     process.env.NEXT_PUBLIC_STORAGE_TYPE || 
     process.env.STORAGE_TYPE || 
     'local'

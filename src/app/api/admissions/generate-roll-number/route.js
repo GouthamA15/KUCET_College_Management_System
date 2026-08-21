@@ -12,7 +12,7 @@ function parseJoiningYear(joiningYear) {
 }
 
 export async function POST(req) {
-  const user = await getAuthUser('clerk');
+  const user = await getAuthUser('staff');
   if (!user || user.role !== 'admission') return apiError('Forbidden', 403);
 
   try {

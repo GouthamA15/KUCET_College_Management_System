@@ -96,7 +96,7 @@ describe('Asset Authorization & Path Normalization Engine', () => {
 
   describe('canUserAccessAsset()', () => {
     const adminUser = { id: 1, email: 'admin@kucet.ac.in', role: 'admin' };
-    const clerkUser = { id: 10, email: 'clerk@kucet.ac.in', role: 'scholarship', clerkId: 10 };
+    const staffUser = { id: 10, email: 'staff@kucet.ac.in', role: 'scholarship', staffId: 10 };
     const studentUser = { id: 100, student_id: 100, roll_no: '21051A0501', email: 'stu100@kucet.ac.in', role: 'student' };
 
     it('should ALLOW static public assets without authentication', async () => {
@@ -120,9 +120,9 @@ describe('Asset Authorization & Path Normalization Engine', () => {
     });
 
     it('should ALLOW Staff to access operational assets but DENY backup access', async () => {
-      expect(await canUserAccessAsset(clerkUser, 'kucet/students/pfp/stu100_photo.webp')).toBe(true);
-      expect(await canUserAccessAsset(clerkUser, 'kucet/admission_drafts/signatures/draft_sig.webp')).toBe(true);
-      expect(await canUserAccessAsset(clerkUser, 'kucet/backups/db_backup_2026.sql.gz')).toBe(false);
+      expect(await canUserAccessAsset(staffUser, 'kucet/students/pfp/stu100_photo.webp')).toBe(true);
+      expect(await canUserAccessAsset(staffUser, 'kucet/admission_drafts/signatures/draft_sig.webp')).toBe(true);
+      expect(await canUserAccessAsset(staffUser, 'kucet/backups/db_backup_2026.sql.gz')).toBe(false);
     });
 
     it('should ALLOW Student to access ONLY their own profile photo and signature', async () => {

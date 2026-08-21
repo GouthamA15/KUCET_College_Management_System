@@ -3,7 +3,7 @@ import PushNotificationService from '@/services/security/PushNotificationService
 
 export async function GET(_req) {
   try {
-    const user = await getAuthUser('student') || await getAuthUser('clerk') || await getAuthUser('admin');
+    const user = await getAuthUser('student') || await getAuthUser('staff') || await getAuthUser('admin');
     if (!user) return apiError('Unauthorized', 401);
 
     const userId = user.roll_no || user.email || user.id;
@@ -18,7 +18,7 @@ export async function GET(_req) {
 
 export async function POST(req) {
   try {
-    const user = await getAuthUser('student') || await getAuthUser('clerk') || await getAuthUser('admin');
+    const user = await getAuthUser('student') || await getAuthUser('staff') || await getAuthUser('admin');
     if (!user) return apiError('Unauthorized', 401);
 
     const body = await req.json();
