@@ -173,7 +173,7 @@ graph TB
 
 ## 🔄 Cross-Cutting System Concerns
 
-1. **Authentication & Authorization**: Handled via HTTP-only JWT cookies verified in `wrapHandler`. Role requirements (`student`, `clerk`, `faculty`, `admin`) are enforced declaratively.
+1. **Authentication & Authorization**: Handled via HTTP-only JWT cookies verified in `wrapHandler`. Role requirements (`student`, `faculty`, `admission`, `scholarship`, `staff`, `admin`) are enforced declaratively.
 2. **Audit Logging**: Every mutating action (`POST`, `PUT`, `DELETE`, `PATCH`) invokes `logAudit()` asynchronously without delaying the client HTTP response.
 3. **Structured Pino Logging**: Logs emitted as structured JSON containing trace IDs (`x-trace-id`), sanitized inputs, and execution timing metrics. PII fields are automatically redacted.
 4. **Resilient Storage**: Managed through a polymorphic `FailoverStorageProvider` ensuring files are stored reliably even if primary cloud providers experience downtime.

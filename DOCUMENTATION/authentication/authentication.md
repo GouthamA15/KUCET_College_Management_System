@@ -4,7 +4,7 @@
 
 The KUCET College Management System (CMS) implements a defense-in-depth authentication framework combining stateless JSON Web Tokens (JWT) for high-performance Edge verification with stateful database-backed session tracking for security enforcement and remote revocation.
 
-The authentication engine supports three distinct user domains (Students, Clerks/Faculty/HODs, and Super Admins) with strict boundary isolation to prevent privilege escalation, cross-role cookie collision, or token leakage.
+The authentication engine supports three distinct user domains (Students, Staff/Faculty/HODs, and Super Admins) with strict boundary isolation to prevent privilege escalation, cross-role cookie collision, or token leakage.
 
 ---
 
@@ -18,7 +18,7 @@ The authentication engine supports three distinct user domains (Students, Clerks
     return new TextEncoder().encode(process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long');
   }
   ```
-- **Password Hashing**: `bcrypt` with salt rounds = 10
+- **Password Hashing**: `bcrypt` with salt rounds = 12
 - **Refresh Token Generation**: 40-byte cryptographically secure random bytes converted to hex string (`crypto.randomBytes(40).toString('hex')`)
 - **Token Hashing for Storage**: SHA-256 hash digest (`crypto.createHash('sha256').update(token).digest('hex')`)
 
@@ -31,20 +31,20 @@ The system uses role-partitioned HTTP-only cookies to maintain session boundarie
 | Role Domain | Primary Auth Cookie (HTTP-Only) | Client Companion Cookie (JS-Accessible) | Refresh Token Cookie (HTTP-Only) | Default Expiry (Access / Refresh) |
 | :--- | :--- | :--- | :--- | :--- |
 | **Student** | `student_auth` | `student_logged_in`, `student_session_id` | `student_refresh_token` | 15 Minutes / 14 Days (30 Days if Remember Me) |
-| **Clerk / Faculty / HOD** | `clerk_auth` | `clerk_logged_in`, `clerk_role`, `clerk_session_id` | `clerk_refresh_token` | 15 Minutes / 14 Days (30 Days if Remember Me) |
+| **Staff / Faculty / HOD** | `staff_auth` | `staff_logged_in`, `staff_role`, `staff_session_id` | `staff_refresh_token` | 15 Minutes / 14 Days (30 Days if Remember Me) |
 | **Super Admin** | `admin_auth` | `admin_logged_in`, `admin_session_id` | `admin_refresh_token` | 15 Minutes / 14 Days (30 Days if Remember Me) |
 
 ### Cookie Security Attributes
 - `httpOnly: true` (for `*_auth` and `*_refresh_token` to prevent XSS access)
 - `secure: process.env.NODE_ENV === 'production'` (enforces HTTPS in production)
-- `sameSite: 'strict'` (for authentication cookies to prevent CSRF attacks)
+- `sameSite: 'strict'` (for access token cookies to prevent CSRF attacks; 'lax' for refresh tokens)
 - `path: '/'`
 
 ---
 
-## Multi-Role Cookie Purging Protocol (Session 205 Isolation)
+## Multi-Role Cookie Purging Protocol (Session 205 & 207 Isolation)
 
-To prevent cross-role session contamination (e.g., an admin user logging into a student account on the same browser or stale clerk cookies interfering with super admin authorization), authentication issuers explicitly execute a full purge of all alternative role cookies before issuing new credentials.
+To prevent cross-role session contamination (e.g., an admin user logging into a student account on the same browser or stale staff cookies interfering with super admin authorization), authentication issuers explicitly execute a full purge of all alternative role cookies before issuing new credentials.
 
 ### Login Cookie Purging Workflow
 When authenticating via `/api/admin/login`, `/api/auth/employee-login`, or `/api/student/login`, `src/lib/auth-utils.js` executes explicit cookie purges:
@@ -53,6 +53,7 @@ When authenticating via `/api/admin/login`, `/api/auth/employee-login`, or `/api
 // Example from issueAdminAuthCookie in src/lib/auth-utils.js
 // Clear cookies for other roles to enforce boundary isolation
 const cookiesToClear = [
+  'staff_auth', 'staff_logged_in', 'staff_role', 'staff_session_id', 'staff_refresh_token',
   'clerk_auth', 'clerk_logged_in', 'clerk_role', 'clerk_session_id', 'clerk_refresh_token',
   'student_auth', 'student_logged_in', 'student_session_id', 'student_refresh_token'
 ];
@@ -71,7 +72,7 @@ sequenceDiagram
 
     User->>Login API: Submit credentials (e.g. Super Admin credentials)
     Login API->>AuthUtils: issueAdminAuthCookie(response, admin)
-    AuthUtils->>Client Browser: Purge clerk_* cookies (clerk_auth, clerk_logged_in, clerk_role, etc.)
+    AuthUtils->>Client Browser: Purge staff_* cookies (staff_auth, staff_logged_in, staff_role, etc.)
     AuthUtils->>Client Browser: Purge student_* cookies (student_auth, student_logged_in, etc.)
     AuthUtils->>Client Browser: Set admin_auth (JWT), admin_logged_in, admin_refresh_token
     Login API-->>User: 200 OK (role: "admin", redirect to /admin/dashboard)

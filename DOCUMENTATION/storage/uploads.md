@@ -20,9 +20,9 @@ kucet/
 ├── admission_drafts/
 │   ├── pfp/                  # Staging for incomplete online admission drafts
 │   └── signatures/           # Staging for incomplete admission signatures
-├── clerks/
-│   ├── pfp/                  # Faculty / Administrative staff photos
-│   └── signatures/           # Faculty digital signatures
+├── staff/
+│   ├── pfp/                  # Faculty / Institutional staff photos
+│   └── signatures/           # Faculty & staff digital signatures
 ├── bug_reports/              # Issue tracking screenshot attachments
 ├── backups/                  # Encrypted database & asset system archives
 └── institution/              # Protected institutional assets (Logos, Seals, Principal Signs)

@@ -34,7 +34,7 @@ src/db/
 ├── index.js                      # DB Client initialization & Drizzle instance export
 ├── schema.js                     # Central schema index re-exporting all modules
 ├── schema/                       # Domain Bounded Context Schemas
-│   ├── identity.js               # Users, Students, Clerks, Faculty, Guardians
+│   ├── identity.js               # Users, Students, Staff, Faculty, Guardians
 │   ├── academic.js               # Departments, Courses, Semesters, Subjects, Timetables
 │   ├── attendance.js             # Attendance Sessions, Log records, GPS Pins
 │   ├── finance.js                # Fee structures, RTF/MTF proceedings, Payments
@@ -54,12 +54,15 @@ The database schema is divided into 8 modular schema domain files under `src/db/
 
 ### 1. Identity Domain (`identity.js`)
 Manages authentication credentials, user profiles, and institutional entity details.
-- `users`: Core account login table storing email, password hash, role (`admin`, `clerk`, `faculty`, `student`).
-- `students`: Detailed student registry containing roll number, branch, admission batch, encrypted Aadhaar/mobile numbers.
-- `clerks`: Administrative clerk profiles, assigned responsibilities, and status flags.
-- `faculty`: Teaching faculty profiles, designation, department mapping, and interest areas.
+- `students`: Detailed student registry containing roll number, branch, admission batch, encrypted Aadhaar/mobile numbers, and `added_by_staff_id`.
+- `staff_accounts`: Unified identity table for all institutional staff (Faculty, Admission, Scholarship, HOD) with email, hashed password, status flags, pfp, and signature keys.
+- `staff_roles`: Institutional role definitions (`FACULTY`, `ADMISSION_CLERK`, `SCHOLARSHIP_CLERK`).
+- `staff_account_roles`: Mapping between staff accounts and their assigned institutional roles.
+- `staff_academic_affiliations`: Branch/department affiliations for faculty and staff.
+- `staff_account_activation_tokens`: Secure 48-hour SHA-256 tokens for new staff password setup.
+- `staff_registration_requests`: Pending public staff registration requests for admin approval.
 - `guardians`: Parent/guardian contact details and emergency verification records.
-- `student_profiles`: Extended profile details including profile photo key (`photo_key`).
+- `clerks`: Legacy identity table (retained for backward migration reads).
 
 ### 2. Academic Domain (`academic.js`)
 Defines the institutional academic structure and scheduling logic.

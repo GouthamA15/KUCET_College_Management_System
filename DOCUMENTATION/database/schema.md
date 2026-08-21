@@ -46,9 +46,9 @@ Primary identity table for enrolled students.
 - `email_verified_at` (`TIMESTAMP`)
 - `password_hash` (`VARCHAR(255)`)
 - `admission_date` (`DATE`)
-- `added_by_clerk_id` (`INT`)
+- `added_by_staff_id` (`INT`)
 - `updated_at` (`TIMESTAMP`, On Update: `NOW()`)
-- `updated_by_clerk_id` (`INT`)
+- `updated_by_staff_id` (`INT`)
 - `student_status` (`ENUM('ACTIVE', 'DISCONTINUED')`, Default: `'ACTIVE'`)
 - `academic_status` (`ENUM('REGULAR', 'ACTIVE', 'GRADUATED', 'DETAINED', 'SUSPENDED', 'DROPPED')`, Default: `'ACTIVE'`)
 - `academic_offset_years` (`INT`, Default: `0`)
@@ -57,8 +57,8 @@ Primary identity table for enrolled students.
 - `password_changed_at` (`TIMESTAMP`)
 
 ### Table: `clerks`
-Legacy identity table for Clerks, Faculty, and HODs (pre-Session 207 accounts).
-⚠️ New staff registered via Session 207 onboarding go into `staff_accounts` instead.
+Legacy identity table for pre-Session 207 accounts (retained for migration reads).
+⚠️ Active staff accounts reside in `staff_accounts`.
 - `id` (`INT`, PK, Auto-Increment)
 - `name` (`VARCHAR(255)`, Not Null)
 - `email` (`VARCHAR(255)`, Not Null, Index: `idx_clerks_email`)
@@ -87,7 +87,7 @@ Super Admin account details.
 ### Table: `user_sessions`
 Active device tracking and session storage.
 - `id` (`BIGINT`, PK, Auto-Increment)
-- `user_type` (`ENUM('STUDENT', 'CLERK', 'FACULTY', 'HOD', 'ADMIN')`)
+- `user_type` (`ENUM('STUDENT', 'STAFF', 'ADMIN', 'SYSTEM')`)
 - `user_id` (`BIGINT`, Composite Index: `idx_user_sessions_user` with `user_type`)
 - `session_token_hash` (`VARCHAR(255)`, Index: `idx_user_session_token`)
 - `device_name` (`VARCHAR(255)`)
