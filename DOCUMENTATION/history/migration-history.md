@@ -122,6 +122,16 @@ See [Session 207 Complete Change Analysis](./session-207-testvanilla-changes.md)
 
 ---
 
+## 5. Session 207 Infrastructure & Storage Pipeline Hardening (August 21, 2026)
+
+### Infrastructure & Deployment Orchestration Updates
+- **Canonical Storage Hierarchy**: Standardized host media persistence to `/var/www/kucet-storage` and container mount to `/app/storage`. Removed obsolete legacy `/var/www/kucet-storage/public` paths across all deployment manifests and health checks.
+- **Least-Privilege Storage Initialization**: Created [`DEPLOYMENT_PACKAGE/SCRIPTS/prepare-storage.sh`](../../DEPLOYMENT_PACKAGE/SCRIPTS/prepare-storage.sh) to safely configure permissions on upload subdirectories (`students/pfp`, `staff/signatures`, `requests/proofs`, etc.) for Docker user `nextjs` (`UID 1001`, `GID 1001`) with mode `775` while keeping institutional assets read-only (`755`) and database backups locked down (`/var/kucet-db-backup`, `700`). Completely eliminated `chmod 777`.
+- **Idempotent Network Attachment**: Implemented inspect-before-connect logic in [`deploy.sh`](../../DEPLOYMENT_PACKAGE/SCRIPTS/deploy.sh) and [`rollback.sh`](../../DEPLOYMENT_PACKAGE/SCRIPTS/rollback.sh), eliminating Docker daemon conflict errors.
+- **Diagnostic Health Check**: Rebuilt [`health-check.sh`](../../DEPLOYMENT_PACKAGE/SCRIPTS/health-check.sh) to execute active container-level write/read/delete tests inside `/app/storage/kucet/.health_test` with user-scoped temporary logs (`/tmp/kucet_health_check_${UID}.log`).
+
+---
+
 ## 6. Cross-References & Related Documentation
 
 - [System Architectural Decision Records (ADRs)](./architectural-decisions.md)

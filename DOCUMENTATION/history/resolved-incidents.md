@@ -224,6 +224,26 @@ const isOtpValid = crypto.timingSafeEqual(
 
 ---
 
+### 8. Session 207: Production Deployment Pipeline & Storage Bind-Mount Hardening
+
+#### Incident Summary
+1. **Docker Network Reconnection Conflict**: The deployment script threw `Error response from daemon: endpoint with name kucet-cms-app already exists in network deployment_package_cms-network` due to unconditional `docker network connect` on an already attached container.
+2. **Storage Health Check Failure**: `health-check.sh` failed with `storage:writable FAIL /var/www/kucet-storage/public...` because it checked an obsolete legacy path (`/var/www/kucet-storage/public`), and container-level writes failed with `EACCES: permission denied` because host directories were owned by `deployer:deployer` (UID 1000) while the Next.js process ran as `nextjs` (UID 1001).
+3. **Rollback Cascade Failure**: When deployment failed, `rollback.sh` checked out the previous commit which contained the legacy health-check script, causing rollback to fail identically.
+
+#### Resolution Steps
+1. **Idempotent Network Reconnection**: Added `docker inspect` check in [`deploy.sh`](../../DEPLOYMENT_PACKAGE/SCRIPTS/deploy.sh) and [`rollback.sh`](../../DEPLOYMENT_PACKAGE/SCRIPTS/rollback.sh) to verify network attachment before attempting connection.
+2. **Modular Safe Storage Preparation ([`prepare-storage.sh`](../../DEPLOYMENT_PACKAGE/SCRIPTS/prepare-storage.sh))**:
+   - Created a least-privilege storage preparation script executed before container startup.
+   - Set directory ownership for UID 1001 on upload subdirectories (`students/pfp`, `staff/signatures`, `requests/proofs`, etc.) with mode `775`.
+   - Protected institutional branding (`kucet/institution/`) with mode `755` (read-only for PDF document engine).
+   - Preserved isolated database backup folder (`/var/kucet-db-backup/`, mode `700`).
+   - Completely prohibited `chmod 777`.
+3. **Diagnostic Health Check**: Removed all destructive mutation logic from [`health-check.sh`](../../DEPLOYMENT_PACKAGE/SCRIPTS/health-check.sh) and implemented non-colliding user-scoped temporary logs (`/tmp/kucet_health_check_${UID}.log`).
+4. **CI/CD Workflow Alignment**: Updated [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml) to execute deployment and rollback scripts directly from the workspace checkout.
+
+---
+
 ## Cross-References & Related Documentation
 
 - [Database & Infrastructure Migration Log](./migration-history.md)

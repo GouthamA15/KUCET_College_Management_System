@@ -182,6 +182,7 @@ flowchart TD
 | Script Name | Execution Trigger | Primary Operational Responsibility |
 | :--- | :--- | :--- |
 | [`setup-all.sh`](file:///D:/User/Desktop/CMS/DEPLOYMENT_PACKAGE/SCRIPTS/setup-all.sh) | One-time manual setup | Master setup orchestrator. Prepares directories, logrotate, runner, and cron jobs. |
+| [`prepare-storage.sh`](file:///D:/User/Desktop/CMS/DEPLOYMENT_PACKAGE/SCRIPTS/prepare-storage.sh) | Pre-Deploy / Rollback | Safely initializes upload directories with least privilege for UID 1001 (no chmod 777). |
 | [`deploy.sh`](file:///D:/User/Desktop/CMS/DEPLOYMENT_PACKAGE/SCRIPTS/deploy.sh) | GitHub Actions CI / Push | Executes git pull, Drizzle migrations, Docker build, container swap, and health validation. |
 | [`health-check.sh`](file:///D:/User/Desktop/CMS/DEPLOYMENT_PACKAGE/SCRIPTS/health-check.sh) | Post-Deploy / Monitor | Executes 13-point PASS/FAIL diagnostic check on HTTP endpoints, DB, Redis, and disk memory. |
 | [`rollback.sh`](file:///D:/User/Desktop/CMS/DEPLOYMENT_PACKAGE/SCRIPTS/rollback.sh) | Failed Deploy / Alert | Restores Git commit state, reinstalls node_modules, rebuilds container, and re-verifies health. |
