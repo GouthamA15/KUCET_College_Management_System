@@ -49,7 +49,7 @@ jobs:
       - name: Run Deploy Script
         id: deploy
         run: |
-          BRANCH=main bash /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/deploy.sh \
+          BRANCH=main bash ./DEPLOYMENT_PACKAGE/SCRIPTS/deploy.sh \
             --commit "${{ github.sha }}" \
             --branch main
 
@@ -65,7 +65,7 @@ jobs:
           PREV_COMMIT="${{ github.event.before }}"
           if [ -n "$PREV_COMMIT" ] && [ "$PREV_COMMIT" != "0000000000000000000000000000000000000000" ]; then
             echo "Running explicit rollback to: $PREV_COMMIT"
-            bash /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/rollback.sh "$PREV_COMMIT" || \
+            bash ./DEPLOYMENT_PACKAGE/SCRIPTS/rollback.sh "$PREV_COMMIT" || \
               echo "🚨 CRITICAL: Emergency rollback also failed! Manual intervention required."
           else
             echo "No valid previous commit found (first push to branch?). Skipping rollback."
