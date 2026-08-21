@@ -8,13 +8,13 @@ The KUCET CMS maintains a stateful session orchestration layer powered by `Secur
 
 ## Active Session Schema (`user_sessions`)
 
-Every authenticated login (for Clerks, Faculty, HODs, and Super Admins) creates or updates an active session record in `user_sessions`.
+Every authenticated login (for Staff, Faculty, HODs, and Super Admins) creates or updates an active session record in `user_sessions`.
 
 | Column Name | Data Type | Nullable | Description / Usage |
 | :--- | :--- | :---: | :--- |
 | `id` | `INT` | ❌ | Primary Key (Auto-Increment) |
-| `user_id` | `INT` | ❌ | Foreign Key referencing User Table ID (`clerks.id` or `principal.id`) |
-| `user_type` | `VARCHAR(50)` | ❌ | User Domain (`CLERK`, `FACULTY`, `HOD`, `ADMIN`) |
+| `user_id` | `INT` | ❌ | Foreign Key referencing User Table ID (`staff_accounts.id` or `principal.id`) |
+| `user_type` | `VARCHAR(50)` | ❌ | User Domain (`STUDENT`, `STAFF`, `ADMIN`, `SYSTEM`) |
 | `session_token_hash` | `VARCHAR(255)` | ❌ | SHA-256 Digest of the active refresh token |
 | `browser` | `VARCHAR(100)` | 🔐 | Extracted User-Agent Browser Name (e.g., Chrome 124) |
 | `operating_system` | `VARCHAR(100)` | 🔐 | Extracted OS (e.g., Windows 11, macOS, Android) |
@@ -77,7 +77,7 @@ await db.update(refreshTokens)
 ### 2. Single Session Revocation (`SecurityService.revokeSession`)
 Terminates a specific session ID:
 ```javascript
-await SecurityService.revokeSession({ userType: 'CLERK', userId: 12, sessionId: 45 });
+await SecurityService.revokeSession({ userType: 'STAFF', userId: 12, sessionId: 45 });
 ```
 **Execution Workflow**:
 1. Verifies session ownership (`id`, `user_id`, `user_type`).
@@ -137,7 +137,7 @@ If an incoming refresh request attempts to update a session that has already bee
 If the `userId` or `userType` of an incoming update request does not match the stored session record in `user_sessions`, the system logs `[SESSION_OWNERSHIP_MISMATCH]` and forces the creation of a brand new isolated session record.
 
 ### 3. Real-Time Client Synchronization
-The client browser stores a non-httpOnly companion cookie `*_session_id` (`clerk_session_id`, `admin_session_id`, `student_session_id`). Client components establish an SSE event listener to `/api/events`. When a `SESSION_REVOKED` broadcast matching the client's `session_id` is received, the client immediately clears local state and redirects to the login screen with a security alert message.
+The client browser stores a non-httpOnly companion cookie `*_session_id` (`staff_session_id`, `admin_session_id`, `student_session_id`). Client components establish an SSE event listener to `/api/events`. When a `SESSION_REVOKED` broadcast matching the client's `session_id` is received, the client immediately clears local state and redirects to the login screen with a security alert message.
 
 ---
 

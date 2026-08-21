@@ -175,7 +175,7 @@ Defines application branding, theme colors (`#1e3a8a`), offline display modes (`
 - **Offline Asset Pre-caching**: Caches core CSS, JavaScript bundles, fonts, and static logos (`ku-logo.png`, `kakatiya-kala-thoranam.png`).
 
 ### 3. Offline Attendance Queuing (`src/lib/idb-attendance.js`)
-When faculty or students lose connectivity inside campus areas with weak cellular coverage, attendance records are stored locally in browser **IndexedDB**. Once network connectivity is restored, the PWA background sync manager flushes queued records to `/api/clerk/attendance`.
+When faculty or students lose connectivity inside campus areas with weak cellular coverage, attendance records are stored locally in browser **IndexedDB**. Once network connectivity is restored, the PWA background sync manager flushes queued records to `/api/staff/faculty/attendance`.
 
 ```javascript
 // Example IndexedDB Offline Attendance Queueing Flow

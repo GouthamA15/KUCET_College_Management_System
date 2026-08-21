@@ -365,7 +365,7 @@ export const POST = verifySignatureAppRouter(handler);
 
 ### Self-Hosted Synchronous Fallback
 
-For deployments where `QSTASH_TOKEN` is not configured, endpoints such as `src/app/api/clerk/admission/bulk-import/route.js` automatically fail over to transactional synchronous batch execution via `StudentService.processBulkImport()`, guaranteeing 100% operational autonomy without external dependencies.
+For deployments where `QSTASH_TOKEN` is not configured, endpoints such as `src/app/api/staff/admission/bulk-import/route.js` automatically fail over to transactional synchronous batch execution via `StudentService.upsertStudent()`, guaranteeing 100% operational autonomy without external dependencies.
 
 ---
 

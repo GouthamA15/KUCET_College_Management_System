@@ -52,7 +52,7 @@ DOCUMENTATION/
 │   ├── migration-history.md     # Drizzle migrations (0000-0011), storage key updates, schema evolution
 │   ├── old-cloudinary-migration.md # Cloudinary storage purge, pipeline rebuild, relative key invariant
 │   └── resolved-incidents.md    # Forensic post-mortems (Session 205, 204, 203, 199, 196, 183, 176)
-├── pages/                       # Admin, clerk, faculty, HOD, student UI pages specification
+├── pages/                       # Admin, staff, faculty, HOD, student UI pages specification
 ├── storage/                     # Cloudinary history, file storage, self-hosted storage, uploads
 └── troubleshooting/             # Common errors, debugging guide, known issues
 ```
@@ -142,7 +142,7 @@ CMS/
 ├───────────────────────────────────────────────────────────────────────────────┤
 │ 1. NEVER use `npm run db:push` (Always use db:generate -> audit -> db:migrate)│
 │ 2. NEVER use roll numbers or PII as filenames (Use crypto.randomUUID())       │
-│ 3. DB storage keys MUST be relative (e.g., clerks/pfp/7a59662b.webp or kucet/...) │
+│ 3. DB storage keys MUST be relative (e.g., staff/pfp/7a59662b.webp or kucet/...) │
 │ 4. ALWAYS wrap client image sources with `getAssetUrl(key)`                    │
 │ 5. NEVER attach HTML DOM props (onError, onClick) to @react-pdf components     │
 │ 6. ALWAYS validate API inputs using Zod schemas inside `wrapHandler`           │

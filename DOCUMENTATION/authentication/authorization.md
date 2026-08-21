@@ -34,7 +34,7 @@ export const PERMISSIONS = Object.freeze({
 
 The `DEFAULT_ROLE_PERMISSIONS` dictionary maps institutional roles to their granted permissions:
 
-| Permission Name | Super Admin / Principal | HOD | Faculty | General Clerk | Scholarship Clerk | Admission Clerk | Student |
+| Permission Name | Super Admin / Principal | HOD | Faculty | General Staff | Scholarship Staff | Admission Staff | Student |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | `ATTENDANCE_MARK` | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | `ATTENDANCE_EDIT` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
