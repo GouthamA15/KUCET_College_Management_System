@@ -93,10 +93,10 @@ Inside the Docker container, Next.js runs under a restricted non-root user (`nex
 
 ```bash
 # Set host directory ownership to Docker UID 1001
-chown -R 1001:1001 /var/www/kucet-storage/public
+chown -R 1001:1001 /var/www/kucet-storage
 
 # Grant read/write/execute permissions to owner and group
-chmod -R 755 /var/www/kucet-storage/public
+chmod -R 755 /var/www/kucet-storage
 ```
 
 ### Directory Traversal Protection

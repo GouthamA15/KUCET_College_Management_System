@@ -6,10 +6,10 @@ For a self-hosted application like the KUCET CMS, you have two primary methods f
 
 ### A. Local Filesystem + Nginx (Recommended for Single-Server)
 The simplest and most performant approach for a single VPS or dedicated server.
-- **How it works:** Assets (like student photos, signatures, PDFs) are stored directly on the server's disk (e.g., in `/var/www/kucet-storage/uploads` or `/public/uploads`).
-- **Delivery:** An Nginx reverse proxy serves these static files directly.
-- **Pros:** Sub-100ms delivery times on local networks, zero external dependencies, no egress bandwidth costs.
-- **Cons:** Harder to scale horizontally across multiple servers; requires manual disk space monitoring.
+- **How it works:** Assets (like student photos, staff photos, signatures, PDFs) are stored directly on the server's disk in `/var/www/kucet-storage` mounted inside Docker as `/app/storage`.
+- **Delivery:** An Nginx reverse proxy serves authorized static files securely via internal `X-Accel-Redirect`.
+- **Pros:** Sub-10ms delivery times on local networks, zero external dependencies, no egress bandwidth costs.
+- **Cons:** Harder to scale horizontally across multiple servers; requires disk space monitoring.
 
 ### B. Self-Hosted Object Storage - MinIO (Recommended for Scalability)
 If you anticipate high growth or deploying across multiple servers (Docker Swarm/Kubernetes).
@@ -20,10 +20,10 @@ If you anticipate high growth or deploying across multiple servers (Docker Swarm
 ---
 
 ## 2. The Current Application Mechanism
-According to the codebase, the KUCET CMS employs a hybrid approach:
-- **Cloudinary:** Historically used via `Cloudinary SDK 2.9.0` for images, signatures, and backups.
-- **Local Priority:** The `public/` directory is prioritized for static assets to achieve sub-100ms delivery times.
-- **Nightly Backups:** The script `nightly-backup.sh` is designed to compress a local storage directory (`/var/www/kucet-storage/uploads`) along with the database for safe-keeping.
+According to the codebase, the KUCET CMS employs a unified strategy provider approach:
+- **Strategy Pattern Storage:** Configurable via `STORAGE_TYPE=local` or `STORAGE_TYPE=cloudinary` in `.env.production`.
+- **Local VPS Storage:** Mounted persistently from `/var/www/kucet-storage` to `/app/storage`.
+- **Nightly Backups:** The script `nightly-backup.sh` is designed to compress the local storage directory (`/var/www/kucet-storage`) along with the database for safe-keeping.
 
 ---
 
@@ -63,7 +63,7 @@ rclone copy /var/www/backups gdrive:kucet-backups/archives
 **To continuously sync the live assets folder:**
 ```bash
 # Sync ensures the Google Drive folder exactly matches your local folder
-rclone sync /var/www/kucet-storage/uploads gdrive:kucet-backups/live-assets
+rclone sync /var/www/kucet-storage gdrive:kucet-backups/live-assets
 ```
 
 ### Step 4: Automate via Cron

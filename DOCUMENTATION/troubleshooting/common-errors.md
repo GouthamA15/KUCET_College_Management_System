@@ -53,8 +53,8 @@ docker compose -f DEPLOYMENT_PACKAGE/docker-compose.yml restart nginx
 * **Resolution Protocol**:
   Execute the permission reset command on the VPS host:
 ```bash
-sudo chown -R 1001:1001 /var/www/kucet-storage/public
-sudo chmod -R 755 /var/www/kucet-storage/public
+sudo chown -R 1001:1001 /var/www/kucet-storage
+sudo chmod -R 755 /var/www/kucet-storage
 ```
 
 ---
@@ -116,7 +116,7 @@ COPY --from=builder /app/public ./public
 | :--- | :--- | :--- | :--- |
 | `TypeError: Cannot read properties...` | Application / PDF | Null Asset Reference | Wrap asset call in `getAssetUrl()` / `InstitutionAssetService` |
 | `CSP Directive Violation` | Security / Edge | Restrictive CSP Header | Add CDN domain to `img-src` in `nginx.conf` |
-| `EACCES: permission denied` | Storage / OS | Host File Ownership Mismatch | `chown -R 1001:1001 /var/www/kucet-storage/public` |
+| `EACCES: permission denied` | Storage / OS | Host File Ownership Mismatch | `chown -R 1001:1001 /var/www/kucet-storage` |
 | `ECONNREFUSED` | Database / Network | Incorrect `DB_HOST` setting | Set `DB_HOST=db` in `.env.production` |
 | `HTTP 429 Too Many Requests` | Auth / Cache | Rate-Limiter Threshold Exceeded | Run `redis-cli FLUSHDB` |
 | `MODULE_NOT_FOUND` | Deployment / Docker | Missing Standalone Copy | Verify Dockerfile `.next/standalone` copy step |

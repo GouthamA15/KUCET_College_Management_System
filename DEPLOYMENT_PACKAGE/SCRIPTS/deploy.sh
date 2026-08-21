@@ -164,8 +164,14 @@ fi
 # ---------------------------------------------------------------------------
 # Reconnect app container to network with alias (if needed)
 # ---------------------------------------------------------------------------
-log "Ensuring app container is connected to cms-network with alias 'app' ..."
-docker network connect deployment_package_cms-network kucet-cms-app --alias app 2>&1 || true
+log "Checking app container network connectivity ..."
+IS_CONNECTED=$(docker inspect -f '{{json .NetworkSettings.Networks}}' kucet-cms-app 2>/dev/null | grep -o 'deployment_package_cms-network' || true)
+if [[ -z "$IS_CONNECTED" ]]; then
+  log "Connecting app container to cms-network with alias 'app' ..."
+  docker network connect deployment_package_cms-network kucet-cms-app --alias app 2>&1 || true
+else
+  log "App container is already connected to cms-network."
+fi
 log "Network connectivity confirmed."
 
 # ---------------------------------------------------------------------------

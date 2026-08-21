@@ -53,7 +53,7 @@ flowchart TD
     Step1[1. Inspect Error Logs: docker logs kucet-cms-app] --> Step2{Identify Log Pattern}
     
     Step2 -->|DB Error / Timeout| CheckDB[Check DB Container: docker exec -it kucet-cms-db mysqladmin ping]
-    Step2 -->|EACCES Permission| CheckPerms[Check File Permissions: ls -ld /var/www/kucet-storage/public]
+    Step2 -->|EACCES Permission| CheckPerms[Check File Permissions: ls -ld /var/www/kucet-storage]
     Step2 -->|OOM / Process Killed| CheckMemory[Check Swap & Memory: free -h && dmesg | grep -i oom]
     Step2 -->|502 Bad Gateway| CheckNginx[Check Nginx Upstream & Buffer Settings]
 ```
@@ -68,7 +68,7 @@ docker compose -f DEPLOYMENT_PACKAGE/docker-compose.yml ps
 free -h
 
 # 3. Check NVMe Disk Space Availability
-df -h /var/www/kucet-storage/public
+df -h /var/www/kucet-storage
 
 # 4. Check OOM Killer Activity in Kernel Log
 dmesg -T | grep -i -E 'oom|killed process'

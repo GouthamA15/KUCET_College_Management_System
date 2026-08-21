@@ -42,7 +42,7 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 
 ### Rule 7: Keep Uploads Outside Frontend Source
 - **The Pitfall:** Writing uploads into the Next.js `public/` directory during runtime triggers Turbopack build invalidations and loses files on ephemeral container redeploys.
-- **The Inviolable Guardrail:** Store assets strictly in persistent external storage volumes (`/var/www/kucet-storage/public`) or Cloudinary.
+- **The Inviolable Guardrail:** Store assets strictly in persistent external storage volumes (`/var/www/kucet-storage`) or Cloudinary.
 
 ### Rule 8: Never Expose Server Filesystem Paths to Clients
 - **The Pitfall:** Returning full server paths (`C:\Users\...` or `/app/public/uploads/...`) in JSON payloads exposes server architecture to attackers.

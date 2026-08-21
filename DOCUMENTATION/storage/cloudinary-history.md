@@ -21,7 +21,7 @@ flowchart LR
 ### Architectural Evolution
 
 1. **Phase I (Cloud-Native Storage)**: All student profile pictures, clerk signatures, and payment screenshots were uploaded directly to Cloudinary using API keys (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`).
-2. **Phase II (Hybrid VPS Migration)**: To eliminate third-party API dependencies, rate-limit costs, and external network latency, asset storage was migrated to local self-hosted VPS disk storage (`/var/www/kucet-storage/public`).
+2. **Phase II (Hybrid VPS Migration)**: To eliminate third-party API dependencies, rate-limit costs, and external network latency, asset storage was migrated to local self-hosted VPS disk storage (`/var/www/kucet-storage`).
 3. **Current Role (Secondary Fallback Tier)**: Cloudinary is maintained in [`CloudinaryStorageProvider.js`](file:///D:/User/Desktop/CMS/src/lib/providers/storage/CloudinaryStorageProvider.js) as a secondary fallback provider inside the `FailoverStorageProvider` chain and as a remote candidate source for institutional branding assets.
 
 ---

@@ -155,10 +155,16 @@ if ! $APP_HEALTHY; then
 fi
 
 # ---------------------------------------------------------------------------
-# Reconnect to network with alias
+# Reconnect to network with alias (if needed)
 # ---------------------------------------------------------------------------
-log "Reconnecting app container to cms-network ..."
-docker network connect deployment_package_cms-network kucet-cms-app --alias app 2>&1 || true
+log "Checking app container network connectivity ..."
+IS_CONNECTED=$(docker inspect -f '{{json .NetworkSettings.Networks}}' kucet-cms-app 2>/dev/null | grep -o 'deployment_package_cms-network' || true)
+if [[ -z "$IS_CONNECTED" ]]; then
+  log "Connecting app container to cms-network with alias 'app' ..."
+  docker network connect deployment_package_cms-network kucet-cms-app --alias app 2>&1 || true
+else
+  log "App container is already connected to cms-network."
+fi
 
 # ---------------------------------------------------------------------------
 # Run health check after rollback
