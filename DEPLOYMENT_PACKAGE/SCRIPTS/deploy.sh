@@ -113,6 +113,13 @@ log "Running database migrations ..."
 }
 
 # ---------------------------------------------------------------------------
+# Ensure host storage directory exists with proper permissions for Docker UID 1001
+# ---------------------------------------------------------------------------
+log "Ensuring host storage directories exist (/var/www/kucet-storage/kucet) ..."
+mkdir -p /var/www/kucet-storage/kucet /var/kucet-db-backup 2>/dev/null || true
+sudo chown -R 1001:1001 /var/www/kucet-storage 2>/dev/null || chown -R 1001:1001 /var/www/kucet-storage 2>/dev/null || chmod -R 775 /var/www/kucet-storage 2>/dev/null || chmod -R 777 /var/www/kucet-storage 2>/dev/null || true
+
+# ---------------------------------------------------------------------------
 # Build and restart ONLY the app container
 # ---------------------------------------------------------------------------
 log "Removing old app container ..."
