@@ -121,7 +121,22 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 
 ---
 
-## 7. Incident Summary Matrix
+## 7. Production Deployment & Storage Permission Invariants (Rule 14)
+
+> [!CAUTION]
+> **LESSON LEARNED: Docker Bind-Mount Permissions Require Explicit Directory Scoping, Not `chmod 777`!**  
+> In Docker deployments with non-root containers (`nextjs`, `UID 1001`), bind-mounted host volumes inherit the underlying host permissions. Blind `chmod 777` or recursive `chown -R` across existing files compromises sensitive institutional assets (College Seal, Principal Signatures, Payment Screenshots).
+
+### Inviolable Production Storage Protocol:
+1. **Explicit Directory-Scoped Preparation**: Run [`prepare-storage.sh`](../../DEPLOYMENT_PACKAGE/SCRIPTS/prepare-storage.sh) before starting containers to ensure required upload subdirectories (`students/*`, `staff/*`, `requests/*`, `certificates/*`) are owned by `1001:1001` with mode `775`.
+2. **Read-Only Institutional Assets**: Keep `kucet/institution/` (College Seal, Principal Signatures) set to `755` so the PDF engine can read assets while blocking unauthorized uploads or mutations.
+3. **Isolated Database Backups**: Host database backups (`/var/kucet-db-backup/`) must remain strictly mode `700` and separate from the application media mount.
+4. **Idempotent Network Attachments**: Deployment scripts must inspect container networks via `docker inspect` before invoking `docker network connect` to avoid daemon conflicts.
+5. **Zero `chmod 777`**: Under no circumstances should `chmod 777` be used in deployment, rollback, or health-check scripts.
+
+---
+
+## 8. Incident Summary Matrix
 
 | Incident Tag | Root Cause | Engineering Fix Applied |
 | :--- | :--- | :--- |
@@ -130,10 +145,11 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 | **Session 200 Storage Collision** | Mixed SDK calls and raw filenames | Enforced UUID v4 names and relative keys (`kucet/...`). |
 | **Session 206 Webhook Vulnerability** | Unprotected asynchronous webhook endpoints | Added `verifySignatureAppRouter` across all 7 QStash routes. |
 | **Session 207 Cross-Student Profile Leakage** | Service Worker SW Stale-While-Revalidate caching of `/api/*` & unscoped storage | Bypassed all `/api/*` in SW, bumped to `v3`, enforced `no-store` headers, roll-scoped storage keys, and complete login/logout cache purge. |
+| **Session 207 Deployment & Storage Hardening** | Docker network reconnect conflict & non-root host bind-mount permission denial | Idempotent network checks, directory-scoped `prepare-storage.sh`, eliminated `chmod 777`, diagnostic health checks. |
 
 ---
 
-## 8. Cross-References & Related Documentation
+## 9. Cross-References & Related Documentation
 
 - [Engineering Coding Standards](./coding-standards.md)
 - [Project Architecture Conventions](./project-conventions.md)
