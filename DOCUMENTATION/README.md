@@ -1,148 +1,175 @@
-# 📚 KUCET CMS Documentation — Master Index
+# 📚 KUCET CMS Documentation — Master Technical Knowledge Base
 
-Welcome to the official technical documentation repository for the **Kakatiya University College of Engineering and Technology (KUCET) Management System**. This documentation suite provides an exhaustive, production-grade architectural and operational blueprint designed for software engineers, database administrators, system architects, and administrative clerks.
-
----
-
-## 🎯 Purpose & Scope
-
-The **KUCET College Management System (CMS)** is an enterprise institutional governance platform developed to unify fragmented academic, administrative, financial, and operational workflows into a secure, high-performance digital ecosystem.
-
-### Core Objectives
-- **Zero-Trust Security & Data Protection**: Enterprise role-based access control (RBAC), AES-256-GCM field encryption, blind indexing for PII (Aadhaar & Mobile), and Zod schema validation.
-- **Institutional Governance**: Full lifecycle management of student admissions, roll number allocation, attendance tracking, government scholarships (RTF/MTF), internal marks, and digital certificate verification.
-- **High-Availability Architecture**: Multi-cloud failover storage (S3/R2 → Cloudinary → Local Disk), distributed caching with Redis, serverless TiDB Cloud database, and real-time broadcasting via Supabase Realtime.
-- **Seamless User Experience**: Mobile-first design, Progressive Web App (PWA) offline capabilities, optimistic UI updates (`useOptimistic`), and responsive role-specific portals (Student, Faculty, HOD, Staff, Admin).
+Welcome to the official canonical technical documentation for the **Kakatiya University College of Engineering and Technology (KUCET) College Management System (CMS)**. This documentation suite provides an exhaustive, production-grade architectural and operational blueprint designed for software engineers, database administrators, system architects, and administrative personnel.
 
 ---
 
-## 📂 Directory Hierarchy Map
+## 🎯 System Overview & Mission
 
-The `DOCUMENTATION/` directory is organized into domain-specific modules. Below is the complete structural tree of all current and planned documentation files:
+The **KUCET College Management System** is an enterprise web platform orchestrating academic administration, proxy-free attendance intelligence, student lifecycle registry, financial ledgers, and digital certificate verification across four primary institutional roles: **Super Admin**, **Head of Department (HOD)**, **Staff / Faculty**, and **Student**.
 
-```
+---
+
+## 📂 Master Directory Hierarchy Map
+
+```text
 DOCUMENTATION/
-├── README.md                           # Master Index & Overview (You are here)
-├── architecture/
-│   ├── system-architecture.md          # High-Level Architecture, DDD, & Core Stack
-│   ├── frontend.md                     # Next.js 16 App Router, React 19, Tailwind CSS 4, PWA
-│   ├── backend.md                      # Node.js 20, wrapHandler Zod Validation, EventBus, Pino
-│   ├── database.md                     # TiDB Cloud MySQL, Drizzle ORM Schemas, Connection Pooling
-│   ├── storage.md                      # Universal Storage Layer, Failover Strategy, Key Invariant
-│   ├── solutions-architect-audit-report.md # Comprehensive RSC, Server Action & Frontend Architecture Audit
-│   └── deployment.md                   # VPS Topology, Docker Compose Stack, Nginx, CI/CD Pipeline
-├── authentication/                     # Security, Auth Flow, JWT Session Management
-├── database/                           # Extended DB Migrations, Entity Definitions, & Indexing
-├── deployment/                         # Server Setup, SSL, Environment Specs, Docker Configs
-├── development/                        # Local Dev Setup, Git Workflow, Code Guidelines
-├── features/                           # Deep Dives into Admissions, Scholarships, Certificates, Staff Management
-├── history/                            # System Evolution, Migration History, Changelogs
-├── pages/                              # Portal Page Mapping & UI Component Catalog
-├── storage/                            # Media Promotion, Cloudinary Assets, S3/R2 Setup
-└── troubleshooting/                    # Runbooks, Common Edge Cases, System Diagnostics
+├── README.md                                  # Master Index & Knowledge Base Blueprint (You are here)
+│
+├── architecture/                              # Core Architecture & System Blueprints
+│   ├── system-architecture.md                 # High-Level Architecture, DDD, & Core Stack
+│   ├── frontend.md                            # React 19 RSC, Tailwind CSS 4, Client State, Optimistic UI
+│   ├── backend.md                             # Node.js 20 ESM, wrapHandler, Services, Pino Logging
+│   ├── database.md                            # TiDB Cloud MySQL, Drizzle ORM, Connection Pooling
+│   ├── storage.md                             # Strategy Pattern Storage, Cloudinary CDN, Local Fallback
+│   ├── deployment.md                          # Hostinger VPS, Docker Compose, Nginx Reverse Proxy
+│   └── solutions-architect-audit-report.md    # Frontend RSC, Server Action & Performance Audit
+│
+├── authentication/                            # Security, Identity & Session Management
+│   ├── authentication.md                      # JWT jose Auth, Multi-Role Cookies, Token Flow
+│   ├── authorization.md                       # Zero-Trust RBAC Matrix, Role Boundaries
+│   └── session-management.md                  # Active Sessions Table, SSE Remote Revocation, Logout
+│
+├── database/                                  # Database Schemas & Migrations
+│   ├── schema.md                              # Identity, Academic, Operations, Finance, Security Schemas
+│   ├── migrations.md                          # Safe 4-Step Drizzle Migration Standard (0000-0013)
+│   └── backup-strategy.md                     # Automated DB Dumps, S3/Cloudinary Snapshots, PITR
+│
+├── deployment/                                # Infrastructure & Server Operations
+│   ├── vps.md                                 # Hostinger Ubuntu VPS Provisioning & Hardening
+│   ├── nginx.md                               # Reverse Proxy SSL Termination, Caching, Rate Limiting
+│   ├── ssl.md                                 # Let's Encrypt Certbot Configuration & Auto-Renewal
+│   └── render.md                              # Cloud Preview Environment Specifications
+│
+├── development/                               # Engineering Standards & Developer Guide
+│   ├── ai-agent-guide.md                      # AI Coding Agent Mandates, Verification Checklist
+│   ├── coding-standards.md                    # JS/TS Style, React 19 Rules, Edge Header Buffering
+│   ├── lessons-learned.md                     # 12 Inviolable Rules, Defensive Guardrails, Post-Mortems
+│   ├── naming-conventions.md                  # Relative Storage Keys, UUID Randomization, Roll Numbers
+│   ├── project-conventions.md                 # DDD Domain Layout, Service Boundaries, Scoping
+│   └── ui-guidelines.md                       # Tailwind 4 Theming, Mobile Drawers, WCAG 2.1 AA
+│
+├── features/                                  # Detailed Feature Domain Specifications
+│   ├── staff-management.md                    # Staff Onboarding Wizard, Admin Approval, HOD Matrix
+│   ├── admissions.md                          # Multi-Stage Admission Engine, Roll Number Generator
+│   ├── attendance.md                          # 4-Mode Attendance: Manual, PIN, GPS Geofence, QR
+│   ├── certificates.md                        # React-PDF Generator, HMAC Signing, QR Verification
+│   ├── examinations.md                        # Internal Assessment & Mid-Exam Marks Entry
+│   ├── fees.md                                # Scholarship Sanctions (RTF/MTF), Ledger Auditing
+│   ├── notifications.md                       # Web Push (VAPID), Realtime Broadcasts, Email Dispatch
+│   ├── reports.md                             # Academic Reports, Condonation Analytics, CSV Export
+│   └── requests.md                            # Student Digital Document & Profile Update Requests
+│
+├── pages/                                     # UI Page Inventory & Component Blueprints
+│   ├── admin-pages.md                         # Super Admin Console (/admin/*)
+│   ├── staff-pages.md                         # Institutional Staff Portal (/staff/*)
+│   ├── faculty-pages.md                       # Faculty Classroom Console (/staff/faculty/*)
+│   ├── hod-pages.md                           # Department Head Console (/staff/hod/*)
+│   ├── student-pages.md                       # Student Portal (/student/*)
+│   └── clerk-pages.md                         # Legacy Clerk Reference & Migration Guide
+│
+├── storage/                                   # File Storage & Asset Pipeline
+│   ├── file-storage.md                        # Storage Engine Architecture & Strategy Provider
+│   ├── cloudinary-history.md                  # Cloudinary Pipeline Reset & Migration Forensics
+│   ├── self-hosted-storage.md                 # Local Disk Fallback (/var/www/kucet-storage)
+│   └── uploads.md                             # Media Promotion Lifecycle (PFP, Signatures, Receipts)
+│
+├── history/                                   # Historical Audits, ADRs & Release Notes
+│   ├── architectural-decisions.md             # System Architectural Decision Records (ADRs)
+│   ├── migration-history.md                   # Database Migrations Log (0000_... to 0013_...)
+│   ├── resolved-incidents.md                  # Forensic Post-Mortems (Sessions 176 - 205)
+│   ├── old-cloudinary-migration.md            # Legacy Cloudinary Migration Forensics
+│   ├── session-206-release-notes.md           # Session 206 Changelog (Web Push, QStash, Sentry)
+│   ├── session-207-testvanilla-changes.md     # Session 207 Staff Restructure & Schema Forensics
+│   └── session-207-pr-changes-and-workflow-audit.md # PR & Workflow Audit
+│
+└── troubleshooting/                           # Diagnostics & Operational Runbooks
+    ├── debugging-guide.md                     # Step-by-Step Problem Resolution Playbook
+    ├── common-errors.md                       # Known Error Codes, Root Causes & Fixes
+    └── known-issues.md                        # Active Workarounds & Platform Considerations
 ```
 
 ---
 
-## 👤 Reading Paths by Role
+## 🧭 Topic Navigation Matrix
 
-To help team members find relevant technical information quickly, follow the tailored reading paths below:
-
-| Role | Primary Focus Areas | Recommended Reading Sequence |
+| Topic Area | Primary Document | Companion References |
 | :--- | :--- | :--- |
-| **Frontend Engineer** | Next.js App Router, React 19 Actions, Tailwind 4, PWA, Optimistic UI | 1. [system-architecture.md](./architecture/system-architecture.md)<br>2. [frontend.md](./architecture/frontend.md)<br>3. [storage.md](./architecture/storage.md) |
-| **Backend & API Developer** | API Handlers, `wrapHandler` Zod Validation, Domain Services, EventBus | 1. [system-architecture.md](./architecture/system-architecture.md)<br>2. [backend.md](./architecture/backend.md)<br>3. [database.md](./architecture/database.md) |
-| **Database Administrator (DBA)** | TiDB Cloud, Drizzle Schemas, Connection Pooling, Key Resolution | 1. [database.md](./architecture/database.md)<br>2. [backend.md](./architecture/backend.md)<br>3. [system-architecture.md](./architecture/system-architecture.md) |
-| **DevOps & Infrastructure Engineer** | Hostinger VPS, Docker Compose, Nginx Reverse Proxy, Storage Failover, CI/CD | 1. [deployment.md](./architecture/deployment.md)<br>2. [storage.md](./architecture/storage.md)<br>3. [system-architecture.md](./architecture/system-architecture.md) |
-| **Security Auditor** | JWT Auth, Zod Validation, Pino Redaction, Audit Logging, Cryptography | 1. [backend.md](./architecture/backend.md)<br>2. [database.md](./architecture/database.md)<br>3. [system-architecture.md](./architecture/system-architecture.md) |
-| **Institutional Staff & Domain Lead** | Admissions Engine, Scholarship Rules, Certificate Workflows, Attendance | 1. [system-architecture.md](./architecture/system-architecture.md)<br>2. [backend.md](./architecture/backend.md) |
+| **System Overview & DDD Layers** | [`architecture/system-architecture.md`](./architecture/system-architecture.md) | [`architecture/backend.md`](./architecture/backend.md), [`development/project-conventions.md`](./development/project-conventions.md) |
+| **Frontend, React 19 & RSC** | [`architecture/frontend.md`](./architecture/frontend.md) | [`architecture/solutions-architect-audit-report.md`](./architecture/solutions-architect-audit-report.md), [`development/ui-guidelines.md`](./development/ui-guidelines.md) |
+| **Authentication & Cookie Engine** | [`authentication/authentication.md`](./authentication/authentication.md) | [`authentication/session-management.md`](./authentication/session-management.md), [`authentication/authorization.md`](./authentication/authorization.md) |
+| **Database Schema & ORM** | [`database/schema.md`](./database/schema.md) | [`database/migrations.md`](./database/migrations.md), [`architecture/database.md`](./architecture/database.md) |
+| **Storage Strategy & Relative Keys** | [`architecture/storage.md`](./architecture/storage.md) | [`storage/file-storage.md`](./storage/file-storage.md), [`storage/uploads.md`](./storage/uploads.md) |
+| **Staff & Faculty Onboarding** | [`features/staff-management.md`](./features/staff-management.md) | [`pages/staff-pages.md`](./pages/staff-pages.md), [`pages/faculty-pages.md`](./pages/faculty-pages.md) |
+| **HOD Matrix & Timetables** | [`pages/hod-pages.md`](./pages/hod-pages.md) | [`features/attendance.md`](./features/attendance.md), [`features/examinations.md`](./features/examinations.md) |
+| **Admissions & Roll Numbers** | [`features/admissions.md`](./features/admissions.md) | [`pages/staff-pages.md`](./pages/staff-pages.md), [`database/schema.md`](./database/schema.md) |
+| **Attendance & PIN/GPS/QR** | [`features/attendance.md`](./features/attendance.md) | [`pages/faculty-pages.md`](./pages/faculty-pages.md), [`pages/student-pages.md`](./pages/student-pages.md) |
+| **Certificates & Verification** | [`features/certificates.md`](./features/certificates.md) | [`features/requests.md`](./features/requests.md), [`pages/student-pages.md`](./pages/student-pages.md) |
+| **Hostinger VPS & Nginx** | [`deployment/vps.md`](./deployment/vps.md) | [`deployment/nginx.md`](./deployment/nginx.md), [`deployment/ssl.md`](./deployment/ssl.md) |
+| **Coding Standards & Invariants** | [`development/coding-standards.md`](./development/coding-standards.md) | [`development/lessons-learned.md`](./development/lessons-learned.md), [`development/ai-agent-guide.md`](./development/ai-agent-guide.md) |
+| **Incident Forensics & ADRs** | [`history/resolved-incidents.md`](./history/resolved-incidents.md) | [`history/architectural-decisions.md`](./history/architectural-decisions.md), [`history/session-207-testvanilla-changes.md`](./history/session-207-testvanilla-changes.md) |
+| **Debugging & Error Runbooks** | [`troubleshooting/debugging-guide.md`](./troubleshooting/debugging-guide.md) | [`troubleshooting/common-errors.md`](./troubleshooting/common-errors.md), [`troubleshooting/known-issues.md`](./troubleshooting/known-issues.md) |
 
 ---
 
-## 🔍 Quick Lookup Table
-
-| Topic / Requirement | Key Components Involved | Primary Specification Document |
-| :--- | :--- | :--- |
-| **High-Level System Diagram** | Domain-Driven Design, TiDB, Redis, Supabase | [system-architecture.md](./architecture/system-architecture.md) |
-| **React 19 & Server Actions** | Next.js 16, `useOptimistic`, Mobile Drawers | [frontend.md](./architecture/frontend.md) |
-| **PWA & Offline Queuing** | Service Worker, IndexedDB (`idb-attendance.js`) | [frontend.md](./architecture/frontend.md) |
-| **API Security & Validation** | `wrapHandler`, Zod, Pino Logger, Trace ID | [backend.md](./architecture/backend.md) |
-| **Asynchronous Domain Events** | `EventBus.js`, Wildcard Auditing, Cache Tags | [backend.md](./architecture/backend.md) |
-| **Database Schema & Pooling** | TiDB Cloud, Drizzle ORM, SSL/TLS, mysql2 | [database.md](./architecture/database.md) |
-| **Media & Storage Failover** | `FailoverStorageProvider`, Cloudinary, S3/R2 | [storage.md](./architecture/storage.md) |
-| **Storage Key Invariant Rule** | Relative Keys (`kucet/...`), Read-Time Resolution | [storage.md](./architecture/storage.md) |
-| **VPS Docker & Nginx Stack** | Hostinger KVM 2, Nginx HTTP/2, Docker Compose | [deployment.md](./architecture/deployment.md) |
-
----
-
-## 🔄 System Flow Diagram
-
-The following Mermaid sequence diagram illustrates the lifecycle of a user request moving through the KUCET CMS application layers:
+## 👤 Tailored Reading Paths
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    actor Client as User Browser / PWA Client
-    participant Proxy as Nginx Reverse Proxy
-    participant App as Next.js 16 App Router (Node.js 20)
-    participant Wrap as wrapHandler Middleware (Zod & Auth)
-    participant Service as Domain Service Layer (src/services)
-    participant Bus as EventBus (EventEmitter)
-    participant DB as TiDB Cloud MySQL (Drizzle ORM)
-    participant Cache as Upstash Redis Cache
-    participant Storage as FailoverStorageProvider
-    participant Realtime as Supabase Realtime Broadcast
+graph LR
+    A[Choose Your Role] --> B[Frontend Engineer]
+    A --> C[Backend / API Developer]
+    A --> D[DevOps / Infrastructure]
+    A --> E[System Architect]
 
-    Client->>Proxy: HTTPS Request (JWT Cookie / Payload)
-    Proxy->>App: Forward to Next.js API Route Handler
-    App->>Wrap: Execute wrapHandler Wrapper
-    Wrap->>Wrap: Verify JWT Session & Validate Body via Zod Schema
-    alt Validation / Auth Failure
-        Wrap-->>Client: Return 401 Unauthorized / 400 Bad Request (JSON)
-    else Validation & Auth Success
-        Wrap->>Service: Call Business Logic Handler
-        Service->>Cache: Query Redis Session / Cache
-        alt Cache Miss
-            Service->>DB: Execute Type-Safe Query via Drizzle ORM
-            DB-->>Service: Return SQL Result Set
-            Service->>Cache: Set Cache Key with TTL
-        end
-        opt Media Upload / Access Needed
-            Service->>Storage: Store File / Resolve Read-Time Key URL
-            Storage-->>Service: Relative Key / Resolved CDN URL
-        end
-        Service->>Bus: Publish Domain Event (e.g., ATTENDANCE_SUBMITTED)
-        par Async Event Processing
-            Bus->>DB: Log Audit Trail (Async)
-            Bus->>Cache: Invalidate Affected Cache Tags
-            Bus->>Realtime: Push Live Broadcast Notification to Clients
-        end
-        Service-->>Wrap: Return Domain Result Payload
-        Wrap-->>Proxy: Set x-trace-id Header & Return JSON Response
-        Proxy-->>Client: Deliver HTTPS 200 OK Response
-    end
+    B --> B1["1. architecture/frontend.md<br>2. architecture/solutions-architect-audit-report.md<br>3. development/ui-guidelines.md"]
+    C --> C1["1. architecture/backend.md<br>2. authentication/authentication.md<br>3. database/schema.md"]
+    D --> D1["1. deployment/vps.md<br>2. deployment/nginx.md<br>3. database/backup-strategy.md"]
+    E --> E1["1. architecture/system-architecture.md<br>2. history/architectural-decisions.md<br>3. development/lessons-learned.md"]
 ```
 
 ---
 
-## 📖 Glossary of Technical & Domain Terms
+## 🔒 Inviolable System Guardrails
 
-| Term | Definition & Context in KUCET CMS |
-| :--- | :--- |
-| **DDD (Domain-Driven Design)** | Architectural pattern separating system logic into bounded contexts (`identity`, `academic`, `attendance`, `finance`, `operations`, `registry`, `security`, `archive`). |
-| **`wrapHandler`** | Unified API middleware wrapping Next.js route handlers to perform JWT authentication checks, Zod schema validation, AsyncLocalStorage tracing, Pino structured logging, and automatic database exception sanitization. |
-| **Storage Key Invariant Rule** | Core rule dictating that database tables MUST ONLY store relative immutable keys (e.g., `kucet/students/pfp/abc.webp`), NEVER full URLs or vendor bucket names. URLs are dynamically resolved at read-time. |
-| **`FailoverStorageProvider`** | Resilient storage implementation that attempts file uploads to a primary provider (e.g., S3/R2) and automatically falls back to secondary (Cloudinary) or tertiary (Local Disk) providers on failure. |
-| **Drizzle ORM** | Lightweight, type-safe TypeScript/JavaScript ORM used to interface with TiDB Cloud MySQL, ensuring strict schema enforcement and zero runtime query generation overhead. |
-| **TiDB Cloud** | Distributed MySQL-compatible HTAP database delivering serverless elasticity, horizontal scaling, and ACID transactional consistency across institutional operations. |
-| **RTF (Reimbursement of Tuition Fee)** | Government scholarship component calculated dynamically by `ScholarshipService.js` based on student category, course tier, and fee limit thresholds. |
-| **MTF (Maintenance Fee / Epass)** | Government stipend component managed by the CMS scholarship module for eligible residential and day-scholar students. |
-| **`safeJsonParse`** | Defensive utility in `src/lib/json-utils.js` that inspects strings prior to calling `JSON.parse()`, preventing runtime syntax errors and log spam when handling mixed database values. |
-| **Pino Structured Logging** | High-performance JSON logger with AsyncLocalStorage context tracking (`runWithContext`) and automatic PII redaction for passwords, Aadhaar numbers, and mobile numbers. |
-| **Supabase Realtime** | WebSocket broadcasting engine used for instant push notifications, live session status bars, and real-time attendance updates. |
-| **Upstash QStash** | Serverless HTTP-based message queue used for executing background tasks, batch media processing, and scheduled database backups without blocking API threads. |
-| **`useOptimistic`** | React 19 hook leveraged in the frontend to render state mutations instantaneously before server response confirmation, ensuring zero-perceived latency. |
+```text
+┌───────────────────────────────────────────────────────────────────────────────┐
+│                      INVIOLABLE SYSTEM INVARIANTS                             │
+├───────────────────────────────────────────────────────────────────────────────┤
+│ 1. NEVER use `npm run db:push` (Always use db:generate -> audit -> db:migrate)│
+│ 2. NEVER use roll numbers or PII as filenames (Use crypto.randomUUID())       │
+│ 3. DB storage keys MUST be relative (e.g., kucet/students/pfp/abc.webp)       │
+│ 4. ALWAYS wrap client image sources with getAssetUrl(key)                     │
+│ 5. NEVER attach HTML DOM props (onError, onClick) to @react-pdf components     │
+│ 6. ALWAYS validate API inputs using Zod schemas inside wrapHandler            │
+│ 7. Use Pino logger (@/lib/logger) — bare console.log is strictly prohibited  │
+│ 8. Buffer multi-cookie headers in Edge proxy using raw newCookiesToSet array  │
+│ 9. High-frequency DB helpers (getCurrentCalendarSession) MUST use 5-min cache │
+│ 10. Realtime broadcasts MUST execute only AFTER database transactions commit   │
+└───────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-> 💡 **Navigation Note**: To explore specific architectural subsystems, proceed to the target documentation file using the links provided above. For overall system structure, start with [System Architecture](./architecture/system-architecture.md).
+## 🔄 Quick Commands Reference
+
+```bash
+# Start local development server (Turbopack)
+npm run dev
+
+# Run Vitest unit test suite (49 test files, 347 tests)
+npm run test:unit
+
+# Run ESLint compliance check
+npm run lint
+
+# Production standalone build verification
+npm run build
+
+# Database schema migration workflow
+npm run db:generate   # Generate versioned migration SQL
+npm run db:migrate    # Apply migration to TiDB Cloud
+```
+
+---
+
+For deep dives into specific topics, select the corresponding markdown link from the [Master Directory Hierarchy Map](#-master-directory-hierarchy-map) above.
