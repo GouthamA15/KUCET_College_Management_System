@@ -18,7 +18,7 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 KUCET_CMS_DIR="/var/www/kucet-cms"
 COMPOSE_FILE="$KUCET_CMS_DIR/DEPLOYMENT_PACKAGE/docker-compose.yml"
-LOG_FILE="/tmp/kucet_health_check.log"
+LOG_FILE="${HEALTH_CHECK_LOG:-/tmp/kucet_health_check_${UID:-$(id -u)}.log}"
 STORAGE_DIR="/var/www/kucet-storage"
 HEALTH_ENDPOINT="http://localhost/api/health"
 DISK_WARN_GB=10
