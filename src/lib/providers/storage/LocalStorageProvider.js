@@ -4,6 +4,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { getAssetUrl } from '@/lib/assets';
 import { isInstitutionalAssetPath } from '@/lib/institution-assets';
+import logger from '@/lib/logger';
 
 function cleanRelativePath(assetPath) {
   if (!assetPath || typeof assetPath !== 'string') return '';
@@ -14,7 +15,7 @@ function cleanRelativePath(assetPath) {
   }
   clean = clean.replace(/^https?:\/\/[^/]+/, '');
   clean = clean.replace(/^v\d+\//, '');
-  clean = clean.startsWith('/') ? clean.substring(1) : clean;
+  clean = clean.replace(/^\/+/, '');
   return clean;
 }
 
@@ -72,8 +73,13 @@ export default class LocalStorageProvider extends StorageProvider {
     }
 
     const STORAGE_PATH = getLocalStorageBasePath();
-    const cleanFolder = folder ? folder.replace(/^\/+|\/+$/g, '') : 'uploads';
-    const targetDir = path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, cleanFolder);
+    const rawFolder = folder ? folder.replace(/^\/+|\/+$/g, '') : 'uploads';
+    const cleanFolder = rawFolder.replace(/^kucet\//, '');
+    
+    // Structure disk files under kucet/ subfolder for unified multi-provider layout
+    const targetDir = STORAGE_PATH.endsWith('kucet')
+      ? path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, cleanFolder)
+      : path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, 'kucet', cleanFolder);
     
     await fs.promises.mkdir(targetDir, { recursive: true });
 
@@ -83,6 +89,8 @@ export default class LocalStorageProvider extends StorageProvider {
     else if (mimeType.includes('pdf')) extension = '.pdf';
     else if (mimeType.includes('webp')) extension = '.webp';
     else if (mimeType.includes('svg')) extension = '.svg';
+    else if (mimeType.includes('heic')) extension = '.heic';
+    else if (mimeType.includes('heif')) extension = '.heif';
     else extension = '.jpg';
 
     const randomStr = crypto.randomBytes(10).toString('hex');
@@ -91,7 +99,8 @@ export default class LocalStorageProvider extends StorageProvider {
 
     await fs.promises.writeFile(targetPath, buffer);
 
-    const relPath = `${cleanFolder}/${filename}`;
+    // Canonical relative storage key: kucet/<category>/<uuid>.<ext>
+    const relPath = `kucet/${cleanFolder}/${filename}`;
     const url = `/api/assets/view/${relPath}`;
 
     return new StorageResult({
@@ -111,18 +120,22 @@ export default class LocalStorageProvider extends StorageProvider {
     const cleanPath = cleanRelativePath(relativePath);
     if (!cleanPath || isInstitutionalAssetPath(cleanPath)) return;
     
-    const targetPath = path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, cleanPath);
+    const candidatePaths = [
+      path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, cleanPath),
+      path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, 'kucet', cleanPath),
+      path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, cleanPath.replace(/^kucet\//, ''))
+    ];
 
-    // Security: Prevent Directory Traversal
-    if (!targetPath.startsWith(STORAGE_PATH)) {
-      return;
-    }
-
-    try {
-      await fs.promises.unlink(targetPath);
-    } catch (error) {
-      if (error.code !== 'ENOENT') {
-        console.error('LocalStorage Delete Error:', error);
+    for (const targetPath of candidatePaths) {
+      if (targetPath.startsWith(STORAGE_PATH) && fs.existsSync(targetPath)) {
+        try {
+          await fs.promises.unlink(targetPath);
+          return;
+        } catch (error) {
+          if (error.code !== 'ENOENT') {
+            logger.error({ err: error, targetPath }, 'LocalStorage Delete Error');
+          }
+        }
       }
     }
   }
@@ -134,27 +147,51 @@ export default class LocalStorageProvider extends StorageProvider {
 
     const STORAGE_PATH = getLocalStorageBasePath();
     const cleanSource = cleanRelativePath(sourcePath);
-    const absSource = path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, cleanSource);
+    
+    // Find existing source file among candidate locations
+    const candidateSourcePaths = [
+      path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, cleanSource),
+      path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, 'kucet', cleanSource),
+      path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, cleanSource.replace(/^kucet\//, ''))
+    ];
 
-    if (!absSource.startsWith(STORAGE_PATH)) {
+    let absSource = null;
+    for (const cand of candidateSourcePaths) {
+      if (cand.startsWith(STORAGE_PATH) && fs.existsSync(cand)) {
+        try {
+          const s = fs.statSync(cand);
+          if (s.isFile()) {
+            absSource = cand;
+            break;
+          }
+        } catch {}
+      }
+    }
+
+    if (!absSource) {
       return { newPath: sourcePath, sizeBytes: 0 };
     }
 
     try {
       const stats = await fs.promises.stat(absSource);
       const filename = path.basename(cleanSource);
-      const cleanFolder = targetFolder.replace(/^\/+|\/+$/g, '');
-      const targetDir = path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, cleanFolder);
+      const rawFolder = targetFolder.replace(/^\/+|\/+$/g, '');
+      const cleanFolder = rawFolder.replace(/^kucet\//, '');
+      
+      const targetDir = STORAGE_PATH.endsWith('kucet')
+        ? path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, cleanFolder)
+        : path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, 'kucet', cleanFolder);
+      
       await fs.promises.mkdir(targetDir, { recursive: true });
 
       const absTarget = path.join(targetDir, filename);
       await fs.promises.copyFile(absSource, absTarget);
 
-      const relativeNewPath = `${cleanFolder}/${filename}`;
+      const relativeNewPath = `kucet/${cleanFolder}/${filename}`;
       return { newPath: relativeNewPath, sizeBytes: stats.size || 1024 };
     } catch (error) {
       if (error.code !== 'ENOENT') {
-        console.error('LocalStorage Copy File Error:', error);
+        logger.error({ err: error, sourcePath, targetFolder }, 'LocalStorage Copy File Error');
       }
       return { newPath: sourcePath, sizeBytes: 0 };
     }

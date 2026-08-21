@@ -35,7 +35,10 @@ const envSchema = z.object({
   NEXT_PUBLIC_SOCKET_URL: z.string().url().optional(),
   REDIS_URL: z.string().optional(),
 
-  // Storage (Local VPS Storage)
+  // Storage (Cloudinary | Local VPS | S3)
+  STORAGE_PROVIDER: z.enum(['cloudinary', 'local', 's3', 'r2']).optional(),
+  STORAGE_TYPE: z.enum(['cloudinary', 'local', 's3', 'r2']).optional(),
+  NEXT_PUBLIC_STORAGE_PROVIDER: z.enum(['cloudinary', 'local', 's3', 'r2']).optional(),
   NEXT_PUBLIC_STORAGE_TYPE: z.enum(['cloudinary', 'local', 's3', 'r2']).default('cloudinary'),
   LOCAL_STORAGE_PATH: z.string().optional(),
 

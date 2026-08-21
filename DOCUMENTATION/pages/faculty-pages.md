@@ -2,9 +2,9 @@
 
 ## Overview
 
-The Faculty Portal (`/clerk/faculty/*`) provides teaching staff and department heads with tools for subject management, attendance recording, syllabus tracking, and examination marks submission.
+The Faculty Portal (`/staff/faculty/*`) provides teaching staff and department heads with tools for subject management, attendance recording, syllabus tracking, and examination marks submission.
 
-Access is restricted to authenticated users holding `clerk_auth` with `role: 'faculty'` or `is_hod: true`.
+Access is restricted to authenticated users holding `staff_auth` with `role: 'faculty'` or `is_hod: true`.
 
 ---
 
@@ -12,11 +12,12 @@ Access is restricted to authenticated users holding `clerk_auth` with `role: 'fa
 
 | Route Path | Feature Description | Required RBAC Permission | Primary DB Tables |
 | :--- | :--- | :---: | :--- |
-| `/clerk/faculty/dashboard` | Overview & Today's Schedule | `VIEW_OWN_RECORDS` | `faculty_subject_assignments`, `branch_timetable` |
-| `/clerk/faculty/my-subjects` | Assigned Subjects & Syllabus | `VIEW_OWN_RECORDS` | `syllabus_subjects`, `syllabus_structure` |
-| `/clerk/faculty/attendance` | Attendance Sheet Generator | `ATTENDANCE_MARK` | `student_attendance`, `attendance_sessions` |
-| `/clerk/faculty/marks` | Mid-Exam Marks Entry | `MARK_ENTRY` | `student_marks`, `students` |
-| `/clerk/faculty/topics` | Lecture Topic Completion Log | `VIEW_OWN_RECORDS` | `attendance_sessions` |
+| `/staff/faculty/dashboard` | Overview & Today's Schedule | `VIEW_OWN_RECORDS` | `faculty_subject_assignments`, `branch_timetable` |
+| `/staff/faculty/attendance` | Multi-Modal Attendance Sheet & PIN/QR | `ATTENDANCE_MARK` | `student_attendance`, `attendance_sessions` |
+| `/staff/faculty/marks` | Mid-Exam Marks Entry | `MARK_ENTRY` | `student_marks`, `students` |
+| `/staff/faculty/materials` | Course Materials & Notes Upload | `VIEW_OWN_RECORDS` | `faculty_subject_assignments` |
+| `/staff/faculty/time-table` | Faculty Personal Schedule | `VIEW_OWN_RECORDS` | `branch_timetable` |
+| `/staff/faculty/class-list` | Enrolled Class List | `VIEW_OWN_RECORDS` | `students`, `student_academic_background` |
 
 ---
 
@@ -70,7 +71,7 @@ When finalizing an attendance session, faculty must complete the topic tracking 
 
 ---
 
-## Examination Marks Entry Grid (`/clerk/faculty/marks`)
+## Examination Marks Entry Grid (`/staff/faculty/marks`)
 
 The marks entry portal allows faculty to input internal assessment scores:
 - **Input Fields**: Mid-1 Marks (max 30), Mid-2 Marks (max 30), Assignment Marks (max 10), Lab Practical Marks.

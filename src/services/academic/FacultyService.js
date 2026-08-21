@@ -51,7 +51,10 @@ export class FacultyService {
       .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
       .leftJoin(staffAcademicAffiliations, eq(staffAcademicAffiliations.staff_account_id, staffAccounts.id))
       .leftJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
-      .where(eq(staffRoles.role_code, 'FACULTY')),
+      .where(and(
+        or(eq(staffRoles.role_code, 'FACULTY'), eq(staffRoles.role_code, 'faculty')),
+        eq(staffAccounts.account_status, 'ACTIVE')
+      )),
 
       db.select({
         faculty_id: branchTimetable.faculty_id,

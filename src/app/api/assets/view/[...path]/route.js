@@ -19,7 +19,12 @@ export function resolveLocalFilePath(filename) {
   const base = getLocalStorageBasePath();
   const repoPublic = path.join(process.cwd(), 'public');
   
-  const cleanFilename = filename.replace(/^[/\\]+/, '');
+  let cleanFilename = filename || '';
+  if (cleanFilename.includes('/api/assets/view/')) {
+    cleanFilename = cleanFilename.split('/api/assets/view/')[1];
+  }
+  cleanFilename = cleanFilename.replace(/^[/\\]+/, '').replace(/\\/g, '/');
+
   const candidatePaths = [];
 
   // Check institutional canonical filename mapping
@@ -37,18 +42,23 @@ export function resolveLocalFilePath(filename) {
   // 1. Direct path in local storage
   candidatePaths.push(path.resolve(base, cleanFilename));
 
-  // 2. Storage without 'assets/', 'kucet/', or 'uploads/' prefix if present
+  // 2. Storage with 'kucet/' prefix
+  candidatePaths.push(path.resolve(base, 'kucet', cleanFilename));
+
+  // 3. Storage without 'assets/', 'kucet/', or 'uploads/' prefix if present
   if (cleanFilename.startsWith('assets/')) {
     candidatePaths.push(path.resolve(base, cleanFilename.replace(/^assets\//, '')));
+    candidatePaths.push(path.resolve(base, 'kucet', cleanFilename.replace(/^assets\//, '')));
   } else if (cleanFilename.startsWith('kucet/')) {
     candidatePaths.push(path.resolve(base, cleanFilename.replace(/^kucet\//, '')));
   } else if (cleanFilename.startsWith('uploads/')) {
     candidatePaths.push(path.resolve(base, cleanFilename.replace(/^uploads\//, '')));
+    candidatePaths.push(path.resolve(base, 'kucet', cleanFilename.replace(/^uploads\//, '')));
   } else {
     candidatePaths.push(path.resolve(base, 'assets', cleanFilename));
   }
 
-  // 3. Repository public folder fallbacks
+  // 4. Repository public folder fallbacks
   candidatePaths.push(path.resolve(repoPublic, cleanFilename));
   if (cleanFilename.startsWith('assets/')) {
     candidatePaths.push(path.resolve(repoPublic, cleanFilename));
@@ -82,7 +92,12 @@ export function resolveLocalFilePath(filename) {
  */
 export async function GET(request, { params }) {
   const { path: pathSegments } = await params;
-  const filename = pathSegments.join('/');
+  const rawFilename = pathSegments.join('/');
+  let filename = rawFilename;
+  if (filename.includes('api/assets/view/')) {
+    filename = filename.split('api/assets/view/')[1];
+  }
+  filename = filename.replace(/^[/\\]+/, '');
 
   // 1. Static Public Asset Check
   const isStatic = isStaticPublicAsset(filename);
@@ -129,6 +144,8 @@ export async function GET(request, { params }) {
   }
 
   const storageType = (
+    process.env.STORAGE_PROVIDER ||
+    process.env.NEXT_PUBLIC_STORAGE_PROVIDER ||
     process.env.NEXT_PUBLIC_STORAGE_TYPE ||
     process.env.STORAGE_TYPE ||
     'local'
@@ -147,7 +164,10 @@ export async function GET(request, { params }) {
     } else if (['pdf', 'docx', 'xlsx', 'csv'].includes(extension)) {
       resourceType = 'raw';
     }
-    const cdnUrl = `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/f_auto,q_auto/${filename}`;
+    const cleanCloudinaryKey = (filename.startsWith('kucet/') || filename.startsWith('archive/'))
+      ? filename
+      : `kucet/${filename}`;
+    const cdnUrl = `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/f_auto,q_auto/${cleanCloudinaryKey}`;
     return NextResponse.redirect(cdnUrl, 307);
   }
 
@@ -168,8 +188,11 @@ export async function GET(request, { params }) {
       '.webp': 'image/webp',
       '.svg': 'image/svg+xml',
       '.pdf': 'application/pdf',
+      '.heic': 'image/heic',
+      '.heif': 'image/heif',
       '.mp3': 'audio/mpeg',
-      '.mp4': 'video/mp4'
+      '.mp4': 'video/mp4',
+      '.webm': 'video/webm'
     };
     const contentType = mimeTypes[extension] || 'application/octet-stream';
     const cacheControlHeader = isStatic 

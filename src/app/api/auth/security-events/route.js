@@ -11,9 +11,9 @@ export async function GET(_req) {
     let userType = 'STUDENT';
     
     if (!user) {
-      // Check if clerk
-      user = await getAuthUser('clerk');
-      userType = 'CLERK';
+      // Check if staff
+      user = await getAuthUser('staff');
+      userType = 'STAFF';
     }
 
     if (!user) {

@@ -34,14 +34,17 @@ export default class CloudinaryStorageProvider extends StorageProvider {
       return path;
     }
 
+    let cleanPath = path;
+    if (cleanPath.includes('/api/assets/view/')) {
+      cleanPath = cleanPath.split('/api/assets/view/')[1];
+    }
+    cleanPath = cleanPath.replace(/^\/+/, '');
+
     // Resolve institutional asset logical keys
-    const instFilename = resolveInstitutionalFilename(path);
+    const instFilename = resolveInstitutionalFilename(cleanPath);
     if (instFilename) {
       return `https://res.cloudinary.com/${this.cloudName}/image/upload/${transformations}/${instFilename}`;
     }
-
-    // Normalize: strip leading slash
-    const cleanPath = path.startsWith('/') ? path.substring(1) : path;
 
     // Static assets — serve from /assets/ directly
     if (cleanPath.startsWith('assets/')) {
@@ -57,9 +60,12 @@ export default class CloudinaryStorageProvider extends StorageProvider {
       resourceType = 'raw';
     }
 
-    // Canonical: the storage key IS the Cloudinary public_id (with extension).
-    // New uploads always produce 'kucet/<folder>/<uuid>.<ext>'.
-    return `https://res.cloudinary.com/${this.cloudName}/${resourceType}/upload/${transformations}/${cleanPath}`;
+    // Ensure kucet/ prefix for cloud storage assets
+    const cloudinaryPath = (cleanPath.startsWith('kucet/') || cleanPath.startsWith('archive/'))
+      ? cleanPath
+      : `kucet/${cleanPath}`;
+
+    return `https://res.cloudinary.com/${this.cloudName}/${resourceType}/upload/${transformations}/${cloudinaryPath}`;
   }
 
   async upload(file, folder, publicId = null) {
@@ -107,18 +113,47 @@ export default class CloudinaryStorageProvider extends StorageProvider {
     if (!sourcePath || typeof sourcePath !== 'string' || sourcePath.startsWith('http') || sourcePath.startsWith('data:')) {
       return { newPath: sourcePath, sizeBytes: 0 };
     }
-    const cleanSource = sourcePath.startsWith('/') ? sourcePath.substring(1) : sourcePath;
+    const cleanSource = sourcePath.replace(/^\/+/, '');
     const filename = cleanSource.split('/').pop();
-    const targetFolderClean = targetFolder.replace(/^\/+|\/+$/g, '');
+    const rawFolder = targetFolder.replace(/^\/+|\/+$/g, '');
+    const targetFolderClean = (rawFolder.startsWith('kucet/') || rawFolder.startsWith('archive/'))
+      ? rawFolder
+      : `kucet/${rawFolder}`;
     const newPath = `${targetFolderClean}/${filename}`;
     return { newPath, sizeBytes: 1024 };
   }
 
   async moveFile(sourcePath, targetFolder) {
-    const copyResult = await this.copyFile(sourcePath, targetFolder);
-    if (copyResult.newPath !== sourcePath) {
-      await this.delete(sourcePath);
+    if (!sourcePath || typeof sourcePath !== 'string' || sourcePath.startsWith('http') || sourcePath.startsWith('data:')) {
+      return { newPath: sourcePath, sizeBytes: 0 };
     }
-    return copyResult;
+
+    const cleanSource = sourcePath.replace(/^\/+/, '');
+    const filename = cleanSource.split('/').pop();
+    const rawFolder = targetFolder.replace(/^\/+|\/+$/g, '');
+    const targetFolderClean = (rawFolder.startsWith('kucet/') || rawFolder.startsWith('archive/'))
+      ? rawFolder
+      : `kucet/${rawFolder}`;
+    const newPath = `${targetFolderClean}/${filename}`;
+
+    try {
+      const { default: cloudinary } = await import('@/lib/cloudinary');
+      const lastDotSrc = cleanSource.lastIndexOf('.');
+      const oldPublicId = lastDotSrc > 0 ? cleanSource.substring(0, lastDotSrc) : cleanSource;
+      const lastDotDst = newPath.lastIndexOf('.');
+      const newPublicId = lastDotDst > 0 ? newPath.substring(0, lastDotDst) : newPath;
+
+      if (oldPublicId !== newPublicId) {
+        await cloudinary.uploader.rename(oldPublicId, newPublicId, { overwrite: true });
+      }
+      return { newPath, sizeBytes: 1024 };
+    } catch (_err) {
+      // Fallback: copy metadata and delete source
+      const copyResult = await this.copyFile(sourcePath, targetFolder);
+      if (copyResult.newPath !== sourcePath) {
+        await this.delete(sourcePath);
+      }
+      return copyResult;
+    }
   }
 }

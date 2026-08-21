@@ -1,7 +1,7 @@
 import { wrapHandler, apiResponse } from '@/lib/api-utils';
 import { cacheAside } from '@/lib/cache';
 
-export const GET = wrapHandler({ role: ['admin', 'hod', 'faculty', 'clerk'] }, async (req) => {
+export const GET = wrapHandler({ role: ['admin', 'hod', 'faculty', 'staff'] }, async (req) => {
   const url = new URL(req.url);
   const branch = url.searchParams.get('branch');
   const semester = url.searchParams.get('semester');

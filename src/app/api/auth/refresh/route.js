@@ -170,14 +170,25 @@ export async function POST(req) {
             user.is_hod = false;
             user.branch = null;
             if (resolvedRole === 'faculty') {
-                const affil = await db.select({ branch_code: academicDepartments.department_code, is_hod: staffAcademicAffiliations.is_hod })
+                const affil = await db.select({ branch_code: academicDepartments.department_code })
                     .from(staffAcademicAffiliations)
                     .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
                     .where(eq(staffAcademicAffiliations.staff_account_id, user.id))
                     .limit(1);
                 if (affil.length > 0) {
-                    user.is_hod = affil[0].is_hod;
                     user.branch = affil[0].branch_code;
+                }
+
+                const { facultyHodAssignments } = await import('@/db/schema');
+                const hodRow = await db.select({ id: facultyHodAssignments.id })
+                    .from(facultyHodAssignments)
+                    .where(and(
+                      eq(facultyHodAssignments.staff_account_id, user.id),
+                      eq(facultyHodAssignments.is_active, true)
+                    ))
+                    .limit(1);
+                if (hodRow.length > 0) {
+                    user.is_hod = true;
                 }
             }
           }
@@ -333,14 +344,25 @@ export async function POST(req) {
         user.is_hod = false;
         user.branch = null;
         if (resolvedRole === 'faculty') {
-            const affil = await db.select({ branch_code: academicDepartments.department_code, is_hod: staffAcademicAffiliations.is_hod })
+            const affil = await db.select({ branch_code: academicDepartments.department_code })
                 .from(staffAcademicAffiliations)
                 .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
                 .where(eq(staffAcademicAffiliations.staff_account_id, user.id))
                 .limit(1);
             if (affil.length > 0) {
-                user.is_hod = affil[0].is_hod;
                 user.branch = affil[0].branch_code;
+            }
+
+            const { facultyHodAssignments } = await import('@/db/schema');
+            const hodRow = await db.select({ id: facultyHodAssignments.id })
+                .from(facultyHodAssignments)
+                .where(and(
+                  eq(facultyHodAssignments.staff_account_id, user.id),
+                  eq(facultyHodAssignments.is_active, true)
+                ))
+                .limit(1);
+            if (hodRow.length > 0) {
+                user.is_hod = true;
             }
         }
       }

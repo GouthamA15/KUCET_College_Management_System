@@ -25,7 +25,7 @@ Access requires `staff_auth` credentials where `is_hod: true` and a recognized d
 ### 1. Semester Timetable Matrix (S1 - S8)
 The timetable configuration grid (`branch_timetable`) manages weekly schedules across all 8 semesters:
 - **Grid Layout**: Days (Monday to Saturday) vs Periods (Periods 1 through 7, including lunch break).
-- **Subject & Faculty Pairing**: Assigns a subject and primary faculty member (`clerks.id`) to each period slot.
+- **Subject & Faculty Pairing**: Assigns a subject and primary faculty member (`staff_accounts.id`) to each period slot.
 - **Conflict Detection Engine**: Automatically validates timetable allocations against active schedules across the institution to prevent:
   - Assigning the same faculty member to two different classes in the same period slot.
   - Assigning the same physical laboratory or lecture room simultaneously.
@@ -41,14 +41,14 @@ flowchart TD
 
 ---
 
-### 2. Faculty Workload Tracker & Substitutions (`/clerk/hod/workload`)
+### 2. Faculty Workload Tracker & Substitutions (`/staff/hod/faculty-load`)
 Maintains balanced teaching loads across departmental staff:
 - **Workload Analytics**: Visualizes total weekly teaching hours per faculty member. Highlights overload (> 16 hours/week) or underload (< 8 hours/week) states.
 - **Faculty Substitution Engine**: In the event of faculty leave, HODs assign temporary substitute faculty to specific class periods (`faculty_substitutions`), seamlessly transferring attendance recording permissions (`ATTENDANCE_MARK`) for that session.
 
 ---
 
-### 3. Branch Condonation Analytics (`/clerk/hod/condonation`)
+### 3. Branch Condonation Analytics (`/staff/hod/attendance-analytics`)
 Monitors student attendance compliance across all branch sections:
 - **Threshold Categorization**:
   - **Satisfactory ($\ge 75\%$)**: Regular exam eligibility.

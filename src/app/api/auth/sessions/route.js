@@ -13,7 +13,7 @@ export async function GET(_req) {
     let userType = 'STUDENT';
     
     if (!user) {
-      user = await getAuthUser('clerk');
+      user = await getAuthUser('staff');
       userType = 'STAFF';
     }
 
@@ -65,7 +65,7 @@ export async function DELETE(req) {
     let user = await getAuthUser('student');
     let userType = 'STUDENT';
     if (!user) {
-      user = await getAuthUser('clerk');
+      user = await getAuthUser('staff');
       userType = 'STAFF';
     }
     if (!user) return apiError('Unauthorized', 401);

@@ -111,21 +111,22 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto', options = {
   // Guard: reject serialization corruption
   if (path.includes('[object') || path.includes('undefined')) return '';
 
-  // 1. Normalize and clean the path (strip base URL if present)
+  // 1. Normalize and clean the path
   let cleanPath = path;
   if (cleanPath.startsWith('data:')) {
     return cleanPath;
   }
 
+  // Handle full external URLs or Cloudinary CDN URLs
   if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
     try {
       const url = new URL(cleanPath);
-      // If it's a Cloudinary URL, try to extract the kucet/ part
+      // If it's a Cloudinary URL, try to extract the relative storage key
       const kucetIndex = url.pathname.indexOf('kucet/');
       if (kucetIndex !== -1) {
         cleanPath = url.pathname.substring(kucetIndex);
       } else {
-        // If it's already a full external URL and not Cloudinary, just return it
+        // If it's already an external non-Cloudinary URL, return it directly
         return cleanPath;
       }
     } catch {
@@ -133,8 +134,17 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto', options = {
     }
   }
 
-  // 2. Check Static Assets First
-  if (STATIC_ASSETS.has(cleanPath) || (cleanPath.startsWith('/') && !cleanPath.includes('kucet/'))) {
+  // If already prefixed with /api/assets/view/, extract the underlying storage key
+  if (cleanPath.includes('/api/assets/view/')) {
+    cleanPath = cleanPath.split('/api/assets/view/')[1] || cleanPath;
+  }
+
+  // 2. Check Static Public Assets First
+  if (STATIC_ASSETS.has(cleanPath)) {
+    return cleanPath;
+  }
+  if (cleanPath.startsWith('/') && !cleanPath.includes('kucet/') && !cleanPath.startsWith('/assets/')) {
+    // If it's an absolute static path in the repo public folder
     return cleanPath;
   }
 
@@ -146,7 +156,9 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto', options = {
   // Generate lookup cache key
   const storageType = (
     options.forceStorageType ||
+    process.env.NEXT_PUBLIC_STORAGE_PROVIDER ||
     process.env.NEXT_PUBLIC_STORAGE_TYPE ||
+    process.env.STORAGE_PROVIDER ||
     process.env.STORAGE_TYPE ||
     'local'
   ).toLowerCase();
@@ -158,18 +170,18 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto', options = {
     return CLIENT_ASSET_CACHE.get(cacheKey);
   }
 
-  // Normalize: strip leading slash for consistent matching
-  const finalCleanPath = cleanPath.startsWith('/') ? cleanPath.substring(1) : cleanPath;
+  // Normalize: strip leading/trailing slashes for consistent matching
+  const finalCleanPath = cleanPath.replace(/^\/+|\/+$/g, '');
   const normalizedPath = `/${finalCleanPath}`;
 
   let resolvedUrl = '';
 
   // Serve static public-folder assets directly
-  if (STATIC_ASSETS.has(normalizedPath)) {
+  if (STATIC_ASSETS.has(normalizedPath) || finalCleanPath.startsWith('assets/')) {
     resolvedUrl = normalizedPath;
   } else {
     // Resolve institutional assets (e.g. 'principal/signature' logical key)
-    const instFilename = resolveInstitutionalFilename(cleanPath);
+    const instFilename = resolveInstitutionalFilename(finalCleanPath);
     if (instFilename) {
       if (storageType === 'local') {
         resolvedUrl = `/assets/${instFilename}`;
@@ -187,7 +199,7 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto', options = {
         process.env.CLOUDINARY_CLOUD_NAME ||
         'djs0ry74r';
 
-      const extension = cleanPath.split('.').pop()?.toLowerCase() || '';
+      const extension = finalCleanPath.split('.').pop()?.toLowerCase() || '';
       let resourceType = 'image';
       if (['mp3', 'wav', 'ogg', 'mp4', 'webm', 'mov', 'm4a'].includes(extension)) {
         resourceType = 'video';
@@ -195,7 +207,12 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto', options = {
         resourceType = 'raw';
       }
 
-      resolvedUrl = `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformations}/${cleanPath}`;
+      // Cloudinary paths always live under 'kucet/' namespace
+      const cloudinaryPath = (finalCleanPath.startsWith('kucet/') || finalCleanPath.startsWith('archive/'))
+        ? finalCleanPath
+        : `kucet/${finalCleanPath}`;
+
+      resolvedUrl = `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformations}/${cloudinaryPath}`;
     } else {
       // Secure Private Storage (Local Mode): All non-static asset keys are served through /api/assets/view/
       resolvedUrl = `/api/assets/view/${finalCleanPath}`;

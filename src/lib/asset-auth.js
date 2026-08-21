@@ -63,6 +63,7 @@ export function isStaticPublicAsset(rawPath) {
       'kakatiya-kala-thoranam.png', 'rudramadevi_statue.jpg',
       'college-campus.jpg', 'default-avatar.svg', 'Picture1.png',
       'icon-192x192.png', 'icon-512x512.png', 'kucet-logo.png',
+      'ku-college-seal.png',
       'favicon.ico', 'manifest.json'
     ];
     if (publicStaticFiles.includes(filename)) return true;
@@ -161,7 +162,7 @@ export async function canUserAccessAsset(user, rawPath) {
   }
 
   // 3. CLERK / FACULTY / HOD STAFF ACCESS CONTROL
-  if (['scholarship', 'admission', 'faculty', 'clerk'].includes(userRole) || user.is_hod || user.clerkId) {
+  if (['scholarship', 'admission', 'faculty', 'staff'].includes(userRole) || user.is_hod || user.staffId) {
     // Staff members are authorized for operational media (student photos, signatures, admission drafts, payment proofs, clerk photos/signatures, bug reports)
     return true;
   }
@@ -291,8 +292,8 @@ export async function canUserAccessAsset(user, rawPath) {
         }
       }
 
-      // f) Faculty/Clerk signature check on verified documents/memos
-      if (cleanPath.startsWith('clerks/signatures') || cleanPath.startsWith('clerks/pfp')) {
+      // f) Faculty/Staff signature check on verified documents/memos (including legacy clerks/ path)
+      if (cleanPath.startsWith('staffAccounts/') || cleanPath.startsWith('staffs/') || cleanPath.startsWith('clerks/signatures') || cleanPath.startsWith('clerks/pfp')) {
         return true;
       }
 

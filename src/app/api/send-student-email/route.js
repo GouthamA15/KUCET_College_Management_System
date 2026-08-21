@@ -8,8 +8,8 @@ import { Queue } from '@/lib/queue';
 
 export async function POST(request) {
   try {
-    // Security: Only institutional staff (clerks or admins) can send system emails
-    let user = await getAuthUser('clerk');
+    // Security: Only institutional staff (faculty/staff or admins) can send system emails
+    let user = await getAuthUser('staff');
     if (!user) {
       user = await getAuthUser('admin');
     }

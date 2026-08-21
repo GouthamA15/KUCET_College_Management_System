@@ -47,13 +47,13 @@ export async function POST(req) {
     const { STORAGE_FOLDERS } = await import('@/lib/storage-config');
     if (pfp && pfp.startsWith('data:image')) {
       if (currentClerk.pfp) await storage.delete(currentClerk.pfp);
-      const res = await storage.upload(pfp, STORAGE_FOLDERS.CLERKS_PFP);
+      const res = await storage.upload(pfp, STORAGE_FOLDERS.STAFF_PFP);
       updateData.pfp = typeof res === 'string' ? res : res?.path;
     }
 
     if (signature && signature.startsWith('data:image')) {
       if (currentClerk.signature) await storage.delete(currentClerk.signature);
-      const res = await storage.upload(signature, STORAGE_FOLDERS.CLERKS_SIGNATURES);
+      const res = await storage.upload(signature, STORAGE_FOLDERS.STAFF_SIGNATURES);
       updateData.signature = typeof res === 'string' ? res : res?.path;
     }
 

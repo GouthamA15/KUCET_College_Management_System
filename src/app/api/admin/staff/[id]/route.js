@@ -115,16 +115,47 @@ export async function PUT(req, context) {
 
       // 2. Handle Branch and HOD Updates (for Faculty)
       if (branches !== undefined || is_hod !== undefined) {
-        
-        let programData = [];
         let deptCodes = [];
+        
         // If branches is provided, update affiliations
         if (branches !== undefined) {
-          // Resolve program IDs and department IDs
+          const affiliationsToInsert = [];
+
           for (const b of branches) {
-            const prog = await tx.query.academicPrograms.findFirst({ where: eq(academicPrograms.program_code, b) });
-            if (prog) {
-              programData.push({ department_id: prog.department_id, program_id: prog.id });
+            // First check if b matches a department directly (e.g. 'CSE')
+            let dept = await tx.query.academicDepartments.findFirst({
+              where: eq(academicDepartments.department_code, b)
+            });
+
+            // If not found, check if b is a program code (e.g. 'CSE' program under a dept)
+            let prog = await tx.query.academicPrograms.findFirst({
+              where: eq(academicPrograms.program_code, b)
+            });
+
+            if (!dept && prog) {
+              dept = await tx.query.academicDepartments.findFirst({
+                where: eq(academicDepartments.id, prog.department_id)
+              });
+            }
+
+            // If department record does not exist at all, create it dynamically
+            if (!dept) {
+              const [insertedDept] = await tx.insert(academicDepartments).values({
+                department_code: b,
+                department_name: b,
+                is_active: true
+              });
+              dept = { id: insertedDept.insertId, department_code: b };
+            }
+
+            affiliationsToInsert.push({
+              staff_account_id: idNum,
+              department_id: dept.id,
+              program_id: prog?.id || null
+            });
+
+            if (dept.department_code && !deptCodes.includes(dept.department_code)) {
+              deptCodes.push(dept.department_code);
             }
           }
 
@@ -132,18 +163,8 @@ export async function PUT(req, context) {
           await tx.delete(staffAcademicAffiliations).where(eq(staffAcademicAffiliations.staff_account_id, idNum));
 
           // Insert new affiliations
-          for (const p of programData) {
-             await tx.insert(staffAcademicAffiliations).values({
-               staff_account_id: idNum,
-               department_id: p.department_id,
-               program_id: p.program_id
-             });
-          }
-          
-          const uniqueDeptIds = [...new Set(programData.map(p => p.department_id))];
-          for (const dId of uniqueDeptIds) {
-             const dept = await tx.query.academicDepartments.findFirst({ where: eq(academicDepartments.id, dId) });
-             if (dept) deptCodes.push(dept.department_code);
+          for (const affil of affiliationsToInsert) {
+            await tx.insert(staffAcademicAffiliations).values(affil);
           }
         } else {
           // We need deptCodes to update HOD status for existing branches if branches wasn't changed
@@ -162,29 +183,29 @@ export async function PUT(req, context) {
            if (is_hod === false) {
              // Remove HOD status
              await tx.delete(facultyHodAssignments).where(eq(facultyHodAssignments.staff_account_id, idNum));
-             await tx.update(staffAcademicAffiliations).set({ is_hod: false }).where(eq(staffAcademicAffiliations.staff_account_id, idNum));
            } else if (is_hod === true && deptCodes.length > 0) {
              // Add HOD status for all assigned departments
              const { getCurrentCalendarSession } = await import('@/lib/academic-utils');
              const currentSession = await getCurrentCalendarSession();
              
              for (const dCode of deptCodes) {
-               // Check if someone else is already HOD for this department
+               // Check if someone else is already active HOD for this department
                const existingHOD = await tx.select({ id: staffAccounts.id, name: staffAccounts.name })
                   .from(facultyHodAssignments)
                   .innerJoin(staffAccounts, eq(facultyHodAssignments.staff_account_id, staffAccounts.id))
                   .where(and(
                     eq(facultyHodAssignments.department_code, dCode),
+                    eq(facultyHodAssignments.is_active, true),
                     eq(staffAccounts.account_status, 'ACTIVE'),
                     ne(staffAccounts.id, idNum)
                   ))
                   .limit(1);
 
                if (existingHOD.length > 0) {
-                  throw new Error(`Conflict: ${existingHOD[0].name} is already the HOD for this department. Please demote them first.`);
+                  throw new Error(`Conflict: ${existingHOD[0].name} is already the HOD for ${dCode}. Please demote them first.`);
                }
 
-               // Check if this user is already HOD
+               // Check if this user already has an HOD record
                const alreadyHOD = await tx.query.facultyHodAssignments.findFirst({
                  where: and(eq(facultyHodAssignments.department_code, dCode), eq(facultyHodAssignments.staff_account_id, idNum))
                });
@@ -194,11 +215,16 @@ export async function PUT(req, context) {
                     staff_account_id: idNum,
                     department_code: dCode,
                     academic_year: currentSession.academic_year,
-                    start_date: new Date()
+                    start_date: new Date(),
+                    is_active: true
                   });
+               } else if (!alreadyHOD.is_active) {
+                  await tx.update(facultyHodAssignments).set({
+                    is_active: true,
+                    end_date: null
+                  }).where(eq(facultyHodAssignments.id, alreadyHOD.id));
                }
              }
-             await tx.update(staffAcademicAffiliations).set({ is_hod: true }).where(eq(staffAcademicAffiliations.staff_account_id, idNum));
            }
         }
       }

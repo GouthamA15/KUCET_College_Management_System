@@ -14,7 +14,7 @@ import IdempotencyService from '@/services/IdempotencyService';
 import { StudentService } from '@/services/StudentService';
 
 export const POST = wrapHandler({
-  auth: 'clerk',
+  auth: 'staff',
   handler: async (req, { user, context }) => {
     if (user.role !== 'admission') return apiError('Forbidden', 403);
 

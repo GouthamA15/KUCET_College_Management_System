@@ -1444,6 +1444,33 @@ Based on the architectural audit in `DOCUMENTATION/architecture/solutions-archit
 
 ---
 
+---
+
+## 20. Schema-First Faculty, HOD & Admin Staff Management Regression Fix
+
+### 20.1 Root Cause & Forensics
+Following the system-wide `clerk` → `staff` refactoring and database schema evolution, multiple runtime SQL mismatches and broken field references were identified:
+1. **Invalid Column `staffAcademicAffiliations.is_hod`**: The schema in `src/db/schema/identity.js` delegates HOD assignments solely to `faculty_hod_assignments`. Calls attempting to update or select `staffAcademicAffiliations.is_hod` triggered SQL errors (HTTP 500) during token refresh (`src/app/api/auth/refresh/route.js`, `src/lib/auth-utils.js`) and Admin staff editing (`src/app/api/admin/staff/[id]/route.js`).
+2. **Column Name Mismatch in Substitutions**: `src/app/api/staff/hod/substitutions/route.js` referenced non-existent `created_by_staff_account_id` instead of schema column `created_by_staff_id`.
+3. **Registration Service Mismatches**: `StaffRegistrationService.js` referenced `role_name` instead of `description` in `staffRoles` and `code`/`name` instead of `department_code`/`department_name` in `academicDepartments`.
+4. **Teaching Staff Branch & HOD Resolution**: Admin faculty edit (`PUT /api/admin/staff/[id]`) now correctly resolves branches against `academicDepartments` (auto-creating missing department entries) and synchronizes `facultyHodAssignments` while enforcing single active HOD per department.
+
+### 20.2 Key Modifications
+| File | Changes Made |
+|---|---|
+| `src/app/api/admin/staff/[id]/route.js` | Removed `is_hod` update on `staffAcademicAffiliations`; added robust `academicDepartments` lookup and creation; updated HOD conflict guard to check `is_active = true`. |
+| `src/app/api/admin/staff/route.js` | Joined `facultyHodAssignments` with `is_active = true` condition to accurately resolve active HOD status. |
+| `src/lib/auth-utils.js` | Removed `staffAcademicAffiliations.is_hod` from silent refresh select; resolved `is_hod` via `facultyHodAssignments`. |
+| `src/app/api/auth/refresh/route.js` | Removed `staffAcademicAffiliations.is_hod` from grace period and standard token refresh; queried `facultyHodAssignments` for HOD status. |
+| `src/services/identity/StaffRegistrationService.js` | Fixed column names for `staffRoles` (`description`), `academicDepartments` (`department_code`, `department_name`), and affiliations. |
+| `src/app/api/staff/hod/substitutions/route.js` | Fixed column reference `created_by_staff_id`. |
+| `src/services/academic/FacultyService.js` | Standardized role check in `getFacultyLoad` to handle case-insensitive role codes. |
+| `src/app/api/admin/staff-requests/[id]/approve/route.js` | Ensured departments and programs are safely registered before creating academic affiliations. |
+| `src/app/api/staff/faculty/assignments/route.js` | Added fallback for active status calculation when calendar session is unpopulated. |
+| `src/app/api/staff/faculty/marks/route.js` | Authorized both primary assigned faculty and departmental HODs to view and submit internal marks. |
+
+---
+
 ## Cross-References
 
 - [GEMINI.md](../../GEMINI.md) — Updated with Session 207 commits and new directory map
@@ -1453,4 +1480,5 @@ Based on the architectural audit in `DOCUMENTATION/architecture/solutions-archit
 - [Database Schema](../database/schema.md) — Full schema reference
 - [Migration History](./migration-history.md) — Session 207 migration entry
 - [Session 206 Release Notes](./session-206-release-notes.md) — Previous release
+
 

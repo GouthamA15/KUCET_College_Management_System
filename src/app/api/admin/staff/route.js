@@ -17,7 +17,7 @@ export async function GET() {
       role: staffRoles.role_code,
       branch: sql`COALESCE(${academicPrograms.program_code}, ${academicDepartments.department_code})`.as('branch'),
       is_active: staffAccounts.account_status,
-      is_hod: sql`CASE WHEN ${facultyHodAssignments.id} IS NOT NULL THEN 1 ELSE 0 END`.as('is_hod'),
+      is_hod: sql`CASE WHEN ${facultyHodAssignments.id} IS NOT NULL AND ${facultyHodAssignments.is_active} = 1 THEN 1 ELSE 0 END`.as('is_hod'),
       created_at: staffAccounts.created_at,
       updated_at: staffAccounts.updated_at
     })
@@ -27,7 +27,10 @@ export async function GET() {
     .leftJoin(staffAcademicAffiliations, eq(staffAccounts.id, staffAcademicAffiliations.staff_account_id))
     .leftJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
     .leftJoin(academicPrograms, eq(staffAcademicAffiliations.program_id, academicPrograms.id))
-    .leftJoin(facultyHodAssignments, and(eq(staffAccounts.id, facultyHodAssignments.staff_account_id), eq(academicDepartments.department_code, facultyHodAssignments.department_code)));
+    .leftJoin(facultyHodAssignments, and(
+      eq(staffAccounts.id, facultyHodAssignments.staff_account_id),
+      eq(facultyHodAssignments.is_active, true)
+    ));
 
     const staffMap = new Map();
 

@@ -99,26 +99,51 @@ export const POST = wrapHandler({
         const { academicDepartments, academicPrograms } = await import('@/db/schema');
         
         for (const affil of affiliations) {
-          const [dept] = await tx
+          if (!affil.department_code) continue;
+
+          let [dept] = await tx
             .select({ id: academicDepartments.id })
             .from(academicDepartments)
             .where(eq(academicDepartments.department_code, affil.department_code));
 
-          if (!dept) continue; // Skip invalid depts
+          if (!dept) {
+            const [dRes] = await tx.insert(academicDepartments).values({
+              department_code: affil.department_code,
+              department_name: affil.department_code,
+              is_active: true
+            });
+            dept = { id: dRes.insertId };
+          }
 
-          for (const pCode of affil.program_codes) {
-            const [prog] = await tx
-              .select({ id: academicPrograms.id })
-              .from(academicPrograms)
-              .where(eq(academicPrograms.program_code, pCode));
-            
-            if (prog) {
+          if (affil.program_codes && affil.program_codes.length > 0) {
+            for (const pCode of affil.program_codes) {
+              let [prog] = await tx
+                .select({ id: academicPrograms.id })
+                .from(academicPrograms)
+                .where(eq(academicPrograms.program_code, pCode));
+              
+              if (!prog) {
+                const [pRes] = await tx.insert(academicPrograms).values({
+                  department_id: dept.id,
+                  program_code: pCode,
+                  program_name: pCode,
+                  is_active: true
+                });
+                prog = { id: pRes.insertId };
+              }
+
               await tx.insert(staffAcademicAffiliations).values({
                 staff_account_id: newAccountId,
                 department_id: dept.id,
                 program_id: prog.id,
               });
             }
+          } else {
+            await tx.insert(staffAcademicAffiliations).values({
+              staff_account_id: newAccountId,
+              department_id: dept.id,
+              program_id: null,
+            });
           }
         }
       }
