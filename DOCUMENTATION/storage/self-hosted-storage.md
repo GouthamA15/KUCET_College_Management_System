@@ -89,14 +89,17 @@ export function getLocalStorageBasePath() {
 
 ### UID / GID Ownership Protocol
 
-Inside the Docker container, Next.js runs under a restricted non-root user (`nextjs`, `UID 1001`, `GID 1001`). To prevent `EACCES: permission denied` errors during file write operations:
+Inside the Docker container, Next.js runs under a restricted non-root user (`nextjs`, `UID 1001`, `GID 1001`). To ensure the application can write to required upload subdirectories without compromising security:
 
 ```bash
-# Set host directory ownership to Docker UID 1001
-chown -R 1001:1001 /var/www/kucet-storage
+# Execute safe storage preparation script (applies least privilege)
+bash DEPLOYMENT_PACKAGE/SCRIPTS/prepare-storage.sh
 
-# Grant read/write/execute permissions to owner and group
-chmod -R 755 /var/www/kucet-storage
+# Directory structure permissions:
+# - Base directories: 755 (read & traverse)
+# - Upload subdirectories (kucet/students/*, kucet/staff/*, etc.): 775 (owned by 1001:1001)
+# - Protected institutional assets (kucet/institution): 755 (read-only for document engine)
+# - Database backups (/var/kucet-db-backup): 700 (isolated from web application)
 ```
 
 ### Directory Traversal Protection

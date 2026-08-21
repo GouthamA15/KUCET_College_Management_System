@@ -21,6 +21,7 @@ KUCET_CMS_DIR="/var/www/kucet-cms"
 COMPOSE_FILE="$KUCET_CMS_DIR/DEPLOYMENT_PACKAGE/docker-compose.yml"
 SCRIPTS_DIR="$KUCET_CMS_DIR/DEPLOYMENT_PACKAGE/SCRIPTS"
 HEALTH_CHECK="$SCRIPTS_DIR/health-check.sh"
+PREPARE_STORAGE="$SCRIPTS_DIR/prepare-storage.sh"
 LOG_DIR="/var/log/kucet"
 LOG_FILE="$LOG_DIR/rollback_$(date +%Y%m%d_%H%M%S).log"
 
@@ -109,11 +110,31 @@ git checkout "$TARGET_COMMIT" 2>&1 || {
 log "Git checkout to $TARGET_COMMIT completed."
 
 # ---------------------------------------------------------------------------
-# Ensure host storage directory exists with proper permissions for Docker UID 1001
+# Prepare host storage directories with least privilege (no chmod 777)
 # ---------------------------------------------------------------------------
-log "Ensuring host storage directories exist (/var/www/kucet-storage/kucet) ..."
-mkdir -p /var/www/kucet-storage/kucet /var/kucet-db-backup 2>/dev/null || true
-sudo chown -R 1001:1001 /var/www/kucet-storage 2>/dev/null || chown -R 1001:1001 /var/www/kucet-storage 2>/dev/null || chmod -R 775 /var/www/kucet-storage 2>/dev/null || chmod -R 777 /var/www/kucet-storage 2>/dev/null || true
+log "Preparing persistent host storage directories (/var/www/kucet-storage) ..."
+if [[ -f "$PREPARE_STORAGE" ]]; then
+  bash "$PREPARE_STORAGE" 2>&1 || true
+else
+  mkdir -p /var/www/kucet-storage/kucet/students/pfp \
+           /var/www/kucet-storage/kucet/students/signatures \
+           /var/www/kucet-storage/kucet/requests/pfp \
+           /var/www/kucet-storage/kucet/requests/signatures \
+           /var/www/kucet-storage/kucet/requests/proofs \
+           /var/www/kucet-storage/kucet/certificates/payments \
+           /var/www/kucet-storage/kucet/admission_drafts/pfp \
+           /var/www/kucet-storage/kucet/admission_drafts/signatures \
+           /var/www/kucet-storage/kucet/staff/pfp \
+           /var/www/kucet-storage/kucet/staff/signatures \
+           /var/www/kucet-storage/kucet/bug_reports \
+           /var/www/kucet-storage/kucet/backups \
+           /var/www/kucet-storage/kucet/.health_test \
+           /var/www/kucet-storage/kucet/institution \
+           /var/kucet-db-backup 2>/dev/null || true
+  chmod 755 /var/www/kucet-storage /var/www/kucet-storage/kucet /var/www/kucet-storage/kucet/institution 2>/dev/null || true
+  chmod 700 /var/kucet-db-backup 2>/dev/null || true
+  chown 1001:1001 /var/www/kucet-storage /var/www/kucet-storage/kucet 2>/dev/null || sudo chown 1001:1001 /var/www/kucet-storage /var/www/kucet-storage/kucet 2>/dev/null || true
+fi
 
 # ---------------------------------------------------------------------------
 # Rebuild and restart ONLY the app container

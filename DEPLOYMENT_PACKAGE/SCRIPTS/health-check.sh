@@ -135,14 +135,8 @@ STORAGE_TEST_CMD="mkdir -p /app/storage/kucet/.health_test && echo 'health_check
 if docker exec kucet-cms-app sh -c "$STORAGE_TEST_CMD" 2>/dev/null; then
   record "storage:container-writable" "PASS" "Container /app/storage is writable by nextjs user"
 else
-  # Self-healing attempt: fix host permissions for UID 1001 and retry once
-  sudo chown -R 1001:1001 /var/www/kucet-storage 2>/dev/null || chown -R 1001:1001 /var/www/kucet-storage 2>/dev/null || chmod -R 775 /var/www/kucet-storage 2>/dev/null || chmod -R 777 /var/www/kucet-storage 2>/dev/null || true
-  if docker exec kucet-cms-app sh -c "$STORAGE_TEST_CMD" 2>/dev/null; then
-    record "storage:container-writable" "PASS" "Container /app/storage is writable by nextjs user (permission self-healed)"
-  else
-    record "storage:container-writable" "FAIL" "Container /app/storage write/delete test failed"
-    CRITICAL_FAIL=true
-  fi
+  record "storage:container-writable" "FAIL" "Container /app/storage write/delete test failed"
+  CRITICAL_FAIL=true
 fi
 
 # ---------------------------------------------------------------------------
