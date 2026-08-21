@@ -77,7 +77,7 @@ run_step() {
 # STEP 1: Create /var/log/kucet/ directory
 # ---------------------------------------------------------------------------
 run_step "1" "Create log directory" \
-  "mkdir -p /var/log/kucet && chmod 777 /var/log/kucet && log '  Created: /var/log/kucet/'"
+  "mkdir -p /var/log/kucet && chmod 755 /var/log/kucet && log '  Created: /var/log/kucet/'"
 
 # ---------------------------------------------------------------------------
 # STEP 2: Install GitHub Actions runner as systemd service
