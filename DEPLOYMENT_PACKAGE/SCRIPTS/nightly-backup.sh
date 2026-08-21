@@ -3,8 +3,8 @@ set -e  # Exit on any error
 
 # Configuration
 DB_NAME="kucet_cms"
-BACKUP_DIR="/var/www/backups"
-STORAGE_DIR="/var/www/kucet-storage/uploads"
+BACKUP_DIR="/var/kucet-db-backup"
+STORAGE_DIR="/var/www/kucet-storage"
 TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
 WEBHOOK_URL=${BACKUP_ALERT_WEBHOOK_URL:-""}
 

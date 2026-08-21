@@ -115,12 +115,12 @@ mkdir -p /var/www/kucet-cms
 cd /var/www/kucet-cms
 
 # Create the local asset storage vault
-# This stores student photos, signatures, payment screenshots
-mkdir -p /var/www/kucet-storage/public
+# This stores student photos, staff photos, signatures, payment screenshots
+mkdir -p /var/www/kucet-storage/kucet
 
 # Correct ownership for Docker UID 1001 (nextjs user inside container)
-chown -R 1001:1001 /var/www/kucet-storage/public
-chmod -R 755 /var/www/kucet-storage/public
+chown -R 1001:1001 /var/www/kucet-storage
+chmod -R 755 /var/www/kucet-storage
 
 # Create secure backup directory
 mkdir -p /var/kucet-db-backup
@@ -402,7 +402,7 @@ The script is pre-configured. Verify these variables at the top:
 ```bash
 DB_NAME="kucet_cms"
 BACKUP_DIR="/var/kucet-db-backup"
-STORAGE_DIR="/var/www/kucet-storage/public"
+STORAGE_DIR="/var/www/kucet-storage"
 ```
 
 ### 8.3 Schedule Automated Backups

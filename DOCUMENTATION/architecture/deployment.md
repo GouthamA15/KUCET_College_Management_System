@@ -50,7 +50,7 @@ The KUCET CMS application is hosted on a **Hostinger VPS KVM 2** virtual private
                    |                              |
                    v                              v
 +------------------------------------------------------------------------------------------------------+
-| Mounted Persistent Storage Volume: /var/www/kucet-storage/public                                     |
+| Mounted Persistent Storage Volume: /var/www/kucet-storage                                            |
 +------------------------------------------------------------------------------------------------------+
 ```
 
@@ -77,7 +77,8 @@ services:
     env_file:
       - .env.production
     volumes:
-      - /var/www/kucet-storage/public:/var/www/kucet-storage/public
+      # Persistent VPS Storage Root mounted to container storage path
+      - /var/www/kucet-storage:/app/storage
     depends_on:
       db:
         condition: service_healthy
@@ -94,8 +95,9 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - /var/www/kucet-storage/public:/usr/share/nginx/html/uploads:ro
+      - ./DEPLOYMENT_PACKAGE/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # Read-only mount for Nginx internal X-Accel-Redirect delivery
+      - /var/www/kucet-storage:/usr/share/nginx/html/storage:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - app
@@ -293,7 +295,7 @@ sequenceDiagram
 ## 🛡️ Disaster Recovery & Backup Strategy
 
 - **Database Snapshots**: Automated daily database export script (`src/db/backup.js`) dumps schema and data, uploading compressed `.sql.gz` archives to S3 storage and local backup volumes.
-- **Persistent Volume Mounts**: VPS directory `/var/www/kucet-storage/public` is mounted persistently across container restarts to preserve uploaded documents.
+- **Persistent Volume Mounts**: VPS directory `/var/www/kucet-storage` is mounted persistently across container restarts to preserve uploaded documents.
 
 ---
 

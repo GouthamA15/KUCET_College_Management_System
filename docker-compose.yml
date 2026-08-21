@@ -14,7 +14,8 @@ services:
     env_file:
       - .env.production
     volumes:
-      - /var/www/kucet-storage/public:/var/www/kucet-storage/public
+      # Persistent VPS Storage Root mounted to container storage path
+      - /var/www/kucet-storage:/app/storage
     depends_on:
       db:
         condition: service_healthy
@@ -30,8 +31,9 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - /var/www/kucet-storage/public:/usr/share/nginx/html/uploads:ro
+      - ./DEPLOYMENT_PACKAGE/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # Read-only mount for Nginx internal X-Accel-Redirect delivery
+      - /var/www/kucet-storage:/usr/share/nginx/html/storage:ro
     depends_on:
       - app
     networks:

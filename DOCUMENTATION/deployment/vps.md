@@ -28,7 +28,7 @@ flowchart TD
         
         subgraph Persistent VPS Host Disk
             DBContainer --> HostDB[(/var/lib/mysql)]
-            AppContainer --> HostUploads[(/var/www/kucet-storage/public)]
+            AppContainer --> HostUploads[(/var/www/kucet-storage)]
         end
         
         KumaContainer[kucet-cms-kuma :3001] -->|Health Probe| AppContainer
@@ -78,14 +78,14 @@ services:
     restart: always
     env_file: .env.production
     volumes:
-      - /var/www/kucet-storage/public:/app/public/uploads
+      - /var/www/kucet-storage:/app/storage
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - kucet_network
+      - cms-network
 
   nginx:
     image: nginx:alpine
@@ -96,7 +96,7 @@ services:
       - "443:443"
     volumes:
       - ./DEPLOYMENT_PACKAGE/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - /var/www/kucet-storage/public:/usr/share/nginx/html/uploads:ro
+      - /var/www/kucet-storage:/usr/share/nginx/html/storage:ro
     depends_on:
       - app
     networks:

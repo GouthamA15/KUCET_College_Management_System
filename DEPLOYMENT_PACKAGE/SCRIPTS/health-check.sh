@@ -19,7 +19,7 @@ set -euo pipefail
 KUCET_CMS_DIR="/var/www/kucet-cms"
 COMPOSE_FILE="$KUCET_CMS_DIR/DEPLOYMENT_PACKAGE/docker-compose.yml"
 LOG_FILE="/tmp/kucet_health_check.log"
-STORAGE_DIR="/var/www/kucet-storage/public"
+STORAGE_DIR="/var/www/kucet-storage"
 HEALTH_ENDPOINT="http://localhost/api/health"
 DISK_WARN_GB=10
 RAM_WARN_PERCENT=90
@@ -112,17 +112,30 @@ fi
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
-# CHECK 11: Storage directory exists and is writable
+# CHECK 11a: Host storage directory exists
 # ---------------------------------------------------------------------------
-if [[ -d "$STORAGE_DIR" ]]; then
-  if [[ -w "$STORAGE_DIR" ]]; then
-    record "storage:writable" "PASS" "$STORAGE_DIR exists and is writable"
+HOST_STORAGE_DIR="/var/www/kucet-storage"
+if [[ -d "$HOST_STORAGE_DIR" ]]; then
+  record "storage:host-mount" "PASS" "$HOST_STORAGE_DIR exists on host"
+else
+  # Try to create if missing (e.g. initial setup)
+  mkdir -p "$HOST_STORAGE_DIR/kucet" 2>/dev/null || true
+  if [[ -d "$HOST_STORAGE_DIR" ]]; then
+    record "storage:host-mount" "PASS" "$HOST_STORAGE_DIR created on host"
   else
-    record "storage:writable" "FAIL" "$STORAGE_DIR exists but is NOT writable"
+    record "storage:host-mount" "FAIL" "$HOST_STORAGE_DIR does not exist on host"
     CRITICAL_FAIL=true
   fi
+fi
+
+# ---------------------------------------------------------------------------
+# CHECK 11b: Container storage volume is writable by Next.js user
+# ---------------------------------------------------------------------------
+STORAGE_TEST_CMD="mkdir -p /app/storage/kucet/.health_test && echo 'health_check_ok' > /app/storage/kucet/.health_test/test.tmp && grep -q 'health_check_ok' /app/storage/kucet/.health_test/test.tmp && rm -rf /app/storage/kucet/.health_test"
+if docker exec kucet-cms-app sh -c "$STORAGE_TEST_CMD" 2>/dev/null; then
+  record "storage:container-writable" "PASS" "Container /app/storage is writable by nextjs user"
 else
-  record "storage:writable" "FAIL" "$STORAGE_DIR does not exist"
+  record "storage:container-writable" "FAIL" "Container /app/storage write/delete test failed"
   CRITICAL_FAIL=true
 fi
 

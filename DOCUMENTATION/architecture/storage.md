@@ -123,7 +123,7 @@ To guarantee zero file upload loss during vendor outages or network failures, `F
 ### Operational Workflow
 1. **Upload Execution**: When an upload request arrives, `FailoverStorageProvider` attempts to upload the binary file buffer to the **primary provider** (e.g., AWS S3 / Cloudflare R2).
 2. **Automatic Failover**: If the primary provider throws an error (due to rate limits, invalid API keys, or cloud timeouts), `FailoverStorageProvider` catches the exception, dispatches a warning log to Pino logger, and immediately retries the upload using the **secondary provider** (e.g., Cloudinary).
-3. **Tertiary Local Fallback**: If all cloud providers fail, the upload falls back to the **local disk filesystem** (`/var/www/kucet-storage/public`), ensuring mission-critical workflows (such as student admission photo submission) succeed without breaking user operations.
+3. **Tertiary Local Fallback**: If all cloud providers fail, the upload falls back to the **local disk filesystem** (`/var/www/kucet-storage`), ensuring mission-critical workflows (such as student admission photo submission) succeed without breaking user operations.
 
 ### Complete Failover Implementation (`FailoverStorageProvider.js`)
 
