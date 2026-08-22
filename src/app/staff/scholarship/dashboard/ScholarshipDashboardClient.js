@@ -116,7 +116,7 @@ export default function ScholarshipDashboardClient() {
             <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Operational Module</span>
           </div>
           <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_2px_10px_rgba(0,0,0,0.02)] p-3 sm:p-6">
-            <CertificateDashboard clerkType="scholarship" />
+            <CertificateDashboard staffType="scholarship" />
           </div>
         </section>
       ) : (

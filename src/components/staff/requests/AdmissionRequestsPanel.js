@@ -11,6 +11,10 @@ const AdmissionRequestsPanel = () => {
     const [fetchingDetail, setFetchingDetail] = useState(false);
     const [processing, setProcessing] = useState(false);
     
+    React.useEffect(() => {
+        refreshAdmissionDrafts();
+    }, [refreshAdmissionDrafts]);
+    
     // Rejection state
     const [rejectionMode, setRejectionMode] = useState(false);
     const [rejectionReason, setRejectionReason] = useState('');

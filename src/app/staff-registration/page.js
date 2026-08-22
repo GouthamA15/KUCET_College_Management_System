@@ -505,8 +505,8 @@ export default function StaffRegistrationPage() {
                       <option value="FACULTY">Faculty</option>
                     ) : (
                       <>
-                        <option value="ADMISSION_CLERK">Admission Clerk</option>
-                        <option value="SCHOLARSHIP_CLERK">Scholarship Clerk</option>
+                        <option value="ADMISSION_STAFF">Admission Staff</option>
+                        <option value="SCHOLARSHIP_STAFF">Scholarship Staff</option>
                       </>
                     )}
                   </select>

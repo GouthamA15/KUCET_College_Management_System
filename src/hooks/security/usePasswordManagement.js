@@ -18,8 +18,10 @@ export function usePasswordManagement({ role, roll_no, isPasswordSet, onSuccess 
     toast.success('Strong password generated!');
   }, []);
 
+  const isStaffRole = role === 'staff' || ['faculty', 'hod', 'admission', 'scholarship'].includes(role);
+
   const handleSavePassword = async () => {
-    if (role === 'clerk') {
+    if (isStaffRole) {
       if (!currentPassword || !newPassword || !confirmPassword) {
         toast.error('Please fill all password fields');
         return;
@@ -37,8 +39,8 @@ export function usePasswordManagement({ role, roll_no, isPasswordSet, onSuccess 
     
     setPwSaving(true);
     try {
-      const url = role === 'staff' ? '/api/auth/change-password/staff' : '/api/student/set-password';
-      const body = role === 'staff' 
+      const url = isStaffRole ? '/api/auth/change-password/staff' : '/api/student/set-password';
+      const body = isStaffRole 
         ? { oldPassword: currentPassword, newPassword }
         : { rollno: roll_no, password: newPassword, currentPassword: isPasswordSet ? currentPassword : null };
 
@@ -49,7 +51,7 @@ export function usePasswordManagement({ role, roll_no, isPasswordSet, onSuccess 
       });
       
       if (res.ok) {
-        toast.success(role === 'clerk' ? 'Password updated successfully.' : (isPasswordSet ? 'Password updated.' : 'Password set successfully.'));
+        toast.success(isStaffRole ? 'Password updated successfully.' : (isPasswordSet ? 'Password updated.' : 'Password set successfully.'));
         setNewPassword('');
         setConfirmPassword('');
         setCurrentPassword('');

@@ -16,14 +16,14 @@ import { smoothScrollToId } from '@/lib/scroll-utils';
 const UPI_VPA = 'kuengineeringcollege@sbi';
 
 const certificateOptions = [
-  { value: 'Bonafide Certificate', label: 'Bonafide Certificate', fee: 100, clerk: 'admission' },
-  { value: 'No Objection Certificate', label: 'No Objection Certificate', fee: 0, clerk: 'admission'},
-  { value: 'Course Completion Certificate', label: 'Course Completion Certificate', fee: 100, clerk: 'admission' },
-  { value: 'Income Tax (IT) Certificate', label: 'Income Tax (IT) Certificate', fee: 0, clerk: 'scholarship' },
-  { value: 'Custodian Certificate', label: 'Custodian Certificate', fee: 100, clerk: 'scholarship' },
-  { value: 'Transfer Certificate (TC)', label: 'Transfer Certificate (TC)', fee: 150, clerk: 'admission' },
-  { value: 'Migration Certificate', label: 'Migration Certificate', fee: 200, clerk: 'admission' },
-  { value: 'Study Conduct Certificate', label: 'Study Conduct Certificate', fee: 100, clerk: 'admission' },
+  { value: 'Bonafide Certificate', label: 'Bonafide Certificate', fee: 100, staffType: 'admission' },
+  { value: 'No Objection Certificate', label: 'No Objection Certificate', fee: 0, staffType: 'admission' },
+  { value: 'Course Completion Certificate', label: 'Course Completion Certificate', fee: 100, staffType: 'admission' },
+  { value: 'Income Tax (IT) Certificate', label: 'Income Tax (IT) Certificate', fee: 0, staffType: 'scholarship' },
+  { value: 'Custodian Certificate', label: 'Custodian Certificate', fee: 100, staffType: 'scholarship' },
+  { value: 'Transfer Certificate (TC)', label: 'Transfer Certificate (TC)', fee: 150, staffType: 'admission' },
+  { value: 'Migration Certificate', label: 'Migration Certificate', fee: 200, staffType: 'admission' },
+  { value: 'Study Conduct Certificate', label: 'Study Conduct Certificate', fee: 100, staffType: 'admission' },
 ];
 
 export default function CertificateRequestsPage() {
@@ -180,7 +180,7 @@ export default function CertificateRequestsPage() {
     setIsLoading(true);
     const formData = new FormData();
     formData.append('certificateType', selectedCertificate);
-    formData.append('clerkType', selectedOption.clerk);
+    formData.append('staffType', selectedOption.staffType);
     formData.append('paymentAmount', fee);
     if (purposeOption) formData.append('purpose_type', purposeOption);
     if (customPurpose) formData.append('purpose_custom', customPurpose);

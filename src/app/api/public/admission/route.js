@@ -233,6 +233,24 @@ export async function POST(req) {
           ...addressFields
       });
 
+      // Realtime Broadcast for Admission Staff
+      try {
+        const { broadcastUpdate } = await import('@/lib/sse');
+        await broadcastUpdate('ADMISSION_DRAFT_CREATED', {
+          id: result.insertId,
+          name,
+          father_name: father_name || null,
+          exam_rank: exam_rank || null,
+          admission_year,
+          entrance_exam,
+          branch,
+          status: 'DRAFT',
+          created_at: new Date().toISOString()
+        });
+      } catch (_e) {
+        // Non-blocking
+      }
+
       return apiResponse({ success: true, draftId: result.insertId, message: 'Your application has been submitted successfully.' });
     } catch (insertError) {
       if (pfpUrl) await storage.delete(pfpUrl).catch(e => logger.error(e, 'Failed to cleanup orphaned pfp in admission draft db insert failure'));

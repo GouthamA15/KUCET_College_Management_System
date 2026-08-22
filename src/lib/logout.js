@@ -102,7 +102,7 @@ async function logoutAndRedirect({
  * Preserves existing behavior:
  * - Student: tries optional `onLogout()` first; if it succeeds, returns early.
  * - Student default: POST /api/student/logout, clear storage, redirect.
- * - Clerk/faculty: POST /api/staff/logout then redirect.
+ * - Staff/faculty: POST /api/staff/logout then redirect.
  * - Admin: POST /api/admin/logout then redirect.
  * - Fallback: POST /api/auth/logout then redirect.
  */

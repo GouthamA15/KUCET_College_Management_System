@@ -13,7 +13,7 @@ import { resolveInstitutionalFilename } from '@/lib/institution-assets';
  * Examples:
  *   kucet/students/pfp/b3f96f9f4d51487fb2d69fce.webp
  *   kucet/requests/pfp/71a9e1c8ab7d4b6d8d4e7e4a.webp
- *   kucet/clerks/pfp/5cb17d61a06c47d1b932af38.jpg
+ *   kucet/staff/pfp/5cb17d61a06c47d1b932af38.jpg
  *
  * NEVER store full URLs in the database.
  * NEVER store legacy paths (requests/, students/ without kucet/).

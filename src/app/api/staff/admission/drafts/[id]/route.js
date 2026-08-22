@@ -85,12 +85,27 @@ export const PUT = wrapHandler({
 
           await db.delete(studentAdmissionDrafts).where(eq(studentAdmissionDrafts.id, id));
 
+          try {
+            const { broadcastUpdate } = await import('@/lib/sse');
+            await broadcastUpdate('ADMISSION_DRAFT_DELETED', { id });
+          } catch (_e) {
+            /* non-blocking */
+          }
+
           return { success: true, message: 'Application rejected, student notified, and draft removed.' };
         }
 
         await db.update(studentAdmissionDrafts)
           .set({ status: body.status })
           .where(eq(studentAdmissionDrafts.id, id));
+
+        try {
+          const { broadcastUpdate } = await import('@/lib/sse');
+          await broadcastUpdate('ADMISSION_DRAFT_UPDATED', { id, status: body.status });
+        } catch (_e) {
+          /* non-blocking */
+        }
+
         return { success: true, message: `Status updated to ${body.status}` };
     }
 
@@ -143,6 +158,13 @@ export const PUT = wrapHandler({
     await db.update(studentAdmissionDrafts)
       .set(updateObj)
       .where(eq(studentAdmissionDrafts.id, id));
+
+    try {
+      const { broadcastUpdate } = await import('@/lib/sse');
+      await broadcastUpdate('ADMISSION_DRAFT_UPDATED', { id, ...updateObj });
+    } catch (_e) {
+      /* non-blocking */
+    }
 
     return { success: true, message: 'Draft updated successfully' };
   }

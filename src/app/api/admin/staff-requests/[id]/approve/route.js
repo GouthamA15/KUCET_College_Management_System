@@ -68,12 +68,22 @@ export const POST = wrapHandler({
 
       const newAccountId = insertAccountRes.insertId;
 
-      // 5. Create staff_account_roles row
       let roleToAssign = request.requested_role;
-      const [roleRecord] = await tx
+      let [roleRecord] = await tx
         .select()
         .from(staffRoles)
         .where(eq(staffRoles.role_code, roleToAssign));
+
+      if (!roleRecord) {
+        const altRole = roleToAssign.includes('_STAFF') 
+          ? roleToAssign.replace('_STAFF', '_CLERK')
+          : roleToAssign.replace('_CLERK', '_STAFF');
+        const [altRoleRecord] = await tx
+          .select()
+          .from(staffRoles)
+          .where(eq(staffRoles.role_code, altRole));
+        if (altRoleRecord) roleRecord = altRoleRecord;
+      }
 
       if (!roleRecord) {
         throw new Error(`Requested role '${roleToAssign}' does not exist in the system.`);
@@ -218,8 +228,8 @@ export const POST = wrapHandler({
     try {
       const { broadcastUpdate } = await import('@/lib/sse');
       let mappedRole = 'faculty';
-      if (result.role === 'ADMISSION_CLERK') mappedRole = 'admission';
-      else if (result.role === 'SCHOLARSHIP_CLERK') mappedRole = 'scholarship';
+      if (result.role?.includes('ADMISSION')) mappedRole = 'admission';
+      else if (result.role?.includes('SCHOLARSHIP')) mappedRole = 'scholarship';
 
       await broadcastUpdate('STAFF_REGISTRATION_APPROVED', {
         id: result.requestId,

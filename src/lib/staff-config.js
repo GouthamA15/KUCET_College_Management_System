@@ -11,19 +11,19 @@ export const STAFF_CATEGORIES = {
     requiresBranch: true,
     description: 'Academic teaching faculty member assigned to a specific academic branch.',
   },
-  SCHOLARSHIP_CLERK: {
-    id: 'SCHOLARSHIP_CLERK',
-    label: 'Scholarship Clerk',
+  SCHOLARSHIP_STAFF: {
+    id: 'SCHOLARSHIP_STAFF',
+    label: 'Scholarship Staff',
     role: 'scholarship',
     requiresBranch: false,
-    description: 'Administrative clerk managing student scholarship sanctions and fee ledgers.',
+    description: 'Administrative staff managing student scholarship sanctions and fee ledgers.',
   },
-  ADMISSION_CLERK: {
-    id: 'ADMISSION_CLERK',
-    label: 'Admission Clerk',
+  ADMISSION_STAFF: {
+    id: 'ADMISSION_STAFF',
+    label: 'Admission Staff',
     role: 'admission',
     requiresBranch: false,
-    description: 'Administrative clerk handling student admissions and enrollment registration.',
+    description: 'Administrative staff handling student admissions and enrollment registration.',
   },
 };
 

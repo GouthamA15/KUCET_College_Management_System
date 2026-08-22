@@ -151,8 +151,8 @@ export async function GET(request, { params }) {
     'local'
   ).toLowerCase();
 
-  // If STORAGE_TYPE=cloudinary and file is not present on local disk, redirect to Cloudinary CDN URL
-  if (storageType === 'cloudinary' && !existingStat) {
+  // If file is not present on local disk (e.g. Render environment) or storageType is cloudinary, redirect to Cloudinary CDN URL
+  if (!existingStat || storageType === 'cloudinary') {
     const cloudName =
       process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
       process.env.CLOUDINARY_CLOUD_NAME ||

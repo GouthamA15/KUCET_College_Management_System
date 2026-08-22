@@ -303,7 +303,7 @@ export default function StudentDashboardClient() {
             <section className="order-2 lg:order-3 lg:shrink-0 rounded-sm border border-slate-200 bg-white p-4">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.20em]">Support</p>
               <p className="text-[11.5px] text-slate-500 mt-1.5 leading-relaxed">
-                Contact the departmental clerk during office hours.
+                Contact the departmental staff during office hours.
               </p>
             </section>
           </div>

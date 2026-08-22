@@ -143,6 +143,13 @@ export const POST = wrapHandler({
 
       const responseData = { success: true, studentId: result.studentId, message: 'Student successfully admitted and record created.' };
 
+      try {
+        const { broadcastUpdate } = await import('@/lib/sse');
+        await broadcastUpdate('ADMISSION_DRAFT_FINALIZED', { id, studentId: result.studentId, rollNo: result.rollNo });
+      } catch (_e) {
+        /* non-blocking */
+      }
+
       if (idempotencyStarted) {
         await IdempotencyService.complete(idempotencyKey, 201, responseData);
       }

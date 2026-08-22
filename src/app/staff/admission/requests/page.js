@@ -18,6 +18,7 @@ function RequestsCenterContent() {
         isLoadingRequests,
         refreshProfileRequests,
         refreshCertificateRequests,
+        refreshAdmissionDrafts,
         staffData
     } = useStaff();
 
@@ -27,6 +28,9 @@ function RequestsCenterContent() {
         if (staffData?.role) {
             refreshProfileRequests();
             refreshCertificateRequests(staffData.role);
+            if (staffData.role === 'admission') {
+                refreshAdmissionDrafts();
+            }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [staffData?.role]);

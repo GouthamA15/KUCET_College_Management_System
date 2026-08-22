@@ -339,10 +339,17 @@ export function StaffProvider({ children }) {
       }
     }
 
+    if (['ADMISSION_DRAFT_CREATED', 'ADMISSION_DRAFT_UPDATED', 'ADMISSION_DRAFT_FINALIZED', 'ADMISSION_DRAFT_DELETED', 'admission:draft:created', 'admission:draft:updated', 'admission:draft:finalized', 'admission:draft:deleted'].includes(data.type)) {
+      if (staffData?.role === 'admission') {
+        console.info(`[AdmissionDraftSync] ${data.type} detected, refreshing drafts...`);
+        fetchAdmissionDrafts();
+      }
+    }
+
     if (data.type === 'STAFF_UPDATED' && data.payload?.id === staffData?.id) {
       setStaffData(prev => ({ ...prev, ...data.payload }));
     }
-  }, [staffData, fetchHODData, refreshAllRequests]);
+  }, [staffData, fetchHODData, refreshAllRequests, fetchAdmissionDrafts]);
 
   return (
     <StaffContext.Provider value={{

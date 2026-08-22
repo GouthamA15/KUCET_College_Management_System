@@ -98,7 +98,7 @@ export async function logAudit(req, { userId, userType, action, targetId, target
  * @param {Object} options 
  * @param {Function} options.handler - The core business logic (req, { data, user }) => Promise
  * @param {z.ZodSchema} [options.schema] - Optional Zod schema for request body validation
- * @param {string|string[]} [options.auth] - Optional role(s) required (e.g., 'student', ['admin', 'clerk'])
+ * @param {string|string[]} [options.auth] - Optional role(s) required (e.g., 'student', ['admin', 'staff'])
  * @param {Object} [options.audit] - Optional audit logging configuration
  */
 export function wrapHandler({ handler, schema, auth, audit }) {

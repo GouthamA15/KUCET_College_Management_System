@@ -1,6 +1,6 @@
 import React from 'react';
 
-export function SecurityTabs({ activeTab, setActiveTab, unreadCount, userType = 'clerk' }) {
+export function SecurityTabs({ activeTab, setActiveTab, unreadCount, userType = 'staff' }) {
   const isStudent = userType.toLowerCase() === 'student';
   return (
     <div className="flex flex-wrap items-center gap-2 mb-3">

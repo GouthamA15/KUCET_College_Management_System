@@ -212,19 +212,6 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
                 })}
               </div>
 
-              {/* Functional Notification Dropdown - Commented out per request
-              {effectiveRole === 'student' && (
-                <div className="border-l border-white/10 pl-4">
-                  <NotificationDropdown />
-                </div>
-              )}
-              {(effectiveRole === 'clerkAdmission' || effectiveRole === 'clerkScholarship') && (
-                <div className="border-l border-white/10 pl-4">
-                  <ClerkNotificationDropdown />
-                </div>
-              )}
-              */}
-
               {/* Dedicated Desktop Logout Button */}
               {effectiveRole !== 'guest' && (
                 <div className="border-l border-white/10 pl-4">

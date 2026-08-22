@@ -99,7 +99,7 @@ export default function AdmissionDashboardClient() {
           <p className="text-blue-200 text-sm font-medium">Workspace Hero</p>
           <h1 className="text-2xl md:text-3xl font-normal tracking-tight">Welcome, {firstName}</h1>
           <p className="text-blue-100/90 text-xs font-medium mt-1">
-            {employeeLabel} &bull; Admission Clerk
+            {employeeLabel} &bull; Admission Staff
           </p>
         </div>
 
