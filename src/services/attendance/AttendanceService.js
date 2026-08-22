@@ -64,13 +64,10 @@ export class AttendanceService {
     }
 
     // 3. Normalize topic_covered
-    let normalizedTopic = null;
-    if (typeof topicCovered === 'string') {
-      const trimmed = topicCovered.trim();
-      if (trimmed.length > 0) {
-        normalizedTopic = trimmed.slice(0, 500);
-      }
+    if (!topicCovered || typeof topicCovered !== 'string' || topicCovered.trim().length < 2) {
+      throw new Error('Topic covered is required (minimum 2 characters)');
     }
+    const normalizedTopic = topicCovered.trim().slice(0, 500);
 
     // 4. Find existing session or create session metadata row
     const [existingSession] = await db.select({ id: attendanceSessions.id })

@@ -54,8 +54,8 @@ export async function GET() {
       
       if (row.role) {
         let mappedRole = 'faculty';
-        if (row.role?.includes('ADMISSION')) mappedRole = 'admission';
-        else if (row.role?.includes('SCHOLARSHIP')) mappedRole = 'scholarship';
+        if (row.role === 'ADMISSION_STAFF') mappedRole = 'admission';
+        else if (row.role === 'SCHOLARSHIP_STAFF') mappedRole = 'scholarship';
         staff.roles.add(mappedRole);
       }
       

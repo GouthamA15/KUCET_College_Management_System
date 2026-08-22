@@ -32,8 +32,8 @@ The KUCET College Management System enforces a strict 3-category staff self-regi
 
 ### Authorized Self-Registration Categories:
 1. **Faculty (`FACULTY`)**: Teaching faculty members. Must select **Academic Affiliations** (Department: `CSE`, `CSD`, `ECE`, `EEE`, `MECH`, `CIVIL`, `IT` and associated programs).
-2. **Scholarship Clerk (`SCHOLARSHIP_CLERK`)**: Administrative staff managing scholarship sanctions, fee receipts, and financial ledgers.
-3. **Admission Clerk (`ADMISSION_CLERK`)**: Administrative staff managing student admissions, roll number generation, and registration drafts.
+2. **Scholarship Staff (`SCHOLARSHIP_STAFF`)**: Administrative staff managing scholarship sanctions, fee receipts, and financial ledgers.
+3. **Admission Staff (`ADMISSION_STAFF`)**: Administrative staff managing student admissions, roll number generation, and registration drafts.
 
 ### Unallowed Self-Registration Options:
 - **Head of Department (HOD)**: HOD is **NOT** a self-registration option. HOD status is a privilege granted exclusively by Super Admin to an active Faculty member.
@@ -80,8 +80,8 @@ The KUCET College Management System enforces a strict 3-category staff self-regi
 ```javascript
 export const STAFF_CATEGORIES = {
   FACULTY: { id: 'FACULTY', label: 'Faculty', role: 'faculty', requiresBranch: true },
-  SCHOLARSHIP_CLERK: { id: 'SCHOLARSHIP_CLERK', label: 'Scholarship Clerk', role: 'scholarship', requiresBranch: false },
-  ADMISSION_CLERK: { id: 'ADMISSION_CLERK', label: 'Admission Clerk', role: 'admission', requiresBranch: false },
+  SCHOLARSHIP_STAFF: { id: 'SCHOLARSHIP_STAFF', label: 'Scholarship Staff', role: 'scholarship', requiresBranch: false },
+  ADMISSION_STAFF: { id: 'ADMISSION_STAFF', label: 'Admission Staff', role: 'admission', requiresBranch: false },
 };
 
 export const FACULTY_BRANCHES = ['CSE', 'CSD', 'ECE', 'EEE', 'MECH', 'CIVIL', 'IT'];

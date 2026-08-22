@@ -51,34 +51,22 @@ describe('AttendanceService - Lecture Topic Tracking', () => {
     expect(result.topic_covered).toBe('Deadlocks and Banker Algorithm');
   });
 
-  it('should trim and normalize empty whitespace topic to null', async () => {
+  it('should reject empty or whitespace-only topic', async () => {
     db.select.mockImplementationOnce(() => ({
       from: vi.fn().mockReturnThis(),
       where: vi.fn().mockReturnThis(),
       limit: vi.fn().mockResolvedValue([mockAssignment])
     }));
 
-    db.select.mockImplementationOnce(() => ({
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockResolvedValue([{ id: 301 }])
-    }));
-
-    db.update.mockImplementationOnce(() => ({
-      set: vi.fn().mockReturnThis(),
-      where: vi.fn().mockResolvedValue([{ affectedRows: 1 }])
-    }));
-
-    const result = await AttendanceService.updateLectureTopic({
-      assignmentId: 101,
-      date: '2026-08-05',
-      sessionNumber: 1,
-      topicCovered: '   ',
-      user: mockUser
-    });
-
-    expect(result.success).toBe(true);
-    expect(result.topic_covered).toBeNull();
+    await expect(
+      AttendanceService.updateLectureTopic({
+        assignmentId: 101,
+        date: '2026-08-05',
+        sessionNumber: 1,
+        topicCovered: '   ',
+        user: mockUser
+      })
+    ).rejects.toThrow('Topic covered is required (minimum 2 characters)');
   });
 
   it('should truncate topics exceeding 500 characters to 500 characters', async () => {

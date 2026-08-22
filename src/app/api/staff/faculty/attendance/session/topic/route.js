@@ -17,7 +17,7 @@ export async function PATCH(request) {
       assignment_id: z.preprocess(v => Number(v), z.number().int().positive()),
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       session: z.preprocess(v => Number(v), z.number().int().min(1).max(8)),
-      topic_covered: z.string().max(500, 'Topic covered cannot exceed 500 characters').nullable().optional()
+      topic_covered: z.string().trim().min(2, 'Topic covered is required (minimum 2 characters)').max(500, 'Topic covered cannot exceed 500 characters')
     });
 
     const validatedData = topicSchema.parse(json);
@@ -34,7 +34,7 @@ export async function PATCH(request) {
     return apiResponse(result);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return apiError(error.errors?.[0]?.message || 'Invalid topic input data', 400);
+      return apiError(error.issues?.[0]?.message || error.errors?.[0]?.message || 'Invalid topic input data', 400);
     }
     if (error.message === 'Unauthorized' || error.message.includes('Unauthorized')) {
       return apiError(error.message, 403);

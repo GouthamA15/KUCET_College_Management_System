@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
 import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
 import dynamic from 'next/dynamic';
+import LectureTopicModal from './LectureTopicModal';
 import { getAssetUrl } from '@/lib/assets';
 
 const QRScannerPanel = dynamic(() => import('./QRScannerPanel'), {
@@ -195,7 +196,9 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
     toggleAttendanceStatus,
     setAllAttendanceStatus,
     verifiedStudentIds,
-    setVerifiedStudentIds
+    setVerifiedStudentIds,
+    topicModalSession,
+    setTopicModalSession
   } = useFacultyAttendance();
 
   const handleQRScan = (rollNo) => {
@@ -477,6 +480,16 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
           </button>
         </div>
       )}
+
+      {/* Lecture Topic Modal after successful attendance save (Mobile) */}
+      <LectureTopicModal
+        isOpen={Boolean(topicModalSession)}
+        assignmentId={topicModalSession?.assignmentId}
+        date={topicModalSession?.date}
+        session={topicModalSession?.session}
+        initialTopic={topicModalSession?.initialTopic || ''}
+        onClose={() => setTopicModalSession(null)}
+      />
     </div>
   );
 }

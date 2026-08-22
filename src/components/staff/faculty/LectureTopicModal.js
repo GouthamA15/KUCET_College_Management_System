@@ -42,6 +42,12 @@ export default function LectureTopicModal({
     e.preventDefault();
     if (submitting) return;
 
+    const cleanTopic = topic.trim();
+    if (!cleanTopic || cleanTopic.length < 2) {
+      toast.error('Topic covered is required (minimum 2 characters).');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const res = await fetch('/api/staff/faculty/attendance/session/topic', {
@@ -51,7 +57,7 @@ export default function LectureTopicModal({
           assignment_id: assignmentId,
           date,
           session,
-          topic_covered: topic
+          topic_covered: cleanTopic
         }),
       });
 
@@ -62,11 +68,11 @@ export default function LectureTopicModal({
 
       toast.success(isEditing ? 'Lecture topic updated' : 'Lecture topic saved successfully');
       if (onTopicSaved) {
-        onTopicSaved(data.data?.topic_covered ?? topic.trim());
+        onTopicSaved(data.data?.topic_covered ?? cleanTopic);
       }
       onClose();
-    } catch (_err) {
-      toast.error('Attendance was saved, but the lecture topic could not be saved. You can add it later from Attendance History.');
+    } catch (err) {
+      toast.error(err.message || 'Failed to save lecture topic.');
     } finally {
       setSubmitting(false);
     }
@@ -117,7 +123,7 @@ export default function LectureTopicModal({
           <div>
             <div className="flex items-center justify-between mb-2">
               <label htmlFor="topic-input" className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Topic Covered <span className="text-slate-400 font-normal lowercase">(optional)</span>
+                Topic Covered <span className="text-red-500 font-bold">*</span>
               </label>
               <span className="text-[10px] font-mono font-semibold text-slate-400">
                 {topic.length} / 500
@@ -158,11 +164,11 @@ export default function LectureTopicModal({
               disabled={submitting}
               className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold text-xs hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
             >
-              {isEditing ? 'Cancel' : 'Skip'}
+              Cancel
             </button>
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || topic.trim().length < 2}
               className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#0b3578] hover:bg-blue-900 text-white font-semibold text-xs shadow-md transition-all disabled:opacity-50 cursor-pointer"
             >
               {submitting ? (

@@ -123,7 +123,7 @@ describe('StaffRegistrationService', () => {
             name: 'Applicant Name',
             email: 'applicant@kucet.ac.in',
             employee_id: 'EMP_43',
-            staff_category: 'SCHOLARSHIP_CLERK',
+            staff_category: 'SCHOLARSHIP_STAFF',
             status: 'PENDING',
           },
         ]),
@@ -139,6 +139,87 @@ describe('StaffRegistrationService', () => {
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('rejected');
+    });
+  });
+
+  describe('Canonical Staff Category & Zero Clerk Policy', () => {
+    it('should accept ADMISSION_STAFF category', async () => {
+      const mockSelect = {
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue([]),
+      };
+      db.select.mockReturnValueOnce(mockSelect).mockReturnValueOnce(mockSelect);
+      db.insert.mockReturnValue({
+        values: vi.fn().mockResolvedValue([{ insertId: 50 }]),
+      });
+
+      const result = await StaffRegistrationService.submitRegistrationRequest({
+        name: 'Admission Staff Member',
+        email: 'adm.staff@kucet.ac.in',
+        employee_id: 'ADM_001',
+        staff_category: 'ADMISSION_STAFF',
+        mobile: '9876543211',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.requestId).toBe(50);
+    });
+
+    it('should accept SCHOLARSHIP_STAFF category', async () => {
+      const mockSelect = {
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue([]),
+      };
+      db.select.mockReturnValueOnce(mockSelect).mockReturnValueOnce(mockSelect);
+      db.insert.mockReturnValue({
+        values: vi.fn().mockResolvedValue([{ insertId: 51 }]),
+      });
+
+      const result = await StaffRegistrationService.submitRegistrationRequest({
+        name: 'Scholarship Staff Member',
+        email: 'sch.staff@kucet.ac.in',
+        employee_id: 'SCH_001',
+        staff_category: 'SCHOLARSHIP_STAFF',
+        mobile: '9876543212',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.requestId).toBe(51);
+    });
+
+    it('should reject legacy ADMISSION_CLERK', async () => {
+      await expect(
+        StaffRegistrationService.submitRegistrationRequest({
+          name: 'Legacy Admission',
+          email: 'legacy.adm@kucet.ac.in',
+          employee_id: 'LEG_001',
+          staff_category: 'ADMISSION_CLERK',
+        })
+      ).rejects.toThrow('Invalid staff registration category');
+    });
+
+    it('should reject legacy SCHOLARSHIP_CLERK', async () => {
+      await expect(
+        StaffRegistrationService.submitRegistrationRequest({
+          name: 'Legacy Scholarship',
+          email: 'legacy.sch@kucet.ac.in',
+          employee_id: 'LEG_002',
+          staff_category: 'SCHOLARSHIP_CLERK',
+        })
+      ).rejects.toThrow('Invalid staff registration category');
+    });
+
+    it('should reject legacy CLERK', async () => {
+      await expect(
+        StaffRegistrationService.submitRegistrationRequest({
+          name: 'Legacy Clerk',
+          email: 'legacy.clk@kucet.ac.in',
+          employee_id: 'LEG_003',
+          staff_category: 'CLERK',
+        })
+      ).rejects.toThrow('Invalid staff registration category');
     });
   });
 });

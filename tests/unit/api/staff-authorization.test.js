@@ -282,6 +282,58 @@ describe('Staff Identity & Authorization Architecture', () => {
       expect(json.error).toBe('Unauthorized');
       expect(handler).not.toHaveBeenCalled();
     });
+
+    it('rejects legacy clerk_auth cookie with 401 Unauthorized', async () => {
+      cookies.mockResolvedValue({
+        get: vi.fn((name) => {
+          if (name === 'clerk_auth') return { value: 'legacy-token' };
+          return undefined;
+        }),
+      });
+      headers.mockResolvedValue({
+        get: vi.fn(() => null),
+      });
+
+      const handler = vi.fn();
+      const wrapped = wrapHandler({
+        auth: 'staff',
+        handler,
+      });
+
+      const req = new Request('http://localhost:3000/api/staff/students/search');
+      const response = await wrapped(req);
+
+      expect(response.status).toBe(401);
+      const json = await response.json();
+      expect(json.error).toBe('Unauthorized');
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('rejects legacy x-clerk-auth header with 401 Unauthorized', async () => {
+      cookies.mockResolvedValue({
+        get: vi.fn(() => undefined),
+      });
+      headers.mockResolvedValue({
+        get: vi.fn((name) => {
+          if (name === 'x-clerk-auth') return 'legacy-header-token';
+          return null;
+        }),
+      });
+
+      const handler = vi.fn();
+      const wrapped = wrapHandler({
+        auth: 'staff',
+        handler,
+      });
+
+      const req = new Request('http://localhost:3000/api/staff/students/search');
+      const response = await wrapped(req);
+
+      expect(response.status).toBe(401);
+      const json = await response.json();
+      expect(json.error).toBe('Unauthorized');
+      expect(handler).not.toHaveBeenCalled();
+    });
   });
 
   describe('Enterprise RBAC - Role Capability Matrix', () => {

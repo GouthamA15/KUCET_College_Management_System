@@ -10,7 +10,7 @@ const schema = z.object({
   fullName: z.string().min(1, "Full name is required"),
   email: z.string().email("Invalid email"),
   mobile: z.string().regex(/^\d{10}$/, "Invalid mobile"),
-  requested_role: z.enum(['FACULTY', 'ADMISSION_STAFF', 'SCHOLARSHIP_STAFF', 'ADMISSION_CLERK', 'SCHOLARSHIP_CLERK']),
+  requested_role: z.enum(['FACULTY', 'ADMISSION_STAFF', 'SCHOLARSHIP_STAFF']),
   designation: z.string().min(1, "Designation is required"),
   verificationToken: z.string().min(1, "Email verification token is required"),
   academic_affiliations: z.array(z.object({

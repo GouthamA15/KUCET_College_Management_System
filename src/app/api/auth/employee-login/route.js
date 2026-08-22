@@ -94,8 +94,8 @@ export async function POST(request) {
         let resolvedRole = 'faculty';
         if (roleRecords.length > 0) {
             const rCode = roleRecords[0].role_code;
-            if (rCode?.includes('ADMISSION')) resolvedRole = 'admission';
-            else if (rCode?.includes('SCHOLARSHIP')) resolvedRole = 'scholarship';
+            if (rCode === 'ADMISSION_STAFF') resolvedRole = 'admission';
+            else if (rCode === 'SCHOLARSHIP_STAFF') resolvedRole = 'scholarship';
             else resolvedRole = 'faculty';
         }
 

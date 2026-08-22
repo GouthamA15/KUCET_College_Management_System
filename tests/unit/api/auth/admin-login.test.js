@@ -163,7 +163,7 @@ describe('Admin Authentication & Routing Audit', () => {
         from: vi.fn().mockReturnValueOnce({
           innerJoin: vi.fn().mockReturnValueOnce({
             where: vi.fn().mockReturnValueOnce({
-              limit: vi.fn().mockResolvedValueOnce([{ role_code: 'ADMISSION_CLERK' }])
+              limit: vi.fn().mockResolvedValueOnce([{ role_code: 'ADMISSION_STAFF' }])
             })
           }),
         }),
