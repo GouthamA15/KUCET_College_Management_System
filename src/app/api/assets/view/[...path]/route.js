@@ -60,6 +60,11 @@ export function resolveLocalFilePath(filename) {
 
   // 4. Repository public folder fallbacks
   candidatePaths.push(path.resolve(repoPublic, cleanFilename));
+  candidatePaths.push(path.resolve(repoPublic, 'uploads', cleanFilename));
+  if (cleanFilename.startsWith('kucet/')) {
+    candidatePaths.push(path.resolve(repoPublic, 'uploads', cleanFilename.replace(/^kucet\//, '')));
+    candidatePaths.push(path.resolve(repoPublic, cleanFilename.replace(/^kucet\//, '')));
+  }
   if (cleanFilename.startsWith('assets/')) {
     candidatePaths.push(path.resolve(repoPublic, cleanFilename));
   } else {

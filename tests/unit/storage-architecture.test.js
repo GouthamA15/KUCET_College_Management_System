@@ -120,6 +120,45 @@ describe('LocalStorageProvider', () => {
       expect(result.path).toMatch(/students\/pfp\//);
       expect(String(result)).not.toContain('[object Object]');
     });
+
+    it('should fallback to secondary directory when primary path has EACCES permission error', async () => {
+      const provider = new LocalStorageProvider();
+      const fs = await import('fs');
+      
+      let mkdirCalls = 0;
+      vi.spyOn(fs.promises, 'mkdir').mockImplementation(async (dir) => {
+        mkdirCalls++;
+        if (mkdirCalls === 1) {
+          const err = new Error('EACCES: permission denied');
+          err.code = 'EACCES';
+          throw err;
+        }
+        return undefined;
+      });
+      vi.spyOn(fs.promises, 'writeFile').mockResolvedValue(undefined);
+      process.env.LOCAL_STORAGE_PATH = '/var/www/kucet-storage';
+
+      const result = await provider.upload('data:image/jpeg;base64,/9j/4AAQ', 'students/pfp');
+      expect(result).toHaveProperty('path');
+      expect(result.path).toMatch(/^kucet\/students\/pfp\//);
+      expect(mkdirCalls).toBeGreaterThan(1);
+    });
+
+    it('should throw clear permission diagnostic error when all directory writes fail with EACCES', async () => {
+      const provider = new LocalStorageProvider();
+      const fs = await import('fs');
+      
+      vi.spyOn(fs.promises, 'mkdir').mockImplementation(async () => {
+        const err = new Error('EACCES: permission denied');
+        err.code = 'EACCES';
+        throw err;
+      });
+      process.env.LOCAL_STORAGE_PATH = '/var/www/kucet-storage';
+
+      await expect(provider.upload('data:image/jpeg;base64,/9j/4AAQ', 'students/pfp')).rejects.toThrow(
+        /Storage permission denied.*sudo chown -R 1001:1001/
+      );
+    });
   });
 });
 

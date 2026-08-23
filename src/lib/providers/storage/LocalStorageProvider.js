@@ -80,8 +80,6 @@ export default class LocalStorageProvider extends StorageProvider {
     const targetDir = STORAGE_PATH.endsWith('kucet')
       ? path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, cleanFolder)
       : path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, 'kucet', cleanFolder);
-    
-    await fs.promises.mkdir(targetDir, { recursive: true });
 
     let extension = '';
     if (mimeType.includes('jpeg') || mimeType.includes('jpg')) extension = '.jpg';
@@ -95,9 +93,8 @@ export default class LocalStorageProvider extends StorageProvider {
 
     const randomStr = crypto.randomBytes(10).toString('hex');
     const filename = `${randomStr}${extension}`;
-    const targetPath = path.join(targetDir, filename);
 
-    await fs.promises.writeFile(targetPath, buffer);
+    await this._writeWithFallback(targetDir, cleanFolder, filename, buffer);
 
     // Canonical relative storage key: kucet/<category>/<uuid>.<ext>
     const relPath = `kucet/${cleanFolder}/${filename}`;
@@ -111,6 +108,58 @@ export default class LocalStorageProvider extends StorageProvider {
       mimeType,
       size: buffer.length
     });
+  }
+
+  /**
+   * Helper to write files with permission detection and safe fallback.
+   * If primary directory has permission errors (EACCES/EPERM), attempts secondary local fallback.
+   */
+  async _writeWithFallback(targetDir, cleanFolder, filename, buffer) {
+    try {
+      await fs.promises.mkdir(targetDir, { recursive: true });
+      const targetPath = path.join(targetDir, filename);
+      await fs.promises.writeFile(targetPath, buffer);
+      return targetPath;
+    } catch (err) {
+      if (err.code === 'EACCES' || err.code === 'EPERM' || err.code === 'EROFS') {
+        logger.error(
+          {
+            err: err.message,
+            code: err.code,
+            targetDir,
+            hint: 'Fix storage permissions on server: run "sudo chown -R 1001:1001 /var/www/kucet-storage && sudo chmod -R 755 /var/www/kucet-storage"'
+          },
+          '[LocalStorageProvider] Permission denied writing to primary storage directory! Trying fallback directory...'
+        );
+
+        // Fallback directory within application directory
+        const fallbackBases = [
+          path.join(process.cwd(), 'public', 'uploads', 'kucet', cleanFolder),
+          path.join(process.cwd(), 'public', 'uploads', cleanFolder)
+        ];
+
+        for (const fbDir of fallbackBases) {
+          try {
+            await fs.promises.mkdir(fbDir, { recursive: true });
+            const fbPath = path.join(fbDir, filename);
+            await fs.promises.writeFile(fbPath, buffer);
+            logger.warn(
+              { fallbackPath: fbPath, primaryTarget: targetDir },
+              '[LocalStorageProvider] Successfully saved file to fallback local storage directory due to primary permission error'
+            );
+            return fbPath;
+          } catch (_fbErr) {
+            // continue to next fallback
+          }
+        }
+
+        throw new Error(
+          `Storage permission denied: The server cannot write files to "${targetDir}". ` +
+          `Please run "sudo chown -R 1001:1001 /var/www/kucet-storage && sudo chmod -R 755 /var/www/kucet-storage" on the VPS.`
+        );
+      }
+      throw err;
+    }
   }
 
   async delete(relativePath) {
