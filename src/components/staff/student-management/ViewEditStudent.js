@@ -27,8 +27,6 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
   const [editValues, setEditValues] = useState({});
   const [personalFull, setPersonalFull] = useState({});
   const [academicsList, setAcademicsList] = useState([]);
-  const [feesList, setFeesList] = useState([]);
-  const [feeDetails, setFeeDetails] = useState(null);
   const [saving, setSaving] = useState(false);
   const [originalEditValues, setOriginalEditValues] = useState(null);
   const [originalPersonalFull, setOriginalPersonalFull] = useState(null);
@@ -163,8 +161,6 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
       };
     }
 
-    const feesCopy = Array.isArray(fetchedStudent.fees) ? [...fetchedStudent.fees] : [];
-    const feeDet = fetchedStudent.student_fee_details || null;
 
     const id = setTimeout(() => {
       setEditValues(initialEdit);
@@ -176,8 +172,6 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
       setAcademicsList(initialAcademics);
       setOriginalAcademicsList(JSON.parse(JSON.stringify(initialAcademics)));
 
-      setFeesList(feesCopy);
-      setFeeDetails(feeDet);
     }, 0);
 
     return () => clearTimeout(id);
@@ -378,239 +372,310 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
             </div>
 
             <div className="md:col-span-2 bg-white p-4 rounded shadow">
-              <h4 className="font-semibold mb-2">Section A: Basic Details</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-                <input placeholder="Admission Number" value={editValues.admission_no || ''} onChange={e=>setEditValues({...editValues, admission_no:e.target.value})} className="p-2 border rounded" />
-                <div className="relative">
-                  <input placeholder="Roll Number" value={editValues.roll_no || ''} disabled className="p-2 border rounded w-full bg-gray-100" />
-                  <span title="Roll number cannot be edited" className="absolute right-2 top-2 text-sm">🔒</span>
+              <h4 className="font-semibold mb-4 text-indigo-900 border-b pb-2">Section A: Basic Details</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Admission Number</label>
+                  <input placeholder="Admission Number" value={editValues.admission_no || ''} onChange={e=>setEditValues({...editValues, admission_no:e.target.value})} className="p-2 border rounded w-full" />
                 </div>
-                <input placeholder="Student Name" value={editValues.name || ''} onChange={e=>setEditValues({...editValues, name:e.target.value})} className="p-2 border rounded" />
-                <DatePicker
-                  selected={parseDate(editValues.date_of_birth)}
-                  onChange={(date) => setEditValues({ ...editValues, date_of_birth: formatDate(date) })}
-                  dateFormat="dd-MM-yyyy"
-                  placeholderText="DD-MM-YYYY"
-                  className="p-2 border rounded w-full"
-                  showYearDropdown
-                  dropdownMode="select"
-                  customInput={<DatePickerInput className="p-2 border rounded w-full" />}
-                />
-                <select value={editValues.gender || 'Male'} onChange={e=>setEditValues({...editValues, gender:e.target.value})} className="p-2 border rounded">
-                  {genders.map(g=> <option key={g} value={g}>{g}</option>)}
-                </select>
-                <select value={editValues.fee_reimbursement || 'NO'} onChange={e=>setEditValues({...editValues, fee_reimbursement: e.target.value})} className="p-2 border rounded">
-                  <option value="NO">Fee Reimbursement: NO</option>
-                  <option value="YES">Fee Reimbursement: YES</option>
-                  <option value="GOV">Fee Reimbursement: GOV</option>
-                </select>
-                <input placeholder="Course" value={getBranchFromRoll(editValues.roll_no) || ''} disabled className="p-2 border rounded bg-gray-100" />
-                <div className="relative">
-                  <input placeholder="Admission Type" value={editValues.admission_type || ''} disabled className="p-2 border rounded w-full bg-gray-100" />
-                  <span title="Admission Type cannot be changed after admission." className="absolute right-2 top-2 text-sm">🔒</span>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Roll Number</label>
+                  <div className="relative">
+                    <input placeholder="Roll Number" value={editValues.roll_no || ''} disabled className="p-2 border rounded w-full bg-gray-100" />
+                    <span title="Roll number cannot be edited" className="absolute right-2 top-2 text-sm">🔒</span>
+                  </div>
                 </div>
-                <div className="flex items-center">
-                  <span className="px-3 py-2 border border-r-0 bg-gray-100">+91</span>
-                  <input
-                    placeholder="Mobile Number"
-                    value={editValues.mobile || ''}
-                    onChange={e=>{
-                      const digits = String(e.target.value || '').replace(/\D/g, '').slice(0, MAX_MOBILE_LEN);
-                      setEditValues({...editValues, mobile: digits});
-                    }}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Student Name</label>
+                  <input placeholder="Student Name" value={editValues.name || ''} onChange={e=>setEditValues({...editValues, name:e.target.value})} className="p-2 border rounded w-full" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                  <DatePicker
+                    selected={parseDate(editValues.date_of_birth)}
+                    onChange={(date) => setEditValues({ ...editValues, date_of_birth: formatDate(date) })}
+                    dateFormat="dd-MM-yyyy"
+                    placeholderText="DD-MM-YYYY"
                     className="p-2 border rounded w-full"
-                    inputMode="numeric"
-                    maxLength={MAX_MOBILE_LEN}
-                    onPaste={(e) => { const pasted=(e.clipboardData||window.clipboardData).getData('text'); const digits=pasted.replace(/\D/g,'').slice(0, MAX_MOBILE_LEN); setEditValues(prev=>({...prev, mobile: digits})); e.preventDefault(); }}
+                    showYearDropdown
+                    dropdownMode="select"
+                    customInput={<DatePickerInput className="p-2 border rounded w-full" />}
                   />
                 </div>
                 <div>
-                <label className="block text-sm font-medium text-gray-700">Academic Status</label>
-                <select value={editValues.academic_status || 'ACTIVE'} onChange={e=>setEditValues({...editValues, academic_status:e.target.value})} className="p-2 border rounded">
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="GRADUATED">GRADUATED</option>
-                  <option value="DETAINED">DETAINED</option>
-                  <option value="SUSPENDED">SUSPENDED</option>
-                </select>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                  <select value={editValues.gender || 'Male'} onChange={e=>setEditValues({...editValues, gender:e.target.value})} className="p-2 border rounded w-full">
+                    {genders.map(g=> <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fee Reimbursement</label>
+                  <select value={editValues.fee_reimbursement || 'NO'} onChange={e=>setEditValues({...editValues, fee_reimbursement: e.target.value})} className="p-2 border rounded w-full">
+                    <option value="NO">NO</option>
+                    <option value="YES">YES</option>
+                    <option value="GOV">GOV</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Course</label>
+                  <input placeholder="Course" value={getBranchFromRoll(editValues.roll_no) || ''} disabled className="p-2 border rounded bg-gray-100 w-full" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Admission Type</label>
+                  <div className="relative">
+                    <input placeholder="Admission Type" value={editValues.admission_type || ''} disabled className="p-2 border rounded w-full bg-gray-100" />
+                    <span title="Admission Type cannot be changed after admission." className="absolute right-2 top-2 text-sm">🔒</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
+                  <div className="flex items-center">
+                    <span className="px-3 py-2 border border-r-0 bg-gray-100">+91</span>
+                    <input
+                      placeholder="Mobile Number"
+                      value={editValues.mobile || ''}
+                      onChange={e=>{
+                        const digits = String(e.target.value || '').replace(/\D/g, '').slice(0, MAX_MOBILE_LEN);
+                        setEditValues({...editValues, mobile: digits});
+                      }}
+                      className="p-2 border rounded w-full"
+                      inputMode="numeric"
+                      maxLength={MAX_MOBILE_LEN}
+                      onPaste={(e) => { const pasted=(e.clipboardData||window.clipboardData).getData('text'); const digits=pasted.replace(/\D/g,'').slice(0, MAX_MOBILE_LEN); setEditValues(prev=>({...prev, mobile: digits})); e.preventDefault(); }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Academic Status</label>
+                  <select value={editValues.academic_status || 'ACTIVE'} onChange={e=>setEditValues({...editValues, academic_status:e.target.value})} className="p-2 border rounded w-full">
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="GRADUATED">GRADUATED</option>
+                    <option value="DETAINED">DETAINED</option>
+                    <option value="SUSPENDED">SUSPENDED</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Academic Offset (Years)</label>
+                  <div className="flex items-center">
+                    <span className="px-3 py-2 border border-r-0 bg-gray-100 text-xs font-bold text-gray-500">OFFSET</span>
+                    <input 
+                      type="number" 
+                      placeholder="Years" 
+                      value={editValues.academic_offset_years || 0} 
+                      onChange={e=>setEditValues({...editValues, academic_offset_years: parseInt(e.target.value) || 0})} 
+                      className="p-2 border rounded w-full rounded-l-none" 
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Admission Date</label>
+                  <DatePicker
+                    selected={parseDate(editValues.admission_date)}
+                    onChange={(date) => setEditValues({ ...editValues, admission_date: formatDate(date) })}
+                    dateFormat="dd-MM-yyyy"
+                    placeholderText="Admission Date"
+                    className="p-2 border rounded w-full"
+                    showYearDropdown
+                    dropdownMode="select"
+                    customInput={<DatePickerInput className="p-2 border rounded w-full" />}
+                  />
+                </div>
+                <div className="col-span-1 md:col-span-3 text-sm text-gray-500 mt-2">
+                  Profile Picture is view-only here. Inform Students to Upload their Profile Picture Through Their Student Login.
+                </div>
               </div>
-                <div className="flex items-center">
-                  <span className="px-3 py-2 border border-r-0 bg-gray-100 text-xs font-bold text-gray-500">OFFSET</span>
+
+              <h4 className="font-semibold mb-4 text-indigo-900 border-b pb-2">Section B: Personal Details</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Father Name</label>
+                  <input placeholder="Father Name" value={personalFull.father_name || ''} onChange={e=>setPersonalFull({...personalFull, father_name:e.target.value})} className="p-2 border rounded w-full" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mother Name</label>
+                  <input placeholder="Mother Name" value={personalFull.mother_name || ''} onChange={e=>setPersonalFull({...personalFull, mother_name:e.target.value})} className="p-2 border rounded w-full" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
+                  <input placeholder="Nationality" value={personalFull.nationality || ''} onChange={e=>setPersonalFull({...personalFull, nationality:e.target.value})} className="p-2 border rounded w-full" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Religion</label>
+                  <select value={personalFull.religion || ''} onChange={e=>setPersonalFull({...personalFull, religion:e.target.value})} className="p-2 border rounded w-full">
+                    <option value="">Select Religion</option>
+                    {COLLEGE_CONFIG.religions.map(r => (
+                        <option key={r} value={r.toUpperCase()}>{r.toUpperCase()}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <select value={personalFull.category || 'OC'} onChange={e=>setPersonalFull({...personalFull, category:e.target.value})} className="p-2 border rounded w-full">{categories.map(c=> <option key={c} value={c}>{c}</option>)}</select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Sub Caste</label>
+                  <input placeholder="Sub Caste" value={personalFull.sub_caste || ''} onChange={e=>setPersonalFull({...personalFull, sub_caste:e.target.value})} className="p-2 border rounded w-full" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Area Status</label>
+                  <select value={personalFull.area_status || 'Local'} onChange={e=>setPersonalFull({...personalFull, area_status:e.target.value})} className="p-2 border rounded w-full"><option>Local</option><option>Non-Local</option></select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mother Tongue</label>
+                  <input placeholder="Mother Tongue" value={personalFull.mother_tongue || ''} onChange={e=>setPersonalFull({...personalFull, mother_tongue:e.target.value})} className="p-2 border rounded w-full" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Place of Birth</label>
+                  <input placeholder="Place of Birth" value={personalFull.place_of_birth || ''} onChange={e=>setPersonalFull({...personalFull, place_of_birth:e.target.value})} className="p-2 border rounded w-full" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Father Occupation</label>
+                  <input placeholder="Father Occupation" value={personalFull.father_occupation || ''} onChange={e=>setPersonalFull({...personalFull, father_occupation:e.target.value})} className="p-2 border rounded w-full" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Annual Income</label>
                   <input 
-                    type="number" 
-                    placeholder="Years" 
-                    value={editValues.academic_offset_years || 0} 
-                    onChange={e=>setEditValues({...editValues, academic_offset_years: parseInt(e.target.value) || 0})} 
-                    className="p-2 border rounded w-full rounded-l-none" 
+                    placeholder="Annual Income"
+                    value={personalFull.annual_income || ''} 
+                    onChange={e => {
+                      const raw = e.target.value.replace(/\D/g, '');
+                      if (raw && parseInt(raw) > 2000000) return;
+                      setPersonalFull({...personalFull, annual_income: formatIndianNumber(raw)});
+                    }} 
+                    className="p-2 border rounded w-full"
                   />
                 </div>
-                <DatePicker
-                  selected={parseDate(editValues.admission_date)}
-                  onChange={(date) => setEditValues({ ...editValues, admission_date: formatDate(date) })}
-                  dateFormat="dd-MM-yyyy"
-                  placeholderText="Admission Date"
-                  className="p-2 border rounded w-full"
-                  showYearDropdown
-                  dropdownMode="select"
-                  customInput={<DatePickerInput className="p-2 border rounded w-full" />}
-                />
-                <div className="col-span-1 md:col-span-3 text-sm text-gray-500">Profile Picture is view-only here. Inform Students to Upload their Profile Picture Through Their Student Login.</div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Guardian Mobile</label>
+                  <div className="flex items-center">
+                    <span className="px-3 py-2 border border-r-0 bg-gray-100 text-sm text-gray-500 font-medium">+91</span>
+                    <input
+                      placeholder="Guardian Mobile"
+                      value={personalFull.guardian_mobile || ''}
+                      onChange={(e) => {
+                        const digits = String(e.target.value || '').replace(/\D/g, '').slice(0, 10);
+                        setPersonalFull({...personalFull, guardian_mobile: digits});
+                      }}
+                      className="p-2 border rounded rounded-l-none w-full"
+                      inputMode="numeric"
+                      maxLength={10}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Aadhaar Number</label>
+                  <input placeholder="Aadhaar Number" value={personalFull.aadhaar_no || ''} onChange={e=>setPersonalFull({...personalFull, aadhaar_no: formatAadhaar(e.target.value)})} className="p-2 border rounded w-full" maxLength={14} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Blood Group</label>
+                  <select value={personalFull.blood_group || ''} onChange={e=>setPersonalFull({...personalFull, blood_group: e.target.value})} className="p-2 border rounded w-full">
+                    <option value="">Blood Group (optional)</option>
+                    {COLLEGE_CONFIG.bloodGroups.map(bg => (
+                      <option key={bg} value={bg}>{bg}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Seat Allotted Category</label>
+                  <input placeholder="Seat Allotted Category" value={personalFull.seat_allotted_category || ''} onChange={e=>setPersonalFull({...personalFull, seat_allotted_category:e.target.value})} className="p-2 border rounded w-full" />
+                </div>
+                <div className="md:col-span-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Identification Marks</label>
+                  <textarea placeholder="Identification Marks" value={personalFull.identification_marks || ''} onChange={e=>setPersonalFull({...personalFull, identification_marks:e.target.value})} className="p-2 border rounded w-full h-20 resize-none" />
+                </div>
               </div>
-              <h4 className="font-semibold mb-2">Section B: Personal Details</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-                <input placeholder="Father Name" value={personalFull.father_name || ''} onChange={e=>setPersonalFull({...personalFull, father_name:e.target.value})} className="p-2 border rounded" />
-                <input placeholder="Mother Name" value={personalFull.mother_name || ''} onChange={e=>setPersonalFull({...personalFull, mother_name:e.target.value})} className="p-2 border rounded" />
-                <input placeholder="Nationality" value={personalFull.nationality || ''} onChange={e=>setPersonalFull({...personalFull, nationality:e.target.value})} className="p-2 border rounded" />
-            <select value={personalFull.religion || ''} onChange={e=>setPersonalFull({...personalFull, religion:e.target.value})} className="p-2 border rounded">
-                <option value="">Select Religion</option>
-                {COLLEGE_CONFIG.religions.map(r => (
-                    <option key={r} value={r.toUpperCase()}>{r.toUpperCase()}</option>
-                ))}
-            </select>
-                <select value={personalFull.category || 'OC'} onChange={e=>setPersonalFull({...personalFull, category:e.target.value})} className="p-2 border rounded">{categories.map(c=> <option key={c} value={c}>{c}</option>)}</select>
-                <input placeholder="Sub Caste" value={personalFull.sub_caste || ''} onChange={e=>setPersonalFull({...personalFull, sub_caste:e.target.value})} className="p-2 border rounded" />
-                <select value={personalFull.area_status || 'Local'} onChange={e=>setPersonalFull({...personalFull, area_status:e.target.value})} className="p-2 border rounded"><option>Local</option><option>Non-Local</option></select>
-                <input placeholder="Mother Tongue" value={personalFull.mother_tongue || ''} onChange={e=>setPersonalFull({...personalFull, mother_tongue:e.target.value})} className="p-2 border rounded" />
-                <input placeholder="Place of Birth" value={personalFull.place_of_birth || ''} onChange={e=>setPersonalFull({...personalFull, place_of_birth:e.target.value})} className="p-2 border rounded" />
-                <input placeholder="Father Occupation" value={personalFull.father_occupation || ''} onChange={e=>setPersonalFull({...personalFull, father_occupation:e.target.value})} className="p-2 border rounded" />
+
+              {/* Current Address */}
+              <div className="md:col-span-3 border-t border-gray-100 pt-4 mt-2">
+                <h4 className="text-sm font-bold text-indigo-900 mb-4">Current Address</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">House No*</label>
+                    <input placeholder="House No*" value={personalFull.curr_house_no || ''} onChange={e => handleAddressChange('curr_house_no', e.target.value)} className="p-2 border rounded w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Apartment / Landmark</label>
+                    <input placeholder="Apartment / Landmark" value={personalFull.curr_apartment || ''} onChange={e => handleAddressChange('curr_apartment', e.target.value)} className="p-2 border rounded w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Street*</label>
+                    <input placeholder="Street*" value={personalFull.curr_street || ''} onChange={e => handleAddressChange('curr_street', e.target.value)} className="p-2 border rounded w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">City*</label>
+                    <input placeholder="City*" value={personalFull.curr_city || ''} onChange={e => handleAddressChange('curr_city', e.target.value)} className="p-2 border rounded w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">State*</label>
+                    <input placeholder="State*" value={personalFull.curr_state || ''} onChange={e => handleAddressChange('curr_state', e.target.value)} className="p-2 border rounded w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">PIN Code*</label>
+                    <input placeholder="PIN Code*" value={personalFull.curr_pincode || ''} onChange={e => handleAddressChange('curr_pincode', e.target.value.replace(/\D/g, ''))} maxLength={6} className="p-2 border rounded w-full" />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Country*</label>
+                    <input placeholder="Country*" value={personalFull.curr_country || ''} onChange={e => handleAddressChange('curr_country', e.target.value)} className="p-2 border rounded w-full" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Sync Checkbox */}
+              <div className="md:col-span-3 flex items-center gap-2 py-4">
                 <input 
-                  placeholder="Annual Income"
-                  value={personalFull.annual_income || ''} 
-                  onChange={e => {
-                    const raw = e.target.value.replace(/\D/g, '');
-                    if (raw && parseInt(raw) > 2000000) return;
-                    setPersonalFull({...personalFull, annual_income: formatIndianNumber(raw)});
-                  }} 
-                  className="p-2 border rounded"
+                  type="checkbox" 
+                  id="edit_is_current_same_as_permanent" 
+                  checked={!!personalFull.is_current_same_as_permanent} 
+                  onChange={e => handleCheckboxChange(e.target.checked)} 
+                  className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer" 
                 />
-                <div className="flex items-center">
-                  <span className="px-3 py-2 border border-r-0 bg-gray-100 text-sm text-gray-500 font-medium">+91</span>
-                  <input
-                    placeholder="Guardian Mobile"
-                    value={personalFull.guardian_mobile || ''}
-                    onChange={(e) => {
-                      const digits = String(e.target.value || '').replace(/\D/g, '').slice(0, 10);
-                      setPersonalFull({...personalFull, guardian_mobile: digits});
-                    }}
-                    className="p-2 border rounded rounded-l-none w-full"
-                    inputMode="numeric"
-                    maxLength={10}
-                  />
-                </div>
-                <input placeholder="Aadhaar Number" value={personalFull.aadhaar_no || ''} onChange={e=>setPersonalFull({...personalFull, aadhaar_no: formatAadhaar(e.target.value)})} className="p-2 border rounded" maxLength={14} />
-                <select value={personalFull.blood_group || ''} onChange={e=>setPersonalFull({...personalFull, blood_group: e.target.value})} className="p-2 border rounded">
-                  <option value="">Blood Group (optional)</option>
-                  {COLLEGE_CONFIG.bloodGroups.map(bg => (
-                    <option key={bg} value={bg}>{bg}</option>
-                  ))}
-                </select>
-            {/* Current Address */}
-            <div className="md:col-span-3 border-t border-gray-100 pt-4 mt-2">
-              <h4 className="text-sm font-bold text-indigo-900 mb-2 ">Current Address</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <input placeholder="House No*" value={personalFull.curr_house_no || ''} onChange={e => handleAddressChange('curr_house_no', e.target.value)} className="p-2 border rounded" />
-                <input placeholder="Apartment / Landmark" value={personalFull.curr_apartment || ''} onChange={e => handleAddressChange('curr_apartment', e.target.value)} className="p-2 border rounded" />
-                <input placeholder="Street*" value={personalFull.curr_street || ''} onChange={e => handleAddressChange('curr_street', e.target.value)} className="p-2 border rounded" />
-                <input placeholder="City*" value={personalFull.curr_city || ''} onChange={e => handleAddressChange('curr_city', e.target.value)} className="p-2 border rounded" />
-                <input placeholder="State*" value={personalFull.curr_state || ''} onChange={e => handleAddressChange('curr_state', e.target.value)} className="p-2 border rounded" />
-                <input placeholder="PIN Code*" value={personalFull.curr_pincode || ''} onChange={e => handleAddressChange('curr_pincode', e.target.value.replace(/\D/g, ''))} maxLength={6} className="p-2 border rounded" />
-                <input placeholder="Country*" value={personalFull.curr_country || ''} onChange={e => handleAddressChange('curr_country', e.target.value)} className="p-2 border rounded md:col-span-3" />
+                <label htmlFor="edit_is_current_same_as_permanent" className="text-sm font-bold text-gray-700 select-none cursor-pointer">
+                  Mark as permanent address
+                </label>
               </div>
-            </div>
 
-            {/* Sync Checkbox */}
-            <div className="md:col-span-3 flex items-center gap-2 py-2">
-              <input 
-                type="checkbox" 
-                id="edit_is_current_same_as_permanent" 
-                checked={!!personalFull.is_current_same_as_permanent} 
-                onChange={e => handleCheckboxChange(e.target.checked)} 
-                className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer" 
-              />
-              <label htmlFor="edit_is_current_same_as_permanent" className="text-sm font-bold text-gray-700 select-none cursor-pointer">
-                Mark as permanent address
-              </label>
-            </div>
-
-            {/* Permanent Address */}
-            <div className="md:col-span-3 border-t border-gray-100 pt-4">
-              <h4 className="text-sm font-bold text-indigo-900 mb-2 ">Permanent Address</h4>
-              {!personalFull.is_current_same_as_permanent ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <input placeholder="House No*" value={personalFull.perm_house_no || ''} onChange={e => setPersonalFull({...personalFull, perm_house_no: e.target.value})} className="p-2 border rounded" />
-                  <input placeholder="Apartment / Landmark" value={personalFull.perm_apartment || ''} onChange={e => setPersonalFull({...personalFull, perm_apartment: e.target.value})} className="p-2 border rounded" />
-                  <input placeholder="Street*" value={personalFull.perm_street || ''} onChange={e => setPersonalFull({...personalFull, perm_street: e.target.value})} className="p-2 border rounded" />
-                  <input placeholder="City*" value={personalFull.perm_city || ''} onChange={e => setPersonalFull({...personalFull, perm_city: e.target.value})} className="p-2 border rounded" />
-                  <input placeholder="State*" value={personalFull.perm_state || ''} onChange={e => setPersonalFull({...personalFull, perm_state: e.target.value})} className="p-2 border rounded" />
-                  <input placeholder="PIN Code*" value={personalFull.perm_pincode || ''} onChange={e => setPersonalFull({...personalFull, perm_pincode: e.target.value.replace(/\D/g, '')})} maxLength={6} className="p-2 border rounded" />
-                  <input placeholder="Country*" value={personalFull.perm_country || ''} onChange={e => setPersonalFull({...personalFull, perm_country: e.target.value})} className="p-2 border rounded md:col-span-3" />
-                </div>
-              ) : (
-                <div className="text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-100 p-3 rounded tracking-wide">
-                  Permanent address is synchronized with current address.
-                </div>
-              )}
-            </div>
-                <input placeholder="Seat Allotted Category" value={personalFull.seat_allotted_category || ''} onChange={e=>setPersonalFull({...personalFull, seat_allotted_category:e.target.value})} className="p-2 border rounded" />
-                <textarea placeholder="Identification Marks" value={personalFull.identification_marks || ''} onChange={e=>setPersonalFull({...personalFull, identification_marks:e.target.value})} className="p-2 border rounded md:col-span-3 h-20 resize-none" />
+              {/* Permanent Address */}
+              <div className="md:col-span-3 border-t border-gray-100 pt-4 mb-4">
+                <h4 className="text-sm font-bold text-indigo-900 mb-4">Permanent Address</h4>
+                {!personalFull.is_current_same_as_permanent ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">House No*</label>
+                      <input placeholder="House No*" value={personalFull.perm_house_no || ''} onChange={e => setPersonalFull({...personalFull, perm_house_no: e.target.value})} className="p-2 border rounded w-full" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Apartment / Landmark</label>
+                      <input placeholder="Apartment / Landmark" value={personalFull.perm_apartment || ''} onChange={e => setPersonalFull({...personalFull, perm_apartment: e.target.value})} className="p-2 border rounded w-full" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Street*</label>
+                      <input placeholder="Street*" value={personalFull.perm_street || ''} onChange={e => setPersonalFull({...personalFull, perm_street: e.target.value})} className="p-2 border rounded w-full" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">City*</label>
+                      <input placeholder="City*" value={personalFull.perm_city || ''} onChange={e => setPersonalFull({...personalFull, perm_city: e.target.value})} className="p-2 border rounded w-full" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">State*</label>
+                      <input placeholder="State*" value={personalFull.perm_state || ''} onChange={e => setPersonalFull({...personalFull, perm_state: e.target.value})} className="p-2 border rounded w-full" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">PIN Code*</label>
+                      <input placeholder="PIN Code*" value={personalFull.perm_pincode || ''} onChange={e => setPersonalFull({...personalFull, perm_pincode: e.target.value.replace(/\D/g, '')})} maxLength={6} className="p-2 border rounded w-full" />
+                    </div>
+                    <div className="md:col-span-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Country*</label>
+                      <input placeholder="Country*" value={personalFull.perm_country || ''} onChange={e => setPersonalFull({...personalFull, perm_country: e.target.value})} className="p-2 border rounded w-full" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-100 p-3 rounded tracking-wide">
+                    Permanent address is synchronized with current address.
+                  </div>
+                )}
+              </div>
               </div>
             </div>
-          </div>
-          <div className="bg-white p-4 rounded shadow">
-            <h4 className="font-semibold mb-2">Section C: Academic Background</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <select
-                value={(academicsList[0] && academicsList[0].qualifying_exam) || 'TG EAPCET'}
-                onChange={e=>{ const copy = [...academicsList]; copy[0] = {...(copy[0]||{}), qualifying_exam: e.target.value}; setAcademicsList(copy); }}
-                className="p-2 border rounded"
-              >
-                <option>TG EAPCET</option>
-                <option>TG ECET</option>
-                <option>PGECET</option>
-              </select>
-              <input 
-                placeholder="SSC (10th) Marks"
-                value={(academicsList[0] && academicsList[0].ssc_marks) || ''}
-                onChange={e=>{ const copy = [...academicsList]; copy[0] = {...(copy[0]||{}), ssc_marks: e.target.value}; setAcademicsList(copy); }}
-                className="p-2 border rounded"
-              />
-              <input 
-                placeholder="Inter / Diploma Marks"
-                value={(academicsList[0] && academicsList[0].inter_marks) || ''}
-                onChange={e=>{ const copy = [...academicsList]; copy[0] = {...(copy[0]||{}), inter_marks: e.target.value}; setAcademicsList(copy); }}
-                className="p-2 border rounded"
-              />
-              <textarea placeholder="Previous College Details" value={(academicsList[0] && academicsList[0].previous_college_details) || ''} onChange={e=>{ const copy = [...academicsList]; copy[0] = {...(copy[0]||{}), previous_college_details: e.target.value}; setAcademicsList(copy); }} className="p-2 border rounded md:col-span-3 h-20 resize-none" />
-              <select value={(academicsList[0] && academicsList[0].medium_of_instruction) || 'English'} onChange={e=>{ const copy=[...academicsList]; copy[0] = {...(copy[0]||{}), medium_of_instruction: e.target.value}; setAcademicsList(copy); }} className="p-2 border rounded"><option>English</option><option>Telugu</option><option>Other</option></select>
-              <input
-                placeholder="Entrance Rank"
-                type="number"
-                value={academicsList[0]?.ranks || ''}
-                onChange={e=>{ const copy=[...academicsList]; copy[0] = {...(copy[0]||{}), ranks: e.target.value}; setAcademicsList(copy); }}
-                className="p-2 border rounded"
-              />
-            </div>
-          </div>
-          <div className="bg-white p-4 rounded shadow">
-            <h4 className="font-semibold mb-2">Section D: Fee Summary</h4>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <div className="p-2 border rounded">
-                <div className="text-xs text-gray-500">Total Fee</div>
-                <div className="font-medium">{feeDetails && feeDetails.total_fee ? feeDetails.total_fee : 'N/A'}</div>
-              </div>
-              <div className="p-2 border rounded">
-                <div className="text-xs text-gray-500">Total Paid</div>
-                <div className="font-medium">{feesList && feesList.length ? feesList.reduce((s,f)=>s+Number(f.amount||0),0) : '0'}</div>
-              </div>
-              <div className="p-2 border rounded">
-                <div className="text-xs text-gray-500">Pending Fee</div>
-                <div className="font-medium">{feeDetails && feeDetails.pending_fee ? feeDetails.pending_fee : 'N/A'}</div>
-              </div>
-              <div className="p-2 border rounded">
-                <div className="text-xs text-gray-500">Last Payment Date</div>
-                <div className="font-medium">{feesList && feesList.length ? formatDate(feesList[feesList.length-1].date) : (feeDetails && feeDetails.last_payment_date ? formatDate(feeDetails.last_payment_date) : 'N/A')}</div>
-              </div>
-            </div>
-          </div>
           <div className="flex justify-end space-x-2">
             <button 
               onClick={() => {
