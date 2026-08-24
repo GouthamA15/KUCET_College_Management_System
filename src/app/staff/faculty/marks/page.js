@@ -1,48 +1,36 @@
 'use client';
-import { useEffect, useState, Suspense } from 'react';
+import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import toast from 'react-hot-toast';
 import { useStaff } from '@/context/StaffContext';
 import MarksEntrySheet from '@/components/staff/faculty/MarksEntrySheet';
 
 function MarksContent() {
   const searchParams = useSearchParams();
   const assignmentId = searchParams.get('id');
-  const { staffData: _staff, loading: _isLoading } = useStaff();
-  const [assignments, setAssignments] = useState([]);
-  const [loadingAssignments, setLoadingAssignments] = useState(true);
+  const { facultyAssignments, isLoadingFaculty } = useStaff();
   const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const [prevAssignmentId, setPrevAssignmentId] = useState(null);
+  const [prevFacultyAssignments, setPrevFacultyAssignments] = useState(null);
 
-  useEffect(() => {
-    const fetchAssignments = async () => {
-      setLoadingAssignments(true);
-      try {
-        const res = await fetch('/api/staff/faculty/assignments');
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to fetch assignments');
+  if (assignmentId !== prevAssignmentId || facultyAssignments !== prevFacultyAssignments) {
+    setPrevAssignmentId(assignmentId);
+    setPrevFacultyAssignments(facultyAssignments);
+    if (facultyAssignments && assignmentId) {
+      const preSelected = facultyAssignments.find(a => String(a.id) === String(assignmentId));
+      if (preSelected) setSelectedAssignment(preSelected);
+    }
+  }
 
-        const assignmentsList = data.data || [];
-        // Sort assignments: Active first, History last
-        const sortedAssignments = [...assignmentsList].sort((a, b) => {
-          if (a.is_active === b.is_active) return 0;
-          return a.is_active ? -1 : 1;
-        });
+  const assignmentsList = facultyAssignments || [];
+  
+  // Sort assignments: Active first, History last
+  const sortedAssignments = [...assignmentsList].sort((a, b) => {
+    if (a.is_active === b.is_active) return 0;
+    return a.is_active ? -1 : 1;
+  });
 
-        setAssignments(sortedAssignments);
-
-        // Pre-select if ID is in URL
-        if (assignmentId) {
-          const preSelected = assignmentsList.find(a => String(a.id) === String(assignmentId));
-          if (preSelected) setSelectedAssignment(preSelected);
-        }
-      } catch (e) {
-        toast.error(e.message);
-      } finally {
-        setLoadingAssignments(false);
-      }
-    };
-    fetchAssignments();
-  }, [assignmentId]);
+  const assignments = sortedAssignments;
+  const loadingAssignments = isLoadingFaculty;
 
   const resetSelection = () => {
     setSelectedAssignment(null);

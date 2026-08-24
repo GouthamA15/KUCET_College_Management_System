@@ -14,33 +14,7 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
   const [loadingSyllabus, setLoadingSyllabus] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [academicYear, setAcademicYear] = useState('');
-  const [localInterests, setLocalInterests] = useState(null);
-  const [isFetchingLocal, setIsFetchingLocal] = useState(false);
-
-  useEffect(() => {
-    if ((!facultyInterests || facultyInterests.length === 0) && !isLoadingFaculty && localInterests === null && !isFetchingLocal) {
-      const fetchExistingInterests = async () => {
-        setIsFetchingLocal(true);
-        try {
-          const res = await fetch('/api/staff/faculty/interests');
-          const data = await res.json();
-          if (res.ok) {
-            setLocalInterests(data.data || []);
-          } else {
-            setLocalInterests([]);
-          }
-        } catch (error) {
-          console.error('Failed to fetch existing interests:', error);
-          setLocalInterests([]);
-        } finally {
-          setIsFetchingLocal(false);
-        }
-      };
-      fetchExistingInterests();
-    }
-  }, [facultyInterests, isLoadingFaculty, localInterests, isFetchingLocal]);
-
-  const effectiveInterests = (facultyInterests && facultyInterests.length > 0) ? facultyInterests : (localInterests || []);
+  const effectiveInterests = facultyInterests || [];
 
   // Set default academic year (current)
   useEffect(() => {
@@ -119,13 +93,7 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
   };
 
   return (
-    <section className="bg-white border border-slate-200 rounded-sm shadow-sm overflow-hidden">
-      <div className="bg-slate-50 border-b border-slate-200 px-4 md:px-6 py-4">
-        <h2 className="text-base font-black text-slate-800 tracking-tight uppercase">Express Interest</h2>
-        <p className="text-[11px] font-medium text-slate-500 uppercase tracking-tight mt-1">Select a branch and semester to view syllabus and submit preferences.</p>
-      </div>
-
-      <div className="p-4 md:p-6 space-y-6">
+    <div className="space-y-6 w-full">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Branch</label>
@@ -173,17 +141,17 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
         ) : syllabus.length > 0 ? (
           <>
             {/* Desktop Table Layout */}
-            <div className="hidden md:block overflow-x-auto border border-slate-200 rounded-sm">
-              <table className="min-w-full divide-y divide-slate-200">
-                <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Type</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Code</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Title</th>
-                  <th className="px-4 py-3 text-right text-[10px] font-bold text-slate-500 uppercase tracking-widest">Status / Action</th>
-                </tr>
-              </thead>
-                <tbody className="bg-white divide-y divide-slate-200">
+            <div className="hidden md:block overflow-x-auto max-h-130 overflow-y-auto">
+              <table className="w-full table-fixed border-collapse">
+                <thead>
+                  <tr className="bg-gray-200 text-left text-[13px] font-semibold text-gray-700 uppercase tracking-[0.6px] border-b-2 border-gray-300">
+                    <th className="px-3 py-2 w-1/5">Type</th>
+                    <th className="px-3 py-2 w-1/5">Code</th>
+                    <th className="px-3 py-2 w-2/5">Title</th>
+                    <th className="px-3 py-2 w-1/5 text-right">Status / Action</th>
+                  </tr>
+                </thead>
+                <tbody>
                 {syllabus.flatMap((item) => {
                   if (item.isGroup || item.variants) {
                     return (item.variants || []).map(variant => ({
@@ -199,8 +167,8 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
                 }).map((subject, idx) => {
                   const interest = getInterestStatus(subject.code);
                   return (
-                    <tr key={`${subject.code}-${idx}`} className={subject.isElective ? 'bg-amber-50/40' : ''}>
-                      <td className="px-4 py-3 whitespace-nowrap text-[11px] font-semibold">
+                    <tr key={`${subject.code}-${idx}`} className={`border-b border-gray-200 hover:bg-gray-50 transition-colors duration-150 ${subject.isElective ? 'bg-amber-50/40' : ''}`}>
+                      <td className="px-3 py-2 text-sm text-gray-800 align-middle">
                         {subject.isElective ? (
                           <span className="text-amber-700 bg-amber-100 px-2 py-0.5 rounded-sm border border-amber-200 text-[10px] font-bold uppercase tracking-widest">
                             Elective ({subject.groupName})
@@ -209,8 +177,8 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
                           <span className="text-slate-600 bg-slate-100 px-2 py-0.5 rounded-sm border border-slate-200 text-[10px] font-bold uppercase tracking-widest">Core</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-[11px] font-mono font-bold text-slate-800">{subject.code}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-[11px] text-slate-600">
+                      <td className="px-3 py-2 text-sm text-gray-800 align-middle font-mono font-bold">{subject.code}</td>
+                      <td className="px-3 py-2 text-sm text-gray-700 align-middle whitespace-normal">
                         <div className="flex flex-col">
                           <span>{subject.title}</span>
                           {subject.is_allocated && !subject.allocated_to_me && (
@@ -231,7 +199,7 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-right">
+                      <td className="px-3 py-2 text-sm text-right align-middle">
                         {interest ? (
                           <span className={`inline-flex px-2.5 py-1 rounded-sm text-[9px] font-black uppercase tracking-widest border ${
                             interest.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
@@ -244,7 +212,7 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
                           <button
                             onClick={() => handleSubmitInterest(subject)}
                             disabled={submitting}
-                            className="text-[10px] font-black uppercase tracking-widest text-[#0b3578] border border-slate-200 px-3 py-2 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-4 py-1.5 bg-[#0b3578] text-white rounded-md text-sm font-medium hover:bg-[#0a2d66] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                           >
                             Express Interest
                           </button>
@@ -318,7 +286,7 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
                       <button
                         onClick={() => handleSubmitInterest(subject)}
                         disabled={submitting}
-                        className="w-full text-[11px] font-black uppercase tracking-widest text-white border border-indigo-600 rounded bg-indigo-600 hover:bg-indigo-700 py-3 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="w-full px-4 py-2 bg-[#0b3578] text-white rounded-md text-sm font-medium hover:bg-[#0a2d66] transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
                       >
                         Express Interest
                       </button>
@@ -334,7 +302,6 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
       ) : (
         <div className="text-center py-10 text-[11px] text-slate-500 font-semibold uppercase tracking-widest">Select branch and semester to view subjects.</div>
       )}
-      </div>
-    </section>
+    </div>
   );
 }

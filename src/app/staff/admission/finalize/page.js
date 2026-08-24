@@ -35,7 +35,8 @@ function FinalizeAdmissionContent() {
             const res = await fetch(`/api/staff/admission/drafts?branch=${selectedBranch}&entrance_exam=${selectedExam}&status=PROCESSED&t=${Date.now()}`);
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to fetch drafts.');
-            setDrafts(data.data);
+            const sortedData = (data.data || []).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            setDrafts(sortedData);
         } catch (error) {
             toast.error(error.message);
         } finally {

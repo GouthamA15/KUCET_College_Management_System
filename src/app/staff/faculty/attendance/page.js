@@ -63,42 +63,23 @@ function SubjectCard({ assignment, onSelect }) {
 
 function AttendanceSubjectList() {
   const router = useRouter();
-  const { staffData: _staff, loading: _isLoading } = useStaff();
-  const [assignments, setAssignments] = useState([]);
-  const [loadingAssignments, setLoadingAssignments] = useState(true);
-
-  useEffect(() => {
-    const fetchAssignments = async () => {
-      setLoadingAssignments(true);
-      try {
-        const res = await fetch('/api/staff/faculty/assignments');
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to fetch assignments');
-        
-        const assignmentsList = data.data || [];
-        // Sort assignments: Active first, History last
-        const sortedAssignments = [...assignmentsList].sort((a, b) => {
-          if (a.is_active === b.is_active) return 0;
-          return a.is_active ? -1 : 1;
-        });
-        
-        setAssignments(sortedAssignments);
-      } catch (e) {
-        toast.error(e.message);
-      } finally {
-        setLoadingAssignments(false);
-      }
-    };
-    fetchAssignments();
-  }, []);
+  const { facultyAssignments, isLoadingFaculty } = useStaff();
 
   const handleSelectAssignment = (assignment) => {
-    // Navigate to the assignment's mode selector page — URL is the source of truth
+    // Navigate to the assignment's mode selector page URL is the source of truth
     router.push(`/staff/faculty/attendance/${assignment.id}`);
   };
 
-  const activeAssignments = assignments.filter(a => a.is_active);
-  const historyAssignments = assignments.filter(a => !a.is_active);
+  const assignmentsList = facultyAssignments || [];
+  
+  // Sort assignments: Active first, History last
+  const sortedAssignments = [...assignmentsList].sort((a, b) => {
+    if (a.is_active === b.is_active) return 0;
+    return a.is_active ? -1 : 1;
+  });
+
+  const activeAssignments = sortedAssignments.filter(a => a.is_active);
+  const historyAssignments = sortedAssignments.filter(a => !a.is_active);
 
   return (
     <>
@@ -107,9 +88,9 @@ function AttendanceSubjectList() {
         <p className="text-gray-600">Select a subject to manage attendance.</p>
       </div>
 
-      {loadingAssignments ? (
+      {isLoadingFaculty ? (
         <div className="text-center py-6">Loading assignments...</div>
-      ) : assignments.length > 0 ? (
+      ) : sortedAssignments.length > 0 ? (
         <div className="space-y-12">
           {/* Active Subjects */}
           {activeAssignments.length > 0 && (
