@@ -5,36 +5,13 @@ import { useStaff } from '@/context/StaffContext';
 
 export default function AssignedSubjectsList({ onSelectAssignment = () => {}, showActions = true }) {
   const { facultyAssignments = [], isLoadingFaculty } = useStaff();
-  const [localAssignments, setLocalAssignments] = useState(null);
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if ((!facultyAssignments || facultyAssignments.length === 0) && !isLoadingFaculty && localAssignments === null && !loading) {
-      const fetchAssignments = async () => {
-        setLoading(true);
-        try {
-          const res = await fetch('/api/staff/faculty/assignments');
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Failed to fetch assignments');
-          setLocalAssignments(data.data || []);
-        } catch (error) {
-          toast.error(error.message);
-          setLocalAssignments([]);
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchAssignments();
-    }
-  }, [facultyAssignments, isLoadingFaculty, localAssignments, loading]);
-
-  const assignments = (facultyAssignments && facultyAssignments.length > 0) ? facultyAssignments : (localAssignments || []);
-  const isLoading = isLoadingFaculty || loading;
+  const isLoading = isLoadingFaculty;
 
   if (isLoading) return <div className="text-center py-4">Loading assignments...</div>;
 
-  const activeAssignments = assignments.filter(a => a.is_active);
-  const historicalAssignments = assignments.filter(a => !a.is_active);
+  const activeAssignments = facultyAssignments.filter(a => a.is_active);
+  const historicalAssignments = facultyAssignments.filter(a => !a.is_active);
 
   const groupedHistory = historicalAssignments.reduce((acc, asgn) => {
     if (!acc[asgn.academic_year]) acc[asgn.academic_year] = [];
@@ -85,18 +62,18 @@ export default function AssignedSubjectsList({ onSelectAssignment = () => {}, sh
                   </div>
 
                   {showActions && (
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-2 mt-4 lg:mt-0 lg:absolute lg:inset-0 lg:bg-white/95 lg:backdrop-blur-sm lg:p-5 lg:flex lg:flex-col lg:justify-center lg:items-center lg:opacity-0 lg:group-hover:opacity-100 lg:translate-y-4 lg:group-hover:translate-y-0 transition-all duration-300 z-20">
                       <button
-                        onClick={() => onSelectAssignment(asgn, 'attendance')}
-                        className="w-full bg-[#0b3578] text-white px-4 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-blue-900 transition-all border border-[#0b3578]"
+                        onClick={(e) => { e.stopPropagation(); onSelectAssignment(asgn, 'attendance'); }}
+                        className="w-full bg-[#0b3578] text-white px-4 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-blue-900 transition-all border border-[#0b3578] shadow-sm lg:w-4/5"
                       >
-                        Register Attendance
+                        Attendance
                       </button>
                       <button
-                        onClick={() => onSelectAssignment(asgn, 'marks')}
-                        className="w-full bg-white text-slate-700 px-4 py-2 text-[10px] font-bold uppercase tracking-widest border border-slate-200 hover:border-[#0b3578] hover:text-[#0b3578] transition-all"
+                        onClick={(e) => { e.stopPropagation(); onSelectAssignment(asgn, 'marks'); }}
+                        className="w-full bg-white text-slate-700 px-4 py-2 text-[10px] font-bold uppercase tracking-widest border border-slate-200 hover:border-[#0b3578] hover:text-[#0b3578] transition-all shadow-sm lg:w-4/5"
                       >
-                        Manage Internal Marks
+                        Marks
                       </button>
                     </div>
                   )}

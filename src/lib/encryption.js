@@ -34,7 +34,13 @@ export function decrypt(encryptedText) {
   if (!encryptedText) return null;
   
   const parts = String(encryptedText).split(':');
-  if (parts.length !== 3) return encryptedText;
+  if (parts.length !== 3) {
+    // If it's exactly 64 hex characters, it's a hash (blind index), not plaintext data
+    if (/^[0-9a-f]{64}$/i.test(encryptedText)) {
+      return null;
+    }
+    return encryptedText; // Legacy plaintext support
+  }
 
   try {
     const encryptionKey = process.env.ENCRYPTION_KEY;
@@ -53,7 +59,7 @@ export function decrypt(encryptedText) {
     
     return decrypted;
   } catch (_error) {
-    return encryptedText;
+    return null; // Do not leak raw encrypted strings on failure
   }
 }
 

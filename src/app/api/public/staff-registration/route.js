@@ -2,7 +2,7 @@ import { db } from '@/db';
 import { staffRegistrationRequests, staffAccounts, academicDepartments, academicPrograms } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { wrapHandler, apiResponse, apiError } from '@/lib/api-utils';
-import { hashForIndex } from '@/lib/encryption';
+import { encrypt } from '@/lib/encryption';
 import { z } from 'zod';
 import { jwtVerify } from 'jose';
 
@@ -82,7 +82,7 @@ const handler = async (req, { data }) => {
   }
 
   // Duplicate protection check
-  const mobileHash = hashForIndex(mobile);
+  const mobileHash = encrypt(mobile);
   
   // Check existing active staff (staffAccounts table)
   const existingStaff = await db.select({ id: staffAccounts.id }).from(staffAccounts)

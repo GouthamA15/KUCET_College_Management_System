@@ -28,6 +28,9 @@ export function StaffProvider({ children }) {
   const [studentHistory, setStudentHistory] = useState({ records: [], myCount: 0, allCount: 0 });
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
+  const [hasFetchedFaculty, setHasFetchedFaculty] = useState(false);
+  const [hasFetchedHOD, setHasFetchedHOD] = useState(false);
+
   const fetchCollegeInfo = useCallback(async () => {
     if (cachedCollegeInfo) {
       setCollegeInfo(cachedCollegeInfo);
@@ -84,6 +87,7 @@ export function StaffProvider({ children }) {
         const intJson = await intRes.json();
         setFacultyInterests(intJson.data || []);
       }
+      setHasFetchedFaculty(true);
     } catch (e) {
       console.error('Failed to fetch faculty data', e);
     } finally {
@@ -116,6 +120,7 @@ export function StaffProvider({ children }) {
           allSubjects: subjectsJson.data,
           officialAssignments: assignmentsJson.data
         });
+        setHasFetchedHOD(true);
       }
     } catch (e) {
       console.error('Failed to fetch HOD data', e);
@@ -209,9 +214,16 @@ export function StaffProvider({ children }) {
 
     const promise = (async () => {
       try {
-        await fetchStaffData();
+        const staff = await fetchStaffData();
         await fetchCollegeInfo();
         
+        if (staff?.role === 'faculty') {
+          fetchFacultyData();
+        }
+        if (staff?.is_hod) {
+          fetchHODData();
+        }
+
         // Basic identity and config are loaded! Drop the global spinner immediately.
         setLoading(false);
         lastFetchTimeRef.current = Date.now();
@@ -224,7 +236,7 @@ export function StaffProvider({ children }) {
 
     activePromiseRef.current = promise;
     return promise;
-  }, [fetchStaffData, fetchCollegeInfo]);
+  }, [fetchStaffData, fetchCollegeInfo, fetchFacultyData, fetchHODData]);
 
   const handleResume = useCallback(async (event) => {
     const now = Date.now();
@@ -363,6 +375,7 @@ export function StaffProvider({ children }) {
       facultyInterests,
       isLoadingFaculty,
       refreshFaculty: fetchFacultyData,
+      hasFetchedFaculty,
       pendingProfileRequests,
       pendingCertificateRequests,
       admissionDrafts,
@@ -375,6 +388,7 @@ export function StaffProvider({ children }) {
       hodBranchData,
       isLoadingHOD,
       refreshHOD: fetchHODData,
+      hasFetchedHOD,
       studentHistory,
       isLoadingHistory,
       refreshStudentHistory: fetchStudentHistory
