@@ -23,7 +23,12 @@ const AdmissionRequestsPanel = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditData] = useState({});
 
-    const drafts = admissionDrafts || [];
+    const drafts = [...(admissionDrafts || [])].sort((a, b) => {
+        const dateA = new Date(a.created_at || 0).getTime();
+        const dateB = new Date(b.created_at || 0).getTime();
+        if (dateA !== dateB) return dateB - dateA;
+        return (b.id || 0) > (a.id || 0) ? 1 : -1;
+    });
     const loading = isLoadingRequests && drafts.length === 0;
 
     const fetchDetail = useCallback(async (id) => {
