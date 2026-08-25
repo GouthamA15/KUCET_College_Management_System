@@ -109,15 +109,12 @@ export default function ScholarshipWindowCard({ onWindowUpdated }) {
   const disabled = saving || loading;
 
   return (
-    <section className="bg-white rounded-2xl border border-slate-200 shadow-[0_2px_10px_rgba(0,0,0,0.02)] p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Submission Window</p>
-          <h3 className="text-base font-semibold text-slate-900 tracking-tight">Scholarship Window Management</h3>
-          <p className="text-xs text-slate-600">Configure the active period for accepting scholarship applications.</p>
+    <section className="bg-white rounded-md border border-slate-200 shadow-sm p-4">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h3 className="text-sm font-bold text-slate-800 tracking-tight">Scholarship Window Management</h3>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</span>
           <span
             className={
               `text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full border ` +
@@ -131,36 +128,36 @@ export default function ScholarshipWindowCard({ onWindowUpdated }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
         <div>
-          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Start Date</label>
+          <label className="sr-only">Start Date</label>
           <input
             type="date"
             value={startDate || ''}
             onChange={(e) => setStartDate(e.target.value)}
-            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#0b3578]/20 focus:border-[#0b3578]/30"
+            className="w-full px-3 py-2.5 border border-slate-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#0b3578]/20 focus:border-[#0b3578]/30"
             disabled={disabled}
           />
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">End Date</label>
+          <label className="sr-only">End Date</label>
           <input
             type="date"
             value={endDate || ''}
             onChange={(e) => setEndDate(e.target.value)}
-            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#0b3578]/20 focus:border-[#0b3578]/30"
+            className="w-full px-3 py-2.5 border border-slate-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#0b3578]/20 focus:border-[#0b3578]/30"
             disabled={disabled}
           />
         </div>
       </div>
 
       {hasWindow && (
-        <div className="mt-4 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-          Current window: {formatDate(startDate)} — {formatDate(endDate)}
+        <div className="mt-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+          {formatDate(startDate)} — {formatDate(endDate)}
         </div>
       )}
 
-      <div className="flex flex-wrap gap-3 mt-5">
+      <div className="flex flex-wrap gap-3 mt-4">
         <button
           type="button"
           onClick={handleSave}

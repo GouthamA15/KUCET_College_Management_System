@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { formatDate } from '@/lib/date';
+import { ChevronRight } from 'lucide-react';
 
 export default function ScholarshipMetricsCards({ refreshToken = 0 }) {
   const [metrics, setMetrics] = useState(null);
@@ -46,7 +47,7 @@ export default function ScholarshipMetricsCards({ refreshToken = 0 }) {
       label: 'Pending Thumb Updates',
       value: metrics?.pendingThumbs ?? '--',
       suffix: 'Students',
-      accent: 'border-l-orange-400',
+      accent: 'border-l-amber-400',
     },
     {
       key: 'totalRecords',
@@ -70,9 +71,12 @@ export default function ScholarshipMetricsCards({ refreshToken = 0 }) {
       {items.map((item) => (
         <div
           key={item.key}
-          className={`bg-white p-4 px-5 rounded-xl border border-slate-200 border-l-4 ${item.accent} shadow-sm flex flex-col justify-between h-24`}
+          className={`group bg-white p-4 px-5 rounded-md border border-slate-200 border-l-2 ${item.accent} shadow-sm flex flex-col justify-between h-24 transition-all hover:shadow-md`}
         >
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.label}</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{item.label}</p>
+            <ChevronRight size={18} strokeWidth={1.8} className="shrink-0 text-slate-500 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+          </div>
           <div className="flex items-baseline justify-between mt-1">
             <span className={`text-2xl font-extrabold tracking-tight ${item.valueTone || 'text-slate-800'}`}>
               {loading ? (
@@ -81,9 +85,6 @@ export default function ScholarshipMetricsCards({ refreshToken = 0 }) {
                 item.value
               )}
             </span>
-            {item.suffix && !loading && (
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{item.suffix}</span>
-            )}
           </div>
         </div>
       ))}
