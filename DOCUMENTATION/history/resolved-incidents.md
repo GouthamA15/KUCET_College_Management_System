@@ -1,6 +1,6 @@
 # Chronological Forensics of Major Resolved Incidents
 
-**Last Updated:** August 11, 2026  
+**Last Updated:** August 25, 2026
 **Status:** Forensic Incident Repository  
 **Scope:** Root Cause Analysis, Forensic Call Stacks, Resolution Steps, and Diagnostic Audits.
 
@@ -10,6 +10,7 @@
 
 | Session | Date | Category | Affected Subsystem | Primary Root Cause Summary | Resolution Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Session 208** | Aug 25, 2026 | DB Schema & API | Admin & HOD Analytics | `facultySubjectAssignments.faculty_id` Drizzle object mapping crash; Admin actor mismatch in `faculty_hod_assignments.assigned_by` FK | **RESOLVED** |
 | **Session 207** | Aug 18, 2026 | Caching & State | Service Worker & Student State | `public/sw.js` Stale-While-Revalidate caching of `/api/*` across student logins; un-scoped `localStorage` keys | **RESOLVED** |
 | **Session 206** | Aug 14, 2026 | Security & Media | Storage & Upload Pipeline | `FailoverStorageProvider` forwarded options object as `publicId` producing `[object Object].webp`; API routes assigned `StorageResult` object directly to DB string columns | **RESOLVED** |
 | **Session 205** | Aug 11, 2026 | Auth / Proxy | Cookie Engine (`src/proxy.js`) | Next.js Edge header comma-merging corruption of `Set-Cookie` strings | **RESOLVED** |
@@ -24,7 +25,33 @@
 
 ## Detailed Forensics & Technical Resolutions
 
-### 1. Session 207: Forensic Resolution of Cross-Student Profile Cache Leakage
+### 1. Session 208: Forensic Resolution of Drizzle ORM Mapping & Foreign Key Constraints
+
+#### Incident Summary
+Multiple internal 500 server errors were detected across HOD endpoints (`/api/staff/hod/faculty-load`, `/api/staff/hod/subject-assignments`, and `/api/staff/faculty/syllabus`), resulting in "TypeError: Cannot convert undefined or null to object" crashes on the frontend. Additionally, Admin attempts to promote Faculty to HOD via `PUT /api/admin/staff/[id]` resulted in Foreign Key constraint violations.
+
+#### Root Cause Analysis
+Forensic investigation revealed two distinct root causes:
+
+1. **Foreign Key Context Mismatch on Administrative Actors**:
+   - The database correctly separates system users (`principal`) from subject entities (`staff_accounts`).
+   - The `faculty_hod_assignments.assigned_by` column was improperly defined in Drizzle to reference `staff_accounts.id`.
+   - When the Super Admin (`principal.id = 1`) attempted to authorize an HOD promotion, it threw a FK violation because there is no `staff_accounts.id = 1`.
+
+2. **Drizzle Schema Mapping Hallucination (`faculty_id` vs `staff_account_id`)**:
+   - The physical database schema defines `staff_account_id` as the foreign key in `faculty_subject_assignments` and `faculty_subject_interests`.
+   - The API codebase incorrectly attempted to query `facultySubjectAssignments.faculty_id`.
+   - Because `faculty_id` was undefined in the schema object, Drizzle's internal `orderSelectedFields` received `undefined` inside the `db.select()` object map, throwing an immediate Type Error.
+
+#### Resolution Steps
+- **Repaired Administrative Foreign Keys**: Mapped `faculty_hod_assignments.assigned_by` and `faculty_hod_requests.reviewed_by` to strictly reference `principal.id` inside `src/db/schema/operations.js` with `onDelete: 'set null'`.
+- **System-wide Schema Normalization**: Executed an automated regex migration across 13 distinct files (API routes and intelligence engine files), replacing all hallucinated references of `facultySubjectAssignments.faculty_id` and `facultySubjectInterests.faculty_id` with `staff_account_id`.
+- **UI State Decoupling**: Updated `ManageStaffClient.js` to decouple the HOD toggle switch from immediate database execution, buffering edits locally until the Admin explicitly presses "Save Changes" with an interception confirmation modal.
+- **Timezone-Safe Date Formatting**: Replaced direct `new Date().toLocaleDateString()` invocations in `HodAccessManager.js` with the robust `formatDate()` utility from `@/lib/date` to prevent browser-local timezone offsets from producing off-by-one day rendering artifacts.
+
+---
+
+### 2. Session 207: Forensic Resolution of Cross-Student Profile Cache Leakage
 
 #### Incident Summary
 When a student (Student A, e.g., Gautam) logged in on a browser previously used by another student (Student B, e.g., Uzair), Student B's profile data, signature, and activity notifications appeared instead of Student A's data.

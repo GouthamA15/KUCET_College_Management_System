@@ -1,7 +1,7 @@
 # Institutional Staff Hierarchy & Management Architecture
 
-**System Version:** Session 207 (testvanilla)  
-**Last Updated:** August 19, 2026  
+**System Version:** Session 208 (latest)
+**Last Updated:** August 25, 2026
 **Status:** Active Development / Pre-Merge  
 
 ---
@@ -46,10 +46,12 @@ The KUCET College Management System enforces a strict 3-category staff self-regi
 1. **Self-Registration**: Faculty applicant registers via `/staff-registration` with `staff_category: FACULTY` and selects department/programs.
 2. **Admin Approval**: Super Admin approves registration (`POST /api/admin/staff-requests/[id]/approve`). Account is created with `account_status: PENDING_ACTIVATION`.
 3. **Activation**: Staff member sets password via token link (`/register/staff/activate`). Account status transitions to `ACTIVE`.
-4. **HOD Promotion**: Super Admin navigates to **Staff Management -> Academic Faculty** (`/admin/manage-staff`) and toggles **"Head of Department"**.
-   - System updates `faculty_hod_assignments` (`is_active = true`).
+4. **HOD Promotion**: Super Admin navigates to **Staff Management -> Academic Faculty** (`/admin/manage-staff`), toggles **"Head of Department"**, and clicks **"Save Changes"**.
+   - System updates `faculty_hod_assignments` (`is_active = true`, `assigned_by = 1` referencing the Super Admin `principal` table).
+   - **Transaction Safety**: The toggle on the frontend is uncoupled from the immediate API call, preventing accidental submissions. It commits only upon explicit user confirmation via a modal intercept.
    - **Branch Invariant Guard**: Enforces exactly **one active HOD per department**. Attempting to assign a second active HOD throws a conflict error prompting the admin to demote the current HOD first.
-5. **HOD Demotion**: Super Admin toggles off HOD status. System sets `faculty_hod_assignments.is_active = false` (or removes the row), reverting the account to standard Faculty status without data loss.
+   - **Academic Year Bounds**: Dynamically fetches the active academic year bounds from the `semesters` table rather than hardcoding dates.
+5. **HOD Demotion**: Super Admin toggles off HOD status and saves. System sets `faculty_hod_assignments.is_active = false` preserving the historical record of the HOD assignment, reverting the account to standard Faculty status.
 
 ---
 
