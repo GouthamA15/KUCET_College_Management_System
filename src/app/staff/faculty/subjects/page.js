@@ -134,10 +134,10 @@ function SubjectsContent() {
         <p className="text-sm text-gray-600 mt-1">Manage your active instructional assignments and track subject requests.</p>
       </header>
 
-      <div className="flex items-center gap-2 mb-3">
-        <button onClick={() => setActiveTab('subjects')} className={`px-3 py-2 rounded-md text-sm transition-colors cursor-pointer ${activeTab === 'subjects' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>My Subjects</button>
-        <button onClick={() => setActiveTab('requests')} className={`px-3 py-2 rounded-md text-sm transition-colors cursor-pointer ${activeTab === 'requests' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>Subject Requests</button>
-        <button onClick={() => setActiveTab('hod')} className={`px-3 py-2 rounded-md text-sm transition-colors cursor-pointer ${activeTab === 'hod' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>HOD Access</button>
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <button onClick={() => setActiveTab('subjects')} className={`px-3 py-2 rounded-md text-sm whitespace-nowrap transition-colors cursor-pointer ${activeTab === 'subjects' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>My Subjects</button>
+        <button onClick={() => setActiveTab('requests')} className={`px-3 py-2 rounded-md text-sm whitespace-nowrap transition-colors cursor-pointer ${activeTab === 'requests' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>Subject Requests</button>
+        <button onClick={() => setActiveTab('hod')} className={`px-3 py-2 rounded-md text-sm whitespace-nowrap transition-colors cursor-pointer ${activeTab === 'hod' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>HOD Access</button>
       </div>
 
       {activeTab === 'subjects' && (

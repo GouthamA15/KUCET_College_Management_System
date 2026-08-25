@@ -1,12 +1,12 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { facultyHodRequests } from '@/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { facultyHodRequests, facultyHodAssignments } from '@/db/schema';
+import { eq, desc, and } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(_request) {
   try {
-    const user = await getAuthUser('faculty'); // Staff needs to be logged in, ideally with 'faculty' role to request HOD
+    const user = await getAuthUser('faculty');
     if (!user || (user.role !== 'faculty' && user.role !== 'admin')) return apiError('Unauthorized', 401);
 
     const requests = await db.query.facultyHodRequests.findMany({
@@ -14,7 +14,12 @@ export async function GET(_request) {
       orderBy: [desc(facultyHodRequests.created_at)]
     });
 
-    return apiResponse({ data: requests });
+    const assignments = await db.query.facultyHodAssignments.findMany({
+      where: eq(facultyHodAssignments.staff_account_id, user.id),
+      orderBy: [desc(facultyHodAssignments.created_at)]
+    });
+
+    return apiResponse({ data: { requests, assignments } });
   } catch (error) {
     logger.error('HOD Requests Fetch Error:', error);
     return apiError('Internal Server Error', 500);
@@ -31,6 +36,10 @@ export async function POST(request) {
 
     if (!department_code || !academic_year) {
       return apiError('Missing required fields', 400);
+    }
+    
+    if (!academic_year.match(/^\d{4}-\d{2}$/)) {
+      return apiError('Invalid academic_year format. Expected YYYY-YY', 400);
     }
 
     const existingPending = await db.query.facultyHodRequests.findFirst({

@@ -6,7 +6,7 @@ import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function POST(request) {
   try {
-    const user = await getAuthUser('staff');
+    const user = await getAuthUser('hod');
     if (!user) return apiError('Unauthorized', 401);
     
     const body = await request.json();
@@ -14,6 +14,10 @@ export async function POST(request) {
 
     if (!academic_year || !semester || !start_date || !end_date || !Array.isArray(weekend_days)) {
       return apiError('Missing or invalid required fields', 400);
+    }
+    
+    if (!academic_year.match(/^\d{4}-\d{2}$/)) {
+      return apiError('Invalid academic_year format. Expected YYYY-YY', 400);
     }
 
     const startDate = new Date(start_date);

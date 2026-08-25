@@ -49,6 +49,10 @@ export async function POST(req) {
     if (!faculty_id || !subject_code || !semester) {
       return apiError('Missing required fields', 400);
     }
+    
+    if (academic_year && !academic_year.match(/^\d{4}-\d{2}$/)) {
+      return apiError('Invalid academic_year format. Expected YYYY-YY', 400);
+    }
 
     await db.insert(facultySubjectAssignments).values({
       faculty_id: parseInt(faculty_id),

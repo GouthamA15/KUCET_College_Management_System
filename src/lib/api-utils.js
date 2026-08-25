@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { cookies, headers } from 'next/headers';
 import { verifyJwt } from './auth';
 import { db } from '@/db';
-import { auditLogs } from '@/db/schema';
+import { auditLogs, facultyHodAssignments } from '@/db/schema';
+import { and, eq, lte, gte } from 'drizzle-orm';
 import logger from './logger';
 import { z } from 'zod';
 
@@ -273,7 +274,26 @@ export async function getAuthUser(role = null) {
       } else if (expectedRole === 'faculty') {
         if (actualRole !== 'faculty' && actualRole !== 'admin') return null;
       } else if (expectedRole === 'hod') {
-        if (!((actualRole === 'faculty' && payload.is_hod) || actualRole === 'admin')) return null;
+        if (actualRole === 'admin') {
+          // Admin always has HOD bypass
+        } else if (actualRole === 'faculty') {
+          // Must query DB to see if HOD assignment is currently active
+          const now = new Date();
+          const nowStr = now.toISOString().split('T')[0];
+          const hodAssignment = await db.query.facultyHodAssignments.findFirst({
+            where: and(
+              eq(facultyHodAssignments.staff_account_id, payload.id),
+              eq(facultyHodAssignments.is_active, true),
+              lte(facultyHodAssignments.start_date, nowStr),
+              gte(facultyHodAssignments.end_date, nowStr)
+            )
+          });
+          if (!hodAssignment) return null;
+          // Inject their department scope for convenience
+          payload.hod_department_code = hodAssignment.department_code;
+        } else {
+          return null;
+        }
       } else {
         if (actualRole !== expectedRole) return null;
       }

@@ -52,10 +52,21 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
     }
   }
 
-  const menuItemsRaw = NAV_MENU_CONFIG[effectiveRole] || NAV_MENU_CONFIG['guest'] || [
+  const baseMenuItemsRaw = NAV_MENU_CONFIG[effectiveRole] || NAV_MENU_CONFIG['guest'] || [
     { label: 'STUDENT LOGIN', action: 'open-panel-student' },
     { label: 'STAFF LOGIN', action: 'open-panel-staff' }
   ];
+
+  // Inject ACADEMIC CALENDAR if the user has an active HOD assignment
+  // Note: staffData.hod_department_code is injected by our updated getAuthUser backend middleware
+  // Or we check if they have the HOD role. Let's rely on effectiveRole or checking the roles array.
+  // Actually, wait, the prompt says HOD authorization must be checked server-side.
+  // So we can just check if they have hod role in their array, and let the backend enforce the rest.
+  const menuItemsRaw = [...baseMenuItemsRaw];
+  if (effectiveRole === 'faculty' && staffData?.roles?.includes('HOD')) {
+    // Insert after dashboard or at the end
+    menuItemsRaw.splice(1, 0, { label: 'ACADEMIC CALENDAR', route: '/staff/academic-calendar' });
+  }
 
   // Filter student menu if unverified
   const menuItems = (effectiveRole === 'student' && !isStudentVerified)

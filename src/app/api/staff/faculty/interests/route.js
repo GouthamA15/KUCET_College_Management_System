@@ -33,6 +33,10 @@ export async function POST(request) {
       return apiError('Missing required fields, including department_code', 400);
     }
 
+    if (!academic_year.match(/^\d{4}-\d{2}$/)) {
+      return apiError('Invalid academic_year format. Expected YYYY-YY', 400);
+    }
+
     const existingPending = await db.query.facultySubjectInterests.findFirst({
       where: and(
         eq(facultySubjectInterests.staff_account_id, user.id),

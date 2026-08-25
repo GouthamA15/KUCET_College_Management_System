@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { getNowSync } from '@/lib/clock';
 import { useStaff } from '@/context/StaffContext';
+import AcademicYearSelect from '@/components/ui/AcademicYearSelect';
 
 export default function SubjectInterestForm({ onInterestSubmitted }) {
   const { facultyInterests = [], isLoadingFaculty, refreshFaculty } = useStaff();
@@ -126,13 +127,11 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
           </div>
           <div>
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Academic Year</label>
-          <input
-            type="text"
-            value={academicYear}
-            onChange={(e) => setAcademicYear(e.target.value)}
-            className="w-full h-10 px-3 border border-slate-200 rounded-sm bg-slate-50 text-sm font-medium text-slate-700"
-            placeholder="e.g. 2025-26"
-          />
+            <AcademicYearSelect
+              value={academicYear}
+              onChange={(e) => setAcademicYear(e.target.value)}
+              className="w-full h-10 px-3 border border-slate-200 rounded-sm bg-slate-50 text-sm font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
           </div>
         </div>
 

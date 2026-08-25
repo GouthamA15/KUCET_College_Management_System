@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { safeJsonParse } from '@/lib/json-utils';
 import CalendarGrid from '@/components/staff/academic-calendar/CalendarGrid';
+import AcademicYearSelect from '@/components/ui/AcademicYearSelect';
 
 export default function AcademicCalendarPage() {
     // Shared state for selected calendar
@@ -173,9 +174,12 @@ export default function AcademicCalendarPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
                         <label htmlFor="academicYear" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Academic Year</label>
-                        <select id="academicYear" value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#0b3578]/10 outline-none transition-all">
-                            {academicYears.map(year => <option key={year} value={year}>{year}</option>)}
-                        </select>
+                        <AcademicYearSelect 
+                            id="academicYear" 
+                            value={academicYear} 
+                            onChange={(e) => setAcademicYear(e.target.value)} 
+                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#0b3578]/10 outline-none transition-all"
+                        />
                     </div>
                     <div>
                         <label htmlFor="semester" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Semester</label>
