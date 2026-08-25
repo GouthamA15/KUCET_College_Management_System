@@ -73,9 +73,25 @@ export const facultyHodAssignments = mysqlTable('faculty_hod_assignments', {
   deptIdx: index('idx_hod_dept_code').on(table.department_code),
 }));
 
+export const facultyHodRequests = mysqlTable('faculty_hod_requests', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  staff_account_id: int('staff_account_id').notNull(),
+  department_code: varchar('department_code', { length: 20 }).notNull(),
+  academic_year: varchar('academic_year', { length: 9 }).notNull(),
+  status: mysqlEnum('status', ['PENDING', 'APPROVED', 'REJECTED']).default('PENDING').notNull(),
+  reviewed_by: int('reviewed_by'),
+  reviewed_at: timestamp('reviewed_at'),
+  rejection_reason: text('rejection_reason'),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').onUpdateNow(),
+}, (table) => ({
+  staffIdIdx: index('idx_hod_req_staff_id').on(table.staff_account_id),
+  statusIdx: index('idx_hod_req_status').on(table.status),
+}));
+
 export const facultySubjectAssignments = mysqlTable('faculty_subject_assignments', {
   id: int('id').autoincrement().primaryKey().notNull(),
-  faculty_id: int('faculty_id').notNull(),
+  staff_account_id: int('staff_account_id').notNull(),
   subject_code: varchar('subject_code', { length: 50 }).notNull(),
   subject_name: varchar('subject_name', { length: 255 }).notNull(),
   branch: varchar('branch', { length: 50 }).notNull(),
@@ -88,23 +104,27 @@ export const facultySubjectAssignments = mysqlTable('faculty_subject_assignments
 }, (table) => ({
   branchIdx: index('idx_faculty_subject_active').on(table.branch, table.is_active),
   fsaBranchSemIdx: index('idx_fsa_branch_sem').on(table.branch, table.course_semester),
-  facultyIdx: index('idx_fsa_faculty').on(table.faculty_id),
-  uqFacultySubjectAssignment: uniqueIndex('uq_faculty_subject_assignment').on(table.faculty_id, table.subject_code, table.branch, table.course_semester, table.academic_year, table.is_active),
+  facultyIdx: index('idx_fsa_faculty').on(table.staff_account_id),
+  uqFacultySubjectAssignment: uniqueIndex('uq_faculty_subject_assignment').on(table.staff_account_id, table.subject_code, table.branch, table.course_semester, table.academic_year, table.is_active),
 }));
 
 export const facultySubjectInterests = mysqlTable('faculty_subject_interests', {
   id: int('id').autoincrement().primaryKey().notNull(),
-  faculty_id: int('faculty_id').notNull(),
+  staff_account_id: int('staff_account_id').notNull(),
   subject_code: varchar('subject_code', { length: 50 }).notNull(),
   subject_name: varchar('subject_name', { length: 255 }).notNull(),
   branch: varchar('branch', { length: 50 }).notNull(),
+  department_code: varchar('department_code', { length: 20 }),
   semester: int('semester').notNull(),
   academic_year: varchar('academic_year', { length: 9 }).notNull(),
   status: mysqlEnum('status', ['PENDING', 'APPROVED', 'REJECTED']).default('PENDING').notNull(),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
+  reviewed_by: int('reviewed_by'),
+  reviewed_at: timestamp('reviewed_at'),
+  rejection_reason: text('rejection_reason'),
 }, (table) => ({
-  facultyIdx: index('idx_fsi_faculty').on(table.faculty_id),
+  facultyIdx: index('idx_fsi_faculty').on(table.staff_account_id),
   statusIdx: index('idx_fsi_status').on(table.status),
 }));
 

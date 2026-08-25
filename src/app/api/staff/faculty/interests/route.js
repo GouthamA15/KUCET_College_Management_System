@@ -10,7 +10,7 @@ export async function GET(_request) {
     if (!user || (user.role !== 'faculty' && user.role !== 'admin')) return apiError('Unauthorized', 401);
 
     const interests = await db.query.facultySubjectInterests.findMany({
-      where: eq(facultySubjectInterests.faculty_id, user.id),
+      where: eq(facultySubjectInterests.staff_account_id, user.id),
       orderBy: [desc(facultySubjectInterests.created_at)]
     });
 
@@ -27,33 +27,36 @@ export async function POST(request) {
     if (!user || (user.role !== 'faculty' && user.role !== 'admin')) return apiError('Unauthorized', 401);
 
     const body = await request.json();
-    const { subject_code, subject_name, branch, semester, academic_year } = body;
+    const { subject_code, subject_name, branch, department_code, semester, academic_year } = body;
 
-    if (!subject_code || !subject_name || !branch || !semester || !academic_year) {
-      return apiError('Missing required fields', 400);
+    if (!subject_code || !subject_name || !branch || !department_code || !semester || !academic_year) {
+      return apiError('Missing required fields, including department_code', 400);
     }
 
-    const existing = await db.query.facultySubjectInterests.findFirst({
+    const existingPending = await db.query.facultySubjectInterests.findFirst({
       where: and(
-        eq(facultySubjectInterests.faculty_id, user.id),
+        eq(facultySubjectInterests.staff_account_id, user.id),
         eq(facultySubjectInterests.subject_code, subject_code),
         eq(facultySubjectInterests.branch, branch),
         eq(facultySubjectInterests.semester, semester),
-        eq(facultySubjectInterests.academic_year, academic_year)
+        eq(facultySubjectInterests.academic_year, academic_year),
+        eq(facultySubjectInterests.status, 'PENDING')
       )
     });
 
-    if (existing) {
-      return apiError('Interest already submitted for this subject', 400);
+    if (existingPending) {
+      return apiError('A pending interest already exists for this subject', 400);
     }
 
     await db.insert(facultySubjectInterests).values({
-      faculty_id: user.id,
+      staff_account_id: user.id,
       subject_code,
       subject_name,
       branch,
+      department_code,
       semester: parseInt(semester),
-      academic_year
+      academic_year,
+      status: 'PENDING'
     });
 
     return apiResponse({ message: 'Interest submitted successfully' });

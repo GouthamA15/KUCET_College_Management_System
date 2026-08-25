@@ -57,6 +57,10 @@ export default function StudentLayout({ children }) {
   const pathname = usePathname();
   const resolvedTitle = getPortalTitle(pathname);
 
+  useEffect(() => {
+    document.title = 'Student Dashboard';
+  }, [pathname]);
+
   return (
     <StudentProvider>
       <ProfileActivityProvider>

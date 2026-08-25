@@ -1,6 +1,6 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { staffAccounts, staffAccountRoles, staffRoles, staffAcademicAffiliations, academicDepartments, semesters } from '@/db/schema';
+import { staffAccounts, staffAccountRoles, staffRoles, staffAcademicAffiliations, academicDepartments, academicPrograms, semesters } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { apiError, wrapHandler } from '@/lib/api-utils';
 
@@ -53,14 +53,23 @@ export const GET = wrapHandler({
     // Fetch HOD & Branch
     let isHod = false;
     let branch = null;
+    let branches = [];
     if (resolvedRole === 'faculty') {
-        const affil = await db.select({ branch_code: academicDepartments.department_code })
+        const affil = await db.select({ 
+              dept_code: academicDepartments.department_code, 
+              prog_code: academicPrograms.program_code 
+            })
             .from(staffAcademicAffiliations)
             .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
-            .where(eq(staffAcademicAffiliations.staff_account_id, staff.id))
-            .limit(1);
+            .leftJoin(academicPrograms, eq(staffAcademicAffiliations.program_id, academicPrograms.id))
+            .where(eq(staffAcademicAffiliations.staff_account_id, staff.id));
+            
         if (affil.length > 0) {
-          branch = affil[0].branch_code;
+          // Use program_code if available, otherwise fallback to department_code
+          const rawBranches = affil.map(a => a.prog_code || a.dept_code);
+          // Use a Set to remove duplicates
+          branches = Array.from(new Set(rawBranches.filter(Boolean)));
+          branch = branches[0] || null;
         }
 
         const { facultyHodAssignments } = await import('@/db/schema');
@@ -93,6 +102,7 @@ export const GET = wrapHandler({
       role: resolvedRole,
       is_hod: isHod,
       branch: branch,
+      branches: branches,
       is_active: staff.account_status === 'ACTIVE',
     };
 

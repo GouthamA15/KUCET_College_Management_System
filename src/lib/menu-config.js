@@ -90,7 +90,7 @@ export const NAV_MENU_CONFIG = {
   faculty: [
     { label: 'DASHBOARD', route: '/staff/faculty/dashboard' },
     { label: 'PROFILE', route: '/staff/faculty/profile' },
-    { label: 'SUBJECTS', route: '/staff/faculty/subjects' },
+    { label: 'TEACHING', route: '/staff/faculty/subjects' },
     { label: 'ATTENDANCE', route: '/staff/faculty/attendance' },
     { label: 'MARKS', route: '/staff/faculty/marks' },
     { label: 'TIME TABLE', route: '/staff/faculty/time-table' },

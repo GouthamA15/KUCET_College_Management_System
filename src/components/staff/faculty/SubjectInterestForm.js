@@ -67,6 +67,7 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
           subject_code: subject.code,
           subject_name: subject.title,
           branch: selectedBranch,
+          department_code: selectedBranch,
           semester: selectedSemester,
           academic_year: academicYear
         })

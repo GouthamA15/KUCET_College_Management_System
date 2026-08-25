@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useStaff } from '@/context/StaffContext';
 import SubjectInterestForm from '@/components/staff/faculty/SubjectInterestForm';
 import InterestStatusList from '@/components/staff/faculty/InterestStatusList';
+import HodAccessManager from '@/components/staff/faculty/HodAccessManager';
 import { Info, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
@@ -136,6 +137,7 @@ function SubjectsContent() {
       <div className="flex items-center gap-2 mb-3">
         <button onClick={() => setActiveTab('subjects')} className={`px-3 py-2 rounded-md text-sm transition-colors cursor-pointer ${activeTab === 'subjects' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>My Subjects</button>
         <button onClick={() => setActiveTab('requests')} className={`px-3 py-2 rounded-md text-sm transition-colors cursor-pointer ${activeTab === 'requests' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>Subject Requests</button>
+        <button onClick={() => setActiveTab('hod')} className={`px-3 py-2 rounded-md text-sm transition-colors cursor-pointer ${activeTab === 'hod' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>HOD Access</button>
       </div>
 
       {activeTab === 'subjects' && (
@@ -298,6 +300,10 @@ function SubjectsContent() {
             </div>
           </div>
         </div>
+      )}
+
+      {activeTab === 'hod' && (
+        <HodAccessManager />
       )}
 
       {typeof document !== 'undefined' && isBottomSheetOpen && isMobileDevice && createPortal(bottomSheet, document.body)}

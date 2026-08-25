@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { StaffProvider } from '@/context/StaffContext';
 import Sidebar from '@/components/Sidebar';
 import Footer from '@/components/Footer';
@@ -15,6 +15,20 @@ export default function StaffLayout({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const resolvedTitle = getPortalTitle(pathname);
+
+  useEffect(() => {
+    if (pathname.startsWith('/staff/faculty')) {
+      document.title = 'Faculty Dashboard';
+    } else if (pathname.startsWith('/staff/admission')) {
+      document.title = 'Admission Dashboard';
+    } else if (pathname.startsWith('/staff/scholarship')) {
+      document.title = 'Scholarship Dashboard';
+    } else if (pathname.startsWith('/staff/hod')) {
+      document.title = 'HOD Dashboard';
+    } else {
+      document.title = 'Staff Dashboard';
+    }
+  }, [pathname]);
 
   return (
     <StaffProvider>
