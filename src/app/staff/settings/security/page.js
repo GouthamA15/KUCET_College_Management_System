@@ -22,7 +22,7 @@ import {
 } from '@/components/security';
 
 export default function StaffSecurityPage() {
-  const { staffData, loading, refreshStaffData } = useStaff();
+  const { staffData, loading } = useStaff();
   const [activeTab, setActiveTab] = useState('overview');
   
   const { securityEvents, eventsLoading, fetchEvents } = useSecurityEvents(staffData?.id);

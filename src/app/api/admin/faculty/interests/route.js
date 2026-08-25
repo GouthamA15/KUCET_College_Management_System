@@ -27,7 +27,7 @@ export async function GET(_request) {
       academic_year: facultySubjectAssignments.academic_year
     })
     .from(facultySubjectAssignments)
-    .innerJoin(staffAccounts, eq(facultySubjectAssignments.faculty_id, staffAccounts.id))
+    .innerJoin(staffAccounts, eq(facultySubjectAssignments.staff_account_id, staffAccounts.id))
     .groupBy(
       facultySubjectAssignments.subject_code,
       facultySubjectAssignments.branch,
@@ -38,7 +38,7 @@ export async function GET(_request) {
 
     const interests = await db.select({
       id: facultySubjectInterests.id,
-      faculty_id: facultySubjectInterests.faculty_id,
+      faculty_id: facultySubjectInterests.staff_account_id,
       subject_code: facultySubjectInterests.subject_code,
       subject_name: facultySubjectInterests.subject_name,
       branch: facultySubjectInterests.branch,
@@ -52,7 +52,7 @@ export async function GET(_request) {
       allocated_faculty_name: allocatedSubquery.names
     })
     .from(facultySubjectInterests)
-    .innerJoin(staffAccounts, eq(facultySubjectInterests.faculty_id, staffAccounts.id))
+    .innerJoin(staffAccounts, eq(facultySubjectInterests.staff_account_id, staffAccounts.id))
     .leftJoin(allocatedSubquery, and(
       eq(facultySubjectInterests.subject_code, allocatedSubquery.subject_code),
       eq(facultySubjectInterests.branch, allocatedSubquery.branch),

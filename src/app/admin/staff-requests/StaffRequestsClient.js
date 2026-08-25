@@ -9,7 +9,9 @@ import {
 } from 'lucide-react';
 
 export default function StaffRequestsClient() {
+  const [activeTab, setActiveTab] = useState('registration'); // 'registration' or 'hod'
   const [requests, setRequests] = useState([]);
+  const [hodRequests, setHodRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -23,10 +25,18 @@ export default function StaffRequestsClient() {
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/staff-requests');
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch requests');
-      setRequests(data.requests || []);
+      const [regRes, hodRes] = await Promise.all([
+        fetch('/api/admin/staff-requests'),
+        fetch('/api/admin/hod-requests')
+      ]);
+      const regData = await regRes.json();
+      const hodData = await hodRes.json();
+      
+      if (!regRes.ok) throw new Error(regData.error || 'Failed to fetch registration requests');
+      if (!hodRes.ok) throw new Error(hodData.error || 'Failed to fetch HOD requests');
+      
+      setRequests(regData.requests || []);
+      setHodRequests(hodData.requests || []);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -80,54 +90,78 @@ export default function StaffRequestsClient() {
     }
   }, []);
 
+  const currentRequests = activeTab === 'registration' ? requests : hodRequests;
+
   const filteredRequests = useMemo(() => {
-    return requests.filter(req => {
+    return currentRequests.filter(req => {
       if (statusFilter !== 'ALL' && req.status !== statusFilter) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         return (
           req.name?.toLowerCase().includes(q) || 
-          req.email?.toLowerCase().includes(q)
+          req.email?.toLowerCase().includes(q) ||
+          (activeTab === 'hod' && req.department_code?.toLowerCase().includes(q))
         );
       }
       return true;
     });
-  }, [requests, statusFilter, searchQuery]);
+  }, [currentRequests, statusFilter, searchQuery, activeTab]);
 
   const stats = useMemo(() => {
     return {
-      pending: requests.filter(r => r.status === 'PENDING').length,
-      approved: requests.filter(r => r.status === 'APPROVED').length,
-      rejected: requests.filter(r => r.status === 'REJECTED').length,
+      pending: currentRequests.filter(r => r.status === 'PENDING').length,
+      approved: currentRequests.filter(r => r.status === 'APPROVED').length,
+      rejected: currentRequests.filter(r => r.status === 'REJECTED').length,
     };
-  }, [requests]);
+  }, [currentRequests]);
 
   const handleApprove = async () => {
     if (!selectedRequest) return;
     setProcessing(true);
     const toastId = toast.loading('Approving request...');
     try {
-      const res = await fetch(`/api/admin/staff-requests/${selectedRequest.id}/approve`, {
-        method: 'POST',
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to approve');
-      
-      // Targeted state update — zero refetches!
-      setRequests((prev) =>
-        prev.map((r) =>
-          r.id === selectedRequest.id
-            ? {
-                ...r,
-                status: 'APPROVED',
-                account_status: 'PENDING_ACTIVATION',
-                processed_at: new Date().toISOString()
-              }
-            : r
-        )
-      );
-
-      toast.success('Staff account created and activation email sent!', { id: toastId });
+      if (activeTab === 'registration') {
+        const res = await fetch(`/api/admin/staff-requests/${selectedRequest.id}/approve`, {
+          method: 'POST',
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to approve');
+        
+        setRequests((prev) =>
+          prev.map((r) =>
+            r.id === selectedRequest.id
+              ? {
+                  ...r,
+                  status: 'APPROVED',
+                  account_status: 'PENDING_ACTIVATION',
+                  processed_at: new Date().toISOString()
+                }
+              : r
+          )
+        );
+        toast.success('Staff account created and activation email sent!', { id: toastId });
+      } else {
+        const res = await fetch(`/api/admin/hod-requests/${selectedRequest.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'APPROVE' })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to approve');
+        
+        setHodRequests((prev) =>
+          prev.map((r) =>
+            r.id === selectedRequest.id
+              ? {
+                  ...r,
+                  status: 'APPROVED',
+                  reviewed_at: new Date().toISOString()
+                }
+              : r
+          )
+        );
+        toast.success('HOD request approved successfully!', { id: toastId });
+      }
       setIsApproveModalOpen(false);
       setSelectedRequest(null);
     } catch (err) {
@@ -145,32 +179,55 @@ export default function StaffRequestsClient() {
     setProcessing(true);
     const toastId = toast.loading('Rejecting request...');
     try {
-      const res = await fetch(`/api/admin/staff-requests/${selectedRequest.id}/reject`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rejectionReason })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to reject');
-      
-      // Targeted state update — zero refetches!
-      setRequests((prev) =>
-        prev.map((r) =>
-          r.id === selectedRequest.id
-            ? {
-                ...r,
-                status: 'REJECTED',
-                rejection_reason: rejectionReason,
-                processed_at: new Date().toISOString()
-              }
-            : r
-        )
-      );
+      if (activeTab === 'registration') {
+        const res = await fetch(`/api/admin/staff-requests/${selectedRequest.id}/reject`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rejectionReason })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to reject');
+        
+        setRequests((prev) =>
+          prev.map((r) =>
+            r.id === selectedRequest.id
+              ? {
+                  ...r,
+                  status: 'REJECTED',
+                  rejection_reason: rejectionReason,
+                  processed_at: new Date().toISOString()
+                }
+              : r
+          )
+        );
+        toast.success('Request rejected.', { id: toastId });
+      } else {
+        const res = await fetch(`/api/admin/hod-requests/${selectedRequest.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'REJECT', rejection_reason: rejectionReason })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to reject');
+        
+        setHodRequests((prev) =>
+          prev.map((r) =>
+            r.id === selectedRequest.id
+              ? {
+                  ...r,
+                  status: 'REJECTED',
+                  rejection_reason: rejectionReason,
+                  reviewed_at: new Date().toISOString()
+                }
+              : r
+          )
+        );
+        toast.success('HOD request rejected.', { id: toastId });
+      }
 
-      toast.success('Request rejected.', { id: toastId });
       setIsRejectModalOpen(false);
-      setRejectionReason('');
       setSelectedRequest(null);
+      setRejectionReason('');
     } catch (err) {
       toast.error(err.message, { id: toastId });
     } finally {
@@ -223,27 +280,51 @@ export default function StaffRequestsClient() {
     <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
       <header className="mb-4 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-800">Staff Registration Requests</h1>
-          <p className="text-sm text-gray-600 mt-1">Review and approve new staff and faculty registrations.</p>
+          <h1 className="text-2xl font-semibold text-gray-800">Staff Requests</h1>
+          <p className="text-sm text-gray-600 mt-1">Review and approve staff registrations and HOD requests.</p>
         </div>
       </header>
 
+      {/* Module Tabs */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <button
+          onClick={() => { setActiveTab('registration'); setStatusFilter('ALL'); }}
+          className={`px-3 py-2 rounded-md text-sm whitespace-nowrap transition-colors cursor-pointer ${
+            activeTab === 'registration'
+              ? 'bg-[#0b3578] text-white'
+              : 'bg-white border hover:bg-gray-50'
+          }`}
+        >
+          Registration Requests
+        </button>
+        <button
+          onClick={() => { setActiveTab('hod'); setStatusFilter('ALL'); }}
+          className={`px-3 py-2 rounded-md text-sm whitespace-nowrap transition-colors cursor-pointer ${
+            activeTab === 'hod'
+              ? 'bg-[#0b3578] text-white'
+              : 'bg-white border hover:bg-gray-50'
+          }`}
+        >
+          HOD Requests
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+        <div className="bg-white rounded-md border border-gray-300 p-5 shadow-sm">
           <div className="flex items-center text-amber-600 mb-2">
             <Clock className="w-5 h-5 mr-2" />
             <h3 className="font-semibold">Pending</h3>
           </div>
           <p className="text-3xl font-bold text-slate-900">{stats.pending}</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+        <div className="bg-white rounded-md border border-gray-300 p-5 shadow-sm">
           <div className="flex items-center text-green-600 mb-2">
             <CheckCircle2 className="w-5 h-5 mr-2" />
             <h3 className="font-semibold">Approved</h3>
           </div>
           <p className="text-3xl font-bold text-slate-900">{stats.approved}</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+        <div className="bg-white rounded-md border border-gray-300 p-5 shadow-sm">
           <div className="flex items-center text-red-600 mb-2">
             <XCircle className="w-5 h-5 mr-2" />
             <h3 className="font-semibold">Rejected</h3>
@@ -252,7 +333,7 @@ export default function StaffRequestsClient() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col min-h-[500px]">
+      <div className="bg-white rounded-md shadow-sm border border-gray-300 overflow-hidden flex flex-col min-h-[500px]">
         <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50">
           <div className="flex bg-white rounded-lg p-1 border border-slate-200 shadow-sm w-full sm:w-auto">
             {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map(status => (
@@ -286,8 +367,17 @@ export default function StaffRequestsClient() {
             <thead className="bg-slate-50 sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-full">Applicant</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Role & Category</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Email Status</th>
+                {activeTab === 'registration' ? (
+                  <>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Role & Category</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Email Status</th>
+                  </>
+                ) : (
+                  <>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Department</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Academic Year</th>
+                  </>
+                )}
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Submitted</th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
@@ -316,21 +406,36 @@ export default function StaffRequestsClient() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-slate-900 font-medium">{req.requested_role}</div>
-                      <div className="text-sm text-slate-500">{req.staff_category}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {req.email_verified_at ? (
-                        <span className="inline-flex items-center text-xs font-medium text-green-700 bg-green-50 px-2 py-1 rounded-md border border-green-200">
-                          <CheckCircle2 className="w-3 h-3 mr-1" /> Verified
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center text-xs font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
-                          <AlertTriangle className="w-3 h-3 mr-1" /> Unverified
-                        </span>
-                      )}
-                    </td>
+                    
+                    {activeTab === 'registration' ? (
+                      <>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-slate-900 font-medium">{req.requested_role}</div>
+                          <div className="text-sm text-slate-500">{req.staff_category}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {req.email_verified_at ? (
+                            <span className="inline-flex items-center text-xs font-medium text-green-700 bg-green-50 px-2 py-1 rounded-md border border-green-200">
+                              <CheckCircle2 className="w-3 h-3 mr-1" /> Verified
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center text-xs font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
+                              <AlertTriangle className="w-3 h-3 mr-1" /> Unverified
+                            </span>
+                          )}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-slate-900 font-medium">{req.department_name || req.department_code}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-slate-500">{req.academic_year}</div>
+                        </td>
+                      </>
+                    )}
+
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col gap-1 items-start">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -388,7 +493,7 @@ export default function StaffRequestsClient() {
               }
             }}></div>
             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="relative z-10 inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl w-full border border-slate-200">
+            <div className="relative z-10 inline-block align-bottom bg-white rounded-md text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl w-full border border-gray-300">
               
               {/* ALWAYS SHOW DETAILS */}
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
@@ -416,6 +521,21 @@ export default function StaffRequestsClient() {
                       </div>
                     </h3>
                     
+                    {activeTab === 'hod' && selectedRequest.current_hod_name && selectedRequest.status === 'PENDING' && (
+                      <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-md">
+                        <div className="flex">
+                          <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
+                          <div>
+                            <h4 className="text-sm font-semibold text-red-800">Conflict Detected</h4>
+                            <p className="text-sm text-red-700 mt-1">
+                              An active HOD (<span className="font-semibold">{selectedRequest.current_hod_name}</span>) already exists for {selectedRequest.department_name || selectedRequest.department_code} in {selectedRequest.academic_year}. 
+                              You cannot approve this request until the current HOD is removed.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="bg-slate-50 rounded-lg p-5 grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 border border-slate-100 mb-6">
                       <div>
                         <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Full Name</p>
@@ -425,28 +545,50 @@ export default function StaffRequestsClient() {
                         <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Official Email</p>
                         <div className="flex items-center">
                           <p className="text-sm font-semibold text-slate-900 mr-2">{selectedRequest.email}</p>
-                          {selectedRequest.email_verified_at ? (
-                            <ShieldCheck className="w-4 h-4 text-green-600" title="Verified Email" />
-                          ) : (
-                            <AlertTriangle className="w-4 h-4 text-amber-500" title="Unverified Email" />
+                          {activeTab === 'registration' && (
+                            selectedRequest.email_verified_at ? (
+                              <ShieldCheck className="w-4 h-4 text-green-600" title="Verified Email" />
+                            ) : (
+                              <AlertTriangle className="w-4 h-4 text-amber-500" title="Unverified Email" />
+                            )
                           )}
                         </div>
                       </div>
-                      <div>
-                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Staff Category</p>
-                        <p className="text-sm text-slate-900">{selectedRequest.staff_category}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Requested Role</p>
-                        <p className="text-sm font-medium text-[#0b3578]">{selectedRequest.requested_role}</p>
-                      </div>
-                      <div className="sm:col-span-2">
-                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Designation</p>
-                        <p className="text-sm text-slate-900">{selectedRequest.designation || 'N/A'}</p>
-                      </div>
+                      
+                      {activeTab === 'registration' ? (
+                        <>
+                          <div>
+                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Staff Category</p>
+                            <p className="text-sm text-slate-900">{selectedRequest.staff_category}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Requested Role</p>
+                            <p className="text-sm font-medium text-[#0b3578]">{selectedRequest.requested_role}</p>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Designation</p>
+                            <p className="text-sm text-slate-900">{selectedRequest.designation || 'N/A'}</p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Department</p>
+                            <p className="text-sm text-slate-900 font-medium">{selectedRequest.department_name || selectedRequest.department_code}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Academic Year</p>
+                            <p className="text-sm text-[#0b3578] font-medium">{selectedRequest.academic_year}</p>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Employee ID</p>
+                            <p className="text-sm text-slate-900">{selectedRequest.employee_id || 'N/A'}</p>
+                          </div>
+                        </>
+                      )}
                     </div>
 
-                    {selectedRequest.staff_category === 'FACULTY' && (
+                    {activeTab === 'registration' && selectedRequest.staff_category === 'FACULTY' && (
                       <div className="mb-6">
                         <h4 className="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2 mb-3">Academic Affiliations</h4>
                         {renderAffiliations(selectedRequest)}
@@ -471,9 +613,15 @@ export default function StaffRequestsClient() {
                       <button
                         type="button"
                         onClick={() => setIsApproveModalOpen(true)}
-                        disabled={!selectedRequest.email_verified_at}
+                        disabled={(activeTab === 'registration' && !selectedRequest.email_verified_at) || (activeTab === 'hod' && !!selectedRequest.current_hod_name)}
                         className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-[#0b3578] text-base font-medium text-white hover:bg-blue-900 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                        title={!selectedRequest.email_verified_at ? "Email must be verified to approve" : ""}
+                        title={
+                          activeTab === 'registration' && !selectedRequest.email_verified_at 
+                            ? "Email must be verified to approve" 
+                            : activeTab === 'hod' && !!selectedRequest.current_hod_name
+                              ? "Cannot approve: An active HOD already exists"
+                              : ""
+                        }
                       >
                         Approve Request
                       </button>
@@ -523,7 +671,11 @@ export default function StaffRequestsClient() {
                     <div className="ml-3 w-full">
                       <h3 className="text-sm font-medium text-green-800">Confirm Approval</h3>
                       <div className="mt-2 text-sm text-green-700">
-                        <p>This will automatically generate a unique Employee ID, create the staff account, assign the requested role (<span className="font-semibold text-green-900">{selectedRequest?.requested_role}</span>), and send an activation email.</p>
+                        {activeTab === 'registration' ? (
+                          <p>This will automatically generate a unique Employee ID, create the staff account, assign the requested role (<span className="font-semibold text-green-900">{selectedRequest?.requested_role}</span>), and send an activation email.</p>
+                        ) : (
+                          <p>This will grant HOD access for this department and academic year. The staff member will immediately receive HOD privileges in the system.</p>
+                        )}
                       </div>
                       <div className="mt-4 flex flex-col sm:flex-row gap-3">
                         <button

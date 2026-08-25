@@ -29,7 +29,7 @@ export class AttendanceService {
     const [assignment] = await db.select({
       id: facultySubjectAssignments.id,
       branch: facultySubjectAssignments.branch,
-      faculty_id: facultySubjectAssignments.faculty_id
+      faculty_id: facultySubjectAssignments.staff_account_id
     })
     .from(facultySubjectAssignments)
     .where(eq(facultySubjectAssignments.id, assignmentId))

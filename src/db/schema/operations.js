@@ -2,6 +2,7 @@ import {
   mysqlTable, varchar, int, boolean, text, decimal, json, timestamp, 
   mysqlEnum, tinyint, index, uniqueIndex, date
 } from 'drizzle-orm/mysql-core';
+import { principal } from './identity.js';
 
 export const studentMarks = mysqlTable('student_marks', {
   id: int('id').autoincrement().primaryKey().notNull(),
@@ -65,7 +66,7 @@ export const facultyHodAssignments = mysqlTable('faculty_hod_assignments', {
   start_date: date('start_date').notNull(),
   end_date: date('end_date'),
   is_active: boolean('is_active').default(true).notNull(),
-  assigned_by: int('assigned_by'),
+  assigned_by: int('assigned_by').references(() => principal.id, { onDelete: 'set null', onUpdate: 'cascade' }),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
 }, (table) => ({
@@ -79,7 +80,7 @@ export const facultyHodRequests = mysqlTable('faculty_hod_requests', {
   department_code: varchar('department_code', { length: 20 }).notNull(),
   academic_year: varchar('academic_year', { length: 9 }).notNull(),
   status: mysqlEnum('status', ['PENDING', 'APPROVED', 'REJECTED']).default('PENDING').notNull(),
-  reviewed_by: int('reviewed_by'),
+  reviewed_by: int('reviewed_by').references(() => principal.id, { onDelete: 'set null', onUpdate: 'cascade' }),
   reviewed_at: timestamp('reviewed_at'),
   rejection_reason: text('rejection_reason'),
   created_at: timestamp('created_at').defaultNow(),

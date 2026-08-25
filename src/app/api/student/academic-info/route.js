@@ -98,7 +98,7 @@ export async function GET(_request) {
           eq(facultySubjectAssignments.course_semester, syllabusStructure.semester),
           eq(facultySubjectAssignments.academic_year, academicYear)
         ))
-        .leftJoin(staffAccounts, eq(facultySubjectAssignments.faculty_id, staffAccounts.id))
+        .leftJoin(staffAccounts, eq(facultySubjectAssignments.staff_account_id, staffAccounts.id))
         .leftJoin(studentAttendance, and(
           eq(studentAttendance.student_id, studentId),
           eq(studentAttendance.assignment_id, facultySubjectAssignments.id)

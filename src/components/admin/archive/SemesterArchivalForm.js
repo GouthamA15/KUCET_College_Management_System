@@ -14,7 +14,7 @@ export default function SemesterArchivalForm({ onJobStarted, onRefreshOverview }
 
   const branches = ['CSE', 'ECE', 'EEE', 'MECH', 'CIVIL'];
   const semesters = ['1', '2', '3', '4', '5', '6', '7', '8'];
-  const academicYears = ['2024-25', '2025-26', '2026-27'];
+
 
   const handleSubmit = (e) => {
     e.preventDefault();

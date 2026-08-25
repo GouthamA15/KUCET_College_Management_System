@@ -183,7 +183,7 @@ export class RecommendationEngine {
     
     const assignments = await db.select().from(facultySubjectAssignments)
       .where(and(
-        eq(facultySubjectAssignments.faculty_id, facultyId),
+        eq(facultySubjectAssignments.staff_account_id, facultyId),
         eq(facultySubjectAssignments.academic_year, academicYear)
       ));
 
@@ -268,7 +268,7 @@ export class RecommendationEngine {
     
     // Allocate Extra Faculty
     const facultyWorkload = await db.select({
-      facultyId: facultySubjectAssignments.faculty_id,
+      facultyId: facultySubjectAssignments.staff_account_id,
       count: sql`count(*)`.mapWith(Number)
     })
     .from(facultySubjectAssignments)
@@ -276,7 +276,7 @@ export class RecommendationEngine {
       eq(facultySubjectAssignments.branch, branch),
       eq(facultySubjectAssignments.academic_year, academicYear)
     ))
-    .groupBy(facultySubjectAssignments.faculty_id);
+    .groupBy(facultySubjectAssignments.staff_account_id);
 
     let overloaded = false;
     let counts = [];

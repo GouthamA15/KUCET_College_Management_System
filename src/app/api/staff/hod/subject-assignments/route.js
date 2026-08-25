@@ -16,14 +16,14 @@ export async function GET(_req) {
 
     const assignments = await db.select({
       id: facultySubjectAssignments.id,
-      faculty_id: facultySubjectAssignments.faculty_id,
+      faculty_id: facultySubjectAssignments.staff_account_id,
       subject_code: facultySubjectAssignments.subject_code,
       subject_name: facultySubjectAssignments.subject_name,
       course_semester: facultySubjectAssignments.course_semester,
       faculty_name: staffAccounts.name
     })
     .from(facultySubjectAssignments)
-    .innerJoin(staffAccounts, eq(facultySubjectAssignments.faculty_id, staffAccounts.id))
+    .innerJoin(staffAccounts, eq(facultySubjectAssignments.staff_account_id, staffAccounts.id))
     .where(and(
       eq(facultySubjectAssignments.branch, user.branch),
       eq(facultySubjectAssignments.is_active, true)
@@ -55,7 +55,7 @@ export async function POST(req) {
     }
 
     await db.insert(facultySubjectAssignments).values({
-      faculty_id: parseInt(faculty_id),
+      staff_account_id: parseInt(faculty_id),
       subject_code: subject_code,
       subject_name: subject_name,
       branch: user.branch,
@@ -66,7 +66,7 @@ export async function POST(req) {
     })
     .onDuplicateKeyUpdate({
       set: {
-        faculty_id: sql`VALUES(faculty_id)`,
+        staff_account_id: sql`VALUES(staff_account_id)`,
         is_active: true
       }
     });

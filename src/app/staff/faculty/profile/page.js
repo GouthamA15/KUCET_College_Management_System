@@ -41,7 +41,7 @@ export default function FacultyProfilePage() {
 
   const name = staff?.name || 'Faculty';
   const primaryId = staff?.employee_id || 'FACULTY';
-  const title = staff?.is_hod ? 'HOD Office' : 'Faculty';
+  const title = staff?.is_hod ? 'Head of Department' : 'Academic Profile';
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-fadeIn">
@@ -62,7 +62,7 @@ export default function FacultyProfilePage() {
               <ProfileStatusBar
                 title={title}
                 lines={[
-                  { label: 'Designation', value: staff?.is_hod ? 'Head of Department' : 'Faculty' },
+                  { label: 'Designation', value: staff?.is_hod ? 'Head of Department' : (staff?.designation || 'Faculty') },
                   { label: 'Department(s)', value: staff?.branches?.length > 0 ? staff.branches.join(', ') : (staff?.branch || '-') },
                 ]}
               />

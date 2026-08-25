@@ -26,7 +26,7 @@ export const POST = wrapHandler({
       return { error: 'Invalid request ID', status: 400 };
     }
 
-    const adminId = user?.id || user?.adminId || 1; // Fallback to 1 if testing
+    const adminId = user?.id || user?.adminId;
 
     // Use transaction
     const result = await db.transaction(async (tx) => {

@@ -36,7 +36,7 @@ export async function GET(request) {
     .from(facultySubjectAssignments)
     .where(and(
       eq(facultySubjectAssignments.id, assignment_id),
-      eq(facultySubjectAssignments.faculty_id, user.id)
+      eq(facultySubjectAssignments.staff_account_id, user.id)
     ))
     .limit(1);
 

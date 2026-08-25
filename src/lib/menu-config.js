@@ -87,7 +87,7 @@ export const NAV_MENU_CONFIG = {
   faculty: [
     { label: 'DASHBOARD', route: '/staff/faculty/dashboard' },
     { label: 'PROFILE', route: '/staff/faculty/profile' },
-    { label: 'TEACHING', route: '/staff/faculty/subjects' },
+    { label: 'TEACHING', route: '/staff/faculty/teaching' },
     { label: 'ATTENDANCE', route: '/staff/faculty/attendance' },
     { label: 'MARKS', route: '/staff/faculty/marks' },
     { label: 'TIME TABLE', route: '/staff/faculty/time-table' },
@@ -100,7 +100,7 @@ export const NAV_MENU_CONFIG = {
   ],
   superAdmin: [
     { label: 'DASHBOARD', route: '/admin/dashboard' },
-    { label: 'ACADEMIC CALENDAR', route: '/staff/academic-calendar' },
+    { label: 'ACADEMIC CALENDAR', route: '/admin/academic-calendar' },
     { label: 'PAYMENTS', route: '/admin/payments' },
     { label: 'MANAGE STAFF', route: '/admin/manage-staff' },
     { label: 'STAFF REQUESTS', route: '/admin/staff-requests' },

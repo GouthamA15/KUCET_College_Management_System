@@ -12,10 +12,9 @@ import { useStaff } from '@/context/StaffContext';
 
 export default function FacultyDashboardClient() {
   const router = useRouter();
-  const { staffData: staff, loading, facultyAssignments, refreshFaculty, refreshHOD } = useStaff();
+  const { staffData: staff, loading, facultyAssignments } = useStaff();
 
   const [activeSection, setActiveSection] = useState(null);
-  const [selectedAssignment, setSelectedAssignment] = useState(null);
 
   useEffect(() => {
     if (!loading && !staff) {
@@ -23,23 +22,8 @@ export default function FacultyDashboardClient() {
     }
   }, [staff, loading, router]);
 
-  const handleInterestSubmitted = useCallback(() => {
-    // Optional: refresh logic
-  }, []);
-
-  const handleSelectAssignment = (asgn, mode) => {
-    setSelectedAssignment(asgn);
-    setActiveSection(mode === 'attendance' ? 'attendance' : 'marks');
-  };
-
-  const handleOpenWorkstream = (id) => {
-    setSelectedAssignment(null);
-    setActiveSection(id);
-  };
-
   const handleBackToDashboard = () => {
     setActiveSection(null);
-    setSelectedAssignment(null);
   };
 
   if (loading) {
@@ -86,7 +70,7 @@ export default function FacultyDashboardClient() {
               <div className="mt-6">
                 <button
                   type="button"
-                  onClick={() => router.push('/staff/faculty/subjects')}
+                  onClick={() => router.push('/staff/faculty/teaching')}
                   className="text-[10px] font-black text-indigo-700 uppercase tracking-widest flex items-center gap-1 hover:text-indigo-900 transition-colors"
                 >
                   Open Subjects <span className="text-sm">→</span>

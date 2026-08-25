@@ -80,7 +80,7 @@ export class FacultyService {
       .groupBy(attendanceSessions.faculty_id),
 
       db.select({
-        faculty_id: facultySubjectAssignments.faculty_id,
+        faculty_id: facultySubjectAssignments.staff_account_id,
         subjects: sql`GROUP_CONCAT(DISTINCT ${facultySubjectAssignments.subject_name} SEPARATOR ', ')`
       })
       .from(facultySubjectAssignments)
@@ -91,7 +91,7 @@ export class FacultyService {
           eq(facultySubjectAssignments.academic_year, academicYear)
         )
       ))
-      .groupBy(facultySubjectAssignments.faculty_id)
+      .groupBy(facultySubjectAssignments.staff_account_id)
     ]);
 
     const scheduledMap = new Map(scheduledRows.map(r => [r.faculty_id, r.count]));

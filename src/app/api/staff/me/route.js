@@ -22,6 +22,7 @@ export const GET = wrapHandler({
       pfp: staffAccounts.pfp,
       signature: staffAccounts.signature,
       address: staffAccounts.address,
+      designation: staffAccounts.designation,
       account_status: staffAccounts.account_status,
       last_login_at: staffAccounts.last_login_at,
       last_login_ip: staffAccounts.last_login_ip,
@@ -54,9 +55,12 @@ export const GET = wrapHandler({
     let isHod = false;
     let branch = null;
     let branches = [];
+    let departments = [];
+    let department_names = [];
     if (resolvedRole === 'faculty') {
         const affil = await db.select({ 
               dept_code: academicDepartments.department_code, 
+              dept_name: academicDepartments.department_name,
               prog_code: academicPrograms.program_code 
             })
             .from(staffAcademicAffiliations)
@@ -67,8 +71,12 @@ export const GET = wrapHandler({
         if (affil.length > 0) {
           // Use program_code if available, otherwise fallback to department_code
           const rawBranches = affil.map(a => a.prog_code || a.dept_code);
+          const rawDepts = affil.map(a => a.dept_code);
+          const rawDeptNames = affil.map(a => a.dept_name);
           // Use a Set to remove duplicates
           branches = Array.from(new Set(rawBranches.filter(Boolean)));
+          departments = Array.from(new Set(rawDepts.filter(Boolean)));
+          department_names = Array.from(new Set(rawDeptNames.filter(Boolean)));
           branch = branches[0] || null;
         }
 
@@ -103,6 +111,11 @@ export const GET = wrapHandler({
       is_hod: isHod,
       branch: branch,
       branches: branches,
+      department: departments.length > 0 ? departments[0] : null,
+      departments: departments,
+      department_name: department_names.length > 0 ? department_names[0] : null,
+      department_names: department_names,
+      designation: staff.designation,
       is_active: staff.account_status === 'ACTIVE',
     };
 

@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { facultyHodRequests, staffAccounts, staffAccountRoles, staffRoles, facultyHodAssignments, semesters, auditLogs } from '@/db/schema';
-import { eq, and, lte, gte } from 'drizzle-orm';
+import { eq, and, gte } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function PATCH(request, context) {
@@ -21,7 +21,7 @@ export async function PATCH(request, context) {
       return apiError('Invalid action. Must be APPROVE or REJECT.', 400);
     }
 
-    const adminId = user.id || 1; // Fallback for dev
+    const adminId = user.id;
 
     return await db.transaction(async (tx) => {
       // 1. Verify request exists & 2. Verify status is PENDING
@@ -86,7 +86,7 @@ export async function PATCH(request, context) {
         await tx.insert(auditLogs).values({
           user_id: adminId,
           user_type: 'admin',
-          action: 'REJECT_HOD_REQUEST',
+          action: 'HOD_REQUEST_REJECTED',
           entity_type: 'FACULTY_HOD_REQUEST',
           entity_id: requestId,
           details: JSON.stringify({ reason: rejection_reason }),
@@ -111,7 +111,7 @@ export async function PATCH(request, context) {
         );
 
         if (activeAssignment.length > 0) {
-          throw new Error('There is already an active HOD for this department and academic year');
+          throw new Error('An active HOD already exists for this department and academic year.');
         }
 
         // 9. Add HOD role if not already present
@@ -128,19 +128,42 @@ export async function PATCH(request, context) {
         if (existingHodRole.length === 0) {
           await tx.insert(staffAccountRoles).values({
             staff_account_id: reqRecord.staff_account_id,
-            role_id: hodRoleDef.id
+            role_id: hodRoleDef.id,
+            assigned_by: adminId
+          });
+          
+          await tx.insert(auditLogs).values({
+            user_id: adminId,
+            user_type: 'admin',
+            action: 'HOD_ROLE_ASSIGNED',
+            entity_type: 'STAFF_ACCOUNT',
+            entity_id: reqRecord.staff_account_id,
+            details: JSON.stringify({ role: 'HOD' }),
+            ip_address: request.headers.get('x-forwarded-for') || '127.0.0.1',
+            user_agent: request.headers.get('user-agent') || 'system'
           });
         }
 
         // 10. Create faculty_hod_assignments
-        await tx.insert(facultyHodAssignments).values({
+        const [newAssignment] = await tx.insert(facultyHodAssignments).values({
           staff_account_id: reqRecord.staff_account_id,
           department_code: reqRecord.department_code,
           academic_year: reqRecord.academic_year,
-          start_date: minStart,
-          end_date: maxEnd,
+          start_date: minStart instanceof Date ? minStart.toISOString().split('T')[0] : minStart,
+          end_date: maxEnd instanceof Date ? maxEnd.toISOString().split('T')[0] : maxEnd,
           is_active: true,
           assigned_by: adminId
+        });
+        
+        await tx.insert(auditLogs).values({
+          user_id: adminId,
+          user_type: 'admin',
+          action: 'HOD_ASSIGNMENT_CREATED',
+          entity_type: 'FACULTY_HOD_ASSIGNMENT',
+          entity_id: newAssignment.insertId,
+          details: JSON.stringify({ department: reqRecord.department_code, academic_year: reqRecord.academic_year }),
+          ip_address: request.headers.get('x-forwarded-for') || '127.0.0.1',
+          user_agent: request.headers.get('user-agent') || 'system'
         });
 
         // 11-13. Mark request APPROVED, record reviewed_by and reviewed_at
@@ -156,7 +179,7 @@ export async function PATCH(request, context) {
         await tx.insert(auditLogs).values({
           user_id: adminId,
           user_type: 'admin',
-          action: 'APPROVE_HOD_REQUEST',
+          action: 'HOD_REQUEST_APPROVED',
           entity_type: 'FACULTY_HOD_REQUEST',
           entity_id: requestId,
           details: JSON.stringify({ 

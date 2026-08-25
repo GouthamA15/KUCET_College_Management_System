@@ -78,7 +78,12 @@ export default async function proxy(request) {
   if (pathname.startsWith('/api/admin')) {
     if (!adminPayload) return handleUnauthorized(request);
   } else if (pathname.startsWith('/api/staff')) {
-    if (!staffPayload) return handleUnauthorized(request);
+    if (pathname.startsWith('/api/staff/academic-calendar') || pathname.startsWith('/api/staff/semesters')) {
+       // These endpoints are shared with Admin for calendar management
+       if (!adminPayload && !staffPayload) return handleUnauthorized(request);
+    } else {
+       if (!staffPayload) return handleUnauthorized(request);
+    }
   }
 
   // ─── Protect UI Routes ────────────────────────────────────────────────────

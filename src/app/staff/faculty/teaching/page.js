@@ -11,7 +11,7 @@ import { createPortal } from 'react-dom';
 
 function SubjectsContent() {
   const router = useRouter();
-  const { staffData, loading, facultyAssignments } = useStaff();
+  const { loading, facultyAssignments } = useStaff();
   const [activeTab, setActiveTab] = useState('subjects');
 
   const [isMobileDevice, setIsMobileDevice] = useState(false);
@@ -142,7 +142,7 @@ function SubjectsContent() {
 
       {activeTab === 'subjects' && (
         <div className="space-y-6">
-          <section className="border border-gray-300 rounded-md bg-white p-4">
+          <section className="border border-gray-300 rounded-md bg-gradient-to-br from-white via-slate-50 to-slate-100 p-4">
             <div className="mb-3">
               <h2 className="text-sm font-semibold text-gray-800">Active Assignments</h2>
               <p className="text-sm text-gray-600">Subjects you are currently assigned to teach.</p>
@@ -215,7 +215,7 @@ function SubjectsContent() {
           </section>
 
           {historicalAssignments.length > 0 && (
-            <section className="border border-gray-300 rounded-md bg-white p-4 opacity-80 hover:opacity-100 transition-opacity">
+            <section className="border border-gray-300 rounded-md bg-gradient-to-br from-white via-slate-50 to-slate-100 p-4 opacity-80 hover:opacity-100 transition-opacity">
               <div className="mb-3">
                 <h2 className="text-sm font-semibold text-gray-800">Archived Assignments</h2>
                 <p className="text-sm text-gray-600">Past subject assignments.</p>
@@ -293,7 +293,7 @@ function SubjectsContent() {
             <SubjectInterestForm />
           </div>
 
-          <div id="request-history-section" className="bg-white border border-gray-300 rounded-md p-4 sm:p-6 shadow-xs">
+          <div id="request-history-section" className="border border-gray-300 rounded-md bg-gradient-to-br from-white via-slate-50 to-slate-100 p-4 sm:p-6 shadow-xs">
             <h2 className="text-lg font-semibold text-gray-800 mb-3">Request History</h2>
             <div className="border-t border-gray-100 pt-4">
               <InterestStatusList />

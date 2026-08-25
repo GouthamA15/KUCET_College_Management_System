@@ -27,7 +27,7 @@ export const STAFF_CATEGORIES = {
   },
 };
 
-export const FACULTY_BRANCHES = ['CSE', 'CSD', 'ECE', 'EEE', 'MECH', 'CIVIL', 'IT'];
+export const FACULTY_BRANCHES = ['CSE', 'IT', 'CSD', 'ECE', 'EEE', 'MECH', 'CIVIL'];
 
 export const isValidStaffCategory = (cat) => Object.keys(STAFF_CATEGORIES).includes(cat);
 export const isValidFacultyBranch = (branch) => FACULTY_BRANCHES.includes(branch);

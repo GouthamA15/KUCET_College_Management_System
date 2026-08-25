@@ -168,7 +168,7 @@ export const staffAccountRoles = mysqlTable('staff_account_roles', {
   staff_account_id: int('staff_account_id').notNull(),
   role_id: int('role_id').notNull(),
   assigned_at: timestamp('assigned_at').defaultNow(),
-  assigned_by: int('assigned_by'),
+  assigned_by: int('assigned_by').references(() => principal.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 }, (table) => ({
   staffIdIdx: index('idx_staff_account_roles_staff').on(table.staff_account_id),
   roleIdx: index('idx_staff_account_roles_role').on(table.role_id),

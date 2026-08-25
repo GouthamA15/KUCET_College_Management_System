@@ -60,7 +60,7 @@ export class FacultyAnalytics {
         })
         .from(studentMarks)
         .innerJoin(facultySubjectAssignments, eq(studentMarks.assignment_id, facultySubjectAssignments.id))
-        .where(eq(facultySubjectAssignments.faculty_id, facultyId))
+        .where(eq(facultySubjectAssignments.staff_account_id, facultyId))
         .groupBy(facultySubjectAssignments.subject_name);
         return result;
       },
@@ -73,12 +73,12 @@ export class FacultyAnalytics {
       `analytics:faculty:workload:${JSON.stringify(filters)}`,
       async () => {
         const result = await db.select({
-          facultyId: facultySubjectAssignments.faculty_id,
+          facultyId: facultySubjectAssignments.staff_account_id,
           subjectCount: sql`COUNT(*)`
         })
         .from(facultySubjectAssignments)
         .where(eq(facultySubjectAssignments.is_active, true))
-        .groupBy(facultySubjectAssignments.faculty_id);
+        .groupBy(facultySubjectAssignments.staff_account_id);
         return result;
       },
       { ttl: 300, tags: ['intelligence'] }

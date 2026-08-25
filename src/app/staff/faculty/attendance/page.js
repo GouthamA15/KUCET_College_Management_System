@@ -1,7 +1,6 @@
 'use client';
-import { useEffect, useState, Suspense } from 'react';
+import { Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import toast from 'react-hot-toast';
 import { useStaff } from '@/context/StaffContext';
 
 function SubjectCard({ assignment, onSelect }) {
