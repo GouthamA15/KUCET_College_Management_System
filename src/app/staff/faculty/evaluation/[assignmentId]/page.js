@@ -3,11 +3,11 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import toast from 'react-hot-toast';
-import AttendanceModeSelector from '@/components/staff/faculty/AttendanceModeSelector';
+import MarksEntrySheet from '@/components/staff/faculty/MarksEntrySheet';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
-export default function AssignmentModeSelectorPage() {
+export default function EvaluationAssignmentPage() {
   const router = useRouter();
   const { assignmentId } = useParams();
   
@@ -33,14 +33,6 @@ export default function AssignmentModeSelectorPage() {
     }
   }, [assignmentId]);
 
-  const handleSelectMode = (mode) => {
-    if (mode === 'view') {
-      router.push(`/staff/faculty/attendance/${assignmentId}/history`);
-    } else {
-      router.push(`/staff/faculty/attendance/${assignmentId}/take/${mode}`);
-    }
-  };
-
   const handleBack = () => {
     router.push('/staff/faculty/academics');
   };
@@ -64,15 +56,13 @@ export default function AssignmentModeSelectorPage() {
   return (
     <div className="max-w-7xl mx-auto w-full">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Take Attendance</h1>
-        <p className="text-gray-500">{assignment.subject_name} ({assignment.subject_code})</p>
+        <h1 className="text-2xl md:text-3xl font-bold">Evaluation</h1>
+        <p className="text-gray-600">
+          Managing evaluations for {assignment.subject_name} ({assignment.subject_code})
+        </p>
       </div>
       <Suspense fallback={<div className="text-center py-10">Loading...</div>}>
-        <AttendanceModeSelector 
-          assignment={assignment}
-          onSelectMode={handleSelectMode} 
-          onBack={handleBack} 
-        />
+        <MarksEntrySheet assignment={assignment} onBack={handleBack} />
       </Suspense>
     </div>
   );

@@ -7,7 +7,7 @@ import { useStaff } from '@/context/StaffContext';
 import AcademicYearSelect from '@/components/ui/AcademicYearSelect';
 
 export default function SubjectInterestForm({ onInterestSubmitted }) {
-  const { facultyInterests = [], isLoadingFaculty, refreshFaculty } = useStaff();
+  const { facultyInterests = [], refreshFaculty } = useStaff();
   const [branches] = useState(COLLEGE_CONFIG.branches);
   const [selectedBranch, setSelectedBranch] = useState('');
   const [selectedSemester, setSelectedSemester] = useState('');
@@ -15,6 +15,7 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
   const [loadingSyllabus, setLoadingSyllabus] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [academicYear, setAcademicYear] = useState('');
+  const [startYear, setStartYear] = useState(2020);
   const effectiveInterests = facultyInterests || [];
 
   // Set default academic year (current)
@@ -26,8 +27,10 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
       let yearStr = '';
       if (currentMonth >= 6) {
         yearStr = `${currentYear}-${(currentYear + 1).toString().slice(-2)}`;
+        setStartYear(currentYear - 1);
       } else {
         yearStr = `${currentYear - 1}-${currentYear.toString().slice(-2)}`;
+        setStartYear(currentYear - 2);
       }
       setAcademicYear(yearStr);
     }, 0);
@@ -130,6 +133,8 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
             <AcademicYearSelect
               value={academicYear}
               onChange={(e) => setAcademicYear(e.target.value)}
+              startYear={startYear}
+              numYears={3}
               className="w-full h-10 px-3 border border-slate-200 rounded-sm bg-slate-50 text-sm font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>

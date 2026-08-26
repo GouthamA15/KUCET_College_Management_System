@@ -114,6 +114,18 @@ export const POST = wrapHandler({
           throw err;
         }
 
+        if (interest.staff_account_id === user.id) {
+          const err = new Error('You cannot review your own request');
+          err.status = 403;
+          throw err;
+        }
+
+        if (interest.status !== 'PENDING') {
+          const err = new Error('Only PENDING requests can be reviewed');
+          err.status = 400;
+          throw err;
+        }
+
         // Verify HOD assignment for the specific department
         const hodAssignment = await tx.query.facultyHodAssignments.findFirst({
           where: and(
@@ -128,6 +140,25 @@ export const POST = wrapHandler({
            const err = new Error('Not authorized for this department');
            err.status = 403;
            throw err;
+        }
+
+        if (status === 'APPROVED') {
+          const existingAssignment = await tx.query.facultySubjectAssignments.findFirst({
+            where: and(
+              eq(facultySubjectAssignments.staff_account_id, interest.staff_account_id),
+              eq(facultySubjectAssignments.subject_code, interest.subject_code),
+              eq(facultySubjectAssignments.branch, interest.branch),
+              eq(facultySubjectAssignments.course_semester, interest.semester),
+              eq(facultySubjectAssignments.academic_year, interest.academic_year),
+              eq(facultySubjectAssignments.is_active, true)
+            )
+          });
+
+          if (existingAssignment) {
+            const err = new Error('An active assignment already exists for this subject');
+            err.status = 409;
+            throw err;
+          }
         }
 
         await tx.update(facultySubjectInterests)
@@ -151,20 +182,7 @@ export const POST = wrapHandler({
             academic_term: academicTerm,
             academic_year: interest.academic_year,
             is_active: true
-          }).onDuplicateKeyUpdate({
-            set: { is_active: true }
           });
-        } else if (status === 'REJECTED') {
-          await tx.update(facultySubjectAssignments)
-            .set({ is_active: false })
-            .where(and(
-              eq(facultySubjectAssignments.staff_account_id, interest.staff_account_id),
-              eq(facultySubjectAssignments.subject_code, interest.subject_code),
-              eq(facultySubjectAssignments.branch, interest.branch),
-              eq(facultySubjectAssignments.course_semester, interest.semester),
-              eq(facultySubjectAssignments.academic_year, interest.academic_year),
-              eq(facultySubjectAssignments.is_active, true)
-            ));
         }
       });
 

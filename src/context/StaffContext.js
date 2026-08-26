@@ -214,15 +214,8 @@ export function StaffProvider({ children }) {
 
     const promise = (async () => {
       try {
-        const staff = await fetchStaffData();
+        await fetchStaffData();
         await fetchCollegeInfo();
-        
-        if (staff?.role === 'faculty') {
-          fetchFacultyData();
-        }
-        if (staff?.is_hod) {
-          fetchHODData();
-        }
 
         // Basic identity and config are loaded! Drop the global spinner immediately.
         setLoading(false);
@@ -236,7 +229,7 @@ export function StaffProvider({ children }) {
 
     activePromiseRef.current = promise;
     return promise;
-  }, [fetchStaffData, fetchCollegeInfo, fetchFacultyData, fetchHODData]);
+  }, [fetchStaffData, fetchCollegeInfo]);
 
   const handleResume = useCallback(async (event) => {
     const now = Date.now();
