@@ -108,26 +108,26 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
     await page.route('**/*.{png,jpg,jpeg,svg}', (route) => route.fulfill({ status: 200, body: '' }));
   }
 
-  test('subject list page loads at /staff/faculty/attendance', async ({ page }) => {
+  test('subject list page loads at /staff/faculty/academics', async ({ page }) => {
     await bootstrapStaffSession(page);
-    await page.goto('/staff/faculty/attendance');
+    await page.goto('/staff/faculty/academics');
 
     // Should show the subject cards
     await expect(page.getByText('Operating Systems')).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Database Management')).toBeVisible();
     
     // Should stay on the same URL
-    expect(page.url()).toContain('/staff/faculty/attendance');
-    expect(page.url()).not.toContain('/staff/faculty/attendance/');
+    expect(page.url()).toContain('/staff/faculty/academics');
   });
 
   test('clicking a subject navigates to /staff/faculty/attendance/[id]', async ({ page }) => {
     await bootstrapStaffSession(page);
-    await page.goto('/staff/faculty/attendance');
+    await page.goto('/staff/faculty/academics');
 
-    // Wait for and click the first subject
+    // Wait for and click the Attendance button within the card
     await expect(page.getByText('Operating Systems')).toBeVisible({ timeout: 10000 });
-    await page.getByText('Operating Systems').click();
+    // Card has two buttons: Attendance and Evaluation. We find the one in the same card.
+    await page.locator('div').filter({ hasText: 'Operating Systems' }).getByRole('button', { name: 'Attendance' }).first().click();
 
     // Should navigate to the mode selector page
     await expect(page).toHaveURL(/\/staff\/faculty\/attendance\/101/, { timeout: 10000 });
@@ -234,18 +234,18 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
     await page.goto('/staff/faculty/attendance/99999');
 
     await expect(page.getByText('Assignment Not Found')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('Back to Assignments')).toBeVisible();
+    await expect(page.getByText('Back to Academics')).toBeVisible();
   });
 
   test('browser back button returns to previous route', async ({ page }) => {
     await bootstrapStaffSession(page);
 
     // Start at subject list
-    await page.goto('/staff/faculty/attendance');
+    await page.goto('/staff/faculty/academics');
     await expect(page.getByText('Operating Systems')).toBeVisible({ timeout: 10000 });
 
     // Click to go to mode selector
-    await page.getByText('Operating Systems').click();
+    await page.locator('div').filter({ hasText: 'Operating Systems' }).getByRole('button', { name: 'Attendance' }).first().click();
     await expect(page).toHaveURL(/\/staff\/faculty\/attendance\/101/, { timeout: 10000 });
     await expect(page.getByText('Select Attendance Mode')).toBeVisible({ timeout: 10000 });
 
@@ -253,8 +253,7 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
     await page.goBack();
 
     // Should be back at subject list
-    await expect(page.getByText('Select a subject to manage attendance')).toBeVisible({ timeout: 10000 });
-    expect(page.url()).toContain('/staff/faculty/attendance');
-    expect(page.url()).not.toMatch(/\/staff\/faculty\/attendance\/\d+/);
+    await expect(page.getByText('Manage your active instructional assignments')).toBeVisible({ timeout: 10000 });
+    expect(page.url()).toContain('/staff/faculty/academics');
   });
 });
