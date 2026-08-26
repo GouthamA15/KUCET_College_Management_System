@@ -1,7 +1,7 @@
 # KUCET College Management System - Technical Index & Core Architecture
 
 **System Version:** Session 208 - In Development
-**Last Updated:** August 25, 2026
+**Last Updated:** August 26, 2026
 **Status:** Active Development / Pre-Merge  
 **Test Suite Verification:** 44+ test files — testvanilla branch ahead by 6 commits
 
@@ -104,7 +104,7 @@ CMS/
 ├── src/
 │   ├── app/                   # Next.js App Router (Pages, Layouts, API Routes)
 │   │   ├── admin/             # Super Admin console (including /admin/manage-staff & /admin/staff-requests)
-│   │   ├── api/               # Server API routes (/api/admin/*, /api/staff/*, /api/student/*, /api/public/*)
+│   │   ├── api/               # Server API routes (/api/admin/*, /api/staff/*, /api/student/*, /api/public/*) — includes /api/staff/faculty/class-lookup (Cohort & Global Search)
 │   │   ├── staff/             # Staff & HOD console (RENAMED from /clerk/ in Session 207)
 │   │   ├── staff-registration/# Public multi-step staff onboarding wizard (NEW in Session 207)
 │   │   ├── register/staff/activate/ # Token-based account activation (NEW in Session 207)
@@ -127,12 +127,13 @@ CMS/
 ## 5. System Core Capabilities
 
 1. **Departmental Management & HOD Console:** Semester-aware timetable matrix (S1-S8), faculty workload tracker, condonation risk analytics (75% threshold).
-2. **Proxy-Free Attendance Intelligence:** 50m Haversine GPS geofencing, dynamic 4-digit PINs, IP + User-Agent device lock.
-3. **Real-Time Activity Pulse:** Instant schedule update synchronization across student and faculty dashboards via Supabase Broadcast.
-4. **Digital Certificate Engine:** Server-side PDF generation via `@react-pdf/renderer` with HMAC-SHA256 digital signing and instant QR verification.
-5. **Academic Archival & Restoration Engine:** Long-term archival of closed semesters and graduated students into `archive_*` tables with safe 1-click restoration.
-6. **Financial Oversight & Integrity:** Government scholarship sanction tracking, fee ledger auditing, SHA-256 payment screenshot fingerprinting, idempotency key guards.
-7. **Autonomous Deployment Infrastructure:** Docker Compose packaging on Hostinger VPS, automated health monitoring (`health-check.sh`), auto-rollback (`rollback.sh`), systemd runner service.
+2. **Faculty Academics Hub:** Unified faculty classroom console at `/staff/faculty/academics` consolidating subject management, attendance recording, marks evaluation, and student cohort lookups under a single tabbed interface. Department boundary-enforced student search with Cohort Lookup and Global Search modes.
+3. **Proxy-Free Attendance Intelligence:** 50m Haversine GPS geofencing, dynamic 4-digit PINs, IP + User-Agent device lock.
+4. **Real-Time Activity Pulse:** Instant schedule update synchronization across student and faculty dashboards via Supabase Broadcast.
+5. **Digital Certificate Engine:** Server-side PDF generation via `@react-pdf/renderer` with HMAC-SHA256 digital signing and instant QR verification.
+6. **Academic Archival & Restoration Engine:** Long-term archival of closed semesters and graduated students into `archive_*` tables with safe 1-click restoration.
+7. **Financial Oversight & Integrity:** Government scholarship sanction tracking, fee ledger auditing, SHA-256 payment screenshot fingerprinting, idempotency key guards.
+8. **Autonomous Deployment Infrastructure:** Docker Compose packaging on Hostinger VPS, automated health monitoring (`health-check.sh`), auto-rollback (`rollback.sh`), systemd runner service.
 
 ---
 
@@ -195,6 +196,8 @@ Session 205 resolved critical cookie persistence bugs, hardened authentication b
 | `cfa6b7d8` | Session 207 — Staff Soft Deactivation & Reactivation | Switched staff deletion in `/admin/manage-staff` and `/api/admin/staff/[id]` from hard row deletion (`DELETE FROM staff_accounts`) to soft deactivation (`account_status = 'SUSPENDED'`), terminating sessions/refresh tokens while preserving audit logs, student import logs, and relational history, with UI reactivation support. |
 | `pending` | Session 207 — Cross-Student Profile Cache Leakage Fix & State Hygiene | Hardened `public/sw.js` (bumped to v3, unconditional bypass of all `/api/*` routes, `CLEAR_ALL_CACHES` handler); added strict `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate` across all API responses in `src/lib/api-utils.js`; added `Clear-Site-Data: "cache", "storage"` to logout endpoints; roll-number scoped localStorage keys in `ProfileActivityContext.js`; implemented roll mismatch resets in `StudentContext.js`. |
 | `pending` | Session 207 — Faculty, HOD & Teaching Staff Management Regression Fix | Fixed schema-first SQL mismatches across Admin staff update, token refresh (`/api/auth/refresh`, `auth-utils.js`), substitutions (`facultySubstitutions.created_by_staff_id`), `StaffRegistrationService.js` inserts, and `FacultyService.js` load calculation. Authorized HOD and primary faculty access for internal marks, and added safe branch affiliation resolution. |
+| `pending` | Session 208 — Faculty Academics Hub (Phases F2–F4) | **Phase F2:** Renamed `/staff/faculty/teaching` → `/staff/faculty/academics`. New Academics Hub page with 4 tabs: My Subjects, Attendance, Evaluation, Students. Design matched to Student Finance pages. Mobile improvements: tabs wrap on mobile, search above filters. Subject cards have top-right bubble badges. **Phase F3:** Attendance and Evaluation refactored from inline components to standalone route pages `/staff/faculty/attendance/[assignmentId]` and `/staff/faculty/evaluation/[assignmentId]`. Old routes (`/staff/faculty/attendance`, `/staff/faculty/marks`) silently redirect to `/staff/faculty/academics`. Server-side ownership validation per `faculty_subject_assignments.id`. **Phase F4:** Renamed "Class Roster" → "Students" tab. Deleted `ClassList.js` component and `class-list/page.js`. Updated dashboard "Class Lists" card → "Students" card navigating to Academics Hub. New `class-lookup/route.js` API: Cohort Lookup mode (`?program&yearOfStudy`) and Global Search mode (`?roll_no` or `?name`). Department boundary enforced via `staffAcademicAffiliations` — CSE faculty cannot query CIVIL students. Year-of-study derived from active academic year + roll_no encoding. Result columns: Roll No, Student Name, Admission No, Branch. New `StudentsLookupPanel.js` with two-tab UI (Cohort Lookup + Global Search). |
+
 
 
 ---
