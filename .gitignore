@@ -15,6 +15,8 @@
 # testing
 /coverage
 *.sql
+!drizzle/*.sql
+!drizzle/**/*.sql
 
 /src/app/pdf-preview
 # next.js
