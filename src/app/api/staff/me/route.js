@@ -80,17 +80,36 @@ export const GET = wrapHandler({
           branch = branches[0] || null;
         }
 
-        const { facultyHodAssignments } = await import('@/db/schema');
-        const { and } = await import('drizzle-orm');
-        const hodRow = await db.select({ id: facultyHodAssignments.id })
-            .from(facultyHodAssignments)
-            .where(and(
-              eq(facultyHodAssignments.staff_account_id, staff.id),
-              eq(facultyHodAssignments.is_active, true)
-            ))
-            .limit(1);
-        if (hodRow.length > 0) {
-          isHod = true;
+        const { facultyHodAssignments, staffAccountRoles, staffRoles } = await import('@/db/schema');
+        const { and, lte, gte } = await import('drizzle-orm');
+        const now = new Date();
+        const nowStr = now.toISOString().split('T')[0];
+
+        // 1. Check if they have the HOD role code
+        const hasHodRole = await db.select({ role_code: staffRoles.role_code })
+            .from(staffAccountRoles)
+            .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
+            .where(
+                and(
+                    eq(staffAccountRoles.staff_account_id, staff.id),
+                    eq(staffRoles.role_code, 'HOD')
+                )
+            ).limit(1);
+
+        if (hasHodRole.length > 0) {
+            // 2. Check if they have an active assignment
+            const hodRow = await db.select({ id: facultyHodAssignments.id })
+                .from(facultyHodAssignments)
+                .where(and(
+                  eq(facultyHodAssignments.staff_account_id, staff.id),
+                  eq(facultyHodAssignments.is_active, true),
+                  lte(facultyHodAssignments.start_date, nowStr),
+                  gte(facultyHodAssignments.end_date, nowStr)
+                ))
+                .limit(1);
+            if (hodRow.length > 0) {
+              isHod = true;
+            }
         }
     }
     let decryptedMobile = '';

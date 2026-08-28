@@ -60,6 +60,7 @@ export const POST = wrapHandler({
         employee_id: employeeId,
         staff_category: request.staff_category,
         designation: request.designation,
+        address: request.address,
         mobile_hash: request.mobile_hash,
         pfp: request.pfp,
         signature: request.signature,

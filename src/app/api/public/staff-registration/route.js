@@ -12,6 +12,7 @@ const schema = z.object({
   mobile: z.string().regex(/^\d{10}$/, "Invalid mobile"),
   requested_role: z.enum(['FACULTY', 'ADMISSION_STAFF', 'SCHOLARSHIP_STAFF']),
   designation: z.string().min(1, "Designation is required"),
+  address: z.string().optional(),
   verificationToken: z.string().min(1, "Email verification token is required"),
   academic_affiliations: z.array(z.object({
     department_code: z.string(),
@@ -20,7 +21,7 @@ const schema = z.object({
 });
 
 const handler = async (req, { data }) => {
-  const { fullName, email, mobile, requested_role, designation, verificationToken, academic_affiliations } = data;
+  const { fullName, email, mobile, requested_role, designation, address, verificationToken, academic_affiliations } = data;
 
   // Verify Email Token
   try {
@@ -116,6 +117,7 @@ const handler = async (req, { data }) => {
     staff_category: mappedCategory,
     requested_role: requested_role,
     designation: designation,
+    address: address,
     mobile_hash: mobileHash,
     academic_affiliations: academic_affiliations,
     email_verified_at: new Date(),

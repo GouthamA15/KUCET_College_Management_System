@@ -7,6 +7,8 @@ import SubjectInterestForm from '@/components/staff/faculty/SubjectInterestForm'
 import InterestStatusList from '@/components/staff/faculty/InterestStatusList';
 import HodAccessManager from '@/components/staff/faculty/HodAccessManager';
 import StudentsLookupPanel from '@/components/staff/faculty/StudentsLookupPanel';
+import SubjectAssignmentsList from '@/components/staff/faculty/SubjectAssignmentsList';
+
 import { Info, X, Search, ChevronDown } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
@@ -165,7 +167,11 @@ function AcademicsContent() {
 
   const tabs = [
     { id: 'subjects', label: 'My Subjects' },
-    ...(!staffData?.is_hod ? [{ id: 'requests', label: 'Request Subjects' }] : []),
+    ...(staffData?.is_hod ? [
+      { id: 'assign-subjects', label: 'Assign Subjects' }
+    ] : [
+      { id: 'requests', label: 'Request Subjects' }
+    ]),
     { id: 'roster', label: 'Students' },
     { id: 'hod', label: 'HOD Access' },
   ];
@@ -395,10 +401,10 @@ function AcademicsContent() {
         </div>
       )}
 
-      {/* ── Request Subjects ── */}
+      {/* ── Request Subjects (Normal Faculty) ── */}
       {!staffData?.is_hod && activeTab === 'requests' && (
         <div className="space-y-5">
-          <div className="bg-white border border-gray-300 rounded-sm p-4 sm:p-6 shadow-sm">
+          <div className="bg-gradient-to-br from-blue-50/50 via-white to-blue-50/50 border border-blue-100 shadow-sm rounded-sm p-4 sm:p-6">
             <div className="mb-5">
               <h2 className="text-base font-semibold text-gray-800">Subject Request Workflow</h2>
               <p className="text-xs text-gray-500 mt-1">Submit teaching preferences below. Requests are routed to the department HOD for approval and formal assignment.</p>
@@ -406,12 +412,19 @@ function AcademicsContent() {
             <SubjectInterestForm />
           </div>
 
-          <div id="request-history-section" className="bg-white border border-gray-300 rounded-sm p-4 sm:p-6 shadow-sm">
+          <div id="request-history-section" className="bg-gradient-to-br from-blue-50/50 via-white to-blue-50/50 border border-blue-100 shadow-sm rounded-sm p-4 sm:p-6">
             <h2 className="text-base font-semibold text-gray-800 mb-4">Request History</h2>
-            <div className="border-t border-gray-100 pt-4">
+            <div className="border-t border-blue-100 pt-4">
               <InterestStatusList />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── Assign Subjects (HOD) ── */}
+      {staffData?.is_hod && activeTab === 'assign-subjects' && (
+        <div className="bg-gradient-to-br from-blue-50/50 via-white to-blue-50/50 border border-blue-100 shadow-sm rounded-sm p-4 sm:p-6">
+          <SubjectAssignmentsList />
         </div>
       )}
 

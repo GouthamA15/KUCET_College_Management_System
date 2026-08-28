@@ -569,6 +569,10 @@ export default function StaffRequestsClient() {
                             <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Designation</p>
                             <p className="text-sm text-slate-900">{selectedRequest.designation || 'N/A'}</p>
                           </div>
+                          <div className="sm:col-span-2">
+                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Address</p>
+                            <p className="text-sm text-slate-900">{selectedRequest.address || 'N/A'}</p>
+                          </div>
                         </>
                       ) : (
                         <>

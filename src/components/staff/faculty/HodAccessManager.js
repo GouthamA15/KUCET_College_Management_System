@@ -86,7 +86,11 @@ export default function HodAccessManager() {
     return <div className="text-center py-4 text-slate-500 text-sm">Loading HOD Access status...</div>;
   }
 
-  const activeAssignments = assignments.filter(a => a.is_active);
+  const now = new Date();
+  const nowStr = now.toISOString().split('T')[0];
+
+  const activeAssignments = assignments.filter(a => a.is_active && (!a.end_date || a.end_date >= nowStr));
+  const expiredAssignments = assignments.filter(a => a.is_active && a.end_date && a.end_date < nowStr);
   const pendingRequests = requests.filter(r => r.status === 'PENDING');
   const rejectedRequests = requests.filter(r => r.status === 'REJECTED');
 
@@ -95,7 +99,7 @@ export default function HodAccessManager() {
 
   return (
     <div className="space-y-6">
-      <div className="border border-gray-300 rounded-md bg-gradient-to-br from-white via-slate-50 to-slate-100 p-6 shadow-sm">
+      <div className="border border-blue-100 rounded-md bg-gradient-to-br from-blue-50/50 via-white to-blue-50/50 p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-gray-800 mb-6">HOD Access</h2>
         
         <div className="space-y-6">
@@ -129,6 +133,15 @@ export default function HodAccessManager() {
                         </div>
                         ))}
                     </div>
+                ) : expiredAssignments.length > 0 ? (
+                    <div>
+                        {expiredAssignments.map(a => (
+                        <div key={a.id} className="bg-gray-50 border border-gray-200 text-gray-500 rounded p-4 mb-3">
+                            <h3 className="font-bold mb-1">HOD Access Expired</h3>
+                            <p className="text-sm">Your previous HOD access for {a.department_code} ({a.academic_year}) expired on {formatDate(a.end_date)}.</p>
+                        </div>
+                        ))}
+                    </div>
                 ) : (
                     <div className="text-sm font-medium text-gray-800">Not Assigned</div>
                 )}
@@ -151,7 +164,7 @@ export default function HodAccessManager() {
       </div>
 
       {!hasActiveAccess && (
-        <div className="border border-gray-300 rounded-md bg-gradient-to-br from-white via-slate-50 to-slate-100 p-6 shadow-sm">
+        <div className="border border-blue-100 rounded-md bg-gradient-to-br from-blue-50/50 via-white to-blue-50/50 p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-800 mb-2">Request HOD Access</h2>
             <p className="text-sm text-gray-600 mb-6">If you are the designated Head of Department, submit a request below to gain administrative access.</p>
             

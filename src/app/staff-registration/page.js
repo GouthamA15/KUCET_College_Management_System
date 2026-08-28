@@ -258,6 +258,7 @@ export default function StaffRegistrationPage() {
       designation: formData.designation,
       requested_role: formData.requestedRole,
       staff_category: formData.staffCategory,
+      address: formData.address,
       verificationToken: emailState.verificationToken,
       academic_affiliations: isFaculty ? [
         {

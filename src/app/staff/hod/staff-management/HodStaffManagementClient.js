@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStaff } from '@/context/StaffContext';
 import HodFacultyInterests from '@/components/staff/faculty/HodFacultyInterests';
-import SubjectAssignmentsList from '@/components/staff/faculty/SubjectAssignmentsList';
+
 import ActiveFacultyList from '@/components/staff/faculty/ActiveFacultyList';
 
 export default function HodStaffManagementClient() {
@@ -41,31 +41,40 @@ export default function HodStaffManagementClient() {
         <p className="text-sm text-gray-600 mt-1">Manage department faculty, subject requests, and assignments.</p>
       </header>
 
-      <div className="flex flex-wrap gap-2 mb-3">
-        <button 
-          onClick={() => setActiveTab('interests')} 
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'interests' ? 'bg-[#0b3578] text-white shadow-sm' : 'bg-white text-gray-600 border hover:bg-gray-50'}`}
-        >
-          Faculty Interests
-        </button>
-        <button 
-          onClick={() => setActiveTab('active-faculty')} 
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'active-faculty' ? 'bg-[#0b3578] text-white shadow-sm' : 'bg-white text-gray-600 border hover:bg-gray-50'}`}
-        >
-          Active Faculty
-        </button>
-        <button 
-          onClick={() => setActiveTab('assignments')} 
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'assignments' ? 'bg-[#0b3578] text-white shadow-sm' : 'bg-white text-gray-600 border hover:bg-gray-50'}`}
-        >
-          Subject Assignments
-        </button>
+      <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-4 mb-6">
+        <h2 className="text-sm font-semibold text-[#0b3578] mb-1">How Staff Management Works</h2>
+        <ul className="list-disc pl-4 space-y-1 text-xs text-gray-600">
+          <li><strong>Faculty Interests:</strong> Review and approve/reject subject requests submitted by your department faculty.</li>
+          <li><strong>Active Faculty:</strong> View the roster of all faculty members currently assigned to your department.</li>
+        </ul>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6 shadow-sm min-h-[50vh]">
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
+          {[
+            { id: 'interests', label: 'Faculty Interests' },
+            { id: 'active-faculty', label: 'Active Faculty' }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`
+                whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors
+                ${activeTab === tab.id
+                  ? 'border-[#0b3578] text-[#0b3578]'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }
+              `}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      <div className="bg-gradient-to-br from-blue-50/50 via-white to-blue-50/50 border border-blue-100 rounded-sm p-4 sm:p-6 shadow-sm min-h-[50vh]">
         {activeTab === 'interests' && <HodFacultyInterests />}
         {activeTab === 'active-faculty' && <ActiveFacultyList />}
-        {activeTab === 'assignments' && <SubjectAssignmentsList />}
       </div>
     </div>
   );

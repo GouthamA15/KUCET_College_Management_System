@@ -99,15 +99,15 @@ export default function StudentsLookupPanel() {
   const branches = staffData?.branches || [];
 
   return (
-    <div className="bg-white border border-gray-300 rounded-sm shadow-sm flex flex-col w-full">
+    <div className="border border-blue-100 rounded-md bg-gradient-to-br from-blue-50/50 via-white to-blue-50/50 shadow-sm flex flex-col w-full">
       {/* Internal Tabs */}
-      <div className="flex items-center border-b border-gray-200 bg-gray-50/50">
+      <div className="flex items-center border-b border-gray-200 bg-transparent">
         <button
           onClick={() => { setActiveTab('cohort'); setStudents([]); setHasSearched(false); }}
           className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-4 text-sm font-medium transition-colors border-b-2 ${
             activeTab === 'cohort'
-              ? 'border-[#0b3578] text-[#0b3578] bg-white'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              ? 'border-[#0b3578] text-[#0b3578] bg-white shadow-sm rounded-t-md'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-white/50'
           }`}
         >
           <Users size={16} />
@@ -117,8 +117,8 @@ export default function StudentsLookupPanel() {
           onClick={() => { setActiveTab('search'); setStudents([]); setHasSearched(false); }}
           className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-4 text-sm font-medium transition-colors border-b-2 ${
             activeTab === 'search'
-              ? 'border-[#0b3578] text-[#0b3578] bg-white'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              ? 'border-[#0b3578] text-[#0b3578] bg-white shadow-sm rounded-t-md'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-white/50'
           }`}
         >
           <UserSearch size={16} />
@@ -128,7 +128,7 @@ export default function StudentsLookupPanel() {
 
       <div className="p-4 sm:p-6 w-full">
         {activeTab === 'cohort' ? (
-          <div className="mb-6 bg-gray-50/50 p-4 rounded-md border border-gray-100">
+          <div className="mb-6 bg-white/80 backdrop-blur-sm p-4 rounded-md border border-slate-200 shadow-sm">
             <h2 className="text-sm font-semibold text-gray-800 mb-4">Select Class Cohort</h2>
             <div className="flex flex-col sm:flex-row flex-wrap gap-4">
               <div className="relative flex-1 sm:flex-none sm:w-64">
@@ -164,7 +164,7 @@ export default function StudentsLookupPanel() {
             </div>
           </div>
         ) : (
-          <form onSubmit={handleGlobalSearch} className="mb-6 bg-gray-50/50 p-4 rounded-md border border-gray-100">
+          <form onSubmit={handleGlobalSearch} className="mb-6 bg-white/80 backdrop-blur-sm p-4 rounded-md border border-slate-200 shadow-sm">
             <h2 className="text-sm font-semibold text-gray-800 mb-4">Search Students in Your Department</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -214,7 +214,7 @@ export default function StudentsLookupPanel() {
         {/* Results Area */}
         <div className="w-full">
           {!hasSearched ? (
-            <div className="border border-dashed border-gray-200 rounded-sm py-16 text-center bg-gray-50/30">
+            <div className="border border-dashed border-slate-300 rounded-md py-16 text-center bg-white/50 backdrop-blur-sm shadow-sm">
               <Search size={28} className="mx-auto text-gray-300 mb-3" />
               <p className="text-sm font-medium text-gray-600">
                 {activeTab === 'cohort' ? 'Select a program and year' : 'Search by roll number or name'}
@@ -222,11 +222,11 @@ export default function StudentsLookupPanel() {
               <p className="text-xs text-gray-400 mt-1">Students matching your criteria will appear here.</p>
             </div>
           ) : loading ? (
-            <div className="border border-gray-200 rounded-sm py-16 text-center">
+            <div className="border border-slate-200 rounded-md py-16 text-center bg-white/50 backdrop-blur-sm shadow-sm">
               <p className="text-sm font-medium text-gray-500 animate-pulse">Searching student records...</p>
             </div>
           ) : students.length === 0 ? (
-            <div className="border border-dashed border-gray-200 rounded-sm py-16 text-center bg-gray-50/30">
+            <div className="border border-dashed border-slate-300 rounded-md py-16 text-center bg-white/50 backdrop-blur-sm shadow-sm">
               <p className="text-sm font-medium text-gray-600">No students found</p>
               <p className="text-xs text-gray-400 mt-1">
                 {activeTab === 'search' 
@@ -241,9 +241,9 @@ export default function StudentsLookupPanel() {
                   {students.length} Result{students.length !== 1 && 's'}
                 </span>
               </div>
-              <div className="overflow-x-auto w-full border border-gray-200 rounded-sm">
-                <table className="w-full text-sm divide-y divide-gray-200 table-auto min-w-[600px]">
-                  <thead className="bg-gray-50">
+              <div className="overflow-x-auto w-full border border-slate-200 shadow-sm rounded-md bg-white">
+                <table className="w-full text-sm divide-y divide-slate-200 table-auto min-w-[600px]">
+                  <thead className="bg-slate-50/80">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Roll No</th>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Student Name</th>

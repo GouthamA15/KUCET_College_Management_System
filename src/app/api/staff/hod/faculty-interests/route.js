@@ -5,9 +5,12 @@ import {
   staffAccounts, 
   collegeInfo as collegeInfoTable, 
   facultySubjectAssignments,
-  facultyHodAssignments
+  staffAcademicAffiliations,
+  academicDepartments,
+  staffRoles,
+  staffAccountRoles
 } from '@/db/schema';
-import { eq, and, desc, sql, or } from 'drizzle-orm';
+import { eq, and, desc, sql, or, inArray } from 'drizzle-orm';
 import { apiResponse, apiError, wrapHandler } from '@/lib/api-utils';
 import { getCollegeAcademicYear } from '@/lib/academic-utils';
 import { z } from 'zod';
@@ -21,74 +24,106 @@ const interestUpdateSchema = z.object({
 export const GET = wrapHandler({
   auth: 'hod',
   handler: async (_request, { user }) => {
-    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1)).limit(1);
-    const collegeInfo = collegeRows[0] || null;
-    const currentAcademicYear = await getCollegeAcademicYear(collegeInfo);
+    try {
+      const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1)).limit(1);
+      const collegeInfo = collegeRows[0] || null;
+      const currentAcademicYear = await getCollegeAcademicYear(collegeInfo);
 
-    // Verify HOD assignment
-    const hodAssignment = await db.query.facultyHodAssignments.findFirst({
-      where: and(
-        eq(facultyHodAssignments.staff_account_id, user.id),
-        eq(facultyHodAssignments.is_active, true),
-        eq(facultyHodAssignments.academic_year, currentAcademicYear)
-      )
-    });
+      if (!user.hod_department_code) {
+        return apiError('Unauthorized - Active HOD Assignment Required', 403);
+      }
 
-    if (!hodAssignment) {
-      return apiError('Unauthorized - Active HOD Assignment Required', 403);
+      // 1. Fetch eligible Faculty Staff IDs in the HOD's department
+      const eligibleFaculty = await db.select({
+        staff_id: staffAccounts.id,
+        name: staffAccounts.name,
+        employee_id: staffAccounts.employee_id
+      })
+      .from(staffAccounts)
+      .innerJoin(staffAccountRoles, eq(staffAccountRoles.staff_account_id, staffAccounts.id))
+      .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
+      .innerJoin(staffAcademicAffiliations, eq(staffAcademicAffiliations.staff_account_id, staffAccounts.id))
+      .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
+      .where(and(
+        eq(staffRoles.role_code, 'FACULTY'),
+        eq(academicDepartments.department_code, user.hod_department_code),
+        eq(staffAccounts.is_active, true)
+      ));
+
+      const facultyMap = {};
+      for (const row of eligibleFaculty) {
+        facultyMap[row.staff_id] = { name: row.name, employee_id: row.employee_id };
+      }
+      
+      const eligibleStaffIds = Object.keys(facultyMap).map(Number);
+      
+      if (eligibleStaffIds.length === 0) {
+        return apiResponse({ data: [] });
+      }
+
+      // 2. Query faculty subject interests for these staff IDs
+      const rawInterests = await db.select()
+        .from(facultySubjectInterests)
+        .where(and(
+          inArray(facultySubjectInterests.staff_account_id, eligibleStaffIds),
+          or(
+            eq(facultySubjectInterests.academic_year, currentAcademicYear),
+            eq(facultySubjectInterests.status, 'PENDING')
+          )
+        ))
+        .orderBy(desc(sql`${facultySubjectInterests.status} = 'PENDING'`), desc(facultySubjectInterests.created_at));
+
+      if (rawInterests.length === 0) {
+        return apiResponse({ data: [] });
+      }
+
+      // 3. Resolve assignments separately
+      const activeAssignments = await db.select({
+        subject_code: facultySubjectAssignments.subject_code,
+        branch: facultySubjectAssignments.branch,
+        course_semester: facultySubjectAssignments.course_semester,
+        academic_year: facultySubjectAssignments.academic_year,
+        faculty_name: staffAccounts.name
+      })
+      .from(facultySubjectAssignments)
+      .innerJoin(staffAccounts, eq(facultySubjectAssignments.staff_account_id, staffAccounts.id))
+      .where(eq(facultySubjectAssignments.is_active, true));
+
+      // Group active assignments by subject
+      const allocationMap = {};
+      for (const asgn of activeAssignments) {
+        const key = `${asgn.subject_code}|${asgn.branch}|${asgn.course_semester}|${asgn.academic_year}`;
+        if (!allocationMap[key]) allocationMap[key] = [];
+        allocationMap[key].push(asgn.faculty_name);
+      }
+
+      // 4. Assemble response
+      const interests = rawInterests.map(i => {
+        const key = `${i.subject_code}|${i.branch}|${i.semester}|${i.academic_year}`;
+        const allocatedNames = allocationMap[key] ? allocationMap[key].join(', ') : null;
+        
+        return {
+          id: i.id,
+          staff_account_id: i.staff_account_id,
+          subject_code: i.subject_code,
+          subject_name: i.subject_name,
+          branch: i.branch,
+          semester: i.semester,
+          academic_year: i.academic_year,
+          status: i.status,
+          created_at: i.created_at,
+          updated_at: i.updated_at,
+          faculty_name: facultyMap[i.staff_account_id]?.name || 'Unknown',
+          employee_id: facultyMap[i.staff_account_id]?.employee_id || 'Unknown',
+          allocated_faculty_name: allocatedNames
+        };
+      });
+
+      return apiResponse({ data: interests });
+    } catch (error) {
+      logger.error('Faculty Interests GET Error:', error);
+      return apiError('Internal Server Error', 500);
     }
-
-    const allocatedSubquery = db.select({
-      names: sql`GROUP_CONCAT(${staffAccounts.name} SEPARATOR ', ')`.as('names'),
-      subject_code: facultySubjectAssignments.subject_code,
-      branch: facultySubjectAssignments.branch,
-      course_semester: facultySubjectAssignments.course_semester,
-      academic_year: facultySubjectAssignments.academic_year
-    })
-    .from(facultySubjectAssignments)
-    .innerJoin(staffAccounts, eq(facultySubjectAssignments.staff_account_id, staffAccounts.id))
-    .where(eq(facultySubjectAssignments.is_active, true))
-    .groupBy(
-      facultySubjectAssignments.subject_code,
-      facultySubjectAssignments.branch,
-      facultySubjectAssignments.course_semester,
-      facultySubjectAssignments.academic_year
-    )
-    .as('asgn');
-
-    const interests = await db.select({
-      id: facultySubjectInterests.id,
-      staff_account_id: facultySubjectInterests.staff_account_id,
-      subject_code: facultySubjectInterests.subject_code,
-      subject_name: facultySubjectInterests.subject_name,
-      branch: facultySubjectInterests.branch,
-      semester: facultySubjectInterests.semester,
-      academic_year: facultySubjectInterests.academic_year,
-      status: facultySubjectInterests.status,
-      created_at: facultySubjectInterests.created_at,
-      updated_at: facultySubjectInterests.updated_at,
-      faculty_name: staffAccounts.name,
-      employee_id: staffAccounts.employee_id,
-      allocated_faculty_name: allocatedSubquery.names
-    })
-    .from(facultySubjectInterests)
-    .innerJoin(staffAccounts, eq(facultySubjectInterests.staff_account_id, staffAccounts.id))
-    .leftJoin(allocatedSubquery, and(
-      eq(facultySubjectInterests.subject_code, allocatedSubquery.subject_code),
-      eq(facultySubjectInterests.branch, allocatedSubquery.branch),
-      eq(facultySubjectInterests.semester, allocatedSubquery.course_semester),
-      eq(facultySubjectInterests.academic_year, allocatedSubquery.academic_year)
-    ))
-    .where(and(
-      eq(facultySubjectInterests.department_code, hodAssignment.department_code),
-      or(
-        eq(facultySubjectInterests.academic_year, currentAcademicYear),
-        eq(facultySubjectInterests.status, 'PENDING')
-      )
-    ))
-    .orderBy(desc(sql`${facultySubjectInterests.status} = 'PENDING'`), desc(facultySubjectInterests.created_at));
-
-    return apiResponse({ data: interests });
   }
 });
 
@@ -97,10 +132,6 @@ export const POST = wrapHandler({
   schema: interestUpdateSchema,
   handler: async (_request, { user, data }) => {
     const { interest_id, status, rejection_reason } = data;
-
-    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1)).limit(1);
-    const collegeInfo = collegeRows[0] || null;
-    const currentAcademicYear = await getCollegeAcademicYear(collegeInfo);
 
     try {
       await db.transaction(async (tx) => {
@@ -126,17 +157,14 @@ export const POST = wrapHandler({
           throw err;
         }
 
-        // Verify HOD assignment for the specific department
-        const hodAssignment = await tx.query.facultyHodAssignments.findFirst({
-          where: and(
-            eq(facultyHodAssignments.staff_account_id, user.id),
-            eq(facultyHodAssignments.department_code, interest.department_code),
-            eq(facultyHodAssignments.is_active, true),
-            eq(facultyHodAssignments.academic_year, currentAcademicYear)
-          )
-        });
+        const affil = await tx.select({ dept_code: academicDepartments.department_code })
+          .from(staffAcademicAffiliations)
+          .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
+          .where(eq(staffAcademicAffiliations.staff_account_id, interest.staff_account_id));
+        
+        const validDepartments = affil.map(a => a.dept_code);
 
-        if (!hodAssignment) {
+        if (!user.hod_department_code || !validDepartments.includes(user.hod_department_code)) {
            const err = new Error('Not authorized for this department');
            err.status = 403;
            throw err;
@@ -190,6 +218,8 @@ export const POST = wrapHandler({
     } catch (error) {
       if (error.status === 404 || error.message === 'Interest not found') return apiError('Interest not found', 404);
       if (error.status === 403 || error.message === 'Not authorized for this department') return apiError('Not authorized for this department', 403);
+      if (error.status === 409) return apiError(error.message, 409);
+      if (error.status === 400) return apiError(error.message, 400);
       logger.error('HOD Approve Interest Error:', error);
       throw error;
     }

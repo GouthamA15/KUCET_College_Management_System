@@ -100,7 +100,7 @@ export default function HodFacultyInterests() {
       {filteredInterests.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredInterests.map((interest) => (
-            <div key={interest.id} className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow relative flex flex-col">
+            <div key={interest.id} className="bg-gradient-to-br from-blue-50/50 via-white to-blue-50/50 border border-blue-100 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow relative flex flex-col">
               <div className="flex justify-between items-start mb-3">
                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-sm border ${
                   interest.status === 'PENDING' ? 'bg-amber-50 text-amber-700 border-amber-200' :

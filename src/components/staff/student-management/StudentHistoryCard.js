@@ -125,7 +125,7 @@ export default function StudentHistoryCard({ _currentStaffId }) {
   return (
     <div className="bg-transparent space-y-4">
       {/* Toolbar / Filters */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 bg-white p-4 rounded-md border border-gray-200 shadow-sm">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 bg-gradient-to-br from-blue-50/50 via-white to-blue-50/50 p-4 rounded-md border border-blue-100 shadow-sm">
         <div className="flex items-center gap-2 w-full lg:w-auto">
           <button 
             type="button" 
@@ -204,7 +204,7 @@ export default function StudentHistoryCard({ _currentStaffId }) {
       </div>
 
       {/* Timeline */}
-      <div className="bg-white p-4 rounded-md border border-gray-200 shadow-sm min-h-[300px]">
+      <div className="bg-gradient-to-br from-blue-50/50 via-white to-blue-50/50 p-4 rounded-md border border-blue-100 shadow-sm min-h-[300px]">
         {loading && (
           <div className="flex flex-col items-center justify-center py-20 text-gray-500">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0b3578] mb-4"></div>

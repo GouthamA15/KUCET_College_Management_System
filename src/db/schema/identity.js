@@ -47,6 +47,7 @@ export const staffRegistrationRequests = mysqlTable('staff_registration_requests
   requested_role: varchar('requested_role', { length: 50 }),
   academic_affiliations: json('academic_affiliations'),
   designation: varchar('designation', { length: 100 }),
+  address: text('address'),
   mobile_hash: varchar('mobile_hash', { length: 255 }),
   email_verified_at: timestamp('email_verified_at'),
   pfp: text('pfp'),

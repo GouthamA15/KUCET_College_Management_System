@@ -3,7 +3,7 @@ import { cookies, headers } from 'next/headers';
 import { verifyJwt } from './auth';
 import { db } from '@/db';
 import { auditLogs, facultyHodAssignments } from '@/db/schema';
-import { and, eq, lte, gte } from 'drizzle-orm';
+import { and, eq, lte, gte, isNull, or } from 'drizzle-orm';
 import logger from './logger';
 import { z } from 'zod';
 
@@ -276,7 +276,21 @@ export async function getAuthUser(role = null) {
       } else if (expectedRole === 'hod') {
         if (actualRole === 'admin') {
           // Admin always has HOD bypass
-        } else if (actualRole === 'faculty') {
+        } else if (actualRole === 'faculty' || actualRole === 'hod') {
+          // Verify role_code: HOD in staffAccountRoles
+          const { staffAccountRoles, staffRoles } = await import('@/db/schema');
+          const roleCheck = await db.select({ role_code: staffRoles.role_code })
+            .from(staffAccountRoles)
+            .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
+            .where(
+              and(
+                eq(staffAccountRoles.staff_account_id, payload.id),
+                eq(staffRoles.role_code, 'HOD')
+              )
+            );
+            
+          if (roleCheck.length === 0) return null;
+
           // Must query DB to see if HOD assignment is currently active
           const now = new Date();
           const nowStr = now.toISOString().split('T')[0];
@@ -285,7 +299,10 @@ export async function getAuthUser(role = null) {
               eq(facultyHodAssignments.staff_account_id, payload.id),
               eq(facultyHodAssignments.is_active, true),
               lte(facultyHodAssignments.start_date, nowStr),
-              gte(facultyHodAssignments.end_date, nowStr)
+              or(
+                isNull(facultyHodAssignments.end_date),
+                gte(facultyHodAssignments.end_date, nowStr)
+              )
             )
           });
           if (!hodAssignment) return null;

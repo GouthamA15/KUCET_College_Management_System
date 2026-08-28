@@ -50,7 +50,7 @@ export const NAV_MENU_CONFIG = {
     { label: 'PROFILE', route: '/staff/scholarship/profile' },
     { label: 'STUDENT RECORDS', route: '/staff/scholarship/student-records' },
     { label: 'REQUESTS', route: '/staff/scholarship/dashboard?view=requests&scroll=1' },
-    { label: 'VERIFICATION', route: '/staff/scholarship/dashboard?view=certificates&scroll=1' },
+    // { label: 'VERIFICATION', route: '/staff/scholarship/dashboard?view=certificates&scroll=1' },
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/staff/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/staff/settings/security' }
@@ -77,7 +77,7 @@ export const NAV_MENU_CONFIG = {
     { label: 'PROFILE', route: '/staff/scholarship/profile' },
     { label: 'STUDENT RECORDS', route: '/staff/scholarship/student-records' },
     { label: 'REQUESTS', route: '/staff/scholarship/dashboard?view=requests&scroll=1' },
-    { label: 'VERIFICATION', route: '/staff/scholarship/dashboard?view=certificates&scroll=1' },
+    // { label: 'VERIFICATION', route: '/staff/scholarship/dashboard?view=certificates&scroll=1' },
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/staff/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/staff/settings/security' }

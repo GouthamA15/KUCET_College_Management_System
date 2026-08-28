@@ -212,6 +212,7 @@ export default function PendingStaffRequests({ onRequestAction, categoryFilter }
                 </div>
                 <div className="text-xs text-slate-600 mt-1 space-y-0.5">
                   <p><span className="font-medium text-slate-700">Designation:</span> {req.designation}</p>
+                  <p><span className="font-medium text-slate-700">Address:</span> {req.address || 'N/A'}</p>
                   <p><span className="font-medium text-slate-700">Email:</span> {req.email}</p>
                   <p className="text-slate-400">
                     Submitted: {req.created_at ? new Date(req.created_at).toLocaleString() : 'Recent'}
