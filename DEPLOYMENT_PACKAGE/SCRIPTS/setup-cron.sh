@@ -33,7 +33,7 @@ log "============================================================"
 # ---------------------------------------------------------------------------
 declare -a CRON_ENTRIES=(
   "*/5 * * * *|$SCRIPTS_DIR/monitor.sh >> /var/log/kucet/monitor-cron.log 2>&1|Monitor: every 5 minutes"
-  "0 2 * * *|$SCRIPTS_DIR/nightly-backup.sh >> /var/log/kucet/backup.log 2>&1|Nightly backup: daily at 02:00"
+  "30 2 * * *|$SCRIPTS_DIR/nightly-backup.sh >> /var/log/kucet/backup.log 2>&1|Nightly backup: daily at 02:30"
   "0 4 * * *|$SCRIPTS_DIR/offsite-backup.sh >> /var/log/kucet/offsite-backup.log 2>&1|Offsite backup: daily at 04:00"
   "@reboot|$SCRIPTS_DIR/boot-recovery.sh >> /var/log/kucet/boot-recovery.log 2>&1|Boot recovery: on reboot"
 )

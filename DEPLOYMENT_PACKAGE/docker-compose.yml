@@ -14,6 +14,8 @@ services:
     volumes:
       # Persistent VPS Storage Root mounted to container storage path
       - /var/www/kucet-storage:/app/storage
+      # Persistent VPS Database Backup Directory
+      - ${DB_BACKUP_PATH:-/var/kucet-db-backup}:/var/kucet-db-backup
     depends_on:
       db:
         condition: service_healthy

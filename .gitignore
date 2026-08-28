@@ -15,6 +15,9 @@
 # testing
 /coverage
 *.sql
+*.sql.gz
+*.sha256
+/backups
 !drizzle/*.sql
 !drizzle/**/*.sql
 

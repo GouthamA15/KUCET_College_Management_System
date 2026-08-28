@@ -26,7 +26,8 @@ The database schema evolution is managed version-by-version using Drizzle Kit. E
 | **`0011`** | `0011_curious_terrax.sql` | **Payment Screenshot Consolidation:** Consolidated request payment evidence into `student_request_images` sidecar table and safely dropped legacy redundant column `student_requests.payment_screenshot`. |
 | **`0012`** | `0012_clerk_registration_requests.sql` | **Staff Onboarding & Branch Verification:** Added `clerk_registration_requests` table for multi-role pending staff approvals and HOD branch constraint validation. |
 | **`0013`** | `0013_thin_outlaw_kid.sql` | **Performance & Foreign Key Indexes:** Optimized indexes across active operations and registration lookup tables. |
-| **`Session 207`** | *(pending generation)* | **Staff Identity System Overhaul:** See Section 5 below. 8 new/modified tables. Must run `db:generate` + `db:migrate` before deploying `testvanilla`. |
+| **`0014`** | `0014_zero_clerk_hard_break.sql` | **Zero Clerk Hard Break & Staff Unification:** Migrated all role enums from `clerk` to `staff`, dropped legacy `clerks` and `clerk_registration_requests` tables. |
+| **`0015`** | `0015_database_backup_logs.sql` | **Database Backup & Recovery Engine:** Created `database_backup_logs` operational metadata table tracking backup filenames, SHA-256 checksums, durations, types, and statuses. |
 
 ---
 
