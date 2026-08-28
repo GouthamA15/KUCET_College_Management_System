@@ -36,6 +36,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+scratch_*.js
+refactor_*.js
 
 # env files (can opt-in for committing if needed)
 .env
