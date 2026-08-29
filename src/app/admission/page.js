@@ -149,13 +149,22 @@ const AdmissionPage = () => {
         }
     }, []);
 
-    // Persistence: Debounced save to localStorage
+    // Persistence: Debounced save to localStorage with quota protection
     useEffect(() => {
         const timeoutId = setTimeout(() => {
             // Only save if there's significant data and form isn't submitted
             const hasData = form.name || form.father_name || form.student_mobile || form.email || files.pfp || files.signature;
             if (!submitted && hasData) {
-                localStorage.setItem('admission_form_draft', JSON.stringify({ form, admissionYear, files }));
+                try {
+                    localStorage.setItem('admission_form_draft', JSON.stringify({ form, admissionYear, files }));
+                } catch (quotaError) {
+                    // Browser storage quota exceeded due to large base64 images; persist text data reliably
+                    try {
+                        localStorage.setItem('admission_form_draft', JSON.stringify({ form, admissionYear, files: { pfp: null, signature: null } }));
+                    } catch {
+                        // Silent fallback
+                    }
+                }
             }
         }, 1500);
         return () => clearTimeout(timeoutId);
