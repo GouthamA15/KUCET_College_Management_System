@@ -38,7 +38,7 @@ The streamlined Faculty Profile page now exclusively displays personal and demog
 
 The Academics Hub is the primary classroom console for faculty staff. It consolidates subject management, attendance, evaluation, and student lookup under a single tabbed interface, replacing the former `/staff/faculty/teaching` route.
 
-The page contains **four tabs**:
+The page contains **five tabs**:
 
 ### 1. My Subjects
 Displays all faculty subject assignment cards sourced from `faculty_subject_assignments`. Each card includes:
@@ -56,6 +56,9 @@ Embedded tab entry point that navigates to the standalone Evaluation (Marks Entr
 
 ### 4. Students
 Renders the `StudentsLookupPanel` component inline within the hub. See the [Students Lookup Panel](#students-lookup-panel) section below for full documentation.
+
+### 5. Syllabus Management
+A dedicated tab available only to authorized Head of Departments (HODs). It embeds the `SyllabusManager.js` component to securely manage subject-branch mappings. HODs can view, add, and delete mappings, with the system enforcing unique mapping and blocking deletions if timetable or marks dependencies exist.
 
 ### Mobile Behaviour
 - Tabs wrap to multiple lines on narrow viewports instead of scrolling horizontally.
@@ -94,12 +97,32 @@ All queries are server-side validated. Authorized programs are derived exclusive
 | Student Name | `name` |
 | Admission No | `admission_no` |
 | Branch | `branch` |
+| More | *Opens Student Profile Modal* |
 
 The results table renders at full width (`w-full`, `min-w-[600px]`). Profile photos and batch year are intentionally excluded from the results payload.
 
+### Extended Student Profile Modal
+The "More" column in the data table opens a detailed student profile modal. This modal displays comprehensive information including: Name, Roll No, Father Name, Mother Name (fetched from `student_personal_details`), DOB, Phone, Email, Address, Current Year, and Batch. The address is dynamically constructed by combining up to 7 current address components (e.g., `curr_house_no`, `curr_street`), falling back to permanent address components if empty (the `country` is removed from the address string).
+
+### Excel Export Data
+The component features a styled native Excel (`.xlsx`) export using `xlsx-js-style` (replacing the previous basic CSV export). The generated Excel file includes 11 full columns:
+1. Roll Number
+2. Student Name
+3. Branch
+4. Email ID
+5. Phone Number
+6. Father Name
+7. Mother Name
+8. Date of Birth
+9. Address
+10. Current Year
+11. Batch
+
+Excel export filenames are dynamically generated based on the search state (e.g., `CSE_Year_2.xlsx` for Cohort Lookup or `Search_Results_21B81A0501.xlsx` for Global Search).
+
 ### API Source
 **Route:** `src/app/api/staff/faculty/class-lookup/route.js`
-- Returns fields: `id`, `roll_no`, `name`, `admission_no`, `branch`.
+- Returns fields: `id`, `roll_no`, `name`, `admission_no`, `branch`, along with additional personal details required for the extended modal and export.
 - Department constraint applied server-side via `staffAcademicAffiliations`.
 
 ---
