@@ -21,6 +21,9 @@ export const metadata = {
     statusBarStyle: "default",
     title: "KUCET CMS",
   },
+  other: {
+    "build-version": new Date().toISOString(),
+  },
 };
 
 export const viewport = {
@@ -35,9 +38,6 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <head>
-        <meta name="build-version" content={new Date().toISOString()} />
-      </head>
       <body className={`${inter.className} antialiased bg-institutional min-h-screen`}>
         <a
           href="#main-content"
