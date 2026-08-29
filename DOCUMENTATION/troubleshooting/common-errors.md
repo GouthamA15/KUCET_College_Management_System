@@ -108,6 +108,31 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 ```
 
+### 1.7 Backup Concurrency Lock Contention (`Backup operation already in progress`)
+
+* **Symptom**: Scheduled or manual backup triggers return `HTTP 409 Conflict` or log: `Backup or restore operation is already in progress`.
+* **Root Cause**: A previous backup or restore process was killed unexpectedly, leaving an orphaned `.backup.lock` file in `/var/kucet-db-backup`.
+* **Resolution Protocol**:
+  1. `DatabaseBackupService` automatically clears lock files older than 15 minutes.
+  2. For immediate administrative override:
+```bash
+# On VPS Host
+sudo rm -f /var/kucet-db-backup/.backup.lock /home/kucet-dev/backups/.backup.lock
+```
+
+---
+
+### 1.8 Backup Storage Permission Denied (`/var/kucet-db-backup`)
+
+* **Symptom**: Cron job logs `Permission denied: /var/kucet-db-backup/.backup.lock` or `cannot create file`.
+* **Root Cause**: The host directory `/var/kucet-db-backup` was created by `root` with `0700` permissions, preventing the cron user (`kucet-dev` or container) from writing.
+* **Resolution Protocol**:
+  Ensure directory ownership and write permissions:
+```bash
+sudo chown -R kucet-dev:kucet-dev /var/kucet-db-backup
+sudo chmod -R 755 /var/kucet-db-backup
+```
+
 ---
 
 ## 2. Diagnostics Matrix Reference Table
@@ -120,6 +145,8 @@ COPY --from=builder /app/public ./public
 | `ECONNREFUSED` | Database / Network | Incorrect `DB_HOST` setting | Set `DB_HOST=db` in `.env.production` |
 | `HTTP 429 Too Many Requests` | Auth / Cache | Rate-Limiter Threshold Exceeded | Run `redis-cli FLUSHDB` |
 | `MODULE_NOT_FOUND` | Deployment / Docker | Missing Standalone Copy | Verify Dockerfile `.next/standalone` copy step |
+| `Backup lock active` | Backup / Ops | Stale `.backup.lock` file | Remove `/var/kucet-db-backup/.backup.lock` |
+| `Backup EACCES` | Backup / Ops | Permissions on `/var/kucet-db-backup` | `chown -R kucet-dev:kucet-dev /var/kucet-db-backup` |
 
 ---
 

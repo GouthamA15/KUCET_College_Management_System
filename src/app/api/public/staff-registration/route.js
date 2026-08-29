@@ -25,7 +25,12 @@ const handler = async (req, { data }) => {
 
   // Verify Email Token
   try {
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-do-not-use');
+    let jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      if (process.env.NODE_ENV === 'production') throw new Error('FATAL: JWT_SECRET must be set in production');
+      jwtSecret = 'fallback-secret-do-not-use';
+    }
+    const secret = new TextEncoder().encode(jwtSecret);
     const { payload } = await jwtVerify(verificationToken, secret);
     
     if (payload.verifiedEmail !== email.trim().toLowerCase() || payload.purpose !== 'staff_registration_email') {

@@ -17,6 +17,9 @@ AGENTS.md
 CLAUDE.md
 /coverage
 *.sql
+*.sql.gz
+*.sha256
+/backups
 !drizzle/*.sql
 !drizzle/**/*.sql
 

@@ -1,11 +1,18 @@
-import { SignJWT, _jwtVerify } from 'jose';
+import { SignJWT } from 'jose';
 import crypto from 'crypto';
 import { db } from '@/db';
 import { refreshTokens, students, staffAccounts, principal } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 
 export function getJwtSecretKey() {
-  return new TextEncoder().encode(process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long');
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('FATAL: JWT_SECRET must be set in production environment.');
+    }
+    return new TextEncoder().encode('temporary_secret_at_least_32_chars_long');
+  }
+  return new TextEncoder().encode(secret);
 }
 
 export function setCookie(response, name, value, options = {}) {

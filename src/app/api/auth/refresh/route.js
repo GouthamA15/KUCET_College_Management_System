@@ -235,7 +235,12 @@ export async function POST(req) {
 
         // Issue new access token only
         const response = apiResponse({ success: true, message: 'Token refreshed (grace period)' });
-        const secret = typeof getJwtSecretKey === 'function' ? getJwtSecretKey() : new TextEncoder().encode(process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long');
+        let jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+          if (process.env.NODE_ENV === 'production') throw new Error('FATAL: JWT_SECRET must be set in production');
+          jwtSecret = 'temporary_secret_at_least_32_chars_long';
+        }
+        const secret = typeof getJwtSecretKey === 'function' ? getJwtSecretKey() : new TextEncoder().encode(jwtSecret);
         const sessionDuration = '15m';
         const cookieMaxAge = (cookieStore.get(`${type}_logged_in`)?.value === 'true' ? 30 : 14) * 24 * 60 * 60;
 

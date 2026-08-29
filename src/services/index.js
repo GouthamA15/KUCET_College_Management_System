@@ -10,5 +10,6 @@ export * from './shared/HealthService.js';
 export * from './attendance/AttendanceService.js';
 export * from './archive/index.js';
 export * from './institution/index.js';
+export * from './backup/index.js';
 
 

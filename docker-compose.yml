@@ -13,9 +13,13 @@ services:
       - "3000:3000"
     env_file:
       - .env.production
+    environment:
+      - DB_BACKUP_PATH=/app/backups
     volumes:
       # Persistent VPS Storage Root mounted to container storage path
       - /var/www/kucet-storage:/app/storage
+      # Persistent VPS Database Backup Directory
+      - /var/kucet-db-backup:/app/backups
     depends_on:
       db:
         condition: service_healthy

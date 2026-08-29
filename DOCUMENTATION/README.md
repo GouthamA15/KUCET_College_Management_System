@@ -32,8 +32,8 @@ DOCUMENTATION/
 │
 ├── database/                                  # Database Schemas & Migrations
 │   ├── schema.md                              # Identity, Academic, Operations, Finance, Security Schemas
-│   ├── migrations.md                          # Safe 4-Step Drizzle Migration Standard (0000-0013)
-│   └── backup-strategy.md                     # Automated DB Dumps, S3/Cloudinary Snapshots, PITR
+│   ├── migrations.md                          # Safe 4-Step Drizzle Migration Standard (0000-0015)
+│   └── backup-strategy.md                     # Automated 02:30 AM Backups, 14-Day Retention, Guarded Restore, Hybrid MySQL/TiDB
 │
 ├── deployment/                                # Infrastructure & Server Operations
 │   ├── vps.md                                 # Hostinger Ubuntu VPS Provisioning & Hardening
@@ -76,7 +76,7 @@ DOCUMENTATION/
 │
 ├── history/                                   # Historical Audits, ADRs & Release Notes
 │   ├── architectural-decisions.md             # System Architectural Decision Records (ADRs)
-│   ├── migration-history.md                   # Database Migrations Log (0000_... to 0013_...)
+│   ├── migration-history.md                   # Database Migrations Log (0000_... to 0015_...)
 │   ├── resolved-incidents.md                  # Forensic Post-Mortems (Sessions 176 - 205)
 │   ├── old-cloudinary-migration.md            # Legacy Cloudinary Migration Forensics
 │   ├── session-206-release-notes.md           # Session 206 Changelog (Web Push, QStash, Sentry)

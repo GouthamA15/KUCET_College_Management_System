@@ -215,7 +215,44 @@ const studentResponse = {
 ### Why This Architecture is Critical
 1. **Environment Portability**: Moving from local development to production VPS or changing S3 bucket names requires **zero database updates**.
 2. **CDN Transformation Flexibility**: On-the-fly Cloudinary image optimization parameters (`f_auto,q_auto`) can be modified globally without database migrations.
-3. **Security**: Allows generating short-lived signed URLs for sensitive documents (e.g. Transfer Certificates) at read-time.
+---
+
+## 🛡️ Production Database Backup & Disaster Recovery Engine
+
+The KUCET CMS maintains a robust, zero-data-loss database backup architecture supporting both self-hosted VPS MySQL deployments and distributed TiDB Cloud clusters:
+
+### Storage Architecture & Volume Configuration
+- **Persistent Host Directory**: Backups reside on the VPS host at `/var/kucet-db-backup`.
+- **Docker Mount & Writable Permissions**: The directory is mounted into the application container using Docker Compose:
+  ```yaml
+  environment:
+    - DB_BACKUP_PATH=/app/backups
+  volumes:
+    - /var/kucet-db-backup:/app/backups
+  ```
+- **File Ownership Security**: The host directory (`/var/kucet-db-backup`) MUST be owned by or writable by the container's `nextjs` user (`UID 1001`, `GID 1001`), completely avoiding insecure `chmod 777` permissions. 
+- **Application Context**: The application correctly accesses `/app/backups` internally, decoupling the Node.js implementation from the host machine's exact directory path.
+
+### Lifecycle & Retention
+- **Automated Schedule**: Daily at **02:30 AM** VPS local time (`30 2 * * *`) via host crontab and `nightly-backup.sh`.
+- **14-Day Retention Window**: Automatically prunes snapshots older than 14 days while **strictly preserving the latest valid backup** regardless of age to guarantee restoration fallback.
+- **Atomic Dump & Gzip Compression**: Backups are written to temporary `.sql.tmp` files, validated for SQL table structure headers, and compressed to Gzip-9 (`.sql.gz`).
+- **Cryptographic SHA-256 Verification**: Post-compression SHA-256 hash is computed and stored alongside the archive (`.sha256` sidecar) and tracked in `database_backup_logs`.
+
+### Operational Verification Procedure
+To manually verify the backup pipeline on the VPS:
+1. Initialize a manual backup from the Admin Dashboard or via the `DatabaseBackupService.createBackup()` method.
+2. Ensure the resulting `.sql.gz` file is generated inside `/var/kucet-db-backup` on the host machine.
+3. Validate ownership (`ls -ld`) to confirm it is not root-owned (should be `1001:1001`).
+4. Ensure the `.sha256` sidecar file is also correctly generated next to the archive.
+
+---
+
+## 🔌 Redis Architecture & Real-time Connectivity
+
+Real-time pub/sub features and caching utilize **Upstash (Serverless)** or **Self-Hosted Redis Container**.
+- **Docker Network Resolution**: When running Redis within the `docker-compose.yml` stack, the application connects via the internal service name `redis://redis:6379`.
+- **Localhost Fallback Prohibition**: `127.0.0.1:6379` is actively prevented inside `.env.production` to avoid unreachable connection attempts from inside the isolated `app` container, saving system resources and mitigating `ECONNREFUSED` connection spam.
 
 ---
 

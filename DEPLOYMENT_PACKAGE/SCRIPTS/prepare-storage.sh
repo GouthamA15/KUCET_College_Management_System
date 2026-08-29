@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # =============================================================================
 # prepare-storage.sh
 # Safely initializes production VPS storage directories with least privilege.
@@ -63,10 +63,11 @@ mkdir -p "$INSTITUTION_DIR" 2>/dev/null || true
 # 755 allows application/document engine to read but prevents unauthorized modification
 chmod 755 "$INSTITUTION_DIR" 2>/dev/null || true
 
-# 4. Isolated Database Backup Directory (Separate from storage, mode 700)
+# 4. Isolated Database Backup Directory (Separate from storage, needs 1001 access)
 DB_BACKUP_DIR="/var/kucet-db-backup"
 mkdir -p "$DB_BACKUP_DIR" 2>/dev/null || true
-chmod 700 "$DB_BACKUP_DIR" 2>/dev/null || true
+chown 1001:1001 "$DB_BACKUP_DIR" 2>/dev/null || sudo chown 1001:1001 "$DB_BACKUP_DIR" 2>/dev/null || true
+chmod 755 "$DB_BACKUP_DIR" 2>/dev/null || true
 
 echo "[prepare-storage] Storage preparation completed safely with least privilege (no chmod 777)."
 exit 0

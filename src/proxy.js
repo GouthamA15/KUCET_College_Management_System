@@ -38,7 +38,11 @@ export default async function proxy(request) {
   const adminAuth = cookies.get('admin_auth');
   const staffAuth = cookies.get('staff_auth');
   const studentAuth = cookies.get('student_auth');
-  const jwtSecret = process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long';
+  let jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    if (process.env.NODE_ENV === 'production') throw new Error('FATAL: JWT_SECRET must be set in production');
+    jwtSecret = 'temporary_secret_at_least_32_chars_long';
+  }
 
   const requestHeaders = new Headers(request.headers);
   const requestId = request.headers.get('x-request-id') || `req_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 7)}`;

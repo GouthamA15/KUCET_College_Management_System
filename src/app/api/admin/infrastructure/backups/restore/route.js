@@ -1,130 +1,36 @@
 import logger from '@/lib/logger';
 import { getAuthUser, apiError, apiResponse } from '@/lib/api-utils';
-import { v2 as cloudinary } from 'cloudinary';
-import { spawn } from 'child_process';
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
-
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-  secure: true,
-});
+import { DatabaseBackupService } from '@/services/backup/DatabaseBackupService.js';
+import { BACKUP_CONSTANTS } from '@/services/backup/backup.constants.js';
 
 export async function POST(req) {
   try {
     const user = await getAuthUser('admin');
     if (!user) return apiError('Unauthorized', 401);
 
-    const { filename } = await req.json();
-    if (!filename) return apiError('Filename is required.', 400);
+    const body = await req.json().catch(() => ({}));
+    const { filename, confirmPhrase } = body;
 
-    // Validate filename: allow only alphanumerics, dots, dashes, underscores, .sql extension
-    if (!/^[A-Za-z0-9._-]+\.sql$/.test(filename)) {
-      return apiError('Invalid filename.', 400);
+    if (!filename) {
+      return apiError('Filename is required.', 400);
     }
 
-    // SECURITY: We could verify password again here if we had it hashed, 
-    // but the getAuthUser already verified the session.
-    // For now, we trust the Super Admin session but log it heavily.
+    if (!confirmPhrase || (confirmPhrase !== BACKUP_CONSTANTS.RESTORE_CONFIRM_PHRASE && confirmPhrase !== 'RESTORE_DATABASE')) {
+      return apiError(`Confirmation phrase must be exactly "${BACKUP_CONSTANTS.RESTORE_CONFIRM_PHRASE}".`, 400);
+    }
+
     logger.warn(`[CRITICAL_ACTION] Super Admin ${user.email} initiated DATABASE RESTORE using ${filename}`);
 
-    const publicId = `kucet/backups/${filename}`;
-    const tempFilePath = path.join(os.tmpdir(), `restore_${new Date().getTime()}.sql`);
-
-    // 1. Download the backup file
-    const downloadUrl = cloudinary.utils.private_download_url(publicId, 'sql', {
-      resource_type: 'raw'
+    const result = await DatabaseBackupService.restoreBackup({
+      filename,
+      adminEmail: user.email,
+      confirmPhrase,
     });
 
-    const response = await fetch(downloadUrl);
-    if (!response.ok) throw new Error('Failed to download backup file from cloud.');
-    
-    const buffer = await response.arrayBuffer();
-    fs.writeFileSync(tempFilePath, Buffer.from(buffer));
-
-    // 2. Perform Restore using mysql CLI
-    // Note: This requires mysql client to be installed on the system/container.
-    return new Promise((resolve) => {
-      const mysqlArgs = [
-        `--host=${process.env.DB_HOST}`,
-        `--user=${process.env.DB_USER}`,
-        `--port=${process.env.DB_PORT || 3306}`,
-        process.env.DB_DATABASE
-      ];
-
-      // Pass password via environment variable instead of command line
-      const mysqlEnv = { ...process.env, MYSQL_PWD: process.env.DB_PASSWORD };
-
-      // Handle SSL for TiDB Cloud if needed
-      if (process.env.DB_SSL === 'true' || process.env.DB_HOST.includes('tidbcloud.com')) {
-        mysqlArgs.push('--ssl-mode=REQUIRED');
-      }
-
-      // We use spawn and pipe the file into stdin
-      const mysqlProcess = spawn('mysql', mysqlArgs, {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: mysqlEnv
-      });
-
-      mysqlProcess.on('error', async (err) => {
-        logger.warn(`Failed to start mysql CLI (${err.message}). Falling back to direct Drizzle SQL execution...`);
-        try {
-          const fileContent = fs.readFileSync(tempFilePath, 'utf8');
-          const statements = fileContent
-            .split(/;\s*$/m)
-            .map(s => s.trim())
-            .filter(s => s.length > 0 && !s.startsWith('--') && !s.startsWith('/*'));
-
-          const { db } = await import('@/db');
-          const { sql } = await import('drizzle-orm');
-          for (const statement of statements) {
-            if (statement) {
-              await db.execute(sql.raw(statement));
-            }
-          }
-          logger.info(`[RESTORE_SUCCESS_FALLBACK] Database restored via fallback SQL execution from ${filename}`);
-          resolve(apiResponse({ success: true, message: 'Database restoration successful (via SQL engine).' }));
-        } catch (fallbackErr) {
-          logger.error(`[RESTORE_FALLBACK_FAILED] Direct SQL restoration error: ${fallbackErr.message}`);
-          resolve(apiError('Database restoration failed.', 500));
-        } finally {
-          if (fs.existsSync(tempFilePath)) {
-            try { fs.unlinkSync(tempFilePath); } catch (_e) { /* empty */ }
-          }
-        }
-      });
-
-      const fileStream = fs.createReadStream(tempFilePath);
-      fileStream.pipe(mysqlProcess.stdin);
-
-      let errorOutput = '';
-      mysqlProcess.stderr.on('data', (data) => {
-        errorOutput += data.toString();
-      });
-
-      mysqlProcess.on('close', (code) => {
-        // Cleanup
-        if (fs.existsSync(tempFilePath)) {
-          try { fs.unlinkSync(tempFilePath); } catch (_e) { /* empty */ }
-        }
-        fileStream.destroy();
-
-        if (code === 0) {
-          logger.info(`[RESTORE_SUCCESS] Database successfully restored from ${filename}`);
-          resolve(apiResponse({ success: true, message: 'Database restoration successful.' }));
-        } else {
-          logger.error(`[RESTORE_FAILED] Database restore failed with code ${code}. Error: ${errorOutput}`);
-          resolve(apiError('Database restoration failed.', 500));
-        }
-      });
-    });
-
+    return apiResponse(result);
   } catch (error) {
-    logger.error(error, 'Error during database restore');
-    return apiError('Internal Server Error', 500);
+    logger.error({ err: error.message }, 'Error during database restore');
+    const status = error.message.includes('already in progress') ? 409 : 500;
+    return apiError(error.message || 'Database restoration failed.', status);
   }
 }

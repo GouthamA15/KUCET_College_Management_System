@@ -1,6 +1,6 @@
 import { 
   mysqlTable, varchar, int, boolean, text, decimal, json, timestamp, 
-  mysqlEnum, tinyint, index, uniqueIndex, date
+  mysqlEnum, tinyint, index, uniqueIndex, date, bigint
 } from 'drizzle-orm/mysql-core';
 import { principal } from './identity.js';
 
@@ -229,5 +229,24 @@ export const bugReports = mysqlTable('bug_reports', {
   submittedByIdx: index('idx_bug_submitted_by').on(table.submitted_by),
   typeIdx: index('idx_bug_type').on(table.type),
   createdAtIdx: index('idx_bug_created_at').on(table.created_at),
+}));
+
+export const databaseBackupLogs = mysqlTable('database_backup_logs', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  filename: varchar('filename', { length: 255 }).notNull(),
+  file_path: varchar('file_path', { length: 500 }).notNull(),
+  file_size_bytes: bigint('file_size_bytes', { mode: 'number' }),
+  checksum_sha256: varchar('checksum_sha256', { length: 64 }),
+  backup_type: mysqlEnum('backup_type', ['SCHEDULED', 'MANUAL', 'EMERGENCY_PRE_RESTORE']).default('SCHEDULED').notNull(),
+  status: mysqlEnum('status', ['IN_PROGRESS', 'SUCCESS', 'FAILED']).default('IN_PROGRESS').notNull(),
+  error_message: text('error_message'),
+  duration_ms: int('duration_ms'),
+  triggered_by: varchar('triggered_by', { length: 255 }).default('SYSTEM_CRON').notNull(),
+  created_at: timestamp('created_at').defaultNow(),
+  completed_at: timestamp('completed_at'),
+}, (table) => ({
+  filenameIdx: index('idx_backup_filename').on(table.filename),
+  statusIdx: index('idx_backup_status').on(table.status),
+  createdAtIdx: index('idx_backup_created_at').on(table.created_at),
 }));
 
