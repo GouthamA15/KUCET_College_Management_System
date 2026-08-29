@@ -149,7 +149,7 @@ export const staffAccounts = mysqlTable('staff_accounts', {
   address: text('address'),
   last_login_at: timestamp('last_login_at'),
   last_login_ip: varchar('last_login_ip', { length: 64 }),
-  account_status: mysqlEnum('account_status', ['PENDING_ACTIVATION', 'ACTIVE', 'SUSPENDED']).default('PENDING_ACTIVATION').notNull(),
+  account_status: mysqlEnum('account_status', ['PENDING_ACTIVATION', 'ACTIVE', 'SUSPENDED', 'DISABLED']).default('PENDING_ACTIVATION').notNull(),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
 }, (table) => ({
