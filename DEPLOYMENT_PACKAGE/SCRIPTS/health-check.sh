@@ -89,6 +89,25 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# CHECK 6b: Endpoint crash check for critical admin routes (no 500 internal errors)
+# ---------------------------------------------------------------------------
+STAFF_REQ_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "http://localhost/api/admin/staff-requests" 2>/dev/null || echo "000")
+if [[ "$STAFF_REQ_STATUS" == "401" || "$STAFF_REQ_STATUS" == "200" ]]; then
+  record "api:staff-requests" "PASS" "Endpoint responsive (HTTP $STAFF_REQ_STATUS)"
+else
+  record "api:staff-requests" "FAIL" "HTTP $STAFF_REQ_STATUS (expected 200 or 401) from /api/admin/staff-requests"
+  CRITICAL_FAIL=true
+fi
+
+HOD_REQ_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "http://localhost/api/admin/hod-requests" 2>/dev/null || echo "000")
+if [[ "$HOD_REQ_STATUS" == "401" || "$HOD_REQ_STATUS" == "200" ]]; then
+  record "api:hod-requests" "PASS" "Endpoint responsive (HTTP $HOD_REQ_STATUS)"
+else
+  record "api:hod-requests" "FAIL" "HTTP $HOD_REQ_STATUS (expected 200 or 401) from /api/admin/hod-requests"
+  CRITICAL_FAIL=true
+fi
+
+# ---------------------------------------------------------------------------
 # (CHECK 7 removed: rely on Docker native container healthcheck)
 # ---------------------------------------------------------------------------
 
