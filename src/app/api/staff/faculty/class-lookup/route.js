@@ -1,10 +1,11 @@
-import { students as studentsTable } from '@/db/schema';
+import { students as studentsTable, studentPersonalDetails } from '@/db/schema';
 import { db } from '@/db';
 import { eq, and, asc, like, or, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { branchCodes } from '@/lib/rollNumber';
 import logger from '@/lib/logger';
 import { getCollegeAcademicYear } from '@/lib/academic-utils';
+import { decrypt } from '@/lib/encryption';
 import { staffAcademicAffiliations, academicDepartments, academicPrograms } from '@/db/schema';
 
 export async function GET(request) {
@@ -98,9 +99,29 @@ export async function GET(request) {
       roll_no: studentsTable.roll_no,
       name: studentsTable.name,
       admission_no: studentsTable.admission_no,
-      academic_offset_years: studentsTable.academic_offset_years
+      academic_offset_years: studentsTable.academic_offset_years,
+      email: studentsTable.email,
+      date_of_birth: studentsTable.date_of_birth,
+      mobile: studentsTable.mobile,
+      father_name: studentPersonalDetails.father_name,
+      mother_name: studentPersonalDetails.mother_name,
+      curr_house_no: studentPersonalDetails.curr_house_no,
+      curr_apartment: studentPersonalDetails.curr_apartment,
+      curr_street: studentPersonalDetails.curr_street,
+      curr_city: studentPersonalDetails.curr_city,
+      curr_state: studentPersonalDetails.curr_state,
+      curr_pincode: studentPersonalDetails.curr_pincode,
+      curr_country: studentPersonalDetails.curr_country,
+      perm_house_no: studentPersonalDetails.perm_house_no,
+      perm_apartment: studentPersonalDetails.perm_apartment,
+      perm_street: studentPersonalDetails.perm_street,
+      perm_city: studentPersonalDetails.perm_city,
+      perm_state: studentPersonalDetails.perm_state,
+      perm_pincode: studentPersonalDetails.perm_pincode,
+      perm_country: studentPersonalDetails.perm_country
     })
     .from(studentsTable)
+    .leftJoin(studentPersonalDetails, eq(studentsTable.id, studentPersonalDetails.student_id))
     .where(and(...conditions))
     .orderBy(asc(studentsTable.roll_no))
     .limit(isSearchMode ? 50 : 200); // Limit search results
@@ -114,12 +135,38 @@ export async function GET(request) {
         branchName = branchCodes[bc] || 'Unknown';
       }
 
+      let current_year = 'Unknown';
+      let batch_year = 'Unknown';
+      if (match) {
+        const startYear = parseInt('20' + match[1], 10);
+        batch_year = startYear.toString();
+        const isLateral = !!match[4];
+        const expectedYear = isLateral 
+           ? (currentStartYear - startYear + 2) - s.academic_offset_years
+           : (currentStartYear - startYear + 1) - s.academic_offset_years;
+        current_year = `Year ${Math.max(1, Math.min(4, expectedYear))}`;
+      }
+
       return {
         id: s.id,
         roll_no: s.roll_no,
         name: s.name,
         admission_no: s.admission_no,
-        branch: branchName
+        branch: branchName,
+        email: s.email || 'N/A',
+        dob: s.date_of_birth ? new Date(s.date_of_birth).toLocaleDateString() : 'N/A',
+        phone: decrypt(s.mobile) || 'N/A',
+        father_name: s.father_name || 'N/A',
+        mother_name: s.mother_name || 'N/A',
+        address: (() => {
+          let addrParts = [s.curr_house_no, s.curr_apartment, s.curr_street, s.curr_city, s.curr_state, s.curr_pincode].filter(Boolean);
+          if (addrParts.length === 0) {
+            addrParts = [s.perm_house_no, s.perm_apartment, s.perm_street, s.perm_city, s.perm_state, s.perm_pincode].filter(Boolean);
+          }
+          return addrParts.length > 0 ? addrParts.join(', ') : 'N/A';
+        })(),
+        batch_year,
+        current_year
       };
     });
 

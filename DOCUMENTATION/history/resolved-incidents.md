@@ -289,3 +289,47 @@ const isOtpValid = crypto.timingSafeEqual(
 1. **Dependency Forensics**: Added nested npm overrides for `@ducanh2912/next-pwa` to force `workbox-build` to `7.4.0`, dropping `glob@7` and `inflight` without breaking builds.
 2. **JWT Security Patch**: Rewrote JWT verification across `auth-utils.js`, `proxy.js`, and `api-utils.js` to explicitly `throw new Error()` if the secret is missing and `NODE_ENV === "production"`.
 3. **MIME Validation Patch**: Added strict `image/` MIME type validation to payment screenshot uploads in `/api/student/requests/route.js`.
+
+---
+
+### 10. Session 208: Production Cache Forensics & Faculty Module Context Bug (August 29, 2026)
+
+#### Incident Summary
+The application exhibited stale components and stale Faculty/HOD API data in production. A normal browser refresh (F5) did not reliably load the latest state, while a hard refresh (Ctrl+Shift+R) immediately fixed it. 
+
+#### Root Cause Analysis
+An extensive forensic cache audit revealed a cascading failure across three overlapping caching layers:
+1. **Next-PWA Aggressive RSC Caching (`next.config.mjs`)**: The `@ducanh2912/next-pwa` module was actively overwriting the custom `public/sw.js` during production builds. It was configured with `cacheOnFrontEndNav: true` and `aggressiveFrontEndNavCaching: true`, which aggressively intercepted and cached Next.js App Router dynamic RSC payloads (`?_rsc=...`) as well as HTML page payloads.
+2. **Custom Service Worker Misconfiguration (`public/sw.js`)**: The custom fallback service worker (intended for Push Notifications) included a "Stale-While-Revalidate" fallback that erroneously caught *all* non-API `GET` requests, including Next.js `_rsc` data fetches, rather than being restricted to static assets (`_next/static/`, `.css`, images).
+3. **React Context Stagnation (`StaffContext.js`)**: The `StaffContext` only fetched faculty assignments and HOD configuration once upon mount (`hasFetchedFaculty`), failing to re-validate when a user backgrounded the app or navigated away and back.
+
+#### Resolution Steps
+- **Next-PWA Removal**: Completely uninstalled `@ducanh2912/next-pwa` from `package.json` and removed `withPWAInit` from `next.config.mjs`. The project natively utilizes its own `public/sw.js` and manual registration (`PwaRegister.js`), making the external package redundant and destructive.
+- **Service Worker Guardrails**: Fixed `public/sw.js` by explicitly restricting Stale-While-Revalidate caching to static asset paths (matching `/^_next\/static/` and common image/font extensions), bypassing the cache for all Next.js dynamic routing and RSC data.
+- **State Revalidation**: Updated `StaffContext.js` `refreshAllData` and its dependency array to explicitly trigger `fetchFacultyData` and `fetchHODData` when resuming the application (`visibilitychange` / `pageshow`), ensuring context syncs across tabs without requiring a hard refresh.
+
+---
+
+### 11. Session 209: Forensic Resolution of Realtime Heartbeat Leak, Admission Draft Image Restoration, and SSC Decimal Precision (August 29, 2026)
+
+#### Incident Summary
+1. **Event Listener / Realtime Lifecycle Accumulation**: Node runtime `MaxListenersExceededWarning` and memory overhead under repeated navigation and tab cycling.
+2. **Admission Draft Restoration Bug**: Saving an incomplete admission draft and clicking "Restore" restored text fields but failed to restore profile photo and signature previews.
+3. **SSC / 10th Marks Decimal Limitation**: Public admission form rejected decimal marks/CGPA values (e.g., `9.5`, `8.75`, `98.4`).
+
+#### Root Cause Analysis
+1. **Instrumentation & Realtime Heartbeat Lifecycle**:
+   - `src/instrumentation.js` attached `process.on('warning', ...)` unconditionally whenever instrumentation re-ran across server workers.
+   - `src/components/RealtimeListener.js` ran `startSupabaseHeartbeat()` interval without auto-terminating when all active subscriber components unmounted, leading to orphan background intervals and channel re-subscription races.
+2. **Admission Draft State Serialization Gap**:
+   - `src/app/admission/page.js` debounced `localStorage.setItem('admission_form_draft', ...)` saving only `{ form, admissionYear }` while omitting `{ files }`.
+   - Hidden `<input type="file" required>` prevented form submission upon restore because native browser file inputs cannot be programmatically hydrated from existing base64 strings or URLs.
+3. **Frontend Decimal Step Limitation**:
+   - Database schema already defined `student_academic_background.ssc_marks` and `student_admission_drafts.ssc_marks` as `varchar(50)`.
+   - However, `src/app/admission/page.js` defined `<input type="number" min="0" />` without `step="any"`, triggering native browser constraint validation errors on decimal inputs.
+
+#### Resolution Steps
+- **Heartbeat & Event Listener Guard**: Added `globalThis._warningListenerRegistered` in `src/instrumentation.js` to ensure single warning handler attachment. Added auto-clear guard in `RealtimeListener.js` to cancel the heartbeat interval when all listener subscribers unmount, and wrapped `sharedSupabaseChannel.unsubscribe()` in defensive error boundaries.
+- **Draft Media Restoration Pipeline**: Included `files` (`pfp`, `signature`) in localStorage draft serialization; restored both image previews on "Restore"; dynamically switched hidden file inputs to `required={!files.pfp}` / `required={!files.signature}` and updated button labels to "Change Photo" / "Change Signature".
+- **Decimal Support**: Added `step="any"` and `placeholder="TOTAL MARKS / CGPA (e.g. 9.5 or 580)"` to `src/app/admission/page.js`. Validated compatibility across Zod schemas (`src/app/api/public/admission/route.js`, `src/lib/validations/student.js`) and database columns (`varchar(50)`).
+- **Automated Regression Suite**: Created `tests/unit/admission-restoration-and-decimals.test.js` validating decimal parsing, full draft serialization/deserialization with base64 images, legacy draft fallback, and listener idempotency. All 53 test files (395 tests) passed.

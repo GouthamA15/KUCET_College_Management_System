@@ -26,9 +26,6 @@ export default function FacultyProfilePage() {
       { key: 'email', label: 'Email', value: staff?.email || '-' },
       { key: 'mobile', label: 'Mobile', value: staff?.mobile || '-' },
       { key: 'employee_id', label: 'Employee ID', value: staff?.employee_id || '-' },
-      { key: 'account_status', label: 'Account Status', value: staff?.is_active ? 'Active' : 'Inactive' },
-      { key: 'joined', label: 'Joined', value: staff?.created_at ? new Date(staff.created_at).toLocaleDateString() : '-' },
-      { key: 'last_login', label: 'Last Login', value: staff?.last_login_at ? new Date(staff.last_login_at).toLocaleString() : '-' },
       { key: 'address', label: 'Address', value: staff?.address || '-' },
     ];
   }, [staff]);

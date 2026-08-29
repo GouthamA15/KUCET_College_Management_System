@@ -57,12 +57,13 @@ export const syllabusStructure = mysqlTable('syllabus_structure', {
   id: int('id').autoincrement().primaryKey().notNull(),
   branch: varchar('branch', { length: 50 }).notNull(),
   semester: tinyint('semester').notNull(),
-  subject_code: varchar('subject_code', { length: 50 }).notNull(),
+  subject_code: varchar('subject_code', { length: 50 }).notNull().references(() => syllabusSubjects.subject_code, { onDelete: 'restrict' }),
   is_group: boolean('is_group').default(false),
   parent_group_code: varchar('parent_group_code', { length: 50 }),
 }, (table) => ({
   branchIdx: index('branch').on(table.branch, table.semester),
   subjectCodeIdx: index('subject_code').on(table.subject_code),
+  uqMapping: uniqueIndex('unique_mapping').on(table.branch, table.semester, table.subject_code),
 }));
 
 export const semesters = mysqlTable('semesters', {

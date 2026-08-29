@@ -72,15 +72,10 @@ export default function PersonalSchedule() {
   return (
     <>
       <RealtimeListener onUpdate={handleRealtimeUpdate} />
-      <div className="bg-white border border-slate-200 shadow-sm overflow-hidden">
-        <div className="bg-[#0b3578] px-6 py-4 text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-sm font-bold tracking-wider uppercase">Weekly Teaching Matrix</h2>
-            <p className="text-blue-200 text-[9px] font-medium uppercase tracking-widest mt-0.5 opacity-80">Academic Year 2025-26 &bull; Official Registry</p>
-          </div>
-          <div className="bg-white/10 px-3 py-1 border border-white/20 text-[10px] font-bold uppercase tracking-tighter">
-            {schedule.length} Periods Recorded
-          </div>
+      <div className="bg-white border border-slate-200 lg:border-slate-200 shadow-sm lg:shadow-none overflow-hidden lg:h-full lg:flex lg:flex-col lg:min-h-0">
+        <div className="bg-[#0b3578]/5 lg:bg-slate-50 px-4 py-2.5 lg:py-2 border-b border-blue-200 lg:border-slate-300 flex items-center justify-between shrink-0">
+          <h2 className="text-[10px] font-bold text-slate-700 lg:text-slate-700 uppercase tracking-[0.20em]">Weekly Teaching Matrix</h2>
+          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{schedule.length} Periods Recorded</span>
         </div>
 
         {/* Desktop Matrix Layout */}

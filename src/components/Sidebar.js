@@ -913,7 +913,7 @@ function SidebarInner({
 
 export default function Sidebar(props) {
   return (
-    <Suspense fallback={<div className="w-64 bg-[#0b3578] h-full"></div>}>
+    <Suspense fallback={<div className="hidden lg:block w-64 bg-[#0b3578] h-full"></div>}>
       <SidebarInner {...props} />
     </Suspense>
   );

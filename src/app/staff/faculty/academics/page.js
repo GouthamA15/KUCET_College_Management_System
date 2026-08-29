@@ -8,6 +8,7 @@ import InterestStatusList from '@/components/staff/faculty/InterestStatusList';
 import HodAccessManager from '@/components/staff/faculty/HodAccessManager';
 import StudentsLookupPanel from '@/components/staff/faculty/StudentsLookupPanel';
 import SubjectAssignmentsList from '@/components/staff/faculty/SubjectAssignmentsList';
+import SyllabusManager from '@/components/staff/faculty/SyllabusManager';
 
 import { Info, X, Search, ChevronDown } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -168,7 +169,8 @@ function AcademicsContent() {
   const tabs = [
     { id: 'subjects', label: 'My Subjects' },
     ...(staffData?.is_hod ? [
-      { id: 'assign-subjects', label: 'Assign Subjects' }
+      { id: 'assign-subjects', label: 'Assign Subjects' },
+      { id: 'syllabus', label: 'Syllabus Management' }
     ] : [
       { id: 'requests', label: 'Request Subjects' }
     ]),
@@ -426,6 +428,11 @@ function AcademicsContent() {
         <div className="bg-gradient-to-br from-blue-50/50 via-white to-blue-50/50 border border-blue-100 shadow-sm rounded-sm p-4 sm:p-6">
           <SubjectAssignmentsList />
         </div>
+      )}
+
+      {/* ── Syllabus Management (HOD) ── */}
+      {staffData?.is_hod && activeTab === 'syllabus' && (
+        <SyllabusManager />
       )}
 
       {/* ── Students ── */}
