@@ -1,7 +1,7 @@
 import { db } from '@/db';
 import { staffRegistrationRequests, auditLogs } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { wrapHandler } from '@/lib/api-utils';
+import { wrapHandler, apiError } from '@/lib/api-utils';
 import { z } from 'zod';
 
 const rejectSchema = z.object({
@@ -12,12 +12,20 @@ export const POST = wrapHandler({
   auth: 'admin',
   schema: rejectSchema,
   handler: async (req, { data, user, context }) => {
-    const idUrl = req.nextUrl.pathname.split('/');
-    const idStr = idUrl[idUrl.length - 2];
-    const requestId = parseInt(idStr, 10);
-
+    // Resolve ID from route params or fallback to URL splitting
+    const params = await context?.params;
+    let requestId = parseInt(params?.id, 10);
     if (isNaN(requestId)) {
-      return { error: 'Invalid request ID', status: 400 };
+      const pathname = req.nextUrl?.pathname || new URL(req.url, 'http://localhost').pathname;
+      const segments = pathname.split('/').filter(Boolean);
+      const rejectIdx = segments.indexOf('reject');
+      if (rejectIdx > 0) {
+        requestId = parseInt(segments[rejectIdx - 1], 10);
+      }
+    }
+
+    if (isNaN(requestId) || requestId <= 0) {
+      return apiError('Invalid request ID', 400);
     }
 
     const adminId = user?.id || user?.adminId;

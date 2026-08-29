@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { facultyHodRequests, staffAccounts, staffAccountRoles, staffRoles, facultyHodAssignments, semesters, auditLogs } from '@/db/schema';
-import { eq, and, gte } from 'drizzle-orm';
+import { eq, and, gte, or, isNull } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function PATCH(request, context) {
@@ -106,7 +106,10 @@ export async function PATCH(request, context) {
             eq(facultyHodAssignments.department_code, reqRecord.department_code),
             eq(facultyHodAssignments.academic_year, reqRecord.academic_year),
             eq(facultyHodAssignments.is_active, true),
-            gte(facultyHodAssignments.end_date, nowStr) // Must not be expired
+            or(
+              isNull(facultyHodAssignments.end_date),
+              gte(facultyHodAssignments.end_date, nowStr)
+            )
           )
         );
 
