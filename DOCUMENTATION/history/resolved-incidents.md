@@ -289,3 +289,21 @@ const isOtpValid = crypto.timingSafeEqual(
 1. **Dependency Forensics**: Added nested npm overrides for `@ducanh2912/next-pwa` to force `workbox-build` to `7.4.0`, dropping `glob@7` and `inflight` without breaking builds.
 2. **JWT Security Patch**: Rewrote JWT verification across `auth-utils.js`, `proxy.js`, and `api-utils.js` to explicitly `throw new Error()` if the secret is missing and `NODE_ENV === "production"`.
 3. **MIME Validation Patch**: Added strict `image/` MIME type validation to payment screenshot uploads in `/api/student/requests/route.js`.
+
+---
+
+### 10. Session 208: Production Cache Forensics & Faculty Module Context Bug (August 29, 2026)
+
+#### Incident Summary
+The application exhibited stale components and stale Faculty/HOD API data in production. A normal browser refresh (F5) did not reliably load the latest state, while a hard refresh (Ctrl+Shift+R) immediately fixed it. 
+
+#### Root Cause Analysis
+An extensive forensic cache audit revealed a cascading failure across three overlapping caching layers:
+1. **Next-PWA Aggressive RSC Caching (`next.config.mjs`)**: The `@ducanh2912/next-pwa` module was actively overwriting the custom `public/sw.js` during production builds. It was configured with `cacheOnFrontEndNav: true` and `aggressiveFrontEndNavCaching: true`, which aggressively intercepted and cached Next.js App Router dynamic RSC payloads (`?_rsc=...`) as well as HTML page payloads.
+2. **Custom Service Worker Misconfiguration (`public/sw.js`)**: The custom fallback service worker (intended for Push Notifications) included a "Stale-While-Revalidate" fallback that erroneously caught *all* non-API `GET` requests, including Next.js `_rsc` data fetches, rather than being restricted to static assets (`_next/static/`, `.css`, images).
+3. **React Context Stagnation (`StaffContext.js`)**: The `StaffContext` only fetched faculty assignments and HOD configuration once upon mount (`hasFetchedFaculty`), failing to re-validate when a user backgrounded the app or navigated away and back.
+
+#### Resolution Steps
+- **Next-PWA Removal**: Completely uninstalled `@ducanh2912/next-pwa` from `package.json` and removed `withPWAInit` from `next.config.mjs`. The project natively utilizes its own `public/sw.js` and manual registration (`PwaRegister.js`), making the external package redundant and destructive.
+- **Service Worker Guardrails**: Fixed `public/sw.js` by explicitly restricting Stale-While-Revalidate caching to static asset paths (matching `/^_next\/static/` and common image/font extensions), bypassing the cache for all Next.js dynamic routing and RSC data.
+- **State Revalidation**: Updated `StaffContext.js` `refreshAllData` and its dependency array to explicitly trigger `fetchFacultyData` and `fetchHODData` when resuming the application (`visibilitychange` / `pageshow`), ensuring context syncs across tabs without requiring a hard refresh.

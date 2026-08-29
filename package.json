@@ -22,7 +22,6 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1103.0",
-    "@ducanh2912/next-pwa": "^10.2.9",
     "@react-pdf/renderer": "^4.3.2",
     "@sentry/nextjs": "^10.70.0",
     "@supabase/supabase-js": "^2.99.3",
