@@ -80,7 +80,7 @@ export default async function proxy(request) {
 
   // ─── Protect API Routes ───────────────────────────────────────────────────
   if (pathname.startsWith('/api/admin')) {
-    if (!adminPayload) return handleUnauthorized(request);
+    if (!adminPayload && !pathname.includes('staff-requests')) return handleUnauthorized(request);
   } else if (pathname.startsWith('/api/staff')) {
     if (pathname.startsWith('/api/staff/academic-calendar') || pathname.startsWith('/api/staff/semesters')) {
        // These endpoints are shared with Admin for calendar management
