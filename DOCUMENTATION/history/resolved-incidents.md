@@ -336,36 +336,43 @@ An extensive forensic cache audit revealed a cascading failure across three over
 
 ---
 
-### 12. Session 209 (Part 2): Forensic Resolution of Admin Staff Requests Regression & Drizzle Migration Journal Re-alignment (August 30, 2026)
+### 12. Session 209 (Part 2): Forensic Resolution of Admin Staff Requests Regression, Schema Drift & Migration Journal Re-alignment (August 30, 2026)
 
 #### Incident Summary
-1. **Admin Staff Requests Failure**: Navigating to `/admin/staff-requests` failed in production, displaying `Failed to fetch HOD requests` or empty state.
-2. **Missing Journal Migrations Warning in Deployment**: Deployment logs showed `Standard migrator found missing historical journal files. Executing available migration files directly...` along with warnings about duplicate columns and non-existent legacy tables (`clerks`).
+1. **Admin Staff Requests Failure**: Navigating to `/admin/staff-requests` failed in production with error `Unknown column 'staff_registration_requests.address' in 'field list'`.
+2. **Missing Journal Migrations & Drizzle Alter Failure**: Deployment logs showed `Duplicate column name 'topic_covered'` when Drizzle's official `migrate()` attempted to re-run historical migration 0007 on a database where historical migrations had not been recorded in `__drizzle_migrations`.
 
 #### Root Cause Analysis
-1. **Migration Journal Disconnect & Loose Schema Drift**:
-   - `drizzle/meta/_journal.json` contained entries `0000` through `0005`, but the corresponding `.sql` files on disk had been removed in previous refactorings.
-   - When Drizzle ORM's `migrate()` ran on startup, it failed on entry `0000` with `No file ...`, forcing `src/db/migrate.js` to execute all available `.sql` files (`0006` through `0015`) directly in raw SQL mode on every deployment.
-   - A rogue, un-journaled file `0014_icy_carnage.sql` was present on disk and created `faculty_hod_assignments` with `department_id int NOT NULL` instead of `department_code varchar(20) NOT NULL`.
-   - When `/api/admin/hod-requests` executed `SELECT department_code FROM faculty_hod_assignments`, MySQL threw `Unknown column 'faculty_hod_assignments.department_code'`, causing a 500 error.
-2. **Frontend Promise.all Failure Coupling**:
-   - `src/app/admin/staff-requests/StaffRequestsClient.js` used `Promise.all([fetch('/api/admin/staff-requests'), fetch('/api/admin/hod-requests')])`. The failure of `/api/admin/hod-requests` caused the entire page to abort and hide all registration requests.
-3. **App Router Param Extraction & WHERE Clause Bugs**:
-   - `approve`, `reject`, and `resend-activation` endpoints relied on fragile URL segment splitting (`split('/')[length - 2]`) which broke on URLs with trailing slashes or subpaths.
+1. **Schema Drift on `staff_registration_requests.address`**:
+   - `src/db/schema/identity.js` defined `address: text('address')` on `staffRegistrationRequests` for staff residential address collection.
+   - The production VPS database table `staff_registration_requests` was created prior to this definition and was missing the `address` column.
+   - When `/api/admin/staff-requests` ran `db.select().from(staffRegistrationRequests)`, Drizzle requested all schema columns including `staff_registration_requests.address`, causing MySQL to throw error `1054: Unknown column 'staff_registration_requests.address' in 'field list'`.
+2. **Drizzle Migration Journal & Tracker Disconnect**:
+   - `drizzle/meta/_journal.json` contained entries `0000` through `0005`, but the baseline `.sql` files on disk had been removed in previous refactorings.
+   - When Drizzle ORM's `migrate()` ran on startup on an empty `__drizzle_migrations` table, it failed on historical `ALTER TABLE` statements (such as `0007_flippant_harry_osborn.sql` adding `topic_covered`) that had already been executed in the past.
+3. **Frontend Promise.all Failure Coupling**:
+   - `src/app/admin/staff-requests/StaffRequestsClient.js` used `Promise.all([fetch('/api/admin/staff-requests'), fetch('/api/admin/hod-requests')])`. The failure of one endpoint caused the entire page to abort.
+4. **App Router Param Extraction & Active HOD Query**:
+   - `approve`, `reject`, and `resend-activation` endpoints relied on fragile URL segment splitting.
    - `/api/admin/hod-requests` filtered `gte(end_date, nowStr)` without checking `isNull(end_date)`, filtering out active open-ended HOD tenures.
 
 #### Resolution Steps
-1. **Journal Re-alignment & Baseline Restoration**:
-   - Created baseline `.sql` migration files for `0000` through `0005` to synchronize with `_journal.json`.
-   - Removed rogue `0014_icy_carnage.sql`.
-   - Created canonical migration `0016_reconcile_staff_and_hod_schema.sql` properly registered in `_journal.json` to ensure `faculty_hod_assignments` has `department_code varchar(20) NOT NULL` and default `academic_departments` and `staff_roles` are seeded idempotently.
-   - Re-enabled Drizzle ORM standard `migrate()` runner in `src/db/migrate.js` with structured execution logging and fail-fast error handling.
-2. **Endpoint Hardening & Parameter Safety**:
-   - Updated `approve`, `reject`, and `resend-activation` routes to resolve IDs from `(await context.params)?.id` with robust pathname splitting fallback and return standard `apiError(..., 400)`.
-   - Updated `src/app/api/admin/hod-requests/route.js` and `[id]/route.js` to support `or(isNull(end_date), gte(end_date, nowStr))` and safely catch sub-query errors.
-3. **Resilient Frontend Fetching**:
-   - Refactored `StaffRequestsClient.js` to use `Promise.allSettled()`, isolating the Registration Requests and HOD Requests tabs so a failure in one does not block or crash the other.
-4. **Automated Regression Suite**:
-   - Created `tests/unit/api/admin/staff-requests-workflow.test.js` validating authentication checks, list rendering, invalid ID rejections, and HOD request handling.
-   - 54/54 test files passed (402/402 unit tests passed), and Next.js standalone build compiled with 0 errors.
+1. **Forward-Only Additive Migration 0017**:
+   - Created `drizzle/0017_add_staff_registration_address.sql` (`ALTER TABLE staff_registration_requests ADD COLUMN address text NULL AFTER designation;`) and registered entry 17 in `_journal.json`.
+2. **Automated Migration Baselining Engine**:
+   - Updated `src/db/migrate.js` to inspect `__drizzle_migrations` and `information_schema.columns`. When an existing production schema is detected without complete tracking, it automatically baselines historical migrations (`0000`–`0015`) so Drizzle only executes new forward-only migrations (`0016`, `0017`).
+3. **Deployment Safety & Smoke Tests**:
+   - Updated `DEPLOYMENT_PACKAGE/SCRIPTS/deploy.sh` to create an automated pre-migration database snapshot via `nightly-backup.sh` before running migrations.
+   - Added automated smoke test checks in `DEPLOYMENT_PACKAGE/SCRIPTS/health-check.sh` verifying `/api/admin/staff-requests` and `/api/admin/hod-requests` return healthy non-500 HTTP responses.
+4. **Endpoint Hardening & Resilient UI**:
+   - Hardened parameter resolution (`(await context.params)?.id`) and HTTP 400 error handling in all staff mutation routes.
+   - Refactored `StaffRequestsClient.js` to use `Promise.allSettled()`.
+   - Updated HOD queries to support `or(isNull(end_date), gte(end_date, nowStr))`.
+5. **Live Verification on Production VPS**:
+   - Live endpoint verification on production container confirmed:
+     - `GET /api/admin/staff-requests` $\rightarrow$ `HTTP 200` (`success: true`, 8 requests)
+     - `GET /api/admin/hod-requests` $\rightarrow$ `HTTP 200` (`success: true`)
+     - `GET /admin/staff-requests` $\rightarrow$ `HTTP 200`
+   - All 54 test files (404 unit tests) passed cleanly.
+
 
