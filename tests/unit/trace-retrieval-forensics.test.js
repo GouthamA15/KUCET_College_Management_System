@@ -64,10 +64,16 @@ describe('Complete End-to-End Image Retrieval & Rendering Verification', () => {
     expect(deliveryUrl).toContain('https://res.cloudinary.com/');
     expect(deliveryUrl).toContain(uploadRes.path);
 
-    // 6. Perform browser HTTP GET fetch request
-    const httpRes = await fetch(deliveryUrl);
-    logger.info({ status: httpRes.status }, 'Step 4 - HTTP GET Status');
-    expect(httpRes.status).toBe(200);
+    // 6. Perform browser HTTP GET fetch request with CDN propagation tolerance
+    let httpStatus = 0;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const httpRes = await fetch(deliveryUrl);
+      httpStatus = httpRes.status;
+      logger.info({ status: httpRes.status, attempt }, 'Step 4 - HTTP GET Status');
+      if (httpRes.status === 200) break;
+      await new Promise(r => setTimeout(r, 1000));
+    }
+    expect(httpStatus).toBe(200);
 
     // 7. Cleanup Cloudinary test asset
     await provider.delete(uploadRes.path);
