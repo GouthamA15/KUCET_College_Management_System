@@ -212,7 +212,15 @@ export function wrapHandler({ handler, schema, auth, audit }) {
           displayError = 'Failed to connect to the database.';
         }
 
-        logger.error({ method, url, duration, ip, err: error.message, stack: error.stack }, '[API_CRASH]');
+        logger.error({ 
+          method, 
+          url, 
+          duration, 
+          ip, 
+          err: error.message, 
+          cause: error.cause ? (error.cause.message || error.cause) : undefined,
+          stack: error.stack 
+        }, '[API_CRASH]');
         return apiError(displayError || 'An internal server error occurred', 500);
       }
     });
