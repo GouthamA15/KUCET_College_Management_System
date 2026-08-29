@@ -149,21 +149,22 @@ function buildMenuItems({ effectiveRole, studentData, staffData }) {
 
   // Add HOD Dashboard dynamically
   if (effectiveRole === 'faculty' && staffData?.is_hod) {
-    // Clone array to avoid mutating the constant menu config
     const enhancedMenu = [...menuItemsRaw];
-    // Insert after DASHBOARD (index 1)
-    enhancedMenu.splice(1, 0, { 
-      label: 'HOD DASHBOARD', 
-      children: [
-        { label: 'Faculty Load', route: '/staff/hod/dashboard?tab=workload' },
-        { label: 'Edit Timetable', route: '/staff/hod/dashboard?tab=timetable' },
-        { label: 'Assignment Registry', route: '/staff/hod/dashboard?tab=allocation' },
-        { label: 'Branch Syllabus', route: '/staff/hod/dashboard?tab=syllabus' },
-        { label: 'Data Analytics', route: '/staff/hod/dashboard?tab=analytics' },
-        { label: 'Department Config', route: '/staff/hod/dashboard?tab=config' },
-        { label: 'Faculty Interests', route: '/staff/hod/dashboard?tab=interests' }
-      ]
-    });
+    
+    // Find ACADEMICS to place STAFF MANAGEMENT right after it
+    const academicsIdx = enhancedMenu.findIndex(i => i.label === 'ACADEMICS');
+    let insertIdx = enhancedMenu.length;
+    
+    if (academicsIdx > -1) {
+      insertIdx = academicsIdx + 1;
+    } else {
+      const settingsIdx = enhancedMenu.findIndex(i => i.label === 'SETTINGS');
+      insertIdx = settingsIdx > -1 ? settingsIdx : enhancedMenu.length;
+    }
+
+    enhancedMenu.splice(insertIdx, 0,
+      { label: 'STAFF MANAGEMENT', route: '/staff/hod/staff-management' }
+    );
     return enhancedMenu;
   }
 

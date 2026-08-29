@@ -1,17 +1,10 @@
 import logger from '@/lib/logger';
 import { getAuthUser, apiError } from '@/lib/api-utils';
-import { v2 as cloudinary } from 'cloudinary';
+import { DatabaseBackupService } from '@/services/backup/DatabaseBackupService.js';
 import { NextResponse } from 'next/server';
+import { Readable } from 'stream';
 
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-  secure: true,
-});
-
-export async function GET(req, context) {
+export async function GET(_req, context) {
   try {
     const user = await getAuthUser('admin');
     if (!user) return apiError('Unauthorized', 401);
@@ -19,23 +12,21 @@ export async function GET(req, context) {
     const { filename } = await context.params;
     if (!filename) return apiError('Filename is required.', 400);
 
-    // Validate filename: allow only alphanumerics, dots, dashes, underscores
-    if (!/^[A-Za-z0-9._-]+$/.test(filename)) {
-      return apiError('Invalid filename.', 400);
-    }
+    const backupInfo = DatabaseBackupService.getBackupStream(filename);
+    const nodeStream = backupInfo.stream;
+    const webStream = Readable.toWeb(nodeStream);
 
-    // Backups are stored with public_id = filename in 'kucet/backups' folder
-    const publicId = `kucet/backups/${filename}`;
-    
-    // Since backups are 'authenticated', we generate a signed URL
-    const downloadUrl = cloudinary.utils.private_download_url(publicId, 'sql', {
-      resource_type: 'raw',
-      attachment: true
+    const headers = new Headers({
+      'Content-Type': backupInfo.isGzip ? 'application/gzip' : 'application/sql',
+      'Content-Disposition': `attachment; filename="${backupInfo.filename}"`,
+      'Content-Length': String(backupInfo.size),
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
     });
 
-    return NextResponse.redirect(downloadUrl);
+    return new NextResponse(webStream, { headers });
   } catch (error) {
-    logger.error(error, 'Error serving backup download');
-    return apiError('Internal Server Error', 500);
+    logger.error({ err: error.message }, 'Error serving backup download');
+    const status = error.message.includes('not found') ? 404 : (error.message.includes('Access denied') ? 403 : 500);
+    return apiError(error.message || 'Error downloading backup file.', status);
   }
 }

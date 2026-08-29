@@ -79,6 +79,7 @@ services:
     env_file: .env.production
     volumes:
       - /var/www/kucet-storage:/app/storage
+      - /var/kucet-db-backup:/var/kucet-db-backup
     depends_on:
       db:
         condition: service_healthy
@@ -188,7 +189,7 @@ flowchart TD
 | [`rollback.sh`](file:///D:/User/Desktop/CMS/DEPLOYMENT_PACKAGE/SCRIPTS/rollback.sh) | Failed Deploy / Alert | Restores Git commit state, reinstalls node_modules, rebuilds container, and re-verifies health. |
 | [`monitor.sh`](file:///D:/User/Desktop/CMS/DEPLOYMENT_PACKAGE/SCRIPTS/monitor.sh) | Cron (`*/5 * * * *`) | Self-healing daemon. Auto-restarts stopped containers/runners; triggers rollback on 3 fails. |
 | [`boot-recovery.sh`](file:///D:/User/Desktop/CMS/DEPLOYMENT_PACKAGE/SCRIPTS/boot-recovery.sh) | Cron (`@reboot`) | Executes on host reboot. Waits for Docker daemon, launches stack, and checks health. |
-| [`nightly-backup.sh`](file:///D:/User/Desktop/CMS/DEPLOYMENT_PACKAGE/SCRIPTS/nightly-backup.sh) | Cron (`0 2 * * *`) | Creates compressed mysqldump database archive to `/var/kucet-db-backup`. |
+| [`nightly-backup.sh`](file:///D:/User/Desktop/CMS/DEPLOYMENT_PACKAGE/SCRIPTS/nightly-backup.sh) | Cron (`30 2 * * *`) | Creates Gzip-compressed mysqldump database archive to `/var/kucet-db-backup` with SHA-256 checksums and 14-day retention pruning. |
 | [`offsite-backup.sh`](file:///D:/User/Desktop/CMS/DEPLOYMENT_PACKAGE/SCRIPTS/offsite-backup.sh) | Cron (`0 4 * * *`) | Uses Rclone to sync local backups and asset uploads to Google Drive offsite vault. |
 
 ---

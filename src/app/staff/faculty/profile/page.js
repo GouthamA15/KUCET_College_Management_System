@@ -26,9 +26,9 @@ export default function FacultyProfilePage() {
       { key: 'email', label: 'Email', value: staff?.email || '-' },
       { key: 'mobile', label: 'Mobile', value: staff?.mobile || '-' },
       { key: 'employee_id', label: 'Employee ID', value: staff?.employee_id || '-' },
-      { key: 'role', label: 'Role', value: staff?.role ? String(staff.role).toUpperCase() : '-' },
-      { key: 'branch', label: 'Branch', value: staff?.branch || '-' },
-      { key: 'hod', label: 'HOD', value: staff?.is_hod ? 'Yes' : 'No' },
+      { key: 'account_status', label: 'Account Status', value: staff?.is_active ? 'Active' : 'Inactive' },
+      { key: 'joined', label: 'Joined', value: staff?.created_at ? new Date(staff.created_at).toLocaleDateString() : '-' },
+      { key: 'last_login', label: 'Last Login', value: staff?.last_login_at ? new Date(staff.last_login_at).toLocaleString() : '-' },
       { key: 'address', label: 'Address', value: staff?.address || '-' },
     ];
   }, [staff]);
@@ -41,7 +41,7 @@ export default function FacultyProfilePage() {
 
   const name = staff?.name || 'Faculty';
   const primaryId = staff?.employee_id || 'FACULTY';
-  const title = staff?.is_hod ? 'HOD Office' : 'Faculty';
+  const title = staff?.is_hod ? 'Head of Department' : 'Academic Profile';
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-fadeIn">
@@ -62,8 +62,8 @@ export default function FacultyProfilePage() {
               <ProfileStatusBar
                 title={title}
                 lines={[
-                  { label: 'Designation', value: staff?.is_hod ? 'Head of Department' : 'Faculty' },
-                  { label: 'Department', value: staff?.branch || '-' },
+                  { label: 'Designation', value: staff?.is_hod ? 'Head of Department' : (staff?.designation || 'Faculty') },
+                  { label: 'Department(s)', value: staff?.branches?.length > 0 ? staff.branches.join(', ') : (staff?.branch || '-') },
                 ]}
               />
               <ProfileTabs

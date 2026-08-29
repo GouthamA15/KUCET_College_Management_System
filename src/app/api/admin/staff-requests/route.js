@@ -16,6 +16,7 @@ export const GET = wrapHandler({
         staff_category: staffRegistrationRequests.staff_category,
         requested_role: staffRegistrationRequests.requested_role,
         designation: staffRegistrationRequests.designation,
+        address: staffRegistrationRequests.address,
         academic_affiliations: staffRegistrationRequests.academic_affiliations,
         email_verified_at: staffRegistrationRequests.email_verified_at,
         status: staffRegistrationRequests.status,

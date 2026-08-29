@@ -47,6 +47,7 @@ export const staffRegistrationRequests = mysqlTable('staff_registration_requests
   requested_role: varchar('requested_role', { length: 50 }),
   academic_affiliations: json('academic_affiliations'),
   designation: varchar('designation', { length: 100 }),
+  address: text('address'),
   mobile_hash: varchar('mobile_hash', { length: 255 }),
   email_verified_at: timestamp('email_verified_at'),
   pfp: text('pfp'),
@@ -148,7 +149,7 @@ export const staffAccounts = mysqlTable('staff_accounts', {
   address: text('address'),
   last_login_at: timestamp('last_login_at'),
   last_login_ip: varchar('last_login_ip', { length: 64 }),
-  account_status: mysqlEnum('account_status', ['PENDING_ACTIVATION', 'ACTIVE', 'SUSPENDED']).default('PENDING_ACTIVATION').notNull(),
+  account_status: mysqlEnum('account_status', ['PENDING_ACTIVATION', 'ACTIVE', 'SUSPENDED', 'DISABLED']).default('PENDING_ACTIVATION').notNull(),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
 }, (table) => ({
@@ -168,7 +169,7 @@ export const staffAccountRoles = mysqlTable('staff_account_roles', {
   staff_account_id: int('staff_account_id').notNull(),
   role_id: int('role_id').notNull(),
   assigned_at: timestamp('assigned_at').defaultNow(),
-  assigned_by: int('assigned_by'),
+  assigned_by: int('assigned_by').references(() => principal.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 }, (table) => ({
   staffIdIdx: index('idx_staff_account_roles_staff').on(table.staff_account_id),
   roleIdx: index('idx_staff_account_roles_role').on(table.role_id),

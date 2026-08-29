@@ -78,7 +78,12 @@ export default async function proxy(request) {
   if (pathname.startsWith('/api/admin')) {
     if (!adminPayload) return handleUnauthorized(request);
   } else if (pathname.startsWith('/api/staff')) {
-    if (!staffPayload) return handleUnauthorized(request);
+    if (pathname.startsWith('/api/staff/academic-calendar') || pathname.startsWith('/api/staff/semesters')) {
+       // These endpoints are shared with Admin for calendar management
+       if (!adminPayload && !staffPayload) return handleUnauthorized(request);
+    } else {
+       if (!staffPayload) return handleUnauthorized(request);
+    }
   }
 
   // ─── Protect UI Routes ────────────────────────────────────────────────────
@@ -86,14 +91,23 @@ export default async function proxy(request) {
     if (!adminPayload) return handleUnauthorized(request);
     if (pathname === '/admin') return NextResponse.redirect(new URL('/admin/dashboard', request.url), 303);
   } else if (pathname === '/staff' || pathname.startsWith('/staff/')) {
-    if (!staffPayload) return handleUnauthorized(request);
-    if (pathname === '/staff') {
-      const dashboard = getDashboardPathByRole(staffPayload.role);
-      return NextResponse.redirect(new URL(dashboard, request.url), 303);
+    // Academic calendar can be accessed by Admin or HOD (Faculty)
+    if (pathname.startsWith('/staff/academic-calendar')) {
+      if (!adminPayload && !staffPayload) return handleUnauthorized(request);
+      if (staffPayload && staffPayload.role !== 'faculty') {
+        return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
+      }
+    } else {
+      if (!staffPayload) return handleUnauthorized(request);
+      if (pathname === '/staff') {
+        const dashboard = getDashboardPathByRole(staffPayload.role);
+        return NextResponse.redirect(new URL(dashboard, request.url), 303);
+      }
+      if (pathname.startsWith('/staff/scholarship') && staffPayload.role !== 'scholarship') return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
+      if (pathname.startsWith('/staff/admission') && staffPayload.role !== 'admission') return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
+      if (pathname.startsWith('/staff/faculty') && staffPayload.role !== 'faculty') return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
+      if (pathname.startsWith('/staff/hod') && (staffPayload.role !== 'faculty' || !staffPayload.is_hod)) return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
     }
-    if (pathname.startsWith('/staff/scholarship') && staffPayload.role !== 'scholarship') return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
-    if ((pathname.startsWith('/staff/admission') || pathname.startsWith('/staff/academic-calendar')) && staffPayload.role !== 'admission') return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
-    if (pathname.startsWith('/staff/faculty') && staffPayload.role !== 'faculty') return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
   } else if (pathname.startsWith('/student')) {
     if (!studentPayload) return handleUnauthorized(request);
     const isVerified = studentPayload.is_email_verified && studentPayload.has_password_set;

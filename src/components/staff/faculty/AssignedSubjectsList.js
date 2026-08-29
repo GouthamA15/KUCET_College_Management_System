@@ -1,6 +1,4 @@
 'use client';
-import { useState, useEffect } from 'react';
-import toast from 'react-hot-toast';
 import { useStaff } from '@/context/StaffContext';
 
 export default function AssignedSubjectsList({ onSelectAssignment = () => {}, showActions = true }) {

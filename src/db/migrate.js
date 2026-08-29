@@ -4,6 +4,8 @@ const mysql = require('mysql2/promise');
 const path = require('path');
 require('dotenv').config();
 require('dotenv').config({ path: '.env.local', override: true });
+require('dotenv').config({ path: '.env.production', override: false });
+require('dotenv').config({ path: 'DEPLOYMENT_PACKAGE/.env.production', override: false });
 
 async function runMigrations() {
   console.info('⏳ Running migrations...');
@@ -13,7 +15,7 @@ async function runMigrations() {
     const url = new URL(process.env.DATABASE_URL);
     if (process.env.MIGRATE_HOST) url.hostname = process.env.MIGRATE_HOST;
     dbConfig = {
-      host: url.hostname,
+      host: url.hostname === 'db' ? '127.0.0.1' : url.hostname,
       user: url.username,
       password: decodeURIComponent(url.password),
       database: url.pathname.slice(1),
@@ -25,8 +27,9 @@ async function runMigrations() {
       } : undefined,
     };
   } else {
+    const rawHost = process.env.MIGRATE_HOST || process.env.DB_HOST || '127.0.0.1';
     dbConfig = {
-      host: process.env.MIGRATE_HOST || process.env.DB_HOST,
+      host: rawHost === 'db' ? '127.0.0.1' : rawHost,
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_DATABASE,

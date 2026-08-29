@@ -32,7 +32,7 @@ export async function GET(request) {
     // Fetch assignment details
     const assignments = await db.select({
       id: facultySubjectAssignments.id,
-      faculty_id: facultySubjectAssignments.faculty_id,
+      faculty_id: facultySubjectAssignments.staff_account_id,
       mid_max: facultySubjectAssignments.mid_max,
       branch: facultySubjectAssignments.branch,
       course_semester: facultySubjectAssignments.course_semester,
@@ -205,7 +205,7 @@ export async function POST(request) {
     // Fetch assignment details
     const assignments = await db.select({
       id: facultySubjectAssignments.id,
-      faculty_id: facultySubjectAssignments.faculty_id,
+      faculty_id: facultySubjectAssignments.staff_account_id,
       subject_code: facultySubjectAssignments.subject_code,
       branch: facultySubjectAssignments.branch,
       course_semester: facultySubjectAssignments.course_semester,

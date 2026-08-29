@@ -24,7 +24,6 @@ export const NAV_MENU_CONFIG = {
   staff: [
     { label: 'DASHBOARD', route: '/staff/admission/dashboard' },
     { label: 'PROFILE', route: '/staff/admission/profile' },
-    { label: 'ACADEMIC CALENDAR', route: '/staff/academic-calendar' },
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/staff/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/staff/settings/security' }
@@ -40,7 +39,6 @@ export const NAV_MENU_CONFIG = {
         { label: 'Finalize', route: '/staff/admission/finalize' }
       ]
     },
-    { label: 'ACADEMIC CALENDAR', route: '/staff/academic-calendar' },
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/staff/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/staff/settings/security' }
@@ -52,7 +50,7 @@ export const NAV_MENU_CONFIG = {
     { label: 'PROFILE', route: '/staff/scholarship/profile' },
     { label: 'STUDENT RECORDS', route: '/staff/scholarship/student-records' },
     { label: 'REQUESTS', route: '/staff/scholarship/dashboard?view=requests&scroll=1' },
-    { label: 'VERIFICATION', route: '/staff/scholarship/dashboard?view=certificates&scroll=1' },
+    // { label: 'VERIFICATION', route: '/staff/scholarship/dashboard?view=certificates&scroll=1' },
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/staff/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/staff/settings/security' }
@@ -68,7 +66,6 @@ export const NAV_MENU_CONFIG = {
         { label: 'Finalize', route: '/staff/admission/finalize' }
       ]
     },
-    { label: 'ACADEMIC CALENDAR', route: '/staff/academic-calendar' },
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/staff/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/staff/settings/security' }
@@ -80,7 +77,7 @@ export const NAV_MENU_CONFIG = {
     { label: 'PROFILE', route: '/staff/scholarship/profile' },
     { label: 'STUDENT RECORDS', route: '/staff/scholarship/student-records' },
     { label: 'REQUESTS', route: '/staff/scholarship/dashboard?view=requests&scroll=1' },
-    { label: 'VERIFICATION', route: '/staff/scholarship/dashboard?view=certificates&scroll=1' },
+    // { label: 'VERIFICATION', route: '/staff/scholarship/dashboard?view=certificates&scroll=1' },
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/staff/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/staff/settings/security' }
@@ -90,9 +87,7 @@ export const NAV_MENU_CONFIG = {
   faculty: [
     { label: 'DASHBOARD', route: '/staff/faculty/dashboard' },
     { label: 'PROFILE', route: '/staff/faculty/profile' },
-    { label: 'SUBJECTS', route: '/staff/faculty/subjects' },
-    { label: 'ATTENDANCE', route: '/staff/faculty/attendance' },
-    { label: 'MARKS', route: '/staff/faculty/marks' },
+    { label: 'ACADEMICS', route: '/staff/faculty/academics' },
     { label: 'TIME TABLE', route: '/staff/faculty/time-table' },
     { label: 'MATERIALS', route: '/staff/faculty/materials' },
     { label: 'SETTINGS', children: [
@@ -103,6 +98,7 @@ export const NAV_MENU_CONFIG = {
   ],
   superAdmin: [
     { label: 'DASHBOARD', route: '/admin/dashboard' },
+    { label: 'ACADEMIC CALENDAR', route: '/admin/academic-calendar' },
     { label: 'PAYMENTS', route: '/admin/payments' },
     { label: 'MANAGE STAFF', route: '/admin/manage-staff' },
     { label: 'STAFF REQUESTS', route: '/admin/staff-requests' },

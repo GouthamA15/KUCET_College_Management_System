@@ -1,6 +1,6 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { staffAccounts, staffAcademicAffiliations, academicDepartments, academicPrograms, facultyHodAssignments } from '@/db/schema';
+import { staffAccounts, staffAcademicAffiliations, academicDepartments, academicPrograms, facultyHodAssignments, staffRoles, staffAccountRoles, semesters, auditLogs } from '@/db/schema';
 import { eq, and, ne, sql } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
 import { z } from 'zod';
@@ -178,55 +178,152 @@ export async function PUT(req, context) {
           deptCodes = [...new Set(existingAffils.map(a => a.code))];
         }
 
-        // HOD Updates
-        if (is_hod !== undefined) {
-           if (is_hod === false) {
-             // Remove HOD status
-             await tx.delete(facultyHodAssignments).where(eq(facultyHodAssignments.staff_account_id, idNum));
-           } else if (is_hod === true && deptCodes.length > 0) {
-             // Add HOD status for all assigned departments
-             const { getCurrentCalendarSession } = await import('@/lib/academic-utils');
-             const currentSession = await getCurrentCalendarSession();
-             
-             for (const dCode of deptCodes) {
-               // Check if someone else is already active HOD for this department
-               const existingHOD = await tx.select({ id: staffAccounts.id, name: staffAccounts.name })
-                  .from(facultyHodAssignments)
-                  .innerJoin(staffAccounts, eq(facultyHodAssignments.staff_account_id, staffAccounts.id))
-                  .where(and(
-                    eq(facultyHodAssignments.department_code, dCode),
-                    eq(facultyHodAssignments.is_active, true),
-                    eq(staffAccounts.account_status, 'ACTIVE'),
-                    ne(staffAccounts.id, idNum)
-                  ))
-                  .limit(1);
-
-               if (existingHOD.length > 0) {
-                  throw new Error(`Conflict: ${existingHOD[0].name} is already the HOD for ${dCode}. Please demote them first.`);
-               }
-
-               // Check if this user already has an HOD record
-               const alreadyHOD = await tx.query.facultyHodAssignments.findFirst({
-                 where: and(eq(facultyHodAssignments.department_code, dCode), eq(facultyHodAssignments.staff_account_id, idNum))
+          // HOD Updates
+          if (is_hod !== undefined) {
+             const [hodRoleDef] = await tx.select().from(staffRoles).where(eq(staffRoles.role_code, 'HOD'));
+             if (!hodRoleDef) throw new Error('HOD role definition not found in staff_roles table');
+  
+             if (is_hod === false) {
+               // 1. Remove HOD role
+               await tx.delete(staffAccountRoles).where(
+                 and(
+                   eq(staffAccountRoles.staff_account_id, idNum),
+                   eq(staffAccountRoles.role_id, hodRoleDef.id)
+                 )
+               );
+               
+               // 2. Deactivate active HOD assignments (Do NOT delete history!)
+               await tx.update(facultyHodAssignments)
+                 .set({ is_active: false })
+                 .where(
+                   and(
+                     eq(facultyHodAssignments.staff_account_id, idNum),
+                     eq(facultyHodAssignments.is_active, true)
+                   )
+                 );
+                 
+               // 3. Audit log handled via logAudit below, but let's record a DB-level one for strictness
+               await tx.insert(auditLogs).values({
+                 user_id: user.id,
+                 user_type: 'admin',
+                 action: 'HOD_ACCESS_DISABLED',
+                 target_type: 'STAFF_ACCOUNT',
+                 target_id: String(idNum),
+                 payload_after: { action: 'Removed HOD role and deactivated active assignments' },
+                 ip_address: req.headers.get('x-forwarded-for') || '127.0.0.1',
+                 user_agent: req.headers.get('user-agent') || 'system'
                });
-
-               if (!alreadyHOD) {
-                  await tx.insert(facultyHodAssignments).values({
-                    staff_account_id: idNum,
-                    department_code: dCode,
-                    academic_year: currentSession.academic_year,
-                    start_date: new Date(),
-                    is_active: true
-                  });
-               } else if (!alreadyHOD.is_active) {
-                  await tx.update(facultyHodAssignments).set({
-                    is_active: true,
-                    end_date: null
-                  }).where(eq(facultyHodAssignments.id, alreadyHOD.id));
+             } else if (is_hod === true) {
+               // Validate staff is ACTIVE
+               if (staffBefore.account_status !== 'ACTIVE' && is_active !== true) {
+                 throw new Error('Cannot enable HOD access for an inactive staff account.');
                }
+               
+               // Validate staff has FACULTY role
+               const hasFaculty = await tx.select().from(staffAccountRoles)
+                 .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
+                 .where(and(eq(staffAccountRoles.staff_account_id, idNum), eq(staffRoles.role_code, 'FACULTY')));
+               if (hasFaculty.length === 0) {
+                 throw new Error('Staff must have the FACULTY role to be assigned as HOD.');
+               }
+
+               // Resolve departments
+               if (deptCodes.length === 0) {
+                  const existingAffils = await tx.select({ dept: academicDepartments.department_code }).from(staffAcademicAffiliations)
+                    .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
+                    .where(eq(staffAcademicAffiliations.staff_account_id, idNum));
+                  deptCodes = existingAffils.map(a => a.dept);
+               }
+               if (deptCodes.length === 0) {
+                 throw new Error('Cannot assign HOD: Staff member has no assigned departments.');
+               }
+
+               const { getCurrentCalendarSession } = await import('@/lib/academic-utils');
+               const currentSession = await getCurrentCalendarSession();
+
+               // Get semester dates
+               const semesterRows = await tx.select().from(semesters).where(eq(semesters.academic_year, currentSession.academicYear));
+               let minStart = null, maxEnd = null;
+               if (semesterRows.length > 0) {
+                 minStart = semesterRows[0].start_date;
+                 maxEnd = semesterRows[0].end_date;
+                 for (const sem of semesterRows) {
+                   if (sem.start_date < minStart) minStart = sem.start_date;
+                   if (sem.end_date > maxEnd) maxEnd = sem.end_date;
+                 }
+               }
+               
+               for (const dCode of deptCodes) {
+                 // Prevent duplicate active HODs
+                 const existingHOD = await tx.select({ id: staffAccounts.id, name: staffAccounts.name })
+                    .from(facultyHodAssignments)
+                    .innerJoin(staffAccounts, eq(facultyHodAssignments.staff_account_id, staffAccounts.id))
+                    .where(and(
+                      eq(facultyHodAssignments.department_code, dCode),
+                      eq(facultyHodAssignments.academic_year, currentSession.academicYear),
+                      eq(facultyHodAssignments.is_active, true),
+                      ne(staffAccounts.id, idNum)
+                    ))
+                    .limit(1);
+  
+                 if (existingHOD.length > 0) {
+                    throw new Error(`Conflict: ${existingHOD[0].name} is already the active HOD for ${dCode} in ${currentSession.academicYear}. Please disable them first.`);
+                 }
+  
+                 // Check for existing assignment history to reactivate
+                 const alreadyHOD = await tx.query.facultyHodAssignments.findFirst({
+                   where: and(
+                     eq(facultyHodAssignments.department_code, dCode), 
+                     eq(facultyHodAssignments.academic_year, currentSession.academicYear),
+                     eq(facultyHodAssignments.staff_account_id, idNum)
+                   )
+                 });
+  
+                 if (!alreadyHOD) {
+                    if (!minStart) throw new Error(`Academic session ${currentSession.academicYear} not found in semesters`);
+                    await tx.insert(facultyHodAssignments).values({
+                      staff_account_id: idNum,
+                      department_code: dCode,
+                      academic_year: currentSession.academicYear,
+                      start_date: minStart instanceof Date ? minStart.toISOString().split('T')[0] : minStart,
+                      end_date: maxEnd instanceof Date ? maxEnd.toISOString().split('T')[0] : maxEnd,
+                      is_active: true,
+                      assigned_by: user.id
+                    });
+                 } else if (!alreadyHOD.is_active) {
+                    await tx.update(facultyHodAssignments).set({
+                      is_active: true
+                    }).where(eq(facultyHodAssignments.id, alreadyHOD.id));
+                 }
+               }
+               
+               // Ensure they have the HOD role exactly once
+               const existingHodRole = await tx.select().from(staffAccountRoles).where(
+                 and(
+                   eq(staffAccountRoles.staff_account_id, idNum),
+                   eq(staffAccountRoles.role_id, hodRoleDef.id)
+                 )
+               );
+               if (existingHodRole.length === 0) {
+                 await tx.insert(staffAccountRoles).values({
+                   staff_account_id: idNum,
+                   role_id: hodRoleDef.id,
+                   assigned_by: user.id
+                 });
+               }
+
+               await tx.insert(auditLogs).values({
+                 user_id: user.id,
+                 user_type: 'admin',
+                 action: 'HOD_ACCESS_ENABLED',
+                 target_type: 'STAFF_ACCOUNT',
+                 target_id: String(idNum),
+                 payload_after: { action: 'Granted HOD role and activated assignments' },
+                 ip_address: req.headers.get('x-forwarded-for') || '127.0.0.1',
+                 user_agent: req.headers.get('user-agent') || 'system'
+               });
              }
-           }
-        }
+          }
       }
     });
 

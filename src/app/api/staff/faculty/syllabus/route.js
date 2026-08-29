@@ -45,7 +45,7 @@ export async function GET(request) {
       if (academicYear) {
         allocations = await db.select({
           subject_code: facultySubjectAssignments.subject_code,
-          faculty_id: facultySubjectAssignments.faculty_id
+          faculty_id: facultySubjectAssignments.staff_account_id
         })
         .from(facultySubjectAssignments)
         .where(and(

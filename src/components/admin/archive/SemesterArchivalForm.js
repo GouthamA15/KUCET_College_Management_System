@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import AcademicYearSelect from '@/components/ui/AcademicYearSelect';
 
 export default function SemesterArchivalForm({ onJobStarted, onRefreshOverview }) {
   const [branch, setBranch] = useState('CSE');
@@ -13,7 +14,7 @@ export default function SemesterArchivalForm({ onJobStarted, onRefreshOverview }
 
   const branches = ['CSE', 'ECE', 'EEE', 'MECH', 'CIVIL'];
   const semesters = ['1', '2', '3', '4', '5', '6', '7', '8'];
-  const academicYears = ['2024-25', '2025-26', '2026-27'];
+
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -111,15 +112,11 @@ export default function SemesterArchivalForm({ onJobStarted, onRefreshOverview }
 
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Academic Year</label>
-            <select
+            <AcademicYearSelect
               value={academicYear}
               onChange={(e) => setAcademicYear(e.target.value)}
               className="w-full text-xs font-semibold bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            >
-              {academicYears.map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
+            />
           </div>
         </div>
 

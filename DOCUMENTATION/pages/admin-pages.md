@@ -40,21 +40,24 @@ Provides real-time visibility into institution metrics:
 
 ---
 
-### 3. Infrastructure & Backup Control (`/admin/infrastructure`)
-- **System Monitoring**: Tracks CPU utilization, RAM consumption, MySQL connection pool limits, and Node.js event loop latency.
-- **Manual & Scheduled Backups**: Triggers on-demand backups via `BackupService.runAutomatedBackup()`. Displays backup history with SHA-256 integrity checksums.
-- **Disaster Recovery Engine**: Allows admins to initiate database restoration from Cloudinary SQL snapshots, featuring automated dual-mode fallback (MySQL CLI client or Drizzle batch execution).
+### 3. Infrastructure & Database Backup Control (`/admin/infrastructure?tab=backups`)
+- **Persistent VPS Backups**: Real-time registry of all local persistent snapshots stored at `/var/kucet-db-backup` (with size, date, type, and SHA-256 integrity checksums).
+- **Manual Backup Trigger**: Instant on-demand database snapshot generation with live progress indicators and automatic 14-day retention pruning.
+- **Secure File Download**: Authenticated streaming download of compressed `.sql.gz` database snapshots via `/api/admin/infrastructure/backups/download/[filename]`.
+- **Guarded Disaster Recovery**: High-risk restoration modal requiring typing the exact phrase `RESTORE`. The system automatically creates an **Emergency Pre-Restore Backup** of the live database before overwriting data, and verifies post-restore table integrity.
 
 ```mermaid
 flowchart TD
-    A[Admin opens /admin/infrastructure] --> B[View System Metrics & Backup History]
-    B --> C{Action Triggered?}
-    C -->|Run Backup| D[Invoke BackupService.runAutomatedBackup]
-    C -->|Restore Snapshot| E[Invoke BackupService.verifyBackup & Restore]
-    C -->|Audit Storage| F[Scan Cloudinary for Orphan Media]
-    D --> G[Generate SHA-256 Checksum & Log Result]
-    E --> H[Execute Disaster Recovery Engine]
-    F --> I[Download Storage ZIP Archive]
+    A[Admin opens /admin/infrastructure?tab=backups] --> B[View Persistent Backups & Checksums]
+    B --> C{Admin Action?}
+    C -->|Run Backup Now| D[Invoke DatabaseBackupService.createBackup]
+    C -->|Download Archive| E[Stream .sql.gz via Download API]
+    C -->|Restore Snapshot| F[Open Guarded Modal -> Type RESTORE]
+    D --> G[Gzip-9 + SHA-256 Hash + 14-Day Pruning]
+    F --> H[Automatic Emergency Pre-Restore Backup]
+    H -->|Emergency Backup OK| I[Execute SQL Restore & Table Verification]
+    I --> J[Invalidate Domain Caches & Write Audit Log]
+    H -->|Emergency Backup Failed| K[Abort Restore to Prevent Data Loss]
 ```
 
 ---

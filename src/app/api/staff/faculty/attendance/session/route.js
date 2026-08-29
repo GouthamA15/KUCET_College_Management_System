@@ -78,7 +78,7 @@ export async function POST(request) {
       id: facultySubjectAssignments.id,
       branch: facultySubjectAssignments.branch,
       subject_code: facultySubjectAssignments.subject_code,
-      faculty_id: facultySubjectAssignments.faculty_id
+      faculty_id: facultySubjectAssignments.staff_account_id
     })
     .from(facultySubjectAssignments)
     .where(eq(facultySubjectAssignments.id, assignment_id))

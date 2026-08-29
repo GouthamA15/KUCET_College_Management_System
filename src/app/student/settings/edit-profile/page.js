@@ -410,9 +410,9 @@ export default function EditProfilePage() {
         </div>
       )}
 
-      <div className="flex items-center gap-2 mb-3">
-        <button onClick={() => setActiveTab('edit')} className={`px-3 py-2 rounded-md text-sm transition-colors ${activeTab === 'edit' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>Edit</button>
-        <button onClick={() => setActiveTab('history')} className={`px-3 py-2 rounded-md text-sm transition-colors ${activeTab === 'history' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>History</button>
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <button onClick={() => setActiveTab('edit')} className={`px-3 py-2 rounded-md text-sm whitespace-nowrap transition-colors ${activeTab === 'edit' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>Edit</button>
+        <button onClick={() => setActiveTab('history')} className={`px-3 py-2 rounded-md text-sm whitespace-nowrap transition-colors ${activeTab === 'history' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>History</button>
       </div>
 
       <div className="animate-in fade-in duration-300">

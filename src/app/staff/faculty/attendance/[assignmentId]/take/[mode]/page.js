@@ -53,7 +53,7 @@ export default function TakeAttendancePage() {
   }, [assignmentId, mode, router]);
 
   const handleBack = () => {
-    router.push(`/staff/faculty/attendance/${assignmentId}`);
+    router.push('/staff/faculty/academics');
   };
 
   if (loading) {

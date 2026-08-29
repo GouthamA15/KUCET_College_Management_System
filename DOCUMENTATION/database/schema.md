@@ -173,7 +173,7 @@ Secure one-time tokens for email-based account activation. Raw token is never st
 - `created_at` (`TIMESTAMP`, Default: `NOW()`)
 
 ### Table: `academic_departments`
-Institutional department registry. Used for faculty affiliation and registration validation.
+Institutional department registry. Represents the top level of the academic hierarchy (e.g., Computer Science, Mechanical). Used for faculty affiliation, HOD assignments, and grouping programs.
 - `id` (`INT`, PK, Auto-Increment)
 - `department_code` (`VARCHAR(50)`, Not Null, Unique)
 - `department_name` (`VARCHAR(255)`, Not Null)
@@ -182,7 +182,7 @@ Institutional department registry. Used for faculty affiliation and registration
 - `updated_at` (`TIMESTAMP`, On Update: `NOW()`)
 
 ### Table: `academic_programs`
-Programs/courses offered by each department.
+Programs/courses offered by each department, representing the second level of the hierarchy (e.g., B.Tech CSE, M.Tech CSE). A department can have multiple programs.
 - `id` (`INT`, PK, Auto-Increment)
 - `department_id` (`INT`, Not Null, Index: `idx_academic_programs_dept`) → FK `academic_departments.id`
 - `program_code` (`VARCHAR(50)`, Not Null, Unique)
@@ -271,9 +271,12 @@ Handles marks entry, timetable scheduling, faculty assignments, student requests
 - **`student_marks`**: Exam marks (`student_id`, `subject_id`, `mid1_marks`, `mid2_marks`, `assignment_marks`, `external_marks`).
 - **`branch_config`**: Departmental configurations.
 - **`branch_timetable`**: Weekly class timetables (S1-S8, day of week, period slots, subject assignments).
-- **`faculty_subject_assignments`**: Mapping between faculty (`clerks.id`) and assigned subject sections.
+- **`faculty_subject_assignments`**: Subject allocation for faculty (`staff_account_id`, `subject_code`, `subject_name`, `branch`, `course_semester`, `academic_term`, `academic_year`, `is_active`, `mid_max`).
+- **`faculty_subject_interests`**: Requested subjects by faculty (`staff_account_id`, `subject_code`, `subject_name`, `branch`, `department_code`, `semester`, `academic_year`, `status` enum `PENDING`/`APPROVED`/`REJECTED`, `reviewed_by`, `rejection_reason`).
+- **`faculty_hod_assignments`**: Tracks HOD appointments (`staff_account_id`, `department_code`, `academic_year`, `start_date`, `end_date`, `is_active`, `assigned_by`).
 - **`student_requests`**: Bonafide, Custodian, and Transfer Certificate request workflows.
 - **`certificate_verifications`**: Public QR verification records for issued certificates.
+- **`database_backup_logs`**: Operational audit records for automated and manual database backup jobs (`id`, `filename`, `file_path`, `file_size_bytes`, `checksum_sha256`, `backup_type` enum `SCHEDULED`/`MANUAL`/`EMERGENCY_PRE_RESTORE`, `status` enum `IN_PROGRESS`/`SUCCESS`/`FAILED`, `error_message`, `duration_ms`, `triggered_by`, `created_at`, `completed_at`).
 
 ---
 

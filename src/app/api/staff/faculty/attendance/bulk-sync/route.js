@@ -54,7 +54,7 @@ export async function POST(request) {
           branch: facultySubjectAssignments.branch,
           course_semester: facultySubjectAssignments.course_semester,
           academic_year: facultySubjectAssignments.academic_year,
-          faculty_id: facultySubjectAssignments.faculty_id
+          faculty_id: facultySubjectAssignments.staff_account_id
         })
         .from(facultySubjectAssignments)
         .where(eq(facultySubjectAssignments.id, assignment_id))

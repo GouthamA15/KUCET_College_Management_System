@@ -10,7 +10,7 @@ export default function ProfileInfoList({ items }) {
       {rows.map((item) => (
         <div key={item.key || item.label}>
           <span className="font-semibold">{item.label}:</span>
-          <span className="ml-2">{item.value ?? '-'}</span>
+          <span className="ml-2">{item.value || '-'}</span>
         </div>
       ))}
     </div>

@@ -20,7 +20,7 @@ export const POST = wrapHandler({
       return { error: 'Invalid request ID', status: 400 };
     }
 
-    const adminId = user?.id || user?.adminId || 1;
+    const adminId = user?.id || user?.adminId;
 
     await db.transaction(async (tx) => {
       const [request] = await tx

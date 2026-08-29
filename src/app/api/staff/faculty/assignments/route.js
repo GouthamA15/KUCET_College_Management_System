@@ -14,7 +14,7 @@ export async function GET(_request) {
 
     const assignments = await db.select({
       id: facultySubjectAssignments.id,
-      faculty_id: facultySubjectAssignments.faculty_id,
+      staff_account_id: facultySubjectAssignments.staff_account_id,
       subject_code: facultySubjectAssignments.subject_code,
       subject_name: facultySubjectAssignments.subject_name,
       branch: facultySubjectAssignments.branch,
@@ -27,7 +27,7 @@ export async function GET(_request) {
       mid_max: facultySubjectAssignments.mid_max
     })
     .from(facultySubjectAssignments)
-    .where(eq(facultySubjectAssignments.faculty_id, user.id))
+    .where(eq(facultySubjectAssignments.staff_account_id, user.id))
     .orderBy(desc(facultySubjectAssignments.academic_year), asc(facultySubjectAssignments.course_semester));
 
     const session = await getCurrentCalendarSession();

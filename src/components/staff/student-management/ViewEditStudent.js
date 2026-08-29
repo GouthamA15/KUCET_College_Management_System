@@ -306,7 +306,7 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
       {fetchedStudent && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-1 bg-gray-50 p-4 rounded">
+            <div className="md:col-span-1 bg-gradient-to-br from-blue-50/50 via-white to-blue-50/50 p-4 rounded border border-blue-100 shadow-sm">
               <h4 className="font-semibold mb-3 text-indigo-700">Profile Sidebar</h4>
               <div className="space-y-6">
                 <div>
@@ -371,7 +371,7 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
               </div>
             </div>
 
-            <div className="md:col-span-2 bg-white p-4 rounded shadow">
+            <div className="md:col-span-2 bg-gradient-to-br from-blue-50/50 via-white to-blue-50/50 p-4 rounded shadow border border-blue-100">
               <h4 className="font-semibold mb-4 text-indigo-900 border-b pb-2">Section A: Basic Details</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div>

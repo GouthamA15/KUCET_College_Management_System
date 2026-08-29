@@ -42,7 +42,7 @@ export default function AssignmentModeSelectorPage() {
   };
 
   const handleBack = () => {
-    router.push('/staff/faculty/attendance');
+    router.push('/staff/faculty/academics');
   };
 
   if (loading) {
@@ -53,9 +53,9 @@ export default function AssignmentModeSelectorPage() {
     return (
       <div className="max-w-7xl mx-auto w-full text-center py-10">
         <h2 className="text-xl font-semibold mb-4">Assignment Not Found</h2>
-        <Link href="/staff/faculty/attendance" className="text-blue-500 hover:underline inline-flex items-center">
+        <Link href="/staff/faculty/academics" className="text-blue-500 hover:underline inline-flex items-center">
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Assignments
+          Back to Academics
         </Link>
       </div>
     );

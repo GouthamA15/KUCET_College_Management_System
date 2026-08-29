@@ -94,14 +94,26 @@ export async function POST(req) {
         set: { subject_name, subject_type }
       });
 
-      // 2. Map to branch structure
-      await db.insert(syllabusStructure).values({
-        branch: user.branch,
-        semester: semester,
-        subject_code
-      }).onDuplicateKeyUpdate({
-        set: { semester: semester }
-      });
+      // 2. Map to branch structure (Check for existing mapping since there's no unique constraint)
+      const existingMapping = await db.select({ id: syllabusStructure.id })
+        .from(syllabusStructure)
+        .where(and(
+          eq(syllabusStructure.branch, user.branch),
+          eq(syllabusStructure.subject_code, subject_code)
+        ))
+        .limit(1);
+      
+      if (existingMapping.length > 0) {
+        await db.update(syllabusStructure)
+          .set({ semester: semester })
+          .where(eq(syllabusStructure.id, existingMapping[0].id));
+      } else {
+        await db.insert(syllabusStructure).values({
+          branch: user.branch,
+          semester: semester,
+          subject_code
+        });
+      }
 
       return apiResponse({ success: true, message: 'Subject added/updated successfully' });
     }

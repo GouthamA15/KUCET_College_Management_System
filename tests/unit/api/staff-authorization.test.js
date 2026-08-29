@@ -13,6 +13,30 @@ vi.mock('@/lib/auth', () => ({
   verifyJwt: vi.fn(),
 }));
 
+vi.mock('@/db', () => {
+  const selectMock = vi.fn().mockReturnThis();
+  const fromMock = vi.fn().mockReturnThis();
+  const innerJoinMock = vi.fn().mockReturnThis();
+  const whereMock = vi.fn().mockResolvedValue([{ role_code: 'HOD' }]);
+  
+  return {
+    db: {
+      select: () => ({
+        from: () => ({
+          innerJoin: () => ({
+            where: whereMock
+          })
+        })
+      }),
+      query: {
+        facultyHodAssignments: {
+          findFirst: vi.fn(),
+        }
+      }
+    }
+  };
+});
+
 vi.mock('@/lib/auth-utils', () => ({
   verifyJwt: vi.fn(),
   verifyAuthToken: vi.fn(),
@@ -170,6 +194,12 @@ describe('Staff Identity & Authorization Architecture', () => {
         role: 'faculty',
         is_hod: true,
         branch: 'CSE',
+      });
+      
+      const { db } = await import('@/db');
+      db.query.facultyHodAssignments.findFirst.mockResolvedValueOnce({
+        department_code: 'CSE',
+        is_active: true
       });
 
       // Staff umbrella

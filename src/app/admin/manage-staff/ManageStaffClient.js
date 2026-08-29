@@ -18,7 +18,10 @@ export default function ManageStaffClient() {
   
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [editedStaff, setEditedStaff] = useState({});
+  const [staffRequestsHistory, setStaffRequestsHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [hodConfirmModal, setHodConfirmModal] = useState({ isOpen: false, targetState: false });
   const [processing, setProcessing] = useState(false);
 
   // Filter staffList based on active tab, search query, and branch filter
@@ -64,9 +67,25 @@ export default function ManageStaffClient() {
     };
   }, [staffList]);
 
-  const openDetails = (staffMember) => {
+  const openDetails = async (staffMember) => {
     setSelectedStaff(staffMember);
     setEditedStaff({ ...staffMember });
+    
+    // Fetch their latest requests
+    setLoadingHistory(true);
+    setStaffRequestsHistory([]);
+    try {
+      const res = await fetch('/api/admin/hod-requests');
+      const data = await res.json();
+      if (res.ok && data.requests) {
+        const theirRequests = data.requests.filter(r => r.staff_account_id === staffMember.id);
+        setStaffRequestsHistory(theirRequests);
+      }
+    } catch (err) {
+      console.error('Failed to fetch requests history', err);
+    } finally {
+      setLoadingHistory(false);
+    }
   };
 
   const handleChange = (e) => {
@@ -84,8 +103,15 @@ export default function ManageStaffClient() {
     }));
   };
 
-  const handleSave = async () => {
+  const handleSave = async (skipConfirmation = false) => {
     if (!selectedStaff) return;
+
+    // Check if HOD status changed and needs confirmation
+    if (selectedStaff.is_hod !== editedStaff.is_hod && !skipConfirmation) {
+      setHodConfirmModal({ isOpen: true, targetState: editedStaff.is_hod });
+      return;
+    }
+
     setProcessing(true);
     const toastId = toast.loading('Saving changes...');
     try {
@@ -100,18 +126,30 @@ export default function ManageStaffClient() {
         throw new Error(data.error || 'Failed to update staff record');
       }
 
-      // Targeted state update — zero refetches needed!
-      updateStaffInList({
-        ...selectedStaff,
-        ...editedStaff,
-        updated_at: new Date().toISOString()
-      });
+      const fetchRes = await fetch('/api/admin/staff');
+      const fetchData = await fetchRes.json();
+      if (fetchRes.ok && fetchData.data) {
+        const updatedStaff = fetchData.data.find(s => s.id === selectedStaff.id);
+        if (updatedStaff) {
+          updateStaffInList(updatedStaff);
+          setSelectedStaff(updatedStaff);
+          setEditedStaff(updatedStaff);
+        }
+      } else {
+          updateStaffInList({
+            ...selectedStaff,
+            ...editedStaff,
+            updated_at: new Date().toISOString()
+          });
+      }
 
       toast.success('Staff record updated successfully!', { id: toastId });
+      setHodConfirmModal({ isOpen: false, targetState: false });
       setSelectedStaff(null);
       setEditedStaff({});
     } catch (error) {
       toast.error(error.message, { id: toastId });
+      setHodConfirmModal({ isOpen: false, targetState: false });
     } finally {
       setProcessing(false);
     }
@@ -128,10 +166,9 @@ export default function ManageStaffClient() {
         throw new Error(data.error || 'Failed to deactivate staff account');
       }
 
-      // Targeted state update — zero refetches needed!
       setStaffActiveStatus(selectedStaff.id, false);
 
-      toast.success('Staff account deactivated successfully! You can reactivate it at any time.', { id: toastId });
+      toast.success('Staff account deactivated successfully!', { id: toastId });
       setIsDeleteModalOpen(false);
       setSelectedStaff(null);
     } catch (error) {
@@ -145,7 +182,7 @@ export default function ManageStaffClient() {
   const hasChanges = selectedStaff && JSON.stringify(selectedStaff) !== JSON.stringify(editedStaff);
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-6 text-sm p-2 sm:p-4">
+    <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
       <header className="mb-4 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-gray-800">Staff & Role Management</h1>
@@ -279,20 +316,29 @@ export default function ManageStaffClient() {
                     </td>
                     {activeTab === 'faculty' && (
                       <td className="px-6 py-4">
-                        <div className="flex flex-row items-center gap-1.5 flex-wrap">
+                        <div className="flex flex-row items-center gap-1.5 flex-nowrap overflow-x-auto pb-1 scrollbar-hide">
                           {staffMember.branches && staffMember.branches.length > 0 ? (
-                            staffMember.branches.map(b => (
-                              <span key={b} className="font-bold text-[#0b3578] bg-blue-50 border border-blue-200 px-2 py-0.5 rounded text-[11px] whitespace-nowrap inline-flex">
-                                {b}
-                              </span>
-                            ))
+                            [...staffMember.branches]
+                              .sort((a, b) => {
+                                const idxA = FACULTY_BRANCHES.indexOf(a);
+                                const idxB = FACULTY_BRANCHES.indexOf(b);
+                                if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+                                if (idxA === -1) return 1;
+                                if (idxB === -1) return -1;
+                                return idxA - idxB;
+                              })
+                              .map(b => (
+                                <span key={b} className="font-bold text-[#0b3578] bg-blue-50 border border-blue-200 px-2 py-0.5 rounded text-[11px] whitespace-nowrap inline-flex shrink-0">
+                                  {b}
+                                </span>
+                              ))
                           ) : (
-                            <span className="font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded text-[11px]">
+                            <span className="font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded text-[11px] shrink-0">
                               Unassigned
                             </span>
                           )}
                           {staffMember.is_hod && (
-                            <span className="bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs whitespace-nowrap inline-flex">
+                            <span className="bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs whitespace-nowrap inline-flex shrink-0">
                               👑 HOD
                             </span>
                           )}
@@ -336,7 +382,7 @@ export default function ManageStaffClient() {
             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
             <div className="relative z-10 inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl w-full border border-slate-200">
               
-              {!isDeleteModalOpen ? (
+              {!isDeleteModalOpen && !hodConfirmModal.isOpen && (
                 <>
                   <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                     <div className="sm:flex sm:items-start">
@@ -455,6 +501,46 @@ export default function ManageStaffClient() {
                             </div>
                           </div>
                         )}
+                          
+                          {/* HOD Requests History Section */}
+                          {selectedStaff?.role === 'faculty' && (
+                            <div className="mt-6 mb-6">
+                              <h4 className="text-sm font-semibold text-slate-800 mb-3 border-b border-slate-200 pb-2">HOD Request History</h4>
+                              {loadingHistory ? (
+                                <p className="text-xs text-slate-500">Loading history...</p>
+                              ) : staffRequestsHistory.length === 0 ? (
+                                <p className="text-xs text-slate-500 italic">No previous HOD requests found for this staff member.</p>
+                              ) : (
+                                <div className="space-y-3">
+                                  {staffRequestsHistory.map(req => (
+                                    <div key={req.id} className="bg-white border border-slate-200 rounded p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 shadow-sm">
+                                      <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <span className="font-semibold text-sm text-slate-800">{req.department_code}</span>
+                                          <span className="text-xs text-slate-500 font-mono bg-slate-100 px-1.5 py-0.5 rounded">{req.academic_year}</span>
+                                        </div>
+                                        <p className="text-xs text-slate-500">
+                                          Submitted: {new Date(req.created_at).toLocaleDateString()}
+                                        </p>
+                                        {req.status === 'REJECTED' && req.rejection_reason && (
+                                          <p className="text-xs text-red-600 mt-1">Reason: {req.rejection_reason}</p>
+                                        )}
+                                      </div>
+                                      <div className="flex flex-col items-end">
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                          req.status === 'PENDING' ? 'bg-amber-100 text-amber-800' :
+                                          req.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                                          'bg-red-100 text-red-800'
+                                        }`}>
+                                          {req.status}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         
                         <div className="border border-slate-200 bg-slate-50 rounded-lg p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
                           <div>
@@ -509,7 +595,9 @@ export default function ManageStaffClient() {
                     </button>
                   </div>
                 </>
-              ) : (
+              )}
+
+              {isDeleteModalOpen && (
                 <div className="bg-amber-50 px-4 py-5 sm:p-6 border-t border-amber-200">
                   <div className="flex items-start">
                     <div className="flex-shrink-0">
@@ -533,6 +621,48 @@ export default function ManageStaffClient() {
                         <button
                           type="button"
                           onClick={() => setIsDeleteModalOpen(false)}
+                          disabled={processing}
+                          className="w-full inline-flex justify-center rounded-md border border-slate-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 sm:w-auto sm:text-sm disabled:opacity-50 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {hodConfirmModal.isOpen && (
+                <div className="bg-white px-4 py-5 sm:p-6 border-t border-slate-200">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <AlertTriangle className={`h-6 w-6 ${hodConfirmModal.targetState ? 'text-blue-600' : 'text-amber-600'}`} aria-hidden="true" />
+                    </div>
+                    <div className="ml-3 w-full">
+                      <h3 className="text-lg font-medium text-slate-900">
+                        {hodConfirmModal.targetState ? 'Enable HOD Access?' : 'Disable HOD Access?'}
+                      </h3>
+                      <div className="mt-2 text-sm text-slate-600 space-y-2">
+                        {hodConfirmModal.targetState ? (
+                          <p>This will grant HOD privileges for the valid HOD appointment.</p>
+                        ) : (
+                          <p>This will remove HOD privileges from this Staff account and deactivate the current HOD assignment. Historical records will be preserved.</p>
+                        )}
+                      </div>
+                      <div className="mt-5 flex flex-col sm:flex-row-reverse gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleSave(true)}
+                          disabled={processing}
+                          className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white sm:w-auto sm:text-sm disabled:opacity-50 cursor-pointer ${
+                            hodConfirmModal.targetState ? 'bg-blue-600 hover:bg-blue-700' : 'bg-amber-600 hover:bg-amber-700'
+                          }`}
+                        >
+                          {processing ? 'Processing...' : hodConfirmModal.targetState ? 'Enable HOD Access' : 'Disable HOD Access'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setHodConfirmModal({ isOpen: false, targetState: false })}
                           disabled={processing}
                           className="w-full inline-flex justify-center rounded-md border border-slate-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 sm:w-auto sm:text-sm disabled:opacity-50 cursor-pointer"
                         >

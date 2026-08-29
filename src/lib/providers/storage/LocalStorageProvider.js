@@ -213,7 +213,7 @@ export default class LocalStorageProvider extends StorageProvider {
             absSource = cand;
             break;
           }
-        } catch {}
+        } catch (_e) { /* ignore */ }
       }
     }
 

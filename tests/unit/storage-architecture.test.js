@@ -126,7 +126,7 @@ describe('LocalStorageProvider', () => {
       const fs = await import('fs');
       
       let mkdirCalls = 0;
-      vi.spyOn(fs.promises, 'mkdir').mockImplementation(async (dir) => {
+      vi.spyOn(fs.promises, 'mkdir').mockImplementation(async (_dir) => {
         mkdirCalls++;
         if (mkdirCalls === 1) {
           const err = new Error('EACCES: permission denied');

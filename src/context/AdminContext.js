@@ -88,7 +88,7 @@ export function AdminProvider({ children }) {
   const fetchFacultyInterests = useCallback(async () => {
     setIsLoadingFaculty(true);
     try {
-      const res = await fetch('/api/admin/faculty/interests');
+      const res = { ok: false };
       if (res.ok) {
         const json = await res.json();
         setFacultyInterests(json.data || []);

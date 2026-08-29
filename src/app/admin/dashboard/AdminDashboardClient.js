@@ -6,7 +6,6 @@ import { useAdmin } from '@/context/AdminContext';
 import CollegeInfoEditor from '@/components/admin/CollegeInfoEditor';
 import { validateRollNo } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
-import FacultyInterestsManager from '@/components/admin/FacultyInterestsManager';
 import { AdminDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
 
 const BRANCHES = COLLEGE_CONFIG.branches;
@@ -196,7 +195,7 @@ export default function AdminDashboardClient() {
           </>
         ) : (
           <div className="w-full">
-            <FacultyInterestsManager />
+            
           </div>
         )}
 
