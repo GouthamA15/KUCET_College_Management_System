@@ -255,6 +255,10 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
         clearTimeout(fallbackTimer);
         statusSubscribers.delete(statusHandler);
         eventSubscribers.delete(eventHandler);
+        if (statusSubscribers.size === 0 && eventSubscribers.size === 0 && heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
       };
     } else {
       // In Dev/Local or if no Socket URL, go straight to Supabase
@@ -265,6 +269,10 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
       return () => {
         statusSubscribers.delete(statusHandler);
         eventSubscribers.delete(eventHandler);
+        if (statusSubscribers.size === 0 && eventSubscribers.size === 0 && heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
       };
     }
   }, [enableNotifications, handleNotification, onUpdate]);
