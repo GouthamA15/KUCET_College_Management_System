@@ -277,3 +277,15 @@ const isOtpValid = crypto.timingSafeEqual(
 - [System Architectural Decision Records (ADRs)](./architectural-decisions.md)
 - [Old Cloudinary Storage Migration History](./old-cloudinary-migration.md)
 - [Comprehensive Project Lessons Learned](../development/lessons-learned.md)
+
+
+### 9. Session 208: E2E Forensic Audit & Security Remediation (August 29, 2026)
+
+#### Incident Summary
+1. **Build-time Memory Leak**: `inflight@1.0.6` warning during Next.js builds.
+2. **Critical Security Vulnerabilities (P0)**: Hardcoded JWT_SECRET fallbacks and unrestricted file uploads found during E2E Deep Forensic Audit.
+
+#### Resolution Steps
+1. **Dependency Forensics**: Added nested npm overrides for `@ducanh2912/next-pwa` to force `workbox-build` to `7.4.0`, dropping `glob@7` and `inflight` without breaking builds.
+2. **JWT Security Patch**: Rewrote JWT verification across `auth-utils.js`, `proxy.js`, and `api-utils.js` to explicitly `throw new Error()` if the secret is missing and `NODE_ENV === "production"`.
+3. **MIME Validation Patch**: Added strict `image/` MIME type validation to payment screenshot uploads in `/api/student/requests/route.js`.

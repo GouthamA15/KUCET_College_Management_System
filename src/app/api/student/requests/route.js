@@ -291,6 +291,10 @@ export async function POST(request) {
     }
 
     if (isFileValid) {
+      if (!paymentScreenshotFile.type.startsWith('image/')) {
+        return apiError('Only image files are allowed for payment screenshots.', 400);
+      }
+      
       const MAX_SIZE = 1 * 1024 * 1024;
       if (paymentScreenshotFile.size > MAX_SIZE) {
         return apiError(`File too large (${(paymentScreenshotFile.size / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1MB.`, 400);

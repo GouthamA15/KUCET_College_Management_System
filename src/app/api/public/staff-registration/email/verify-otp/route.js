@@ -36,7 +36,12 @@ export async function POST(req) {
     await db.delete(otpCodes).where(eq(otpCodes.id, otpRecord.id));
 
     // Issue a short-lived cryptographically signed token proving this email is verified
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-do-not-use');
+    let jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      if (process.env.NODE_ENV === 'production') throw new Error('FATAL: JWT_SECRET must be set in production');
+      jwtSecret = 'fallback-secret-do-not-use';
+    }
+    const secret = new TextEncoder().encode(jwtSecret);
     
     const verificationToken = await new SignJWT({ verifiedEmail: cleanEmail, purpose: 'staff_registration_email' })
       .setProtectedHeader({ alg: 'HS256' })

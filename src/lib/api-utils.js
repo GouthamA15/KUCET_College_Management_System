@@ -245,12 +245,17 @@ export async function getAuthUser(role = null) {
 
     if (!token) return null;
 
-    const jwtSecret = process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long';
-    const payload = await verifyJwt(token, jwtSecret);
+    let jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      if (process.env.NODE_ENV === 'production') throw new Error('FATAL: JWT_SECRET must be set in production');
+      jwtSecret = 'temporary_secret_at_least_32_chars_long';
+    }
     
     // NOTE: Redundant silent refresh logic removed. 
     // The middleware (proxy.js) now authoritatively handles silent refresh 
     // and injects the new token into the request headers.
+
+    const payload = await verifyJwt(token, jwtSecret);
 
     if (!payload) return null;
 
