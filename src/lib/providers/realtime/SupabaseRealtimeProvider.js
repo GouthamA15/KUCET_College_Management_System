@@ -38,9 +38,11 @@ export default class SupabaseRealtimeProvider extends RealtimeProvider {
           timestamp: Date.now()
         };
 
-        const channel = this.supabase.channel('kucet-updates');
-        await channel.subscribe();
-        await channel.send({
+        if (!this.channel) {
+          this.channel = this.supabase.channel('kucet-updates');
+          await this.channel.subscribe();
+        }
+        await this.channel.send({
           type: 'broadcast',
           event: type,
           payload: data
