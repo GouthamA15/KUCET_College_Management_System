@@ -307,3 +307,29 @@ An extensive forensic cache audit revealed a cascading failure across three over
 - **Next-PWA Removal**: Completely uninstalled `@ducanh2912/next-pwa` from `package.json` and removed `withPWAInit` from `next.config.mjs`. The project natively utilizes its own `public/sw.js` and manual registration (`PwaRegister.js`), making the external package redundant and destructive.
 - **Service Worker Guardrails**: Fixed `public/sw.js` by explicitly restricting Stale-While-Revalidate caching to static asset paths (matching `/^_next\/static/` and common image/font extensions), bypassing the cache for all Next.js dynamic routing and RSC data.
 - **State Revalidation**: Updated `StaffContext.js` `refreshAllData` and its dependency array to explicitly trigger `fetchFacultyData` and `fetchHODData` when resuming the application (`visibilitychange` / `pageshow`), ensuring context syncs across tabs without requiring a hard refresh.
+
+---
+
+### 11. Session 209: Forensic Resolution of Realtime Heartbeat Leak, Admission Draft Image Restoration, and SSC Decimal Precision (August 29, 2026)
+
+#### Incident Summary
+1. **Event Listener / Realtime Lifecycle Accumulation**: Node runtime `MaxListenersExceededWarning` and memory overhead under repeated navigation and tab cycling.
+2. **Admission Draft Restoration Bug**: Saving an incomplete admission draft and clicking "Restore" restored text fields but failed to restore profile photo and signature previews.
+3. **SSC / 10th Marks Decimal Limitation**: Public admission form rejected decimal marks/CGPA values (e.g., `9.5`, `8.75`, `98.4`).
+
+#### Root Cause Analysis
+1. **Instrumentation & Realtime Heartbeat Lifecycle**:
+   - `src/instrumentation.js` attached `process.on('warning', ...)` unconditionally whenever instrumentation re-ran across server workers.
+   - `src/components/RealtimeListener.js` ran `startSupabaseHeartbeat()` interval without auto-terminating when all active subscriber components unmounted, leading to orphan background intervals and channel re-subscription races.
+2. **Admission Draft State Serialization Gap**:
+   - `src/app/admission/page.js` debounced `localStorage.setItem('admission_form_draft', ...)` saving only `{ form, admissionYear }` while omitting `{ files }`.
+   - Hidden `<input type="file" required>` prevented form submission upon restore because native browser file inputs cannot be programmatically hydrated from existing base64 strings or URLs.
+3. **Frontend Decimal Step Limitation**:
+   - Database schema already defined `student_academic_background.ssc_marks` and `student_admission_drafts.ssc_marks` as `varchar(50)`.
+   - However, `src/app/admission/page.js` defined `<input type="number" min="0" />` without `step="any"`, triggering native browser constraint validation errors on decimal inputs.
+
+#### Resolution Steps
+- **Heartbeat & Event Listener Guard**: Added `globalThis._warningListenerRegistered` in `src/instrumentation.js` to ensure single warning handler attachment. Added auto-clear guard in `RealtimeListener.js` to cancel the heartbeat interval when all listener subscribers unmount, and wrapped `sharedSupabaseChannel.unsubscribe()` in defensive error boundaries.
+- **Draft Media Restoration Pipeline**: Included `files` (`pfp`, `signature`) in localStorage draft serialization; restored both image previews on "Restore"; dynamically switched hidden file inputs to `required={!files.pfp}` / `required={!files.signature}` and updated button labels to "Change Photo" / "Change Signature".
+- **Decimal Support**: Added `step="any"` and `placeholder="TOTAL MARKS / CGPA (e.g. 9.5 or 580)"` to `src/app/admission/page.js`. Validated compatibility across Zod schemas (`src/app/api/public/admission/route.js`, `src/lib/validations/student.js`) and database columns (`varchar(50)`).
+- **Automated Regression Suite**: Created `tests/unit/admission-restoration-and-decimals.test.js` validating decimal parsing, full draft serialization/deserialization with base64 images, legacy draft fallback, and listener idempotency. All 53 test files (395 tests) passed.
