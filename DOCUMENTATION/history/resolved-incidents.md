@@ -333,3 +333,39 @@ An extensive forensic cache audit revealed a cascading failure across three over
 - **Draft Media Restoration Pipeline**: Included `files` (`pfp`, `signature`) in localStorage draft serialization; restored both image previews on "Restore"; dynamically switched hidden file inputs to `required={!files.pfp}` / `required={!files.signature}` and updated button labels to "Change Photo" / "Change Signature".
 - **Decimal Support**: Added `step="any"` and `placeholder="TOTAL MARKS / CGPA (e.g. 9.5 or 580)"` to `src/app/admission/page.js`. Validated compatibility across Zod schemas (`src/app/api/public/admission/route.js`, `src/lib/validations/student.js`) and database columns (`varchar(50)`).
 - **Automated Regression Suite**: Created `tests/unit/admission-restoration-and-decimals.test.js` validating decimal parsing, full draft serialization/deserialization with base64 images, legacy draft fallback, and listener idempotency. All 53 test files (395 tests) passed.
+
+---
+
+### 12. Session 209 (Part 2): Forensic Resolution of Admin Staff Requests Regression & Drizzle Migration Journal Re-alignment (August 30, 2026)
+
+#### Incident Summary
+1. **Admin Staff Requests Failure**: Navigating to `/admin/staff-requests` failed in production, displaying `Failed to fetch HOD requests` or empty state.
+2. **Missing Journal Migrations Warning in Deployment**: Deployment logs showed `Standard migrator found missing historical journal files. Executing available migration files directly...` along with warnings about duplicate columns and non-existent legacy tables (`clerks`).
+
+#### Root Cause Analysis
+1. **Migration Journal Disconnect & Loose Schema Drift**:
+   - `drizzle/meta/_journal.json` contained entries `0000` through `0005`, but the corresponding `.sql` files on disk had been removed in previous refactorings.
+   - When Drizzle ORM's `migrate()` ran on startup, it failed on entry `0000` with `No file ...`, forcing `src/db/migrate.js` to execute all available `.sql` files (`0006` through `0015`) directly in raw SQL mode on every deployment.
+   - A rogue, un-journaled file `0014_icy_carnage.sql` was present on disk and created `faculty_hod_assignments` with `department_id int NOT NULL` instead of `department_code varchar(20) NOT NULL`.
+   - When `/api/admin/hod-requests` executed `SELECT department_code FROM faculty_hod_assignments`, MySQL threw `Unknown column 'faculty_hod_assignments.department_code'`, causing a 500 error.
+2. **Frontend Promise.all Failure Coupling**:
+   - `src/app/admin/staff-requests/StaffRequestsClient.js` used `Promise.all([fetch('/api/admin/staff-requests'), fetch('/api/admin/hod-requests')])`. The failure of `/api/admin/hod-requests` caused the entire page to abort and hide all registration requests.
+3. **App Router Param Extraction & WHERE Clause Bugs**:
+   - `approve`, `reject`, and `resend-activation` endpoints relied on fragile URL segment splitting (`split('/')[length - 2]`) which broke on URLs with trailing slashes or subpaths.
+   - `/api/admin/hod-requests` filtered `gte(end_date, nowStr)` without checking `isNull(end_date)`, filtering out active open-ended HOD tenures.
+
+#### Resolution Steps
+1. **Journal Re-alignment & Baseline Restoration**:
+   - Created baseline `.sql` migration files for `0000` through `0005` to synchronize with `_journal.json`.
+   - Removed rogue `0014_icy_carnage.sql`.
+   - Created canonical migration `0016_reconcile_staff_and_hod_schema.sql` properly registered in `_journal.json` to ensure `faculty_hod_assignments` has `department_code varchar(20) NOT NULL` and default `academic_departments` and `staff_roles` are seeded idempotently.
+   - Re-enabled Drizzle ORM standard `migrate()` runner in `src/db/migrate.js` with structured execution logging and fail-fast error handling.
+2. **Endpoint Hardening & Parameter Safety**:
+   - Updated `approve`, `reject`, and `resend-activation` routes to resolve IDs from `(await context.params)?.id` with robust pathname splitting fallback and return standard `apiError(..., 400)`.
+   - Updated `src/app/api/admin/hod-requests/route.js` and `[id]/route.js` to support `or(isNull(end_date), gte(end_date, nowStr))` and safely catch sub-query errors.
+3. **Resilient Frontend Fetching**:
+   - Refactored `StaffRequestsClient.js` to use `Promise.allSettled()`, isolating the Registration Requests and HOD Requests tabs so a failure in one does not block or crash the other.
+4. **Automated Regression Suite**:
+   - Created `tests/unit/api/admin/staff-requests-workflow.test.js` validating authentication checks, list rendering, invalid ID rejections, and HOD request handling.
+   - 54/54 test files passed (402/402 unit tests passed), and Next.js standalone build compiled with 0 errors.
+

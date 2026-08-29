@@ -2,12 +2,13 @@ import { db } from '@/db';
 import { staffRegistrationRequests } from '@/db/schema';
 import { desc, eq } from 'drizzle-orm';
 import { wrapHandler } from '@/lib/api-utils';
+import logger from '@/lib/logger';
 
 export const GET = wrapHandler({
-  // auth: 'admin',
+  auth: 'admin',
   handler: async () => {
     const { staffAccounts } = await import('@/db/schema');
-    let requests;
+    let requests = [];
     try {
       requests = await db
         .select({
@@ -33,21 +34,25 @@ export const GET = wrapHandler({
         .leftJoin(staffAccounts, eq(staffRegistrationRequests.email, staffAccounts.email))
         .orderBy(desc(staffRegistrationRequests.created_at));
     } catch (e) {
-      console.error('[DB EXCEPTION]', e);
+      logger.error({ err: e }, '[STAFF_REQUESTS] Error querying registration requests');
       throw e;
     }
 
-    const { academicDepartments, academicPrograms } = await import('@/db/schema');
-    const depts = await db.select().from(academicDepartments);
-    const progs = await db.select().from(academicPrograms);
-
     const deptMap = {};
-    depts.forEach(d => { deptMap[d.department_code] = d.department_name; });
-    
     const progMap = {};
-    progs.forEach(p => { progMap[p.program_code] = p.program_name; });
 
-    const processedRequests = requests.map(req => {
+    try {
+      const { academicDepartments, academicPrograms } = await import('@/db/schema');
+      const depts = await db.select().from(academicDepartments);
+      const progs = await db.select().from(academicPrograms);
+
+      depts.forEach(d => { if (d.department_code) deptMap[d.department_code] = d.department_name; });
+      progs.forEach(p => { if (p.program_code) progMap[p.program_code] = p.program_name; });
+    } catch (deptErr) {
+      logger.warn({ err: deptErr }, '[STAFF_REQUESTS] Failed to fetch academic departments/programs for mapping, using raw codes');
+    }
+
+    const processedRequests = (requests || []).map(req => {
       let affils = req.academic_affiliations;
       if (typeof affils === 'string') {
         try { affils = JSON.parse(affils); } catch { affils = []; }
@@ -71,3 +76,4 @@ export const GET = wrapHandler({
     return { success: true, requests: processedRequests };
   }
 });
+

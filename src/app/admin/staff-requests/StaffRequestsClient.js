@@ -25,20 +25,32 @@ export default function StaffRequestsClient() {
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      const [regRes, hodRes] = await Promise.all([
-        fetch('/api/admin/staff-requests'),
-        fetch('/api/admin/hod-requests')
+      const [regRes, hodRes] = await Promise.allSettled([
+        fetch('/api/admin/staff-requests').then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to fetch registration requests');
+          return data.requests || [];
+        }),
+        fetch('/api/admin/hod-requests').then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to fetch HOD requests');
+          return data.requests || [];
+        })
       ]);
-      const regData = await regRes.json();
-      const hodData = await hodRes.json();
-      
-      if (!regRes.ok) throw new Error(regData.error || 'Failed to fetch registration requests');
-      if (!hodRes.ok) throw new Error(hodData.error || 'Failed to fetch HOD requests');
-      
-      setRequests(regData.requests || []);
-      setHodRequests(hodData.requests || []);
+
+      if (regRes.status === 'fulfilled') {
+        setRequests(regRes.value);
+      } else {
+        toast.error(regRes.reason?.message || 'Failed to load staff registrations');
+      }
+
+      if (hodRes.status === 'fulfilled') {
+        setHodRequests(hodRes.value);
+      } else {
+        toast.error(hodRes.reason?.message || 'Failed to load HOD requests');
+      }
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.message || 'Error loading requests');
     } finally {
       setLoading(false);
     }
