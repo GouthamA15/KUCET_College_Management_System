@@ -136,8 +136,8 @@ else
            /var/www/kucet-storage/kucet/institution \
            /var/kucet-db-backup 2>/dev/null || true
   chmod 755 /var/www/kucet-storage /var/www/kucet-storage/kucet /var/www/kucet-storage/kucet/institution 2>/dev/null || true
-  chmod 700 /var/kucet-db-backup 2>/dev/null || true
-  chown 1001:1001 /var/www/kucet-storage /var/www/kucet-storage/kucet 2>/dev/null || sudo chown 1001:1001 /var/www/kucet-storage /var/www/kucet-storage/kucet 2>/dev/null || true
+  chmod 755 /var/kucet-db-backup 2>/dev/null || true
+  chown 1001:1001 /var/www/kucet-storage /var/www/kucet-storage/kucet /var/kucet-db-backup 2>/dev/null || sudo chown 1001:1001 /var/www/kucet-storage /var/www/kucet-storage/kucet /var/kucet-db-backup 2>/dev/null || true
 fi
 
 # ---------------------------------------------------------------------------
