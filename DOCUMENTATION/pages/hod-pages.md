@@ -13,54 +13,49 @@ Access requires `staff_auth` credentials where `is_hod: true` and a recognized d
 | Route Path | Feature Module | Core Functionality | Primary RBAC Permissions |
 | :--- | :--- | :--- | :---: |
 | `/staff/hod/dashboard` | HOD Overview | Department summary, attendance health, faculty status | `VIEW_OWN_RECORDS` |
+| `/staff/hod/staff-management` | Active Faculty Management | Manage faculty accounts, subject accesses, and interests | `STAFF_MANAGE` |
 | `/staff/hod/timetable` | Semester Timetable Matrix | Schedule 8 semesters (S1-S8), resolve room conflicts | `ATTENDANCE_EDIT` |
 | `/staff/hod/faculty-load` | Faculty Workload Tracker | Weekly lecture hour distribution, substitutions | `REPORT_EXPORT` |
 | `/staff/hod/attendance-analytics` | Attendance Condonation | Identify low attendance, generate condonation lists | `REPORT_EXPORT` |
-| `/staff/hod/subject-assignments` | Subject Allocation & Marks | Approve faculty subject requests, lock internal marks | `MARK_APPROVE` |
 
 ---
 
 ## Key Departmental Workflows
 
-### 1. Semester Timetable Matrix (S1 - S8)
+### 1. Active Faculty & Staff Management (`/staff/hod/staff-management`)
+HODs manage their departmental faculty via the Active Faculty module. This replaces individual actions with a central "Manage Faculty" modal. The modal aggregates controls into three distinct sections:
+- **Account Access**: Toggle a faculty member's active or disabled status. Changing an account status to `DISABLED` triggers an aggressive purge of their active `user_sessions` and `refresh_tokens`.
+- **Subject Access (Assigned Subjects)**: Granular toggle for active subject assignments managed within `faculty_subject_assignments`. HODs can assign and revoke available subjects directly to manage teaching loads.
+- **Requested Subjects (Faculty Interests)**: Faculty can submit subject interests (`faculty_subject_interests`). HODs can view these requests by department code (inclusive of all underlying academic program codes, e.g., 'CSD' and 'IT' for 'CSE' HOD) and approve them inline. Approval converts the interest into an active assignment and sets the request status to `APPROVED`.
+
+All modal state modifications use atomic bulk update endpoints (`PATCH /api/staff/hod/active-faculty/[staffId]/manage`), are wrapped in database transactions, and are logged via `auditLogs`.
+
+---
+
+### 2. Semester Timetable Matrix (S1 - S8)
 The timetable configuration grid (`branch_timetable`) manages weekly schedules across all 8 semesters:
 - **Grid Layout**: Days (Monday to Saturday) vs Periods (Periods 1 through 7, including lunch break).
-- **Subject & Faculty Pairing**: Assigns a subject and primary faculty member (`staff_accounts.id`) to each period slot.
+- **Subject Constraints**: Assigns available subjects (as filtered by the active curriculum and faculty constraints) and primary faculty members to period slots.
 - **Conflict Detection Engine**: Automatically validates timetable allocations against active schedules across the institution to prevent:
   - Assigning the same faculty member to two different classes in the same period slot.
   - Assigning the same physical laboratory or lecture room simultaneously.
 
-```mermaid
-flowchart TD
-    A[HOD Opens Timetable Grid S1-S8] --> B[Select Semester & Day]
-    B --> C[Assign Subject & Faculty to Period Slot]
-    C --> D{Conflict Detection Engine}
-    D -->|Conflict Detected| E[Flag Red Warning: Faculty / Room Overlap]
-    D -->|No Conflict| F[Save Slot in branch_timetable]
-```
-
 ---
 
-### 2. Faculty Workload Tracker & Substitutions (`/staff/hod/faculty-load`)
+### 3. Faculty Workload Tracker & Substitutions (`/staff/hod/faculty-load`)
 Maintains balanced teaching loads across departmental staff:
 - **Workload Analytics**: Visualizes total weekly teaching hours per faculty member. Highlights overload (> 16 hours/week) or underload (< 8 hours/week) states.
-- **Faculty Substitution Engine**: In the event of faculty leave, HODs assign temporary substitute faculty to specific class periods (`faculty_substitutions`), seamlessly transferring attendance recording permissions (`ATTENDANCE_MARK`) for that session.
+- **Faculty Substitution Engine**: In the event of faculty leave, HODs manage leaves and assign temporary substitute faculty to specific class periods (`faculty_substitutions`), seamlessly transferring attendance recording permissions (`ATTENDANCE_MARK`) for that session.
 
 ---
 
-### 3. Branch Condonation Analytics (`/staff/hod/attendance-analytics`)
+### 4. Branch Condonation Analytics (`/staff/hod/attendance-analytics`)
 Monitors student attendance compliance across all branch sections:
 - **Threshold Categorization**:
   - **Satisfactory ($\ge 75\%$)**: Regular exam eligibility.
   - **Condonation Range ($65\% - 74.9\%$)**: Eligible for condonation upon medical proof and fee payment.
   - **Detained ($< 65\%$)**: Highlighted in red; ineligible for university end-semester examinations.
 - **Report Exporter (`REPORT_EXPORT`)**: Generates official PDF/Excel condonation list reports for submission to the Academic Audit Cell and University Registrar.
-
----
-
-### 4. Subject Allocation & Marks Approval Workflow (`/clerk/hod/approvals`)
-- **Subject Preference Review**: Evaluates subject interest submissions made by faculty (`faculty_subject_interests`) and formalizes final assignments (`faculty_subject_assignments`).
-- **Internal Marks Approval (`MARK_APPROVE`)**: Review submitted Mid-1, Mid-2, and Lab marks. Clicking "Approve & Lock Marks" converts the marks grid to immutable read-only state in `student_marks` and enables transcript generation.
 
 ---
 

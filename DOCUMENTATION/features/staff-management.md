@@ -89,3 +89,19 @@ export const STAFF_CATEGORIES = {
 export const FACULTY_BRANCHES = ['CSE', 'CSD', 'ECE', 'EEE', 'MECH', 'CIVIL', 'IT'];
 ```
 
+---
+
+## 7. HOD Staff Management Capabilities (Phase H5)
+
+Under the `/staff/hod/staff-management` module, Head of Departments are granted specialized administrative privileges to manage faculty within their authorized department and associated programs.
+
+### Active Faculty Management & Access Control
+HODs can view all active faculty members affiliated with their department. Through the unified **"Manage"** interface, HODs can control:
+
+1. **Faculty Portal Access**: HODs can toggle a faculty member's account status between `ACTIVE` and `DISABLED`. Disabling an account is a hard security action that automatically purges all active `user_sessions` and `refresh_tokens` for that user, instantly terminating their access.
+2. **Subject Assignment Management (`faculty_subject_assignments`)**: HODs can manage granular subject access by toggling subject assignments as active or inactive. This soft-toggling preserves historical records without requiring hard deletion of records.
+3. **Requested Subjects Approval (`faculty_subject_interests`)**: HODs can review and approve pending subject interests submitted by faculty. Approving an interest converts it directly into an active assignment, automatically computing the current academic term based on system configuration.
+
+### Transactional Integrity
+To ensure system consistency, all HOD management actions execute via atomic database transactions. Modifications to account status, subject assignments, or interest approvals commit simultaneously, and all actions log comprehensive event records to the `audit_logs` table for administrative oversight.
+

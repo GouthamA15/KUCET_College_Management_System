@@ -13,6 +13,8 @@
 /drawings
 
 # testing
+AGENTS.md
+CLAUDE.md
 /coverage
 *.sql
 *.sql.gz
@@ -58,6 +60,7 @@ next-env.d.ts
 
 # scripts
 /scripts
+/scratch
 
 # Playwright
 node_modules/

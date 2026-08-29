@@ -46,7 +46,7 @@ export default function RootLayout({ children }) {
         <SystemConfigProvider>
           <MaintenanceGuard>
             <AssetProvider>
-              <Toaster position="top-center" reverseOrder={false} />
+              <Toaster position="top-center" reverseOrder={false} containerStyle={{ zIndex: 10000 }} />
               <div id="main-content" tabIndex={-1}>
                 {children}
               </div>

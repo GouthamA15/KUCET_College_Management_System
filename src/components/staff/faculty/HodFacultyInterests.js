@@ -100,8 +100,8 @@ export default function HodFacultyInterests() {
       {filteredInterests.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredInterests.map((interest) => (
-            <div key={interest.id} className="bg-gradient-to-br from-blue-50/50 via-white to-blue-50/50 border border-blue-100 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow relative flex flex-col">
-              <div className="flex justify-between items-start mb-3">
+            <div key={interest.id} className="bg-gradient-to-br from-blue-50/50 via-white to-blue-50/50 border border-blue-100 rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 cursor-pointer relative flex flex-col group">
+              <div className="flex justify-between items-start mb-2.5">
                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-sm border ${
                   interest.status === 'PENDING' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                   interest.status === 'APPROVED' ? 'bg-green-50 text-green-700 border-green-200' :
@@ -111,42 +111,42 @@ export default function HodFacultyInterests() {
                 </span>
                 <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
                   <Calendar size={10} />
-                  {new Date(interest.created_at).toLocaleDateString()}
+                  {new Date(interest.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </span>
               </div>
               
               <div className="flex-grow">
-                <h3 className="font-bold text-gray-900 text-lg mb-1 leading-tight">{interest.subject_code}</h3>
-                <p className="text-sm text-gray-600 line-clamp-2 mb-3 h-10" title={interest.subject_name}>{interest.subject_name}</p>
+                <h3 className="font-bold text-gray-900 text-base mb-1 leading-tight group-hover:text-[#0b3578] transition-colors">{interest.subject_code}</h3>
+                <p className="text-xs text-gray-600 line-clamp-2 mb-2 h-8" title={interest.subject_name}>{interest.subject_name}</p>
                 
-                <div className="space-y-2 py-3 border-t border-gray-100 text-sm">
-                  <div className="flex items-start gap-2 text-gray-700">
-                    <User size={14} className="text-gray-400 mt-0.5 shrink-0" />
+                <div className="space-y-1.5 py-2 border-t border-gray-100 text-xs">
+                  <div className="flex items-start gap-1.5 text-gray-700">
+                    <User size={13} className="text-gray-400 mt-0.5 shrink-0" />
                     <div className="leading-tight">
                       <span className="font-medium">{interest.faculty_name}</span>
-                      <div className="text-xs text-gray-400 mt-0.5">{interest.employee_id}</div>
+                      <div className="text-[10px] text-gray-400 mt-0.5">{interest.employee_id}</div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <BookOpen size={14} className="text-gray-400 shrink-0" />
+                  <div className="flex items-center gap-1.5 text-gray-700">
+                    <BookOpen size={13} className="text-gray-400 shrink-0" />
                     <span>{interest.branch} <span className="text-gray-300 mx-1">•</span> Sem {interest.semester}</span>
                   </div>
                 </div>
               </div>
 
               {interest.status === 'PENDING' && (
-                <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-gray-100">
+                <div className="grid grid-cols-2 gap-2 mt-3 pt-2.5 border-t border-gray-100">
                   <button 
-                    onClick={() => handleAction(interest.id, 'APPROVED')}
+                    onClick={(e) => { e.stopPropagation(); handleAction(interest.id, 'APPROVED'); }}
                     disabled={processingId === interest.id}
-                    className="flex justify-center items-center gap-1.5 py-2 bg-green-50 text-green-700 border border-green-200 rounded-md hover:bg-green-600 hover:text-white hover:border-green-600 text-xs font-bold transition-all disabled:opacity-50"
+                    className="flex justify-center items-center gap-1.5 py-1.5 bg-[#0b3578] text-white border border-transparent rounded-md hover:bg-[#0a2d66] shadow-sm text-xs font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <Check size={14} /> Approve
                   </button>
                   <button 
-                    onClick={() => setShowRejectModal(interest)}
+                    onClick={(e) => { e.stopPropagation(); setShowRejectModal(interest); }}
                     disabled={processingId === interest.id}
-                    className="flex justify-center items-center gap-1.5 py-2 bg-red-50 text-red-700 border border-red-200 rounded-md hover:bg-red-600 hover:text-white hover:border-red-600 text-xs font-bold transition-all disabled:opacity-50"
+                    className="flex justify-center items-center gap-1.5 py-1.5 bg-white text-red-700 border border-red-300 rounded-md hover:bg-red-50 shadow-sm text-xs font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <X size={14} /> Reject
                   </button>

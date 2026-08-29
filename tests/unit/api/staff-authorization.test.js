@@ -13,15 +13,29 @@ vi.mock('@/lib/auth', () => ({
   verifyJwt: vi.fn(),
 }));
 
-vi.mock('@/db', () => ({
-  db: {
-    query: {
-      facultyHodAssignments: {
-        findFirst: vi.fn(),
+vi.mock('@/db', () => {
+  const selectMock = vi.fn().mockReturnThis();
+  const fromMock = vi.fn().mockReturnThis();
+  const innerJoinMock = vi.fn().mockReturnThis();
+  const whereMock = vi.fn().mockResolvedValue([{ role_code: 'HOD' }]);
+  
+  return {
+    db: {
+      select: () => ({
+        from: () => ({
+          innerJoin: () => ({
+            where: whereMock
+          })
+        })
+      }),
+      query: {
+        facultyHodAssignments: {
+          findFirst: vi.fn(),
+        }
       }
     }
-  }
-}));
+  };
+});
 
 vi.mock('@/lib/auth-utils', () => ({
   verifyJwt: vi.fn(),
