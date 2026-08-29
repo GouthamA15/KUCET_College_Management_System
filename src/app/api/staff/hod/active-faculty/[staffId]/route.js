@@ -21,12 +21,12 @@ const patchSchema = z.object({
 export const PATCH = wrapHandler({
   auth: 'hod',
   schema: patchSchema,
-  handler: async (_request, { user, data, params }) => {
-    try {
-      const targetStaffId = parseInt(params.staffId, 10);
-      if (isNaN(targetStaffId)) {
-        return apiError('Invalid staff ID', 400);
-      }
+  handler: async (_request, { user, data, context }) => {
+    const resolvedParams = await context.params;
+    const targetStaffId = parseInt(resolvedParams.staffId, 10);
+    if (isNaN(targetStaffId)) {
+      return apiError('Invalid staff ID', 400);
+    }
 
       const { action } = data;
 
@@ -138,9 +138,5 @@ export const PATCH = wrapHandler({
           account_status: newStatus
         }
       });
-    } catch (error) {
-      logger.error('HOD Faculty Status PATCH Error:', error);
-      return apiError('Internal Server Error', 500);
-    }
   }
 });

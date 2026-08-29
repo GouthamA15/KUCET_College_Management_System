@@ -150,8 +150,17 @@ function buildMenuItems({ effectiveRole, studentData, staffData }) {
   // Add HOD Dashboard dynamically
   if (effectiveRole === 'faculty' && staffData?.is_hod) {
     const enhancedMenu = [...menuItemsRaw];
-    const settingsIdx = enhancedMenu.findIndex(i => i.label === 'SETTINGS');
-    const insertIdx = settingsIdx > -1 ? settingsIdx : enhancedMenu.length;
+    
+    // Find ACADEMICS to place STAFF MANAGEMENT right after it
+    const academicsIdx = enhancedMenu.findIndex(i => i.label === 'ACADEMICS');
+    let insertIdx = enhancedMenu.length;
+    
+    if (academicsIdx > -1) {
+      insertIdx = academicsIdx + 1;
+    } else {
+      const settingsIdx = enhancedMenu.findIndex(i => i.label === 'SETTINGS');
+      insertIdx = settingsIdx > -1 ? settingsIdx : enhancedMenu.length;
+    }
 
     enhancedMenu.splice(insertIdx, 0,
       { label: 'STAFF MANAGEMENT', route: '/staff/hod/staff-management' }

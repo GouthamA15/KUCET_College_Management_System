@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { Mail, Briefcase, UserCircle, CheckCircle, Search, AlertTriangle } from 'lucide-react';
+import { Mail, Briefcase, UserCircle, Search, CheckCircle } from 'lucide-react';
+import ManageFacultyModal from './ManageFacultyModal';
 
 export default function ActiveFacultyList() {
   const [facultyList, setFacultyList] = useState([]);
@@ -10,7 +11,6 @@ export default function ActiveFacultyList() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const [manageModal, setManageModal] = useState(null);
-  const [processing, setProcessing] = useState(false);
 
   const fetchFaculty = async () => {
     setLoading(true);
@@ -42,36 +42,7 @@ export default function ActiveFacultyList() {
     );
   }
 
-  const confirmManageStatus = async () => {
-    if (!manageModal) return;
-    setProcessing(true);
-    const faculty = manageModal;
-    const isCurrentlyActive = faculty.account_status === 'ACTIVE';
-    const action = isCurrentlyActive ? 'disable' : 'enable';
-    
-    try {
-      const res = await fetch(`/api/staff/hod/active-faculty/${faculty.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action })
-      });
-      const result = await res.json();
-      if (res.ok) {
-        toast.success(result.message || `Account ${action}d successfully`);
-        // Update local state immediately
-        setFacultyList(prev => prev.map(f => 
-          f.id === faculty.id ? { ...f, account_status: result.data.account_status } : f
-        ));
-        setManageModal(null);
-      } else {
-        toast.error(result.error || `Failed to ${action} account`);
-      }
-    } catch (_e) {
-      toast.error(`An error occurred while trying to ${action} account`);
-    } finally {
-      setProcessing(false);
-    }
-  };
+
 
   const filtered = facultyList.filter(f => 
     f.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -158,9 +129,9 @@ export default function ActiveFacultyList() {
                 <div className="mt-3 pt-2.5 border-t border-gray-100 flex justify-end">
                   <button 
                     onClick={(e) => { e.stopPropagation(); setManageModal(faculty); }}
-                    className="text-[10px] font-semibold text-[#0b3578] hover:text-[#0a2d66] px-2.5 py-1 border border-[#0b3578] rounded-md transition-colors hover:bg-slate-50 cursor-pointer uppercase tracking-wider relative z-10"
+                    className="text-[10px] font-semibold text-[#0b3578] hover:text-[#0a2d66] px-3 py-1 border border-[#0b3578] rounded-md transition-colors hover:bg-slate-50 cursor-pointer uppercase tracking-wider relative z-10"
                   >
-                    {faculty.account_status === 'ACTIVE' ? 'Disable' : 'Enable'}
+                    Manage
                   </button>
                 </div>
               )}
@@ -175,57 +146,14 @@ export default function ActiveFacultyList() {
 
       {/* Confirmation Modal */}
       {manageModal && (
-        <div className="fixed inset-0 z-[9999] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" onClick={() => {
-              if (!processing) setManageModal(null);
-            }}></div>
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            
-            <div className="relative z-10 inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full border border-slate-200">
-              <div className={`px-4 py-5 sm:p-6 border-b ${manageModal.account_status === 'ACTIVE' ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}`}>
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <AlertTriangle className={`h-6 w-6 ${manageModal.account_status === 'ACTIVE' ? 'text-amber-600' : 'text-blue-600'}`} aria-hidden="true" />
-                  </div>
-                  <div className="ml-3 w-full">
-                    <h3 className={`text-sm font-medium ${manageModal.account_status === 'ACTIVE' ? 'text-amber-900' : 'text-blue-900'}`}>
-                      {manageModal.account_status === 'ACTIVE' ? 'Disable Faculty Account?' : 'Enable Faculty Account?'}
-                    </h3>
-                    <div className={`mt-2 text-sm space-y-2 ${manageModal.account_status === 'ACTIVE' ? 'text-amber-800' : 'text-blue-800'}`}>
-                      <p>Are you sure you want to {manageModal.account_status === 'ACTIVE' ? 'disable' : 'enable'} <strong>{manageModal.name}</strong>?</p>
-                      {manageModal.account_status === 'ACTIVE' ? (
-                        <p>Their account will be set to <strong>Disabled</strong>, active sessions will be terminated, and they will be prevented from logging in. <br/><strong>All student records, audit history, and academic assignments are safely preserved.</strong></p>
-                      ) : (
-                        <p>Their account will be set to <strong>Active</strong>, and they will regain portal access immediately.</p>
-                      )}
-                    </div>
-                    <div className="mt-5 flex flex-col sm:flex-row gap-3">
-                      <button
-                        type="button"
-                        onClick={confirmManageStatus}
-                        disabled={processing}
-                        className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white sm:w-auto sm:text-sm disabled:opacity-50 cursor-pointer ${
-                          manageModal.account_status === 'ACTIVE' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-blue-600 hover:bg-blue-700'
-                        }`}
-                      >
-                        {processing ? 'Processing...' : manageModal.account_status === 'ACTIVE' ? 'Disable Account' : 'Enable Account'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setManageModal(null)}
-                        disabled={processing}
-                        className="w-full inline-flex justify-center rounded-md border border-slate-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 sm:w-auto sm:text-sm disabled:opacity-50 cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ManageFacultyModal 
+          faculty={manageModal} 
+          onClose={() => setManageModal(null)} 
+          onSaved={() => {
+            setManageModal(null);
+            fetchFaculty();
+          }} 
+        />
       )}
     </div>
   );

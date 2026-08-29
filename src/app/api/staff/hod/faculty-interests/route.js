@@ -33,45 +33,59 @@ export const GET = wrapHandler({
         return apiError('Unauthorized - Active HOD Assignment Required', 403);
       }
 
-      // 1. Fetch eligible Faculty Staff IDs in the HOD's department
-      const eligibleFaculty = await db.select({
-        staff_id: staffAccounts.id,
-        name: staffAccounts.name,
-        employee_id: staffAccounts.employee_id
-      })
-      .from(staffAccounts)
-      .innerJoin(staffAccountRoles, eq(staffAccountRoles.staff_account_id, staffAccounts.id))
-      .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
-      .innerJoin(staffAcademicAffiliations, eq(staffAcademicAffiliations.staff_account_id, staffAccounts.id))
-      .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
-      .where(and(
-        eq(staffRoles.role_code, 'FACULTY'),
-        eq(academicDepartments.department_code, user.hod_department_code),
-        eq(staffAccounts.account_status, 'ACTIVE')
-      ));
+      // 1. Resolve all program codes under the HOD's department
+      const hodDept = await db.select({ id: academicDepartments.id })
+        .from(academicDepartments)
+        .where(eq(academicDepartments.department_code, user.hod_department_code))
+        .limit(1);
 
-      const facultyMap = {};
-      for (const row of eligibleFaculty) {
-        facultyMap[row.staff_id] = { name: row.name, employee_id: row.employee_id };
-      }
-      
-      const eligibleStaffIds = Object.keys(facultyMap).map(Number);
-      
-      if (eligibleStaffIds.length === 0) {
-        return apiResponse({ data: [] });
+      let authorizedCodes = [user.hod_department_code];
+
+      if (hodDept.length > 0) {
+        // dynamic import of academicPrograms to avoid top-level import issues if missed
+        const { academicPrograms } = require('@/db/schema');
+        const programs = await db.select({ code: academicPrograms.program_code })
+          .from(academicPrograms)
+          .where(eq(academicPrograms.department_id, hodDept[0].id));
+        
+        programs.forEach(p => {
+          if (!authorizedCodes.includes(p.code)) {
+            authorizedCodes.push(p.code);
+          }
+        });
       }
 
-      // 2. Query faculty subject interests for these staff IDs
+      // 2. Query faculty subject interests for the HOD's department and its programs
       const rawInterests = await db.select()
         .from(facultySubjectInterests)
         .where(and(
-          inArray(facultySubjectInterests.staff_account_id, eligibleStaffIds),
+          inArray(facultySubjectInterests.department_code, authorizedCodes),
           or(
             eq(facultySubjectInterests.academic_year, currentAcademicYear),
             eq(facultySubjectInterests.status, 'PENDING')
           )
         ))
         .orderBy(desc(facultySubjectInterests.created_at));
+
+      if (rawInterests.length === 0) {
+        return apiResponse({ data: [] });
+      }
+
+      const requestedStaffIds = [...new Set(rawInterests.map(i => i.staff_account_id))];
+
+      // 2. Fetch the corresponding Faculty staff details
+      const facultyDetails = await db.select({
+        id: staffAccounts.id,
+        name: staffAccounts.name,
+        employee_id: staffAccounts.employee_id
+      })
+      .from(staffAccounts)
+      .where(inArray(staffAccounts.id, requestedStaffIds));
+
+      const facultyMap = {};
+      for (const row of facultyDetails) {
+        facultyMap[row.id] = { name: row.name, employee_id: row.employee_id };
+      }
 
       if (rawInterests.length === 0) {
         return apiResponse({ data: [] });
