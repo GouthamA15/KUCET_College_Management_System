@@ -215,7 +215,21 @@ const studentResponse = {
 ### Why This Architecture is Critical
 1. **Environment Portability**: Moving from local development to production VPS or changing S3 bucket names requires **zero database updates**.
 2. **CDN Transformation Flexibility**: On-the-fly Cloudinary image optimization parameters (`f_auto,q_auto`) can be modified globally without database migrations.
-3. **Security**: Allows generating short-lived signed URLs for sensitive documents (e.g. Transfer Certificates) at read-time.
+---
+
+## 🛡️ Production Database Backup & Disaster Recovery Engine
+
+The KUCET CMS maintains a robust, zero-data-loss database backup architecture supporting both self-hosted VPS MySQL deployments and distributed TiDB Cloud clusters:
+
+### Key Operational Architecture
+- **Persistent Storage Directory**: `DB_BACKUP_PATH=/var/kucet-db-backup` (mounted into the application container; with local development fallback to `./backups`).
+- **Automated Schedule**: Daily at **02:30 AM** VPS local time (`30 2 * * *`) via host crontab and `DEPLOYMENT_PACKAGE/SCRIPTS/nightly-backup.sh`.
+- **14-Day Retention Window**: Automatically prunes snapshots older than 14 days while **strictly preserving the latest valid backup** regardless of age.
+- **Atomic Dump & Gzip Compression**: Backups are written to temporary `.sql.tmp` files, validated for SQL table structure headers, and compressed to Gzip-9 (`.sql.gz`).
+- **Cryptographic SHA-256 Verification**: Post-compression SHA-256 hash is computed and stored alongside the archive (`.sha256` sidecar) and tracked in `database_backup_logs`.
+- **Guarded Safe Restoration**: Super Admin panel (`/admin/infrastructure?tab=backups`) allows on-demand backups, secure downloads, and guarded database restoration requiring exact typing of the phrase `RESTORE` with an **automated emergency pre-restore snapshot** taken prior to applying changes.
+
+For full technical specifications, see [Database Backup Strategy](../database/backup-strategy.md).
 
 ---
 

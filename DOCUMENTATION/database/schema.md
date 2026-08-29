@@ -276,6 +276,7 @@ Handles marks entry, timetable scheduling, faculty assignments, student requests
 - **`faculty_hod_assignments`**: Tracks HOD appointments (`staff_account_id`, `department_code`, `academic_year`, `start_date`, `end_date`, `is_active`, `assigned_by`).
 - **`student_requests`**: Bonafide, Custodian, and Transfer Certificate request workflows.
 - **`certificate_verifications`**: Public QR verification records for issued certificates.
+- **`database_backup_logs`**: Operational audit records for automated and manual database backup jobs (`id`, `filename`, `file_path`, `file_size_bytes`, `checksum_sha256`, `backup_type` enum `SCHEDULED`/`MANUAL`/`EMERGENCY_PRE_RESTORE`, `status` enum `IN_PROGRESS`/`SUCCESS`/`FAILED`, `error_message`, `duration_ms`, `triggered_by`, `created_at`, `completed_at`).
 
 ---
 
