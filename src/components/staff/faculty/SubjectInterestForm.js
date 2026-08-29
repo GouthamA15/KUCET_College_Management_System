@@ -1,14 +1,16 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { getNowSync } from '@/lib/clock';
 import { useStaff } from '@/context/StaffContext';
 import AcademicYearSelect from '@/components/ui/AcademicYearSelect';
 
 export default function SubjectInterestForm({ onInterestSubmitted }) {
-  const { facultyInterests = [], refreshFaculty } = useStaff();
-  const [branches] = useState(COLLEGE_CONFIG.branches);
+  const { staffData, facultyInterests = [], refreshFaculty } = useStaff();
+  
+  // Only allow branches that the staff is affiliated with, fallback to empty
+  const branches = staffData?.branches || [];
+
   const [selectedBranch, setSelectedBranch] = useState('');
   const [selectedSemester, setSelectedSemester] = useState('');
   const [syllabus, setSyllabus] = useState([]);
@@ -109,7 +111,7 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
           >
             <option value="">Select Branch</option>
             {branches.map(b => (
-              <option key={b.code} value={b.name}>{b.name}</option>
+              <option key={b} value={b}>{b}</option>
             ))}
           </select>
           </div>
@@ -216,10 +218,12 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
                         ) : (
                           <button
                             onClick={() => handleSubmitInterest(subject)}
-                            disabled={submitting}
-                            className="px-4 py-1.5 bg-[#0b3578] text-white rounded-md text-sm font-medium hover:bg-[#0a2d66] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                            disabled={submitting || subject.allocated_to_me}
+                            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap ${
+                              subject.allocated_to_me ? 'bg-slate-100 text-slate-500 border border-slate-200' : 'bg-[#0b3578] text-white hover:bg-[#0a2d66]'
+                            }`}
                           >
-                            Express Interest
+                            {subject.allocated_to_me ? 'Already Assigned' : 'Express Interest'}
                           </button>
                         )}
                       </td>
@@ -290,10 +294,12 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
                     ) : (
                       <button
                         onClick={() => handleSubmitInterest(subject)}
-                        disabled={submitting}
-                        className="w-full px-4 py-2 bg-[#0b3578] text-white rounded-md text-sm font-medium hover:bg-[#0a2d66] transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+                        disabled={submitting || subject.allocated_to_me}
+                        className={`w-full px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2 ${
+                          subject.allocated_to_me ? 'bg-slate-100 text-slate-500 border border-slate-200' : 'bg-[#0b3578] text-white hover:bg-[#0a2d66]'
+                        }`}
                       >
-                        Express Interest
+                        {subject.allocated_to_me ? 'Already Assigned' : 'Express Interest'}
                       </button>
                     )}
                   </div>

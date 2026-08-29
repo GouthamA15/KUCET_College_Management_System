@@ -1,14 +1,13 @@
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
-import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { getNowSync } from '@/lib/clock';
 import { useStaff } from '@/context/StaffContext';
 import AcademicYearSelect from '@/components/ui/AcademicYearSelect';
 
 export default function SubjectAssignmentsList() {
   const { staffData, refreshFaculty } = useStaff();
-  const [branches] = useState(COLLEGE_CONFIG.branches);
+  const branches = staffData?.branches || [];
   const [selectedBranch, setSelectedBranch] = useState(staffData?.hod_department_code || '');
   const [selectedSemester, setSelectedSemester] = useState('');
   const [selectedType, setSelectedType] = useState('');
@@ -152,7 +151,7 @@ export default function SubjectAssignmentsList() {
           >
             <option value="">Select Branch</option>
             {branches.map(b => (
-              <option key={b.code} value={b.name}>{b.name}</option>
+              <option key={b} value={b}>{b}</option>
             ))}
           </select>
           </div>

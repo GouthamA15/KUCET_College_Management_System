@@ -59,6 +59,7 @@ export const GET = wrapHandler({
     let department_names = [];
     if (resolvedRole === 'faculty') {
         const affil = await db.select({ 
+              dept_id: academicDepartments.id,
               dept_code: academicDepartments.department_code, 
               dept_name: academicDepartments.department_name,
               prog_code: academicPrograms.program_code 
@@ -69,15 +70,24 @@ export const GET = wrapHandler({
             .where(eq(staffAcademicAffiliations.staff_account_id, staff.id));
             
         if (affil.length > 0) {
-          // Use program_code if available, otherwise fallback to department_code
-          const rawBranches = affil.map(a => a.prog_code || a.dept_code);
+          const deptIds = Array.from(new Set(affil.map(a => a.dept_id)));
+          
+          // Fetch all programs under these departments
+          const { inArray } = await import('drizzle-orm');
+          const allPrograms = await db.select({ prog_code: academicPrograms.program_code })
+            .from(academicPrograms)
+            .where(inArray(academicPrograms.department_id, deptIds));
+
+          const allProgramCodes = allPrograms.map(p => p.prog_code);
+          
+          // Also include the raw dept_code as a branch if they want to select the parent department itself
           const rawDepts = affil.map(a => a.dept_code);
           const rawDeptNames = affil.map(a => a.dept_name);
-          // Use a Set to remove duplicates
-          branches = Array.from(new Set(rawBranches.filter(Boolean)));
+
+          branches = Array.from(new Set([...allProgramCodes, ...rawDepts].filter(Boolean)));
           departments = Array.from(new Set(rawDepts.filter(Boolean)));
           department_names = Array.from(new Set(rawDeptNames.filter(Boolean)));
-          branch = branches[0] || null;
+          branch = branches.length > 0 ? branches[0] : null;
         }
 
         const { facultyHodAssignments, staffAccountRoles, staffRoles } = await import('@/db/schema');
