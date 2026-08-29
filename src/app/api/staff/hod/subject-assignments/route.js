@@ -101,6 +101,37 @@ export const POST = wrapHandler({
     const resolvedAcademicYear = academic_year || currentAcademicYear || '2025-26';
     const parsedSemester = parseInt(semester);
 
+    // Validation: Affiliation Boundary Check
+    const { staffAcademicAffiliations, academicDepartments, academicPrograms } = await import('@/db/schema');
+    const { inArray } = await import('drizzle-orm');
+
+    const affil = await db.select({ 
+      dept_id: academicDepartments.id,
+      dept_code: academicDepartments.department_code, 
+      prog_code: academicPrograms.program_code 
+    })
+    .from(staffAcademicAffiliations)
+    .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
+    .leftJoin(academicPrograms, eq(staffAcademicAffiliations.program_id, academicPrograms.id))
+    .where(eq(staffAcademicAffiliations.staff_account_id, target_faculty_id));
+
+    if (affil.length === 0) {
+      return apiError('No academic affiliations found for your account', 403);
+    }
+
+    const deptIds = Array.from(new Set(affil.map(a => a.dept_id)));
+    const allPrograms = await db.select({ prog_code: academicPrograms.program_code })
+      .from(academicPrograms)
+      .where(inArray(academicPrograms.department_id, deptIds));
+
+    const allProgramCodes = allPrograms.map(p => p.prog_code);
+    const rawDepts = affil.map(a => a.dept_code);
+    const allowedBranches = Array.from(new Set([...allProgramCodes, ...rawDepts].filter(Boolean)));
+
+    if (!allowedBranches.includes(branch)) {
+      return apiError(`Unauthorized: You can only self-assign subjects within your affiliated departments/programs.`, 403);
+    }
+
     // Duplicate Check
     const existingAssignment = await db.select({ id: facultySubjectAssignments.id, is_active: facultySubjectAssignments.is_active })
       .from(facultySubjectAssignments)
