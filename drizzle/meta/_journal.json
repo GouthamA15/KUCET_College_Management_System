@@ -120,6 +120,13 @@
       "when": 1788000000000,
       "tag": "0016_reconcile_staff_and_hod_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "5",
+      "when": 1788035000000,
+      "tag": "0017_add_staff_registration_address",
+      "breakpoints": true
     }
   ]
 }

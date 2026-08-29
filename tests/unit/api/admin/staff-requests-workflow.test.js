@@ -89,4 +89,28 @@ describe('Admin Staff & HOD Requests Workflow API Routes', () => {
       expect(Array.isArray(data.requests)).toBe(true);
     });
   });
+
+  describe('Drizzle Schema & Column Integrity', () => {
+    it('staffRegistrationRequests table schema contains required columns', async () => {
+      const { staffRegistrationRequests } = await import('@/db/schema/identity.js');
+      expect(staffRegistrationRequests.name).toBeDefined();
+      expect(staffRegistrationRequests.email).toBeDefined();
+      expect(staffRegistrationRequests.staff_category).toBeDefined();
+      expect(staffRegistrationRequests.requested_role).toBeDefined();
+      expect(staffRegistrationRequests.designation).toBeDefined();
+      expect(staffRegistrationRequests.address).toBeDefined();
+      expect(staffRegistrationRequests.academic_affiliations).toBeDefined();
+      expect(staffRegistrationRequests.status).toBeDefined();
+    });
+
+    it('facultyHodAssignments table schema contains department_code column', async () => {
+      const { facultyHodAssignments } = await import('@/db/schema/operations.js');
+      expect(facultyHodAssignments.staff_account_id).toBeDefined();
+      expect(facultyHodAssignments.department_code).toBeDefined();
+      expect(facultyHodAssignments.academic_year).toBeDefined();
+      expect(facultyHodAssignments.start_date).toBeDefined();
+      expect(facultyHodAssignments.end_date).toBeDefined();
+      expect(facultyHodAssignments.is_active).toBeDefined();
+    });
+  });
 });
