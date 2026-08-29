@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useStaff } from '@/context/StaffContext';
-import { ChevronDown, Search, Users, UserSearch } from 'lucide-react';
+import { ChevronDown, Search, Users, UserSearch, Download, Info, X } from 'lucide-react';
+import * as XLSX from 'xlsx-js-style';
 
 export default function StudentsLookupPanel() {
   const { staffData } = useStaff();
@@ -20,6 +21,7 @@ export default function StudentsLookupPanel() {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
   
   // Set default program if only one is available
   useEffect(() => {
@@ -31,6 +33,92 @@ export default function StudentsLookupPanel() {
     }
   }, [staffData, program]);
   
+  
+  const handleExport = () => {
+    if (!students || students.length === 0) return;
+    
+    // Create worksheet data
+    const wsData = [];
+    
+    // Define Headers
+    const headers = [
+      'Roll Number', 
+      'Student Name', 
+      'Branch', 
+      'Email ID', 
+      'Phone Number',
+      'Father Name',
+      'Mother Name',
+      'Date of Birth',
+      'Address',
+      'Current Year',
+      'Batch'
+    ];
+    wsData.push(headers);
+    
+    // Add student rows
+    students.forEach(s => {
+      wsData.push([
+        s.roll_no, 
+        s.name, 
+        s.branch, 
+        s.email,
+        s.phone,
+        s.father_name,
+        s.mother_name,
+        s.dob,
+        s.address,
+        s.current_year,
+        s.batch_year
+      ]);
+    });
+    
+    // Create worksheet and workbook
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    
+    // Style headers
+    const headerStyle = {
+      font: { bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "0B3578" } },
+      alignment: { horizontal: "center", vertical: "center" }
+    };
+    
+    // Apply styles to first row (headers)
+    for (let C = 0; C < headers.length; ++C) {
+      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C });
+      if (!ws[cellAddress]) continue;
+      ws[cellAddress].s = headerStyle;
+    }
+    
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 15 }, // Roll Number
+      { wch: 35 }, // Student Name
+      { wch: 10 }, // Branch
+      { wch: 40 }, // Email ID
+      { wch: 15 }, // Phone Number
+      { wch: 25 }, // Father Name
+      { wch: 25 }, // Mother Name
+      { wch: 15 }, // Date of Birth
+      { wch: 50 }, // Address
+      { wch: 15 }, // Current Year
+      { wch: 10 }  // Batch
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Students");
+    
+    // Export file
+    let fileName = `students_export_${new Date().toISOString().split('T')[0]}`;
+    if (activeTab === 'cohort' && program && yearOfStudy) {
+      fileName = `${program}_Year_${yearOfStudy}`;
+    } else if (activeTab === 'search') {
+      fileName = 'Search_Results';
+      if (searchRoll) fileName += `_${searchRoll}`;
+    }
+    XLSX.writeFile(wb, `${fileName}.xlsx`);
+  };
+
   const handleCohortSearch = async () => {
     if (!program || !yearOfStudy) return;
     
@@ -240,6 +328,13 @@ export default function StudentsLookupPanel() {
                 <span className="text-xs font-bold text-gray-500 uppercase tracking-widest bg-gray-100 px-2 py-1 rounded">
                   {students.length} Result{students.length !== 1 && 's'}
                 </span>
+                <button
+                  onClick={handleExport}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#0b3578] rounded hover:bg-[#0a2d66] transition-colors cursor-pointer"
+                >
+                  <Download size={14} />
+                  Export to Excel
+                </button>
               </div>
               <div className="overflow-x-auto w-full border border-slate-200 shadow-sm rounded-md bg-white">
                 <table className="w-full text-sm divide-y divide-slate-200 table-auto min-w-[600px]">
@@ -249,6 +344,7 @@ export default function StudentsLookupPanel() {
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Student Name</th>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Admission No</th>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Branch</th>
+                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">More</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-100">
@@ -266,6 +362,15 @@ export default function StudentsLookupPanel() {
                         <td className="px-4 py-3 whitespace-nowrap font-mono text-xs font-medium text-gray-500">
                           {student.branch}
                         </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center">
+                          <button
+                            onClick={() => setSelectedStudent(student)}
+                            className="p-1 text-slate-400 hover:text-[#0b3578] hover:bg-blue-50 rounded-full transition-colors cursor-pointer inline-flex"
+                            title="View Full Profile"
+                          >
+                            <Info size={16} />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -275,6 +380,63 @@ export default function StudentsLookupPanel() {
           )}
         </div>
       </div>
+            {/* Student Details Modal */}
+      {selectedStudent && (
+        <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity">
+          <div className="relative z-10 bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 transform scale-100 transition-all">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center shrink-0">
+              <h3 className="text-base font-semibold text-slate-800">Student Profile</h3>
+              <button 
+                onClick={() => setSelectedStudent(null)} 
+                className="text-gray-400 hover:text-gray-600 bg-gray-100 hover:bg-gray-200 p-2 rounded-full transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex flex-col mb-2">
+                <span className="text-xl font-bold text-[#0b3578]">{selectedStudent.name}</span>
+                <span className="text-sm font-mono font-bold text-slate-500">{selectedStudent.roll_no}</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-sm">
+                <div>
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Father Name</span>
+                  <span className="font-semibold text-slate-700">{selectedStudent.father_name || '-'}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Mother Name</span>
+                  <span className="font-semibold text-slate-700">{selectedStudent.mother_name || '-'}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Date of Birth</span>
+                  <span className="font-semibold text-slate-700">{selectedStudent.dob || '-'}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Phone Number</span>
+                  <span className="font-semibold text-slate-700">{selectedStudent.phone || '-'}</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Email ID</span>
+                  <span className="font-semibold text-slate-700">{selectedStudent.email || '-'}</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Address</span>
+                  <span className="font-semibold text-slate-700">{selectedStudent.address || '-'}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Current Year</span>
+                  <span className="font-semibold text-slate-700">{selectedStudent.current_year || '-'}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Batch</span>
+                  <span className="font-semibold text-slate-700">{selectedStudent.batch_year || '-'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
