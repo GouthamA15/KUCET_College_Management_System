@@ -47,7 +47,7 @@ export const GET = wrapHandler({
       .where(and(
         eq(staffRoles.role_code, 'FACULTY'),
         eq(academicDepartments.department_code, user.hod_department_code),
-        eq(staffAccounts.is_active, true)
+        eq(staffAccounts.account_status, 'ACTIVE')
       ));
 
       const facultyMap = {};
@@ -71,7 +71,7 @@ export const GET = wrapHandler({
             eq(facultySubjectInterests.status, 'PENDING')
           )
         ))
-        .orderBy(sql`${facultySubjectInterests.status} = 'PENDING' DESC`, desc(facultySubjectInterests.created_at));
+        .orderBy(desc(facultySubjectInterests.created_at));
 
       if (rawInterests.length === 0) {
         return apiResponse({ data: [] });
@@ -119,9 +119,17 @@ export const GET = wrapHandler({
         };
       });
 
+      // Sort: PENDING first, then by created_at descending
+      interests.sort((a, b) => {
+        if (a.status === 'PENDING' && b.status !== 'PENDING') return -1;
+        if (a.status !== 'PENDING' && b.status === 'PENDING') return 1;
+        return new Date(b.created_at).getTime() < new Date(a.created_at).getTime() ? 1 : -1;
+      });
+
       return apiResponse({ data: interests });
     } catch (error) {
-      logger.error('Faculty Interests GET Error:', error);
+      console.error('CRASH STACK:', error.stack || error);
+      logger.error('Faculty Interests GET Error:', error.stack || error);
       return apiError('Internal Server Error', 500);
     }
   }

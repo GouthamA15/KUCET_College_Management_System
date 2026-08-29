@@ -13,6 +13,8 @@
 /drawings
 
 # testing
+AGENTS.md
+CLAUDE.md
 /coverage
 *.sql
 !drizzle/*.sql
