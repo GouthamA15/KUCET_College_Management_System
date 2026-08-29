@@ -21,6 +21,9 @@ export const metadata = {
     statusBarStyle: "default",
     title: "KUCET CMS",
   },
+  other: {
+    "build-version": new Date().toISOString(),
+  },
 };
 
 export const viewport = {

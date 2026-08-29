@@ -72,6 +72,14 @@ self.addEventListener('fetch', (event) => {
   }
 
   // 3. Stale-While-Revalidate ONLY for static web assets (_next/static, images, CSS, fonts)
+  const isStaticAsset = url.pathname.startsWith('/_next/static/') || 
+                        url.pathname.match(/\.(png|jpg|jpeg|svg|gif|webp|woff2|woff|ttf|css|js|ico)$/i);
+
+  if (!isStaticAsset) {
+    // DO NOT cache Next.js RSC payloads (?_rsc=...) or Next-Data payloads!
+    return;
+  }
+
   event.respondWith(
     (async () => {
       const cachedResponse = await caches.match(request);
