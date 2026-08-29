@@ -1,4 +1,4 @@
-﻿# Faculty Portal Workflows & Interface Specifications
+# Faculty Portal Workflows & Interface Specifications
 
 ## Overview
 
@@ -19,6 +19,18 @@ Access is restricted to authenticated users holding `staff_auth` with `role: 'fa
 | `/staff/faculty/time-table` | Faculty Personal Schedule | `VIEW_OWN_RECORDS` | `branch_timetable` |
 | `/staff/faculty/attendance` | *(Deprecated — redirects to `/staff/faculty/academics`)* | — | — |
 | `/staff/faculty/marks` | *(Deprecated — redirects to `/staff/faculty/academics`)* | — | — |
+
+---
+
+## Faculty Dashboard (`/staff/faculty/dashboard`)
+
+The Faculty Dashboard serves as the modernized entry point for faculty members, featuring a unified Next.js `bg-[#0b3578]` glassmorphism gradient header. The layout uses a responsive flex-to-grid container that prominently features a vertically stacked "Priority Actions" module (which replaces the legacy grid cards). Additionally, the `PersonalSchedule` timetable integrates seamlessly via flex columns to provide immediate visibility into daily academic commitments.
+
+---
+
+## Faculty Profile (`/staff/faculty/profile`)
+
+The streamlined Faculty Profile page now exclusively displays personal and demographic data. All security-specific fields—such as `last_login`, `joined`, and `account_status`—have been completely removed from this page, as they are now strictly managed within the dedicated Security Settings page.
 
 ---
 
