@@ -71,7 +71,7 @@ export const GET = wrapHandler({
             eq(facultySubjectInterests.status, 'PENDING')
           )
         ))
-        .orderBy(desc(sql`${facultySubjectInterests.status} = 'PENDING'`), desc(facultySubjectInterests.created_at));
+        .orderBy(sql`${facultySubjectInterests.status} = 'PENDING' DESC`, desc(facultySubjectInterests.created_at));
 
       if (rawInterests.length === 0) {
         return apiResponse({ data: [] });
