@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
+import React, { useState, useEffect, useCallback, useSyncExternalStore, useRef } from 'react';
 import Link from 'next/link';
 import { WifiOff, ServerCrash, RefreshCw, CheckCircle2, AlertTriangle, User, CreditCard, Calendar } from 'lucide-react';
 
@@ -26,10 +26,18 @@ export default function OfflineClient() {
   const isOnline = useSyncExternalStore(subscribeOnline, getOnlineSnapshot, getServerSnapshot);
   const [isChecking, setIsChecking] = useState(false);
   const [checkResult, setCheckResult] = useState(null); // 'server_ok' | 'server_down' | null
+  const [retryCountdown, setRetryCountdown] = useState(null); // seconds until next auto-retry
+  const [attemptCount, setAttemptCount] = useState(0);
+  const countdownTimerRef = useRef(null);
 
   const testServerHealth = useCallback(async () => {
     setIsChecking(true);
     setCheckResult(null);
+    setRetryCountdown(null);
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+    }
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 4000);
@@ -42,6 +50,7 @@ export default function OfflineClient() {
 
       if (res.ok) {
         setCheckResult('server_ok');
+        setAttemptCount(0);
         setTimeout(() => {
           if (typeof window !== 'undefined') {
             window.location.reload();
@@ -49,14 +58,45 @@ export default function OfflineClient() {
         }, 1200);
       } else {
         setCheckResult('server_down');
+        setAttemptCount((prev) => {
+          const nextAttempt = prev + 1;
+          const backoff = Math.min(3 * Math.pow(2, nextAttempt - 1), 30);
+          setRetryCountdown(backoff);
+          return nextAttempt;
+        });
       }
     } catch (_err) {
       setCheckResult('server_down');
+      setAttemptCount((prev) => {
+        const nextAttempt = prev + 1;
+        const backoff = Math.min(3 * Math.pow(2, nextAttempt - 1), 30);
+        setRetryCountdown(backoff);
+        return nextAttempt;
+      });
     } finally {
       setIsChecking(false);
     }
   }, []);
 
+  // Handle countdown tick
+  useEffect(() => {
+    if (retryCountdown === null || retryCountdown <= 0) return;
+
+    const timer = setInterval(() => {
+      setRetryCountdown((current) => {
+        if (current === null || current <= 1) {
+          clearInterval(timer);
+          testServerHealth();
+          return null;
+        }
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [retryCountdown, testServerHealth]);
+
+  // Initial mount health check when online
   useEffect(() => {
     let isMounted = true;
     if (isOnline) {
@@ -94,7 +134,7 @@ export default function OfflineClient() {
           <div className="space-y-2">
             <h1 className="text-2xl font-bold tracking-tight text-white">You are Offline</h1>
             <p className="text-sm text-slate-400">
-              Your device is not connected to the internet. You can still access saved offline shortcuts below.
+              Your device is disconnected from the internet. Reconnect to Wi-Fi or mobile data to resume. You can still access saved offline shortcuts below.
             </p>
           </div>
         </>
@@ -106,7 +146,7 @@ export default function OfflineClient() {
           <div className="space-y-2">
             <h1 className="text-2xl font-bold tracking-tight text-white">Connection Restored</h1>
             <p className="text-sm text-emerald-400">
-              Campus server is reachable. Reloading portal...
+              KUCET campus server is reachable. Reloading portal...
             </p>
           </div>
         </>
@@ -116,21 +156,28 @@ export default function OfflineClient() {
             <ServerCrash className="w-8 h-8" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold tracking-tight text-white">Server Temporarily Unreachable</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-white">Service Temporarily Unavailable</h1>
             <p className="text-sm text-slate-400">
-              Your internet is active, but the KUCET campus server or Tailscale network endpoint is momentarily reconnecting.
+              Your internet is active, but the KUCET server or campus network endpoint is currently undergoing maintenance, deployment restart, or reconnecting.
             </p>
           </div>
         </>
       )}
 
-      {/* Diagnostics / Status indicator */}
+      {/* Diagnostics & Auto-retry pill */}
       {isOnline && checkResult === 'server_down' && (
-        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-left flex items-start gap-2.5">
-          <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
-          <div className="text-xs text-amber-300">
-            <span className="font-semibold">Tailscale / Server Status:</span> Reconnecting or under deployment restart. Please wait a few seconds and try again.
+        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-left space-y-1.5">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+            <div className="text-xs text-amber-300 font-semibold">
+              Automatic Reconnection Active
+            </div>
           </div>
+          <p className="text-xs text-slate-300 pl-6">
+            {retryCountdown !== null
+              ? `Retrying automatically in ${retryCountdown}s (Attempt #${attemptCount})...`
+              : 'Connecting to server health endpoint...'}
+          </p>
         </div>
       )}
 
@@ -178,7 +225,7 @@ export default function OfflineClient() {
           className="flex-1 py-2.5 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-medium rounded-xl text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer"
         >
           <RefreshCw className={`w-4 h-4 ${isChecking ? 'animate-spin' : ''}`} />
-          {isChecking ? 'Checking...' : 'Test Connection'}
+          {isChecking ? 'Checking...' : 'Retry Now'}
         </button>
 
         <button
