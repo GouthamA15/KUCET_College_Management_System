@@ -1,19 +1,20 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
 
-test('has title', async ({ page }) => {
-  await page.goto('https://playwright.dev/');
+test.describe('KUCET CMS Portal Landing & Public Navigation', () => {
+  test('should load public landing page with college title and navigation', async ({ page }) => {
+    await page.goto('/');
 
-  // Expect a title "to contain" a substring.
-  await expect(page).toHaveTitle(/Playwright/);
-});
+    // Expect page title or institutional branding
+    await expect(page).toHaveTitle(/KUCET/i);
+    await expect(page.getByText(/Kakatiya University/i).first()).toBeVisible({ timeout: 15000 });
+  });
 
-test('get started link', async ({ page }) => {
-  await page.goto('https://playwright.dev/');
+  test('should provide student and staff login interaction', async ({ page }) => {
+    await page.goto('/');
 
-  // Click the get started link.
-  await page.getByRole('link', { name: 'Get started' }).click();
-
-  // Expects page to have a heading with the name of Installation.
-  await expect(page.getByRole('heading', { name: 'Installation' })).toBeVisible();
+    // Check presence of login buttons / links
+    const studentBtn = page.getByRole('button', { name: /STUDENT LOGIN/i }).or(page.getByText(/STUDENT LOGIN/i)).first();
+    await expect(studentBtn).toBeVisible({ timeout: 10000 });
+  });
 });
