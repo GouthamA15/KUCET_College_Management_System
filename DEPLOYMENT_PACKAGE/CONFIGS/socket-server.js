@@ -1,11 +1,7 @@
-const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const Redis = require('ioredis');
 const { jwtVerify } = require('jose');
-
-const app = express();
-const server = http.createServer(app);
 
 const socketHost = process.env.SOCKET_HOST || '0.0.0.0';
 const socketPort = parseInt(process.env.SOCKET_PORT || '4000', 10);
@@ -14,9 +10,34 @@ const jwtSecret = process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_
 const secretKey = new TextEncoder().encode(jwtSecret);
 
 // ---------------------------------------------------------------------------
+// HTTP Server with Native Health Endpoint (Zero External Framework Dependency)
+// ---------------------------------------------------------------------------
+let io;
+
+const server = http.createServer((req, res) => {
+  if (req.url === '/health' || req.url === '/health/') {
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+    });
+    res.end(JSON.stringify({
+      status: 'ok',
+      service: 'kucet-cms-realtime',
+      uptimeSeconds: Math.round(process.uptime()),
+      connectedSockets: io && io.engine ? io.engine.clientsCount : 0,
+      timestamp: new Date().toISOString(),
+    }));
+    return;
+  }
+
+  res.writeHead(404, { 'Content-Type': 'text/plain' });
+  res.end('Not Found');
+});
+
+// ---------------------------------------------------------------------------
 // Socket.IO Server Configuration
 // ---------------------------------------------------------------------------
-const io = new Server(server, {
+io = new Server(server, {
   cors: {
     origin: corsOrigin === '*' ? true : corsOrigin.split(','),
     methods: ['GET', 'POST'],
@@ -25,19 +46,6 @@ const io = new Server(server, {
   pingTimeout: 20000,
   pingInterval: 25000,
   transports: ['websocket', 'polling'],
-});
-
-// ---------------------------------------------------------------------------
-// Health Endpoint (Used by Docker & Uptime Kuma)
-// ---------------------------------------------------------------------------
-app.get('/health', (_req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'kucet-cms-realtime',
-    uptimeSeconds: Math.round(process.uptime()),
-    connectedSockets: io.engine ? io.engine.clientsCount : 0,
-    timestamp: new Date().toISOString(),
-  });
 });
 
 // ---------------------------------------------------------------------------
