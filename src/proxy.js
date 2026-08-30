@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { getDashboardPathByRole } from '@/lib/path-utils';
+import { parseSetCookieString } from '@/lib/parse-set-cookie';
 
 async function verify(token, secret) {
   try {
@@ -14,6 +15,57 @@ async function verify(token, secret) {
       return { payload: null, expired: true };
     }
     return { payload: null, expired: false };
+  }
+}
+
+async function trySilentRefresh(request, userType, jwtSecret) {
+  try {
+    const origin = request.nextUrl.origin;
+    const cookieHeader = request.headers.get('cookie') || '';
+    const res = await fetch(`${origin}/api/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        cookie: cookieHeader,
+      },
+      body: JSON.stringify({ type: userType }),
+    });
+
+    if (!res.ok) return null;
+
+    const setCookieHeaders = typeof res.headers.getSetCookie === 'function'
+      ? res.headers.getSetCookie()
+      : (res.headers.get('set-cookie')?.split(/,(?=\s*\w+=)/) || []);
+
+    const cookiesToSet = [];
+    let newAuthToken = null;
+
+    for (const cookieStr of setCookieHeaders) {
+      const parsed = parseSetCookieString(cookieStr);
+      if (parsed) {
+        cookiesToSet.push(parsed);
+        if (parsed.name === `${userType}_auth`) {
+          newAuthToken = parsed.value;
+        }
+      }
+    }
+
+    if (newAuthToken) {
+      const verified = await verify(newAuthToken, jwtSecret);
+      if (verified.payload) {
+        return { payload: verified.payload, cookiesToSet, token: newAuthToken };
+      }
+    }
+  } catch (_err) {
+    // Refresh failed or network error
+  }
+  return null;
+}
+
+function applyRefreshedCookies(response, cookiesToSet) {
+  if (!cookiesToSet || !Array.isArray(cookiesToSet)) return;
+  for (const c of cookiesToSet) {
+    response.cookies.set(c.name, c.value, c.options);
   }
 }
 
@@ -57,9 +109,34 @@ export default async function proxy(request) {
   let response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('x-request-id', requestId);
 
-  const adminPayload = adminRes.payload;
-  const staffPayload = staffRes.payload;
-  const studentPayload = studentRes.payload;
+  let adminPayload = adminRes.payload;
+  let staffPayload = staffRes.payload;
+  let studentPayload = studentRes.payload;
+
+  // 2. Silent refresh for expired access tokens when companion session cookie exists
+  if (!adminPayload && (adminRes.expired || !adminAuth) && (cookies.get('admin_refresh_token') || cookies.get('admin_logged_in'))) {
+    const refreshed = await trySilentRefresh(request, 'admin', jwtSecret);
+    if (refreshed) {
+      adminPayload = refreshed.payload;
+      applyRefreshedCookies(response, refreshed.cookiesToSet);
+    }
+  }
+
+  if (!staffPayload && (staffRes.expired || !staffAuth) && (cookies.get('staff_refresh_token') || cookies.get('staff_logged_in'))) {
+    const refreshed = await trySilentRefresh(request, 'staff', jwtSecret);
+    if (refreshed) {
+      staffPayload = refreshed.payload;
+      applyRefreshedCookies(response, refreshed.cookiesToSet);
+    }
+  }
+
+  if (!studentPayload && (studentRes.expired || !studentAuth) && (cookies.get('student_refresh_token') || cookies.get('student_logged_in'))) {
+    const refreshed = await trySilentRefresh(request, 'student', jwtSecret);
+    if (refreshed) {
+      studentPayload = refreshed.payload;
+      applyRefreshedCookies(response, refreshed.cookiesToSet);
+    }
+  }
 
   // ─── Route: Home "/" ──────────────────────────────────────────────────────
   if (pathname === '/') {
@@ -72,9 +149,6 @@ export default async function proxy(request) {
     if (studentPayload) {
       return NextResponse.redirect(new URL('/student', request.url), 303);
     }
-    // If payload is null/expired, we let it fall through.
-    // The root page will render, and AuthRestoreGuard will pick up the client-side refresh 
-    // if companion cookies (_logged_in) exist.
     return response;
   }
 

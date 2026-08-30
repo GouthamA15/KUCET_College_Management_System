@@ -239,14 +239,20 @@ export function StaffProvider({ children }) {
     return promise;
   }, [fetchStaffData, fetchCollegeInfo, hasFetchedFaculty, fetchFacultyData, hasFetchedHOD, fetchHODData]);
 
+  const staffDataRef = useRef(staffData);
+  useEffect(() => {
+    staffDataRef.current = staffData;
+  }, [staffData]);
+
   const handleResume = useCallback(async (event) => {
     const now = Date.now();
     const isBfcacheRestore = event?.type === 'pageshow' && event.persisted;
-    const isStuck = loading && !staffData;
+    const currentStaff = staffDataRef.current;
+    const isStuck = loading && !currentStaff;
 
     // Check if we should revalidate
     const shouldReinit = isBfcacheRestore || isStuck;
-    const throttleTime = 5000; // 5 seconds throttle
+    const throttleTime = 60000; // 60 seconds throttle
     const isThrottled = now - lastFetchTimeRef.current < throttleTime;
 
     if (!shouldReinit && isThrottled) {
@@ -254,7 +260,7 @@ export function StaffProvider({ children }) {
     }
 
     if (activePromiseRef.current) {
-      if (shouldReinit) {
+      if (shouldReinit && !currentStaff) {
         setLoading(true);
         setAreRequestsBootstrapping(true);
       }
@@ -268,7 +274,7 @@ export function StaffProvider({ children }) {
     }
 
     isInitializingRef.current = true;
-    if (shouldReinit) {
+    if (shouldReinit && !currentStaff) {
       setLoading(true);
       setAreRequestsBootstrapping(true);
     }
@@ -282,7 +288,7 @@ export function StaffProvider({ children }) {
       setAreRequestsBootstrapping(false);
       isInitializingRef.current = false;
     }
-  }, [loading, staffData, refreshAllData]);
+  }, [loading, refreshAllData]);
 
   useEffect(() => {
     if (staffData || isInitializingRef.current) return;
