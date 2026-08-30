@@ -372,7 +372,43 @@ An extensive forensic cache audit revealed a cascading failure across three over
    - Live endpoint verification on production container confirmed:
      - `GET /api/admin/staff-requests` $\rightarrow$ `HTTP 200` (`success: true`, 8 requests)
      - `GET /api/admin/hod-requests` $\rightarrow$ `HTTP 200` (`success: true`)
-     - `GET /admin/staff-requests` $\rightarrow$ `HTTP 200`
-   - All 54 test files (404 unit tests) passed cleanly.
+      - `GET /admin/staff-requests` $\rightarrow$ `HTTP 200`
+    - All 54 test files (404 unit tests) passed cleanly.
 
+---
 
+### 13. Session 209 (Part 3): CI Failure Forensic Fix — Staff Requests Unit Mocking & Database Error Sanitization (August 30, 2026)
+
+#### Incident Summary
+GitHub Actions CI pipeline failed with 1 failing test:
+- **Test File:** `tests/unit/api/admin/staff-requests-workflow.test.js`
+- **Failing Route:** `GET /api/admin/staff-requests`
+- **Assertion:** `expect(res.status).toBe(200)` (Expected: 200, Received: 500)
+
+#### Forensic Root Cause Analysis
+1. **Unmocked Database Connection in Unit Test Environment (Category B - Test/Mock Drift):**
+   - The test file `tests/unit/api/admin/staff-requests-workflow.test.js` was introduced without mocking `@/db` or providing Drizzle query builder mocks, unlike all other unit tests in `tests/unit/api/`.
+   - In CI (or any test environment without a live MySQL instance running on localhost:3306), executing `GET /api/admin/staff-requests` invoked `db.select().from(staffRegistrationRequests)...` against an unmocked client.
+   - The connection failed with `ECONNREFUSED 127.0.0.1:3306`, which threw `DrizzleQueryError`, logged `[API_CRASH]`, and caused `wrapHandler` to return `HTTP 500`.
+2. **Missing Client Error Sanitization Pattern for Raw Connection Errors:**
+   - In `src/lib/api-utils.js`, `wrapHandler`'s error sanitizer checked `connect econnrefused` as a fixed substring, allowing other connection/driver error variants to leak raw message internals rather than returning standard user-safe messages.
+3. **Route Null-Safety Defensiveness:**
+   - In `src/app/api/admin/staff-requests/route.js`, department/program lookups and JSON affiliation arrays did not have complete defensive null checks when mapping empty results.
+
+#### Resolution Steps
+1. **Isolated In-Memory Unit Test Suite (`staff-requests-workflow.test.js`):**
+   - Overhauled `tests/unit/api/admin/staff-requests-workflow.test.js` with comprehensive, isolated in-memory dataset mocking for `@/db`, `@/lib/auth`, `@/lib/email`, and `@/lib/sse`.
+   - Created 18 exhaustive workflow tests covering:
+     - `GET /api/admin/staff-requests`: Unauthenticated (401), Authenticated with full mapping and `address` verification (200), Empty requests list (200), Database failure controlled error (500).
+     - `POST /api/admin/staff-requests/[id]/approve`: Unauthenticated (401), Invalid ID (400), Successful approval with account creation and email dispatch (200).
+     - `POST /api/admin/staff-requests/[id]/reject`: Unauthenticated (401), Reason too short (400), Successful rejection (200).
+     - `POST /api/admin/staff-requests/[id]/resend-activation`: Unauthenticated (401), Successful token generation and email resend (200).
+     - `GET /api/admin/hod-requests`: Unauthenticated (401), Authenticated with current HOD name enrichment (200), Empty requests list (200).
+     - Schema column integrity assertions for `staffRegistrationRequests`, `staffAccounts`, and `facultyHodAssignments`.
+2. **Database Error Sanitization & Structured Logging Hardening (`api-utils.js`):**
+   - Updated `src/lib/api-utils.js` `wrapHandler` fallback error sanitizer to check `econnrefused`, `econnreset`, `etimedout`, and `drizzlequeryerror` (case-insensitive), returning `"Failed to connect to the database."` to clients while preserving full structured error details (`method`, `url`, `duration`, `ip`, `err`, `cause`, `stack`) in Pino server logs (`[API_CRASH]`).
+3. **Defensive Null-Safety in API Route (`staff-requests/route.js`):**
+   - Hardened `(depts || []).forEach(...)`, `(progs || []).forEach(...)`, and affiliation array mappings.
+4. **Verification & Regression Testing:**
+   - 100% pass rate across all 54 test files (413 unit tests passed, 0 failed, 0 skipped).
+   - Zero ESLint errors across the codebase.
