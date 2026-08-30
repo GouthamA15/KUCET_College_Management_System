@@ -9,7 +9,4 @@ coverage
 playwright-report
 test-results
 *.log
-Dockerfile
-.dockerignore
 screenshots
-DEPLOYMENT_PACKAGE

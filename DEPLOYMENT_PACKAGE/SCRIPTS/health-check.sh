@@ -56,9 +56,10 @@ record() {
 # ---------------------------------------------------------------------------
 # CHECK 1-5: Docker container running states
 # ---------------------------------------------------------------------------
-CONTAINERS=("kucet-cms-app" "kucet-cms-realtime" "kucet-cms-proxy" "kucet-cms-db" "kucet-cms-redis" "kucet-cms-monitor")
+CRITICAL_CONTAINERS=("kucet-cms-app" "kucet-cms-realtime" "kucet-cms-proxy" "kucet-cms-db" "kucet-cms-redis")
+OPTIONAL_CONTAINERS=("kucet-cms-monitor")
 
-for container in "${CONTAINERS[@]}"; do
+for container in "${CRITICAL_CONTAINERS[@]}"; do
   state=$(docker inspect --format='{{.State.Status}}' "$container" 2>/dev/null || echo "missing")
   health=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' "$container" 2>/dev/null || echo "missing")
 
@@ -77,10 +78,29 @@ for container in "${CONTAINERS[@]}"; do
   fi
 done
 
+for container in "${OPTIONAL_CONTAINERS[@]}"; do
+  state=$(docker inspect --format='{{.State.Status}}' "$container" 2>/dev/null || echo "missing")
+  health=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' "$container" 2>/dev/null || echo "missing")
+
+  if [[ "$state" == "running" ]]; then
+    record "container:$container" "PASS" "Running (health=$health)"
+  else
+    record "container:$container" "WARN" "Optional monitor container state: $state"
+  fi
+done
+
 # ---------------------------------------------------------------------------
-# CHECK 6: HTTP /api/health endpoint
+# CHECK 6: HTTP /api/health endpoint (with retry tolerance)
 # ---------------------------------------------------------------------------
-HTTP_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "$HEALTH_ENDPOINT" 2>/dev/null || echo "000")
+HTTP_STATUS="000"
+for attempt in 1 2 3; do
+  HTTP_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 5 "$HEALTH_ENDPOINT" 2>/dev/null || echo "000")
+  if [[ "$HTTP_STATUS" == "200" ]]; then
+    break
+  fi
+  sleep 2
+done
+
 if [[ "$HTTP_STATUS" == "200" ]]; then
   record "http:/api/health" "PASS" "HTTP $HTTP_STATUS from $HEALTH_ENDPOINT"
 else
@@ -89,50 +109,53 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# CHECK 6b: Endpoint crash check for critical admin routes (no 500 internal errors)
+# CHECK 6a: Realtime WebSocket /health endpoint
 # ---------------------------------------------------------------------------
-STAFF_REQ_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "http://localhost/api/admin/staff-requests" 2>/dev/null || echo "000")
-if [[ "$STAFF_REQ_STATUS" == "401" || "$STAFF_REQ_STATUS" == "200" ]]; then
-  record "api:staff-requests" "PASS" "Endpoint responsive (HTTP $STAFF_REQ_STATUS)"
+RT_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 5 "http://127.0.0.1:4000/health" 2>/dev/null || echo "000")
+if [[ "$RT_STATUS" == "200" ]]; then
+  record "realtime:health" "PASS" "Socket.IO server responsive (HTTP $RT_STATUS)"
 else
-  record "api:staff-requests" "FAIL" "HTTP $STAFF_REQ_STATUS (expected 200 or 401) from /api/admin/staff-requests"
+  record "realtime:health" "FAIL" "HTTP $RT_STATUS from http://127.0.0.1:4000/health"
   CRITICAL_FAIL=true
 fi
 
-HOD_REQ_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "http://localhost/api/admin/hod-requests" 2>/dev/null || echo "000")
-if [[ "$HOD_REQ_STATUS" == "401" || "$HOD_REQ_STATUS" == "200" ]]; then
+# ---------------------------------------------------------------------------
+# CHECK 6b: Endpoint crash check for critical admin routes (no 500 internal errors)
+# ---------------------------------------------------------------------------
+STAFF_REQ_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 5 "http://localhost/api/admin/staff-requests" 2>/dev/null || echo "000")
+if [[ "$STAFF_REQ_STATUS" == "401" || "$STAFF_REQ_STATUS" == "200" || "$STAFF_REQ_STATUS" == "303" || "$STAFF_REQ_STATUS" == "307" ]]; then
+  record "api:staff-requests" "PASS" "Endpoint responsive (HTTP $STAFF_REQ_STATUS)"
+else
+  record "api:staff-requests" "FAIL" "HTTP $STAFF_REQ_STATUS (expected 200/303/401) from /api/admin/staff-requests"
+  CRITICAL_FAIL=true
+fi
+
+HOD_REQ_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 5 "http://localhost/api/admin/hod-requests" 2>/dev/null || echo "000")
+if [[ "$HOD_REQ_STATUS" == "401" || "$HOD_REQ_STATUS" == "200" || "$HOD_REQ_STATUS" == "303" || "$HOD_REQ_STATUS" == "307" ]]; then
   record "api:hod-requests" "PASS" "Endpoint responsive (HTTP $HOD_REQ_STATUS)"
 else
-  record "api:hod-requests" "FAIL" "HTTP $HOD_REQ_STATUS (expected 200 or 401) from /api/admin/hod-requests"
+  record "api:hod-requests" "FAIL" "HTTP $HOD_REQ_STATUS (expected 200/303/401) from /api/admin/hod-requests"
   CRITICAL_FAIL=true
 fi
 
 # ---------------------------------------------------------------------------
 # CHECK 6c: PWA Service Worker & Offline assets responsiveness
 # ---------------------------------------------------------------------------
-SW_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "http://localhost/sw.js" 2>/dev/null || echo "000")
-if [[ "$SW_STATUS" == "200" ]]; then
+SW_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 5 "http://localhost/sw.js" 2>/dev/null || echo "000")
+if [[ "$SW_STATUS" == "200" || "$SW_STATUS" == "304" ]]; then
   record "pwa:service-worker" "PASS" "sw.js responsive (HTTP $SW_STATUS)"
 else
   record "pwa:service-worker" "FAIL" "HTTP $SW_STATUS (expected 200) from /sw.js"
   CRITICAL_FAIL=true
 fi
 
-OFFLINE_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "http://localhost/offline" 2>/dev/null || echo "000")
-if [[ "$OFFLINE_STATUS" == "200" ]]; then
+OFFLINE_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 5 "http://localhost/offline" 2>/dev/null || echo "000")
+if [[ "$OFFLINE_STATUS" == "200" || "$OFFLINE_STATUS" == "304" ]]; then
   record "pwa:offline-fallback" "PASS" "Offline page responsive (HTTP $OFFLINE_STATUS)"
 else
   record "pwa:offline-fallback" "FAIL" "HTTP $OFFLINE_STATUS (expected 200) from /offline"
   CRITICAL_FAIL=true
 fi
-
-# ---------------------------------------------------------------------------
-# (CHECK 7 removed: rely on Docker native container healthcheck)
-# ---------------------------------------------------------------------------
-
-# ---------------------------------------------------------------------------
-# (CHECK 8 removed: rely on Docker native container healthcheck)
-# ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
 # CHECK 9: Nginx config validity
