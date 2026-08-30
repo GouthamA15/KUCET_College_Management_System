@@ -1,5 +1,6 @@
 'use client';
 import React from 'react';
+import Link from 'next/link';
 
 export default function ProfileWarningBar({ student }) {
   if (!student) return null;
@@ -21,7 +22,9 @@ export default function ProfileWarningBar({ student }) {
                 <span>⚠️ Password not set. Please set a password to continue.</span>
               )}
             </div>
-            <a href="/student/settings/security" className="inline-flex items-center text-sm font-semibold text-blue-700 hover:underline">Go to Security & Privacy</a>
+            <Link href="/student/settings/security" className="inline-flex items-center text-sm font-semibold text-blue-700 hover:underline">
+              Go to Security & Privacy
+            </Link>
           </div>
         </div>
       </div>

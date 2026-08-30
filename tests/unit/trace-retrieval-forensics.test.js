@@ -66,12 +66,12 @@ describe('Complete End-to-End Image Retrieval & Rendering Verification', () => {
 
     // 6. Perform browser HTTP GET fetch request with CDN propagation tolerance
     let httpStatus = 0;
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 5; attempt++) {
       const httpRes = await fetch(deliveryUrl);
       httpStatus = httpRes.status;
       logger.info({ status: httpRes.status, attempt }, 'Step 4 - HTTP GET Status');
       if (httpRes.status === 200) break;
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 1500));
     }
     expect(httpStatus).toBe(200);
 

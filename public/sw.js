@@ -73,6 +73,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // 3. Next.js RSC flight payloads, pre-fetches, and data chunks MUST BYPASS Service Worker cache
+  if (url.searchParams.has('_rsc') || request.headers.get('RSC') === '1' || url.pathname.startsWith('/_next/data/')) {
+    return;
+  }
+
   // 3. Navigation requests (HTML page loads) MUST always prioritize network.
   // Auth middleware returns different responses (redirects vs. 200) based on dynamic cookie state.
   if (request.mode === 'navigate') {
