@@ -56,7 +56,7 @@ record() {
 # ---------------------------------------------------------------------------
 # CHECK 1-5: Docker container running states
 # ---------------------------------------------------------------------------
-CONTAINERS=("kucet-cms-app" "kucet-cms-proxy" "kucet-cms-db" "kucet-cms-redis" "kucet-cms-monitor")
+CONTAINERS=("kucet-cms-app" "kucet-cms-realtime" "kucet-cms-proxy" "kucet-cms-db" "kucet-cms-redis" "kucet-cms-monitor")
 
 for container in "${CONTAINERS[@]}"; do
   state=$(docker inspect --format='{{.State.Status}}' "$container" 2>/dev/null || echo "missing")

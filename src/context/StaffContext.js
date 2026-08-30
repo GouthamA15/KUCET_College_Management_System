@@ -338,29 +338,39 @@ export function StaffProvider({ children }) {
   }, []);
 
   const handleRealtimeUpdate = useCallback((data) => {
-    if (staffData?.is_hod && data.payload?.branch === staffData.branch) {
-      if (['TIMETABLE_CHANGED', 'ATTENDANCE_SAVED', 'SESSION_STARTED', 'SESSION_ENDED'].includes(data.type)) {
-        console.info(`[HODSync] ${data.type} detected, refreshing...`);
+    if (!data || !data.type) return;
+    const { type, payload } = data;
+
+    if (staffData?.is_hod && (!payload?.branch || payload?.branch === staffData.branch)) {
+      if ([
+        'TIMETABLE_CHANGED', 'ATTENDANCE_SAVED', 'SESSION_STARTED', 'SESSION_ENDED',
+        'academic:timetable:changed', 'attendance:saved', 'attendance:session:started', 'attendance:session:ended'
+      ].includes(type)) {
         fetchHODData();
       }
     }
 
-    if (['REQUEST_CREATED', 'REQUEST_UPDATED'].includes(data.type)) {
+    if ([
+      'REQUEST_CREATED', 'REQUEST_UPDATED',
+      'request:created', 'request:updated', 'request:status-changed', 'request:completed'
+    ].includes(type)) {
       if (staffData?.role) {
-        console.info(`[StaffSync] ${data.type} detected, refreshing requests and history...`);
         refreshAllRequests(staffData.role);
       }
     }
 
-    if (['ADMISSION_DRAFT_CREATED', 'ADMISSION_DRAFT_UPDATED', 'ADMISSION_DRAFT_FINALIZED', 'ADMISSION_DRAFT_DELETED', 'admission:draft:created', 'admission:draft:updated', 'admission:draft:finalized', 'admission:draft:deleted'].includes(data.type)) {
+    if ([
+      'ADMISSION_DRAFT_CREATED', 'ADMISSION_DRAFT_UPDATED', 'ADMISSION_DRAFT_FINALIZED', 'ADMISSION_DRAFT_DELETED',
+      'admission:created', 'admission:updated', 'admission:finalized', 'admission:deleted',
+      'admission:draft:created', 'admission:draft:updated', 'admission:draft:finalized', 'admission:draft:deleted'
+    ].includes(type)) {
       if (staffData?.role === 'admission') {
-        console.info(`[AdmissionDraftSync] ${data.type} detected, refreshing drafts...`);
         fetchAdmissionDrafts();
       }
     }
 
-    if (data.type === 'STAFF_UPDATED' && data.payload?.id === staffData?.id) {
-      setStaffData(prev => ({ ...prev, ...data.payload }));
+    if (['STAFF_UPDATED', 'staff:updated'].includes(type) && payload?.id === staffData?.id) {
+      setStaffData(prev => ({ ...prev, ...payload }));
     }
   }, [staffData, fetchHODData, refreshAllRequests, fetchAdmissionDrafts]);
 

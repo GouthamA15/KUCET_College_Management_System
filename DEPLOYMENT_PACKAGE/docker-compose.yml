@@ -35,6 +35,37 @@ services:
     networks:
       - cms-network
 
+  realtime:
+    build:
+      context: ..
+      dockerfile: DEPLOYMENT_PACKAGE/Dockerfile.realtime
+    container_name: kucet-cms-realtime
+    restart: unless-stopped
+    expose:
+      - "4000"
+    ports:
+      # Internal real-time socket server
+      - "127.0.0.1:4000:4000"
+    env_file:
+      - .env.production
+    environment:
+      - REDIS_URL=redis://kucet-cms-redis:6379
+      - SOCKET_PORT=4000
+      - SOCKET_HOST=0.0.0.0
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGIN=*
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:4000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - cms-network
+
   nginx:
     image: nginx:alpine
     container_name: kucet-cms-proxy
@@ -54,6 +85,8 @@ services:
       start_period: 15s
     depends_on:
       app:
+        condition: service_healthy
+      realtime:
         condition: service_healthy
     networks:
       - cms-network
