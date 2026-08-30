@@ -103,6 +103,15 @@ NEW_COMMIT=$(git rev-parse HEAD)
 log "Code updated: $PREV_COMMIT → $NEW_COMMIT"
 
 # ---------------------------------------------------------------------------
+# Create automated pre-migration database snapshot
+# ---------------------------------------------------------------------------
+log "Creating automated pre-migration database snapshot ..."
+BACKUP_SCRIPT="$SCRIPTS_DIR/nightly-backup.sh"
+if [[ -f "$BACKUP_SCRIPT" ]]; then
+  bash "$BACKUP_SCRIPT" 2>&1 || log "WARNING: Pre-migration database backup returned non-zero. Continuing with migration."
+fi
+
+# ---------------------------------------------------------------------------
 # Run database migrations
 # ---------------------------------------------------------------------------
 log "Running database migrations ..."

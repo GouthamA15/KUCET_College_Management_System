@@ -30,8 +30,8 @@ jobs:
     - name: Run ESLint
       run: npm run lint
 
-    - name: Verify Drizzle Schema Migration Drift
-      run: npx drizzle-kit generate
+    - name: Verify Drizzle Schema Migration Consistency
+      run: npx drizzle-kit check
       env:
         SKIP_ENV_VALIDATION: 'true'
 

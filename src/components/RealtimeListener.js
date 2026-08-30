@@ -108,6 +108,12 @@ function startSupabaseHeartbeat() {
   if (heartbeatInterval) return;
   
   heartbeatInterval = setInterval(() => {
+    if (statusSubscribers.size === 0 && eventSubscribers.size === 0) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+      return;
+    }
+
     if (!sharedSupabaseChannel) return;
     
     // 1. Send Ping to self and others to verify channel health
@@ -120,7 +126,6 @@ function startSupabaseHeartbeat() {
     // 2. Check for Zombie State (No activity for 35s)
     const silentPeriod = Date.now() - lastActivity;
     if (silentPeriod > 35000) {
-      // console.warn(`🧟 [Realtime] Zombie connection detected (${Math.round(silentPeriod/1000)}s silence). Forcing recovery...`);
       recoverSupabaseConnection();
     }
   }, 30000);
@@ -128,8 +133,11 @@ function startSupabaseHeartbeat() {
 
 function recoverSupabaseConnection() {
   if (sharedSupabaseChannel) {
-    // console.info('🔄 [Realtime] Re-subscribing to Supabase channel...');
-    sharedSupabaseChannel.unsubscribe();
+    try {
+      sharedSupabaseChannel.unsubscribe();
+    } catch (_e) {
+      /* non-blocking */
+    }
     sharedSupabaseChannel = null;
   }
   ensureSupabaseChannel();
@@ -247,6 +255,10 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
         clearTimeout(fallbackTimer);
         statusSubscribers.delete(statusHandler);
         eventSubscribers.delete(eventHandler);
+        if (statusSubscribers.size === 0 && eventSubscribers.size === 0 && heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
       };
     } else {
       // In Dev/Local or if no Socket URL, go straight to Supabase
@@ -257,6 +269,10 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
       return () => {
         statusSubscribers.delete(statusHandler);
         eventSubscribers.delete(eventHandler);
+        if (statusSubscribers.size === 0 && eventSubscribers.size === 0 && heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
       };
     }
   }, [enableNotifications, handleNotification, onUpdate]);

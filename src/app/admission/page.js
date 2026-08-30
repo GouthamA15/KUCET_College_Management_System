@@ -98,7 +98,7 @@ const AdmissionPage = () => {
         if (savedDraft) {
             const draftObj = safeJsonParse(savedDraft, null);
             if (draftObj) {
-                const { form: savedForm, admissionYear: savedYear } = draftObj;
+                const { form: savedForm, admissionYear: savedYear, files: savedFiles } = draftObj;
                 // Only prompt if the current form is essentially empty (to avoid annoying active users)
                 if (!initialNameRef.current && savedForm?.name) {
                     toast((t) => (
@@ -110,6 +110,12 @@ const AdmissionPage = () => {
                                     onClick={() => {
                                         setForm(savedForm);
                                         if (savedYear) setAdmissionYear(savedYear);
+                                        if (savedFiles && (savedFiles.pfp || savedFiles.signature)) {
+                                            setFiles({
+                                                pfp: savedFiles.pfp || null,
+                                                signature: savedFiles.signature || null,
+                                            });
+                                        }
                                         toast.dismiss(t.id);
                                         toast.success('Progress restored successfully!');
                                     }}
@@ -143,17 +149,26 @@ const AdmissionPage = () => {
         }
     }, []);
 
-    // Persistence: Debounced save to localStorage
+    // Persistence: Debounced save to localStorage with quota protection
     useEffect(() => {
         const timeoutId = setTimeout(() => {
             // Only save if there's significant data and form isn't submitted
-            const hasData = form.name || form.father_name || form.student_mobile || form.email;
+            const hasData = form.name || form.father_name || form.student_mobile || form.email || files.pfp || files.signature;
             if (!submitted && hasData) {
-                localStorage.setItem('admission_form_draft', JSON.stringify({ form, admissionYear }));
+                try {
+                    localStorage.setItem('admission_form_draft', JSON.stringify({ form, admissionYear, files }));
+                } catch (quotaError) {
+                    // Browser storage quota exceeded due to large base64 images; persist text data reliably
+                    try {
+                        localStorage.setItem('admission_form_draft', JSON.stringify({ form, admissionYear, files: { pfp: null, signature: null } }));
+                    } catch {
+                        // Silent fallback
+                    }
+                }
             }
         }, 1500);
         return () => clearTimeout(timeoutId);
-    }, [form, admissionYear, submitted]);
+    }, [form, admissionYear, files, submitted]);
 
     useEffect(() => {
         const id = setTimeout(() => {
@@ -333,8 +348,8 @@ const AdmissionPage = () => {
                                 </div>
                                 <label className="cursor-pointer bg-white border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 text-indigo-700 text-xs font-bold py-2 px-4 rounded-lg shadow-sm transition-all duration-200 ease-in-out flex items-center justify-center gap-2 w-full max-w-[160px]">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                                    Upload Photo
-                                    <input required type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'pfp')} className="hidden" />
+                                    {files.pfp ? 'Change Photo' : 'Upload Photo'}
+                                    <input required={!files.pfp} type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'pfp')} className="hidden" />
                                 </label>
                             </div>
                         </div>
@@ -346,8 +361,8 @@ const AdmissionPage = () => {
                                 </div>
                                 <label className="cursor-pointer bg-white border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 text-indigo-700 text-xs font-bold py-2 px-4 rounded-lg shadow-sm transition-all duration-200 ease-in-out flex items-center justify-center gap-2 w-full max-w-[180px]">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                                    Upload Signature
-                                    <input required type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'signature')} className="hidden" />
+                                    {files.signature ? 'Change Signature' : 'Upload Signature'}
+                                    <input required={!files.signature} type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'signature')} className="hidden" />
                                 </label>
                             </div>
                         </div>
@@ -467,7 +482,7 @@ const AdmissionPage = () => {
 
                         <div className="space-y-1">
                             <label htmlFor="ssc-marks" className={labelClasses}>16. SSC / 10th Marks <span className="text-red-500">*</span></label>
-                            <input id="ssc-marks" required type="number" min="0" value={form.ssc_marks} onChange={e => setForm({...form, ssc_marks: e.target.value})} className={inputClasses} placeholder="TOTAL MARKS / CGPA" />
+                            <input id="ssc-marks" required type="number" step="any" min="0" value={form.ssc_marks} onChange={e => setForm({...form, ssc_marks: e.target.value})} className={inputClasses} placeholder="TOTAL MARKS / CGPA (e.g. 9.5 or 580)" />
                         </div>
 
                         <div className="space-y-1 md:col-span-2">

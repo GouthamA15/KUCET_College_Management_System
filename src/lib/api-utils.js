@@ -204,11 +204,17 @@ export function wrapHandler({ handler, schema, auth, audit }) {
         }
 
         // Final fallback
-        // Sanitize error message for the frontend to prevent leaking raw SQL queries
+        // Sanitize error message for the frontend to prevent leaking raw SQL queries or DB internals
         let displayError = error.message;
         if (displayError && displayError.toLowerCase().includes('failed query:')) {
           displayError = 'A database operation failed. Please try again.';
-        } else if (displayError && displayError.toLowerCase().includes('connect econnrefused')) {
+        } else if (
+          displayError &&
+          (displayError.toLowerCase().includes('econnrefused') ||
+            displayError.toLowerCase().includes('econnreset') ||
+            displayError.toLowerCase().includes('etimedout') ||
+            displayError.toLowerCase().includes('drizzlequeryerror'))
+        ) {
           displayError = 'Failed to connect to the database.';
         }
 

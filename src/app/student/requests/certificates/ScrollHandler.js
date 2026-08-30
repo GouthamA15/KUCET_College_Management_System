@@ -29,19 +29,23 @@ export default function ScrollHandler() {
       return false;
     };
 
-    // Try immediately, then poll every 100ms until the element exists
+    // Try immediately, then poll every 100ms until the element exists (max 30 attempts / 3s)
+    let attempts = 0;
     const didScroll = tryScroll();
     if (!didScroll) {
       intervalId = setInterval(() => {
+        attempts++;
         const ok = tryScroll();
-        if (ok && intervalId) {
+        if ((ok || attempts >= 30) && intervalId) {
           clearInterval(intervalId);
           intervalId = null;
-          // clean URL param without triggering navigation
-          try {
-            router.replace('/student/requests/certificates', { scroll: false });
-          } catch (_e) {
-            // ignore
+          if (ok) {
+            // clean URL param without triggering navigation
+            try {
+              router.replace('/student/requests/certificates', { scroll: false });
+            } catch (_e) {
+              // ignore
+            }
           }
         }
       }, 100);

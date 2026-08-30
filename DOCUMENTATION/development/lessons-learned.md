@@ -136,7 +136,19 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 
 ---
 
-## 8. Incident Summary Matrix
+## 8. Realtime Lifecycle & Media Quota Guardrails (Rules 15 & 16)
+
+### Rule 15: Always Bound & Clean Up Asynchronous Realtime Subscriptions
+- **The Pitfall:** In SPA navigation, components creating `BroadcastChannel`, `setInterval()`, Supabase channel listeners, or Socket.io subscribers without strict cleanup accumulate background tasks upon repeated page switching, triggering `MaxListenersExceededWarning: Possible EventEmitter memory leak detected`.
+- **The Inviolable Guardrail:** Every `useEffect` subscriber must return a deterministic teardown function. Broadcast channels must call `.close()`, polling intervals must have bounded attempt counters or clear on zero subscribers, and singleton registries (`statusSubscribers`, `eventSubscribers`) must clear heartbeat timers immediately when empty.
+
+### Rule 16: Never Store Unbounded Base64 Payloads in LocalStorage Without Quota Guards
+- **The Pitfall:** Writing raw base64 data URLs for user images into `localStorage` during draft auto-save can exceed browser storage quotas (~5MB), causing silent uncaught `QuotaExceededError` exceptions and broken form state persistence.
+- **The Inviolable Guardrail:** Wrap `localStorage.setItem` calls in `try/catch` blocks that catch `QuotaExceededError` and fall back to storing structured text fields with media pointers (`{ pfp: null, signature: null }`), keeping client draft recovery intact.
+
+---
+
+## 9. Incident Summary Matrix
 
 | Incident Tag | Root Cause | Engineering Fix Applied |
 | :--- | :--- | :--- |
@@ -146,10 +158,11 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 | **Session 206 Webhook Vulnerability** | Unprotected asynchronous webhook endpoints | Added `verifySignatureAppRouter` across all 7 QStash routes. |
 | **Session 207 Cross-Student Profile Leakage** | Service Worker SW Stale-While-Revalidate caching of `/api/*` & unscoped storage | Bypassed all `/api/*` in SW, bumped to `v3`, enforced `no-store` headers, roll-scoped storage keys, and complete login/logout cache purge. |
 | **Session 207 Deployment & Storage Hardening** | Docker network reconnect conflict & non-root host bind-mount permission denial | Idempotent network checks, directory-scoped `prepare-storage.sh`, eliminated `chmod 777`, diagnostic health checks. |
+| **Session 209 Production Readiness & Lifecycle Audit** | Transitive dependency deprecations, unbounded DOM polling, and localStorage quota risks on draft media | `npm audit fix` patch updates, bounded `ScrollHandler` poll loops, eager heartbeat interval cleanup in `RealtimeListener`, and quota-safe base64 draft persistence. |
 
 ---
 
-## 9. Cross-References & Related Documentation
+## 10. Cross-References & Related Documentation
 
 - [Engineering Coding Standards](./coding-standards.md)
 - [Project Architecture Conventions](./project-conventions.md)

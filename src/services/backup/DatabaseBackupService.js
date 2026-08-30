@@ -27,7 +27,7 @@ export class DatabaseBackupService {
       fs.accessSync(configuredPath, fs.constants.W_OK);
       return path.resolve(configuredPath);
     } catch (_err) {
-      const fallbackPath = path.resolve(process.cwd(), BACKUP_CONSTANTS.FALLBACK_LOCAL_BACKUP_PATH);
+      const fallbackPath = path.resolve(/*turbopackIgnore: true*/ process.cwd(), BACKUP_CONSTANTS.FALLBACK_LOCAL_BACKUP_PATH);
       if (!fs.existsSync(fallbackPath)) {
         fs.mkdirSync(fallbackPath, { recursive: true, mode: 0o755 });
       }

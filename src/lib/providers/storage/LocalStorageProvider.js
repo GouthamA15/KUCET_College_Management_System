@@ -222,7 +222,7 @@ export default class LocalStorageProvider extends StorageProvider {
     }
 
     try {
-      const stats = await fs.promises.stat(absSource);
+      const stats = await fs.promises.stat(/*turbopackIgnore: true*/ absSource);
       const filename = path.basename(cleanSource);
       const rawFolder = targetFolder.replace(/^\/+|\/+$/g, '');
       const cleanFolder = rawFolder.replace(/^kucet\//, '');

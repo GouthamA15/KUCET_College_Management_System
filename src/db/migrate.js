@@ -8,7 +8,7 @@ require('dotenv').config({ path: '.env.production', override: false });
 require('dotenv').config({ path: 'DEPLOYMENT_PACKAGE/.env.production', override: false });
 
 async function runMigrations() {
-  console.info('⏳ Running migrations...');
+  console.info('⏳ Running database migrations via Drizzle ORM...');
 
   let dbConfig;
   if (process.env.DATABASE_URL) {
@@ -57,49 +57,88 @@ async function runMigrations() {
     process.exit(1);
   }
 
-  const db = drizzle(connection);
-
   const fs = require('fs');
+  const db = drizzle(connection);
+  const startTime = Date.now();
 
   try {
-    await migrate(db, {
-      migrationsFolder: path.join(__dirname, '../../drizzle'),
-    });
-    console.info('✅ Migrations completed successfully!');
-  } catch (error) {
-    if (error.message && error.message.includes('No file')) {
-      console.warn('⚠️ Standard migrator found missing historical journal files. Executing available migration files directly...');
-      const drizzleDir = path.join(__dirname, '../../drizzle');
-      const files = fs.readdirSync(drizzleDir)
-        .filter(f => f.endsWith('.sql'))
-        .sort();
+    // 1. Ensure __drizzle_migrations table exists
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS \`__drizzle_migrations\` (
+        \`id\` bigint unsigned not null auto_increment primary key,
+        \`hash\` text not null,
+        \`created_at\` bigint
+      )
+    `);
 
-      for (const file of files) {
-        console.info(`  └─ Processing migration: ${file}`);
-        const sqlContent = fs.readFileSync(path.join(drizzleDir, file), 'utf8');
-        const statements = sqlContent
-          .split('--> statement-breakpoint')
-          .map(s => s.trim())
-          .filter(Boolean);
+    // 2. Fetch existing migration timestamps from __drizzle_migrations
+    const [existingMigRows] = await connection.query('SELECT created_at FROM `__drizzle_migrations`');
+    const appliedTimestamps = new Set((existingMigRows || []).map(r => Number(r.created_at)));
 
-        for (const stmt of statements) {
-          try {
-            await connection.query(stmt);
-          } catch (stmtErr) {
-            // Ignore ER_TABLE_EXISTS_ERROR (1050), ER_DUP_KEYNAME (1061), ER_DUP_FIELDNAME (1060)
-            if ([1050, 1061, 1060, 'ER_TABLE_EXISTS_ERROR', 'ER_DUP_KEYNAME'].includes(stmtErr.code) || stmtErr.errno === 1050 || stmtErr.errno === 1061) {
-              // Intentionally suppressed duplicate table/index creation error
-              continue;
-            }
-            console.warn(`    ⚠️ Statement warning in ${file}: ${stmtErr.message}`);
+    const journalPath = path.join(__dirname, '../../drizzle/meta/_journal.json');
+    if (fs.existsSync(journalPath)) {
+      const journal = JSON.parse(fs.readFileSync(journalPath, 'utf8'));
+      const entries = journal.entries || [];
+
+      // Helper to baseline an entry safely
+      async function baselineEntry(entry, reason) {
+        if (!appliedTimestamps.has(entry.when)) {
+          console.info(`ℹ️ Baselining migration ${entry.tag} (${reason})...`);
+          await connection.query(
+            'INSERT INTO `__drizzle_migrations` (`hash`, `created_at`) VALUES (?, ?)',
+            ['', entry.when]
+          );
+          appliedTimestamps.add(entry.when);
+        }
+      }
+
+      // Check 1: Historical 0000-0015 schema detection
+      const [colCheck] = await connection.query(
+        'SELECT COUNT(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = "attendance_sessions" AND column_name = "topic_covered"'
+      );
+      if (colCheck && colCheck[0] && Number(colCheck[0].count) > 0) {
+        const historicalEntries = entries.filter(e => e.idx < 16 && !appliedTimestamps.has(e.when));
+        if (historicalEntries.length > 0) {
+          console.info(`ℹ️ Existing historical schema detected. Baselining ${historicalEntries.length} historical migrations (0000-0015)...`);
+          for (const entry of historicalEntries) {
+            await baselineEntry(entry, 'historical schema exists');
           }
         }
       }
-      console.info('✅ Available migrations executed successfully!');
-    } else {
-      console.error('❌ Migration failed:', error);
-      process.exit(1);
+
+      // Check 2: 0016_reconcile_staff_and_hod_schema detection
+      const entry0016 = entries.find(e => e.idx === 16);
+      if (entry0016 && !appliedTimestamps.has(entry0016.when)) {
+        const [deptCheck] = await connection.query(
+          'SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = "academic_departments"'
+        );
+        if (deptCheck && deptCheck[0] && Number(deptCheck[0].count) > 0) {
+          await baselineEntry(entry0016, 'academic_departments table already exists');
+        }
+      }
+
+      // Check 3: 0017_add_staff_registration_address detection
+      const entry0017 = entries.find(e => e.idx === 17);
+      if (entry0017 && !appliedTimestamps.has(entry0017.when)) {
+        const [addrCheck] = await connection.query(
+          'SELECT COUNT(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = "staff_registration_requests" AND column_name = "address"'
+        );
+        if (addrCheck && addrCheck[0] && Number(addrCheck[0].count) > 0) {
+          await baselineEntry(entry0017, 'staff_registration_requests.address column already exists');
+        }
+      }
     }
+
+    // 4. Run Drizzle ORM official migration runner
+    await migrate(db, {
+      migrationsFolder: path.join(__dirname, '../../drizzle'),
+    });
+    const elapsed = Date.now() - startTime;
+    console.info(`✅ Migrations verified and executed successfully in ${elapsed}ms!`);
+  } catch (error) {
+    console.error('❌ Migration failed:', error.message);
+    if (error.stack) console.error(error.stack);
+    process.exit(1);
   } finally {
     await connection.end();
   }

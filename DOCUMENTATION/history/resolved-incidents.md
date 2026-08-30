@@ -307,3 +307,111 @@ An extensive forensic cache audit revealed a cascading failure across three over
 - **Next-PWA Removal**: Completely uninstalled `@ducanh2912/next-pwa` from `package.json` and removed `withPWAInit` from `next.config.mjs`. The project natively utilizes its own `public/sw.js` and manual registration (`PwaRegister.js`), making the external package redundant and destructive.
 - **Service Worker Guardrails**: Fixed `public/sw.js` by explicitly restricting Stale-While-Revalidate caching to static asset paths (matching `/^_next\/static/` and common image/font extensions), bypassing the cache for all Next.js dynamic routing and RSC data.
 - **State Revalidation**: Updated `StaffContext.js` `refreshAllData` and its dependency array to explicitly trigger `fetchFacultyData` and `fetchHODData` when resuming the application (`visibilitychange` / `pageshow`), ensuring context syncs across tabs without requiring a hard refresh.
+
+---
+
+### 11. Session 209: Forensic Resolution of Realtime Heartbeat Leak, Admission Draft Image Restoration, and SSC Decimal Precision (August 29, 2026)
+
+#### Incident Summary
+1. **Event Listener / Realtime Lifecycle Accumulation**: Node runtime `MaxListenersExceededWarning` and memory overhead under repeated navigation and tab cycling.
+2. **Admission Draft Restoration Bug**: Saving an incomplete admission draft and clicking "Restore" restored text fields but failed to restore profile photo and signature previews.
+3. **SSC / 10th Marks Decimal Limitation**: Public admission form rejected decimal marks/CGPA values (e.g., `9.5`, `8.75`, `98.4`).
+
+#### Root Cause Analysis
+1. **Instrumentation & Realtime Heartbeat Lifecycle**:
+   - `src/instrumentation.js` attached `process.on('warning', ...)` unconditionally whenever instrumentation re-ran across server workers.
+   - `src/components/RealtimeListener.js` ran `startSupabaseHeartbeat()` interval without auto-terminating when all active subscriber components unmounted, leading to orphan background intervals and channel re-subscription races.
+2. **Admission Draft State Serialization Gap**:
+   - `src/app/admission/page.js` debounced `localStorage.setItem('admission_form_draft', ...)` saving only `{ form, admissionYear }` while omitting `{ files }`.
+   - Hidden `<input type="file" required>` prevented form submission upon restore because native browser file inputs cannot be programmatically hydrated from existing base64 strings or URLs.
+3. **Frontend Decimal Step Limitation**:
+   - Database schema already defined `student_academic_background.ssc_marks` and `student_admission_drafts.ssc_marks` as `varchar(50)`.
+   - However, `src/app/admission/page.js` defined `<input type="number" min="0" />` without `step="any"`, triggering native browser constraint validation errors on decimal inputs.
+
+#### Resolution Steps
+- **Heartbeat & Event Listener Guard**: Added `globalThis._warningListenerRegistered` in `src/instrumentation.js` to ensure single warning handler attachment. Added auto-clear guard in `RealtimeListener.js` to cancel the heartbeat interval when all listener subscribers unmount, and wrapped `sharedSupabaseChannel.unsubscribe()` in defensive error boundaries.
+- **Draft Media Restoration Pipeline**: Included `files` (`pfp`, `signature`) in localStorage draft serialization; restored both image previews on "Restore"; dynamically switched hidden file inputs to `required={!files.pfp}` / `required={!files.signature}` and updated button labels to "Change Photo" / "Change Signature".
+- **Decimal Support**: Added `step="any"` and `placeholder="TOTAL MARKS / CGPA (e.g. 9.5 or 580)"` to `src/app/admission/page.js`. Validated compatibility across Zod schemas (`src/app/api/public/admission/route.js`, `src/lib/validations/student.js`) and database columns (`varchar(50)`).
+- **Automated Regression Suite**: Created `tests/unit/admission-restoration-and-decimals.test.js` validating decimal parsing, full draft serialization/deserialization with base64 images, legacy draft fallback, and listener idempotency. All 53 test files (395 tests) passed.
+
+---
+
+### 12. Session 209 (Part 2): Forensic Resolution of Admin Staff Requests Regression, Schema Drift & Migration Journal Re-alignment (August 30, 2026)
+
+#### Incident Summary
+1. **Admin Staff Requests Failure**: Navigating to `/admin/staff-requests` failed in production with error `Unknown column 'staff_registration_requests.address' in 'field list'`.
+2. **Missing Journal Migrations & Drizzle Alter Failure**: Deployment logs showed `Duplicate column name 'topic_covered'` when Drizzle's official `migrate()` attempted to re-run historical migration 0007 on a database where historical migrations had not been recorded in `__drizzle_migrations`.
+
+#### Root Cause Analysis
+1. **Schema Drift on `staff_registration_requests.address`**:
+   - `src/db/schema/identity.js` defined `address: text('address')` on `staffRegistrationRequests` for staff residential address collection.
+   - The production VPS database table `staff_registration_requests` was created prior to this definition and was missing the `address` column.
+   - When `/api/admin/staff-requests` ran `db.select().from(staffRegistrationRequests)`, Drizzle requested all schema columns including `staff_registration_requests.address`, causing MySQL to throw error `1054: Unknown column 'staff_registration_requests.address' in 'field list'`.
+2. **Drizzle Migration Journal & Tracker Disconnect**:
+   - `drizzle/meta/_journal.json` contained entries `0000` through `0005`, but the baseline `.sql` files on disk had been removed in previous refactorings.
+   - When Drizzle ORM's `migrate()` ran on startup on an empty `__drizzle_migrations` table, it failed on historical `ALTER TABLE` statements (such as `0007_flippant_harry_osborn.sql` adding `topic_covered`) that had already been executed in the past.
+3. **Frontend Promise.all Failure Coupling**:
+   - `src/app/admin/staff-requests/StaffRequestsClient.js` used `Promise.all([fetch('/api/admin/staff-requests'), fetch('/api/admin/hod-requests')])`. The failure of one endpoint caused the entire page to abort.
+4. **App Router Param Extraction & Active HOD Query**:
+   - `approve`, `reject`, and `resend-activation` endpoints relied on fragile URL segment splitting.
+   - `/api/admin/hod-requests` filtered `gte(end_date, nowStr)` without checking `isNull(end_date)`, filtering out active open-ended HOD tenures.
+
+#### Resolution Steps
+1. **Forward-Only Additive Migration 0017**:
+   - Created `drizzle/0017_add_staff_registration_address.sql` (`ALTER TABLE staff_registration_requests ADD COLUMN address text NULL AFTER designation;`) and registered entry 17 in `_journal.json`.
+2. **Automated Migration Baselining Engine**:
+   - Updated `src/db/migrate.js` to inspect `__drizzle_migrations` and `information_schema.columns`. When an existing production schema is detected without complete tracking, it automatically baselines historical migrations (`0000`–`0015`) so Drizzle only executes new forward-only migrations (`0016`, `0017`).
+3. **Deployment Safety & Smoke Tests**:
+   - Updated `DEPLOYMENT_PACKAGE/SCRIPTS/deploy.sh` to create an automated pre-migration database snapshot via `nightly-backup.sh` before running migrations.
+   - Added automated smoke test checks in `DEPLOYMENT_PACKAGE/SCRIPTS/health-check.sh` verifying `/api/admin/staff-requests` and `/api/admin/hod-requests` return healthy non-500 HTTP responses.
+4. **Endpoint Hardening & Resilient UI**:
+   - Hardened parameter resolution (`(await context.params)?.id`) and HTTP 400 error handling in all staff mutation routes.
+   - Refactored `StaffRequestsClient.js` to use `Promise.allSettled()`.
+   - Updated HOD queries to support `or(isNull(end_date), gte(end_date, nowStr))`.
+5. **Live Verification on Production VPS**:
+   - Live endpoint verification on production container confirmed:
+     - `GET /api/admin/staff-requests` $\rightarrow$ `HTTP 200` (`success: true`, 8 requests)
+     - `GET /api/admin/hod-requests` $\rightarrow$ `HTTP 200` (`success: true`)
+      - `GET /admin/staff-requests` $\rightarrow$ `HTTP 200`
+    - All 54 test files (404 unit tests) passed cleanly.
+
+---
+
+### 13. Session 209 (Part 3): CI Failure Forensic Fix — Staff Requests Unit Mocking & Database Error Sanitization (August 30, 2026)
+
+#### Incident Summary
+GitHub Actions CI pipeline failed with 1 failing test:
+- **Test File:** `tests/unit/api/admin/staff-requests-workflow.test.js`
+- **Failing Route:** `GET /api/admin/staff-requests`
+- **Assertion:** `expect(res.status).toBe(200)` (Expected: 200, Received: 500)
+
+#### Forensic Root Cause Analysis
+1. **Unmocked Database Connection in Unit Test Environment (Category B - Test/Mock Drift):**
+   - The test file `tests/unit/api/admin/staff-requests-workflow.test.js` was introduced without mocking `@/db` or providing Drizzle query builder mocks, unlike all other unit tests in `tests/unit/api/`.
+   - In CI (or any test environment without a live MySQL instance running on localhost:3306), executing `GET /api/admin/staff-requests` invoked `db.select().from(staffRegistrationRequests)...` against an unmocked client.
+   - The connection failed with `ECONNREFUSED 127.0.0.1:3306`, which threw `DrizzleQueryError`, logged `[API_CRASH]`, and caused `wrapHandler` to return `HTTP 500`.
+2. **Missing Client Error Sanitization Pattern for Raw Connection Errors:**
+   - In `src/lib/api-utils.js`, `wrapHandler`'s error sanitizer checked `connect econnrefused` as a fixed substring, allowing other connection/driver error variants to leak raw message internals rather than returning standard user-safe messages.
+3. **Route Null-Safety Defensiveness:**
+   - In `src/app/api/admin/staff-requests/route.js`, department/program lookups and JSON affiliation arrays did not have complete defensive null checks when mapping empty results.
+
+#### Resolution Steps
+1. **Isolated In-Memory Unit Test Suite (`staff-requests-workflow.test.js`):**
+   - Overhauled `tests/unit/api/admin/staff-requests-workflow.test.js` with comprehensive, isolated in-memory dataset mocking for `@/db`, `@/lib/auth`, `@/lib/email`, and `@/lib/sse`.
+   - Created 18 exhaustive workflow tests covering:
+     - `GET /api/admin/staff-requests`: Unauthenticated (401), Authenticated with full mapping and `address` verification (200), Empty requests list (200), Database failure controlled error (500).
+     - `POST /api/admin/staff-requests/[id]/approve`: Unauthenticated (401), Invalid ID (400), Successful approval with account creation and email dispatch (200).
+     - `POST /api/admin/staff-requests/[id]/reject`: Unauthenticated (401), Reason too short (400), Successful rejection (200).
+     - `POST /api/admin/staff-requests/[id]/resend-activation`: Unauthenticated (401), Successful token generation and email resend (200).
+     - `GET /api/admin/hod-requests`: Unauthenticated (401), Authenticated with current HOD name enrichment (200), Empty requests list (200).
+     - Schema column integrity assertions for `staffRegistrationRequests`, `staffAccounts`, and `facultyHodAssignments`.
+2. **Database Error Sanitization & Structured Logging Hardening (`api-utils.js`):**
+   - Updated `src/lib/api-utils.js` `wrapHandler` fallback error sanitizer to check `econnrefused`, `econnreset`, `etimedout`, and `drizzlequeryerror` (case-insensitive), returning `"Failed to connect to the database."` to clients while preserving full structured error details (`method`, `url`, `duration`, `ip`, `err`, `cause`, `stack`) in Pino server logs (`[API_CRASH]`).
+3. **Defensive Null-Safety in API Route (`staff-requests/route.js`):**
+   - Hardened `(depts || []).forEach(...)`, `(progs || []).forEach(...)`, and affiliation array mappings.
+4. **Intelligent Forward-Only Migration Baselining (`src/db/migrate.js`):**
+   - Hardened `src/db/migrate.js` to inspect `information_schema.columns` and `information_schema.tables` for existing tables (`academic_departments`) and columns (`staff_registration_requests.address`).
+   - Automatically baselines migrations 0016 and 0017 in `__drizzle_migrations` when existing production schema already contains these structures, preventing `Duplicate column name 'address'` errors during automated CI/CD migration runs.
+5. **Verification & Regression Testing:**
+   - 100% pass rate across all 54 test files (413 unit tests passed, 0 failed, 0 skipped).
+   - Zero ESLint errors across the codebase.
