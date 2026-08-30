@@ -4,11 +4,22 @@ import { Redis } from '@upstash/redis';
 import { getStorageProvider } from '@/lib/providers/storage/factory';
 import logger from '@/lib/logger';
 
+const TIMEOUT_MS = 3000;
+
+function withTimeout(promise, ms, operationName) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`${operationName} check timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 export class HealthService {
   static async checkDatabase() {
     try {
       const start = Date.now();
-      await db.execute(sql`SELECT 1`);
+      await withTimeout(db.execute(sql`SELECT 1`), TIMEOUT_MS, 'Database');
       return { status: 'ok', latencyMs: Date.now() - start, error: null };
     } catch (error) {
       logger.error({ err: error }, '[HEALTH_CHECK] Database connection failed');
@@ -27,7 +38,7 @@ export class HealthService {
         url: process.env.UPSTASH_REDIS_REST_URL,
         token: process.env.UPSTASH_REDIS_REST_TOKEN,
       });
-      const ping = await redis.ping();
+      const ping = await withTimeout(redis.ping(), TIMEOUT_MS, 'Redis');
       const latencyMs = Date.now() - start;
       const status = ping === 'PONG' ? 'ok' : 'degraded';
       return { status, latencyMs, error: status === 'ok' ? null : 'Unexpected ping response' };
@@ -54,8 +65,13 @@ export class HealthService {
       const start = Date.now();
       const storage = getStorageProvider();
       const isAvailable = !!storage;
-      return { status: isAvailable ? 'ok' : 'error', latencyMs: Date.now() - start, type: process.env.NEXT_PUBLIC_STORAGE_TYPE || 'cloudinary' };
+      return {
+        status: isAvailable ? 'ok' : 'error',
+        latencyMs: Date.now() - start,
+        type: process.env.NEXT_PUBLIC_STORAGE_TYPE || 'cloudinary',
+      };
     } catch (error) {
+      logger.error({ err: error }, '[HEALTH_CHECK] Storage provider check failed');
       return { status: 'error', latencyMs: -1, error: error.message };
     }
   }
@@ -89,13 +105,15 @@ export class HealthService {
     };
 
     const statuses = [dbStatus, redisStatus, emailStatus];
-    const maxSeverity = Math.max(...statuses.map(s => {
-      const severity = severityMap[s];
-      if (severity === undefined) {
-        logger.warn({ status: s }, 'Unknown health status');
-      }
-      return severity || 0;
-    }));
+    const maxSeverity = Math.max(
+      ...statuses.map((s) => {
+        const severity = severityMap[s];
+        if (severity === undefined) {
+          logger.warn({ status: s }, 'Unknown health status');
+        }
+        return severity || 0;
+      })
+    );
 
     if (maxSeverity >= 3) return 'unhealthy';
     if (maxSeverity >= 2) return 'degraded';
@@ -139,7 +157,7 @@ export class HealthService {
     return {
       status: overall,
       timestamp: new Date().toISOString(),
-      uptimeSeconds: process.uptime(),
+      uptimeSeconds: Math.round(process.uptime()),
       memoryUsageMb: {
         rss: Math.round(process.memoryUsage().rss / 1024 / 1024),
         heapUsed: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),

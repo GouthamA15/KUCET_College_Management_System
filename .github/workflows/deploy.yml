@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch: # Allows manual emergency trigger
 
 # Prevent concurrent deployments
 concurrency:
@@ -11,8 +12,35 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate-and-test:
+    name: 1. Code Validation & Unit Tests
+    runs-on: self-hosted
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run ESLint Verification
+        run: npm run lint
+
+      - name: Run Unit Tests (Vitest)
+        run: npm run test:unit
+        env:
+          SKIP_ENV_VALIDATION: 'true'
+          NODE_ENV: 'test'
+
   deploy:
-    name: Deploy to Self-Hosted VPS
+    name: 2. Deploy to Production VPS
+    needs: validate-and-test
     runs-on: self-hosted
     timeout-minutes: 10
 
@@ -23,7 +51,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # Full history needed for git-based rollback
+          fetch-depth: 0 # Full history needed for git-based rollback
 
       # -----------------------------------------------------------------
       # 2. Load production environment variables from the server
@@ -44,7 +72,7 @@ jobs:
           fi
 
       # -----------------------------------------------------------------
-      # 3. Run the main deploy script
+      # 3. Run the main deploy script (includes pre-backup, migrations & build)
       # -----------------------------------------------------------------
       - name: Run Deploy Script
         id: deploy
@@ -54,25 +82,37 @@ jobs:
             --branch main
 
       # -----------------------------------------------------------------
-      # 4. On failure: run rollback explicitly (if deploy.sh hasn't already)
-      #    This step only runs if the deploy step failed.
+      # 4. Post-Deployment Public Endpoint & Funnel Verification
+      # -----------------------------------------------------------------
+      - name: Verify Public Tailscale Funnel Ingress
+        run: |
+          echo "Verifying public Tailscale Funnel endpoint reachability ..."
+          PUBLIC_URL="https://kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net/api/health"
+          PUB_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "$PUBLIC_URL" 2>/dev/null || echo "000")
+          if [ "$PUB_STATUS" = "200" ]; then
+            echo "✅ Public Tailscale Funnel HTTPS ingress is UP (HTTP 200)"
+          else
+            echo "⚠️  Public Funnel returned HTTP $PUB_STATUS — check tailscale funnel status"
+          fi
+
+      # -----------------------------------------------------------------
+      # 5. On failure: run rollback explicitly (if deploy.sh hasn't already)
       # -----------------------------------------------------------------
       - name: Emergency Rollback on Deploy Failure
         if: failure() && steps.deploy.outcome == 'failure'
         run: |
           echo "⚠️  Deploy step failed — checking if rollback is needed ..."
-          # Get the previous commit (the commit before the current push)
           PREV_COMMIT="${{ github.event.before }}"
           if [ -n "$PREV_COMMIT" ] && [ "$PREV_COMMIT" != "0000000000000000000000000000000000000000" ]; then
             echo "Running explicit rollback to: $PREV_COMMIT"
             bash ./DEPLOYMENT_PACKAGE/SCRIPTS/rollback.sh "$PREV_COMMIT" || \
               echo "🚨 CRITICAL: Emergency rollback also failed! Manual intervention required."
           else
-            echo "No valid previous commit found (first push to branch?). Skipping rollback."
+            echo "No valid previous commit found. Skipping automatic rollback."
           fi
 
       # -----------------------------------------------------------------
-      # 5. Always: upload deploy log as a GitHub Actions artifact
+      # 6. Always: upload deploy log as a GitHub Actions artifact
       # -----------------------------------------------------------------
       - name: Upload Deploy Log
         if: always()
