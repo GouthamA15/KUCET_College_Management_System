@@ -124,6 +124,47 @@ for (const url of remoteCandidates) {
 }
 ```
 
+## 5. Render Build Memory Architecture & OOM Prevention
+
+During Next.js production builds on Render's containerized build runners, memory consumption must be strictly budgeted to avoid container OOM kills (`Out of memory: used over 8Gi`).
+
+### Root Causes of Build-Time Memory Spikes:
+1. **Un-externalized Server Packages**: Heavy Node/WASM modules (`@aws-sdk/client-s3`, `@react-pdf/renderer`, `jimp`, `mysqldump`, `mysql2`, `docxtemplater`, `pizzip`, `web-push`, `bcrypt`, `pino`, `ioredis`) being parsed into Webpack/Turbopack AST graphs.
+2. **Turbopack Whole-Project Dynamic Tracing**: Dynamic file system access (`fs.stat`, `path.resolve(process.cwd(), ...)`) triggering exhaustive project-wide file tracing into compiler memory.
+3. **Uncapped Node.js V8 Heap**: Default V8 garbage collection thresholds scaling beyond container memory limits before triggering GC.
+
+### Applied Mitigations:
+1. **`serverExternalPackages` in `next.config.mjs`**:
+   Instructs Next.js to leave heavy server libraries as external Node `require()` references rather than bundling their full source ASTs.
+2. **`/*turbopackIgnore: true*/` Annotations**:
+   Added to dynamic file inspection operations in `LocalStorageProvider.js` and `DatabaseBackupService.js` to prevent whole-project tracing warnings and AST memory bloat.
+3. **Sentry Sourcemap Disabling on Build**:
+   `sourcemaps: { disable: true }` in `withSentryConfig` to prevent in-memory sourcemap indexing during container builds.
+4. **Render Environment Variable Configuration**:
+   Configure the following environment variable in the Render Dashboard for the web service:
+   ```env
+   NODE_OPTIONS=--max-old-space-size=4096
+   ```
+
+---
+
+## 6. Git Branching & Staging vs Production Separation
+
+```mermaid
+flowchart LR
+    Dev[Feature Work] --> TestVanilla[testvanilla (Staging / Verification)]
+    TestVanilla --> CI[GitHub Actions CI / Automated Tests]
+    CI --> Main[main (Canonical / Production Source)]
+    Main --> VPS[Hostinger Ubuntu VPS (Production Deployment)]
+    TestVanilla -.-> Render[Render Preview / Staging (Optional)]
+```
+
+### Branch Strategy Rules:
+- **`testvanilla`**: Active development and integration branch. Receives new features and bug fixes first.
+- **`main`**: Canonical production branch. Receives merges from `testvanilla` only after all unit tests and builds pass.
+- **Render Staging**: Should be configured to build from `testvanilla` or dedicated staging branches with `NODE_OPTIONS=--max-old-space-size=4096`.
+- **Database Migrations**: Executed in GitHub Actions CI (`database-migration-runner`) and VPS deployment scripts. Never executed during static web builds.
+
 ---
 
 ## Cross-References
@@ -132,3 +173,4 @@ for (const url of remoteCandidates) {
 * [Nginx Reverse Proxy Configuration](./nginx.md)
 * [SSL/TLS Security & Domain Certificate Management](./ssl.md)
 * [Universal Storage Abstraction Architecture](../storage/file-storage.md)
+

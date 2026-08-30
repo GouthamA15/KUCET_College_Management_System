@@ -6,13 +6,27 @@ const nextConfig = {
   /* config options here */
   output: 'standalone',
   reactCompiler: true,
-  // Fix Render OOM (Out of Memory) by disabling memory-heavy build steps
+  // Fix Render OOM (Out of Memory) by disabling memory-heavy build steps & externalizing heavy Node packages
   productionBrowserSourceMaps: false,
+  serverExternalPackages: [
+    '@aws-sdk/client-s3',
+    '@react-pdf/renderer',
+    'jimp',
+    'mysqldump',
+    'mysql2',
+    'docxtemplater',
+    'pizzip',
+    'web-push',
+    'bcrypt',
+    'pino',
+    'pino-pretty',
+    'ioredis',
+  ],
   typescript: {
     ignoreBuildErrors: true,
   },
   experimental: {
-    webpackBuildWorker: true,
+    webpackBuildWorker: false,
   },
   images: {
     remotePatterns: [
