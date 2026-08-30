@@ -60,6 +60,11 @@ Renders the `StudentsLookupPanel` component inline within the hub. See the [Stud
 ### 5. Syllabus Management
 A dedicated tab available only to authorized Head of Departments (HODs). It embeds the `SyllabusManager.js` component to securely manage subject-branch mappings. HODs can view, add, and delete mappings, with the system enforcing unique mapping and blocking deletions if timetable or marks dependencies exist.
 
+**Elective & Group Management:**
+- **Hierarchical Table Structure**: Standard subjects render normally. Elective Groups render as distinct row headers, with a "+ Add Elective" fast-action shortcut directly on the header. Elective Subjects render directly beneath their parent group with visual indentation to clearly denote the parent-child relationship.
+- **Creation Modal Modes**: The "Add Subject" modal features three mode toggles: **Standard Subject**, **Elective Group**, and **Elective Subject**. When creating an Elective Subject, the modal dynamically requires selecting a parent group from existing buckets.
+- **API Safety Locks**: The backend API (`/api/staff/hod/syllabus`) explicitly validates `is_group` and `parent_group_code` attributes. A safety lock in the `DELETE_MAPPING` route blocks HODs from accidentally deleting an "Elective Group" if it still contains mapped child subjects.
+
 ### Mobile Behaviour
 - Tabs wrap to multiple lines on narrow viewports instead of scrolling horizontally.
 - The search bar is rendered **above** the filter controls on mobile screens.

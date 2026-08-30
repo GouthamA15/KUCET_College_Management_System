@@ -129,7 +129,7 @@ export async function POST(req) {
     const { action, subject } = validatedData;
 
     if (action === 'ADD_SUBJECT') {
-      const { subject_code, subject_name, subject_type, branch, semester } = subject;
+      const { subject_code, subject_name, subject_type, branch, semester, is_group, parent_group_code } = subject;
       
       if (!authorizedBranches.includes(branch)) {
          return apiError('Forbidden - Cannot add mapping outside authorized department branches', 403);
@@ -162,7 +162,9 @@ export async function POST(req) {
             await tx.insert(syllabusStructure).values({
               branch,
               semester,
-              subject_code
+              subject_code,
+              is_group: is_group ? 1 : 0,
+              parent_group_code: parent_group_code || null
             });
           }
       });
@@ -188,6 +190,19 @@ export async function POST(req) {
          return apiError('Forbidden - Cannot remove mapping outside authorized department branches', 403);
       }
       
+      // If this is a group, ensure it has no children before deleting
+      const childrenCheck = await db.select({ id: syllabusStructure.id })
+        .from(syllabusStructure)
+        .where(and(
+          eq(syllabusStructure.branch, branch),
+          eq(syllabusStructure.semester, semester),
+          eq(syllabusStructure.parent_group_code, subject_code)
+        )).limit(1);
+        
+      if (childrenCheck.length > 0) {
+        return apiError('Cannot delete this elective group because it still contains subjects. Remove the subjects first.', 400);
+      }
+
       // Logic-level Dependency Check (Can delete?)
       const { canDelete, reason } = await ValidationService.checkSubjectBranchDependencies(subject_code, branch);
       if (!canDelete) {

@@ -1,45 +1,60 @@
-// Bump version when SW changes to force old SW to be replaced and old caches cleared.
-const CACHE_NAME = 'kucet-cms-v3';
+// KUCET CMS - Production Service Worker
+// Version: v4 (Session 209 Reliability & Chunk Recovery Release)
+const CACHE_VERSION = 'v4';
+const CACHE_NAME = `kucet-cms-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline';
 
 const PRECACHE_ASSETS = [
   '/offline',
   '/favicon.ico',
-  '/manifest.json'
+  '/manifest.json',
+  '/assets/ku-college-logo.png'
   // NOTE: Do NOT precache '/' — it redirects based on auth state (middleware)
-  // and caching a stale redirect would break the login flow.
+  // and caching a stale redirect would break the multi-role login flow.
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(PRECACHE_ASSETS);
-    }).then(() => self.skipWaiting())
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.addAll(PRECACHE_ASSETS))
+      .then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((name) => {
-          if (name !== CACHE_NAME) {
-            return caches.delete(name);
-          }
-        })
-      );
-    }).then(() => self.clients.claim())
+    caches
+      .keys()
+      .then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((name) => {
+            if (name !== CACHE_NAME) {
+              return caches.delete(name);
+            }
+          })
+        );
+      })
+      .then(() => self.clients.claim())
   );
 });
 
-// Explicit cache purge handler on logout / account switch
+// Explicit cache management & version query messages
 self.addEventListener('message', (event) => {
-  if (event.data && (event.data.type === 'CLEAR_ALL_CACHES' || event.data.type === 'LOGOUT')) {
+  if (!event.data) return;
+
+  if (event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  } else if (event.data.type === 'CLEAR_ALL_CACHES' || event.data.type === 'LOGOUT') {
     event.waitUntil(
       caches.keys().then((cacheNames) => {
         return Promise.all(cacheNames.map((name) => caches.delete(name)));
       })
     );
+  } else if (event.data.type === 'GET_VERSION') {
+    if (event.ports && event.ports[0]) {
+      event.ports[0].postMessage({ version: CACHE_VERSION, cacheName: CACHE_NAME });
+    }
   }
 });
 
@@ -47,71 +62,84 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // 1. CRITICAL INVARIANT: ALL /api/* requests MUST BYPASS the Service Worker cache completely.
-  // Dynamic API routes represent authenticated user session data and must NEVER be cached
-  // across users or sessions by the Service Worker.
+  // 1. CRITICAL INVARIANT: ALL /api/* requests and non-GET methods MUST BYPASS SW cache completely.
+  // Dynamic API routes represent authenticated user session data and must NEVER be cached by the Service Worker.
   if (url.pathname.startsWith('/api/') || request.method !== 'GET') {
     return;
   }
 
-  // 2. Navigation requests (HTML page loads) MUST always go to the network.
-  // The auth middleware returns different responses (redirects vs. 200) based on cookie state.
-  // Serving a stale cached navigation response causes the browser to hydrate with stale auth state.
+  // 2. Ignore non-HTTP(S) schemes (e.g. chrome-extension://)
+  if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
+  // 3. Navigation requests (HTML page loads) MUST always prioritize network.
+  // Auth middleware returns different responses (redirects vs. 200) based on dynamic cookie state.
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request).catch(async () => {
-        // Network is offline — serve cached version or offline fallback
-        const cachedResponse = await caches.match(request);
-        if (cachedResponse) return cachedResponse;
+        // Network request failed — try serving cached offline page
         const offlineResponse = await caches.match(OFFLINE_URL);
         if (offlineResponse) return offlineResponse;
-        return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+        return new Response('Network connection failed. Please check your connectivity.', {
+          status: 503,
+          statusText: 'Service Unavailable',
+          headers: { 'Content-Type': 'text/plain' },
+        });
       })
     );
     return;
   }
 
-  // 3. Stale-While-Revalidate ONLY for static web assets (_next/static, images, CSS, fonts)
-  const isStaticAsset = url.pathname.startsWith('/_next/static/') || 
-                        url.pathname.match(/\.(png|jpg|jpeg|svg|gif|webp|woff2|woff|ttf|css|js|ico)$/i);
-
-  if (!isStaticAsset) {
-    // DO NOT cache Next.js RSC payloads (?_rsc=...) or Next-Data payloads!
+  // 4. Next.js Static Chunks (/_next/static/chunks/...)
+  // Immutable hashed assets are served directly from the browser's HTTP cache.
+  // Do NOT intercept and return synthetic 503s on 404s, so that Next.js client-side
+  // ChunkLoadError handlers can cleanly catch missing chunks and trigger auto-reload.
+  if (url.pathname.startsWith('/_next/static/chunks/')) {
     return;
   }
 
-  event.respondWith(
-    (async () => {
-      const cachedResponse = await caches.match(request);
+  // 5. Cache static web assets (images, fonts, stylesheets, icons) with Stale-While-Revalidate
+  const isStaticMediaAsset =
+    url.pathname.startsWith('/_next/static/media/') ||
+    url.pathname.startsWith('/_next/static/css/') ||
+    url.pathname.startsWith('/assets/') ||
+    url.pathname.match(/\.(png|jpg|jpeg|svg|gif|webp|woff2|woff|ttf|ico)$/i);
 
-      const fetchPromise = (async () => {
-        try {
-          const networkResponse = await fetch(request);
-          if (networkResponse && networkResponse.ok) {
-            const responseForCache = networkResponse.clone();
-            const cache = await caches.open(CACHE_NAME);
-            await cache.put(request, responseForCache);
+  if (isStaticMediaAsset) {
+    event.respondWith(
+      (async () => {
+        const cachedResponse = await caches.match(request);
+
+        const fetchPromise = (async () => {
+          try {
+            const networkResponse = await fetch(request);
+            if (networkResponse && networkResponse.ok) {
+              const responseForCache = networkResponse.clone();
+              const cache = await caches.open(CACHE_NAME);
+              await cache.put(request, responseForCache);
+            }
+            return networkResponse;
+          } catch (_error) {
+            return null;
           }
-          return networkResponse;
-        } catch (_error) {
-          return null;
+        })();
+
+        if (cachedResponse) {
+          // Serve from cache immediately; update in background
+          fetchPromise.catch(() => {});
+          return cachedResponse;
         }
-      })();
 
-      if (cachedResponse) {
-        // Trigger background revalidation safely
-        fetchPromise.catch(() => {});
-        return cachedResponse;
-      }
+        const networkRes = await fetchPromise;
+        if (networkRes) {
+          return networkRes;
+        }
 
-      const networkRes = await fetchPromise;
-      if (networkRes) {
-        return networkRes;
-      }
-
-      return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
-    })()
-  );
+        return new Response('Asset Unavailable', { status: 404, statusText: 'Not Found' });
+      })()
+    );
+  }
 });
 
 // Web Push Notification Support
@@ -127,10 +155,10 @@ self.addEventListener('push', (event) => {
       badge: '/favicon.ico',
       data: {
         url: data.url || '/',
-        ...data.data
+        ...data.data,
       },
       tag: data.category || 'general',
-      renotify: true
+      renotify: true,
     };
 
     event.waitUntil(self.registration.showNotification(title, options));
@@ -139,7 +167,7 @@ self.addEventListener('push', (event) => {
     event.waitUntil(
       self.registration.showNotification('KUCET CMS', {
         body: rawText,
-        icon: '/favicon.ico'
+        icon: '/favicon.ico',
       })
     );
   }

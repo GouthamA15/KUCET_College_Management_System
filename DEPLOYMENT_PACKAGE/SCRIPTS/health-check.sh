@@ -108,6 +108,25 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# CHECK 6c: PWA Service Worker & Offline assets responsiveness
+# ---------------------------------------------------------------------------
+SW_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "http://localhost/sw.js" 2>/dev/null || echo "000")
+if [[ "$SW_STATUS" == "200" ]]; then
+  record "pwa:service-worker" "PASS" "sw.js responsive (HTTP $SW_STATUS)"
+else
+  record "pwa:service-worker" "FAIL" "HTTP $SW_STATUS (expected 200) from /sw.js"
+  CRITICAL_FAIL=true
+fi
+
+OFFLINE_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "http://localhost/offline" 2>/dev/null || echo "000")
+if [[ "$OFFLINE_STATUS" == "200" ]]; then
+  record "pwa:offline-fallback" "PASS" "Offline page responsive (HTTP $OFFLINE_STATUS)"
+else
+  record "pwa:offline-fallback" "FAIL" "HTTP $OFFLINE_STATUS (expected 200) from /offline"
+  CRITICAL_FAIL=true
+fi
+
+# ---------------------------------------------------------------------------
 # (CHECK 7 removed: rely on Docker native container healthcheck)
 # ---------------------------------------------------------------------------
 
