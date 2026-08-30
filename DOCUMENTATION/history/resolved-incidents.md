@@ -409,6 +409,9 @@ GitHub Actions CI pipeline failed with 1 failing test:
    - Updated `src/lib/api-utils.js` `wrapHandler` fallback error sanitizer to check `econnrefused`, `econnreset`, `etimedout`, and `drizzlequeryerror` (case-insensitive), returning `"Failed to connect to the database."` to clients while preserving full structured error details (`method`, `url`, `duration`, `ip`, `err`, `cause`, `stack`) in Pino server logs (`[API_CRASH]`).
 3. **Defensive Null-Safety in API Route (`staff-requests/route.js`):**
    - Hardened `(depts || []).forEach(...)`, `(progs || []).forEach(...)`, and affiliation array mappings.
-4. **Verification & Regression Testing:**
+4. **Intelligent Forward-Only Migration Baselining (`src/db/migrate.js`):**
+   - Hardened `src/db/migrate.js` to inspect `information_schema.columns` and `information_schema.tables` for existing tables (`academic_departments`) and columns (`staff_registration_requests.address`).
+   - Automatically baselines migrations 0016 and 0017 in `__drizzle_migrations` when existing production schema already contains these structures, preventing `Duplicate column name 'address'` errors during automated CI/CD migration runs.
+5. **Verification & Regression Testing:**
    - 100% pass rate across all 54 test files (413 unit tests passed, 0 failed, 0 skipped).
    - Zero ESLint errors across the codebase.

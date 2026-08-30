@@ -71,28 +71,60 @@ async function runMigrations() {
       )
     `);
 
-    // 2. Check maximum applied migration timestamp in __drizzle_migrations
-    const [migRows] = await connection.query('SELECT MAX(created_at) as max_created_at FROM `__drizzle_migrations`');
-    const maxCreatedAt = migRows && migRows[0] && migRows[0].max_created_at ? Number(migRows[0].max_created_at) : 0;
+    // 2. Fetch existing migration timestamps from __drizzle_migrations
+    const [existingMigRows] = await connection.query('SELECT created_at FROM `__drizzle_migrations`');
+    const appliedTimestamps = new Set((existingMigRows || []).map(r => Number(r.created_at)));
 
-    if (maxCreatedAt < 1787960000000) {
-      // 3. Check if existing schema already has historical columns (e.g., topic_covered on attendance_sessions)
+    const journalPath = path.join(__dirname, '../../drizzle/meta/_journal.json');
+    if (fs.existsSync(journalPath)) {
+      const journal = JSON.parse(fs.readFileSync(journalPath, 'utf8'));
+      const entries = journal.entries || [];
+
+      // Helper to baseline an entry safely
+      async function baselineEntry(entry, reason) {
+        if (!appliedTimestamps.has(entry.when)) {
+          console.info(`ℹ️ Baselining migration ${entry.tag} (${reason})...`);
+          await connection.query(
+            'INSERT INTO `__drizzle_migrations` (`hash`, `created_at`) VALUES (?, ?)',
+            ['', entry.when]
+          );
+          appliedTimestamps.add(entry.when);
+        }
+      }
+
+      // Check 1: Historical 0000-0015 schema detection
       const [colCheck] = await connection.query(
         'SELECT COUNT(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = "attendance_sessions" AND column_name = "topic_covered"'
       );
       if (colCheck && colCheck[0] && Number(colCheck[0].count) > 0) {
-        console.info(`ℹ️ Existing historical schema detected (max migration: ${maxCreatedAt}). Baselining migrations up to 0015 in __drizzle_migrations...`);
-        const journalPath = path.join(__dirname, '../../drizzle/meta/_journal.json');
-        if (fs.existsSync(journalPath)) {
-          const journal = JSON.parse(fs.readFileSync(journalPath, 'utf8'));
-          const historicalEntries = (journal.entries || []).filter(e => e.idx < 16 && e.when > maxCreatedAt);
+        const historicalEntries = entries.filter(e => e.idx < 16 && !appliedTimestamps.has(e.when));
+        if (historicalEntries.length > 0) {
+          console.info(`ℹ️ Existing historical schema detected. Baselining ${historicalEntries.length} historical migrations (0000-0015)...`);
           for (const entry of historicalEntries) {
-            await connection.query(
-              'INSERT INTO `__drizzle_migrations` (`hash`, `created_at`) VALUES (?, ?)',
-              ['', entry.when]
-            );
+            await baselineEntry(entry, 'historical schema exists');
           }
-          console.info(`✅ Successfully baselined ${historicalEntries.length} historical migrations.`);
+        }
+      }
+
+      // Check 2: 0016_reconcile_staff_and_hod_schema detection
+      const entry0016 = entries.find(e => e.idx === 16);
+      if (entry0016 && !appliedTimestamps.has(entry0016.when)) {
+        const [deptCheck] = await connection.query(
+          'SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = "academic_departments"'
+        );
+        if (deptCheck && deptCheck[0] && Number(deptCheck[0].count) > 0) {
+          await baselineEntry(entry0016, 'academic_departments table already exists');
+        }
+      }
+
+      // Check 3: 0017_add_staff_registration_address detection
+      const entry0017 = entries.find(e => e.idx === 17);
+      if (entry0017 && !appliedTimestamps.has(entry0017.when)) {
+        const [addrCheck] = await connection.query(
+          'SELECT COUNT(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = "staff_registration_requests" AND column_name = "address"'
+        );
+        if (addrCheck && addrCheck[0] && Number(addrCheck[0].count) > 0) {
+          await baselineEntry(entry0017, 'staff_registration_requests.address column already exists');
         }
       }
     }
