@@ -8,9 +8,6 @@ const nextConfig = {
   reactCompiler: true,
   // Fix Render OOM (Out of Memory) by disabling memory-heavy build steps
   productionBrowserSourceMaps: false,
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     ignoreBuildErrors: true,
   },

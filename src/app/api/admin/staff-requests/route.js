@@ -46,8 +46,8 @@ export const GET = wrapHandler({
       const depts = await db.select().from(academicDepartments);
       const progs = await db.select().from(academicPrograms);
 
-      depts.forEach(d => { if (d.department_code) deptMap[d.department_code] = d.department_name; });
-      progs.forEach(p => { if (p.program_code) progMap[p.program_code] = p.program_name; });
+      (depts || []).forEach(d => { if (d?.department_code) deptMap[d.department_code] = d.department_name; });
+      (progs || []).forEach(p => { if (p?.program_code) progMap[p.program_code] = p.program_name; });
     } catch (deptErr) {
       logger.warn({ err: deptErr }, '[STAFF_REQUESTS] Failed to fetch academic departments/programs for mapping, using raw codes');
     }
@@ -59,12 +59,15 @@ export const GET = wrapHandler({
       }
       
       if (Array.isArray(affils)) {
-        affils = affils.map(a => ({
-          department_code: a.department_code,
-          department_name: deptMap[a.department_code] || a.department_code,
-          program_codes: a.program_codes || [],
-          program_names: (a.program_codes || []).map(pc => progMap[pc] || pc)
-        }));
+        affils = affils.map(a => {
+          if (!a || typeof a !== 'object') return a;
+          return {
+            department_code: a.department_code,
+            department_name: deptMap[a.department_code] || a.department_code,
+            program_codes: a.program_codes || [],
+            program_names: (a.program_codes || []).map(pc => progMap[pc] || pc)
+          };
+        });
       }
 
       return {
