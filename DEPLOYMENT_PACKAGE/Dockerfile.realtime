@@ -1,0 +1,20 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install production dependencies
+COPY package.json package-lock.json* ./
+RUN npm ci --omit=dev --ignore-scripts
+
+# Copy socket server source
+COPY DEPLOYMENT_PACKAGE/CONFIGS/socket-server.js ./socket-server.js
+
+ENV NODE_ENV=production
+ENV SOCKET_PORT=4000
+ENV SOCKET_HOST=0.0.0.0
+
+EXPOSE 4000
+
+USER node
+
+CMD ["node", "socket-server.js"]

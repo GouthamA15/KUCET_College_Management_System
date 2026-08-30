@@ -142,17 +142,21 @@ export function AdminProvider({ children }) {
 
   // Realtime update handler
   const handleRealtimeUpdate = useCallback((data) => {
-    if (!data || !data.type || !data.payload) return;
+    if (!data || !data.type) return;
     const { type, payload } = data;
 
-    if (type === 'STAFF_CREATED') {
-      addStaffToList(payload);
-    } else if (type === 'STAFF_UPDATED') {
-      updateStaffInList(payload);
-    } else if (type === 'STAFF_STATUS_CHANGED') {
-      setStaffActiveStatus(payload.id, payload.is_active);
+    if (['STAFF_CREATED', 'staff:created'].includes(type)) {
+      if (payload) addStaffToList(payload);
+    } else if (['STAFF_UPDATED', 'staff:updated'].includes(type)) {
+      if (payload) updateStaffInList(payload);
+    } else if (['STAFF_STATUS_CHANGED', 'staff:status-changed'].includes(type)) {
+      if (payload) setStaffActiveStatus(payload.id, payload.is_active);
+    } else if (['STAFF_REGISTRATION_CREATED', 'staff:registration:created'].includes(type)) {
+      fetchStaff();
+    } else if (['STUDENT_STATS_UPDATED', 'student:stats:updated', 'ADMISSION_FINALIZED', 'admission:finalized'].includes(type)) {
+      fetchStudentStats();
     }
-  }, [addStaffToList, updateStaffInList, setStaffActiveStatus]);
+  }, [addStaffToList, updateStaffInList, setStaffActiveStatus, fetchStaff, fetchStudentStats]);
 
   const refreshAll = useCallback(async () => {
     if (activePromiseRef.current) {

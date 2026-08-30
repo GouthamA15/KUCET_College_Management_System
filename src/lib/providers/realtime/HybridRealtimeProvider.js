@@ -6,9 +6,8 @@ export default class HybridRealtimeProvider extends RealtimeProvider {
     this.providers = providers;
   }
 
-  async broadcast(type, payload) {
-    // Use allSettled to ensure one failing provider (like offline Redis in dev) 
-    // doesn't block others or crash the request
-    await Promise.allSettled(this.providers.map(p => p.broadcast(type, payload)));
+  async broadcast(type, payload, options = {}) {
+    // Use allSettled to ensure one failing provider doesn't block others or crash the request
+    await Promise.allSettled(this.providers.map((p) => p.broadcast(type, payload, options)));
   }
 }

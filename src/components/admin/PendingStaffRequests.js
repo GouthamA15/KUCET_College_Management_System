@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
 import { getAssetUrl } from '@/lib/assets';
+import RealtimeListener from '@/components/RealtimeListener';
 
 export default function PendingStaffRequests({ onRequestAction, categoryFilter }) {
   const [requests, setRequests] = useState([]);
@@ -136,6 +137,7 @@ export default function PendingStaffRequests({ onRequestAction, categoryFilter }
   if (requests.length === 0) {
     return (
       <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs mb-8">
+        <RealtimeListener onUpdate={(data) => { if (data.type?.includes('staff')) fetchRequests(); }} />
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold text-[#0b3578] uppercase tracking-wide">
@@ -161,6 +163,7 @@ export default function PendingStaffRequests({ onRequestAction, categoryFilter }
 
   return (
     <div className="bg-white border border-amber-200 rounded-lg p-6 shadow-xs mb-8">
+      <RealtimeListener onUpdate={(data) => { if (data.type?.includes('staff')) fetchRequests(); }} />
       <div className="flex items-center justify-between mb-6 pb-3 border-b border-amber-100">
         <div className="flex items-center gap-3">
           <div className="w-3 h-3 rounded-full bg-amber-500 animate-ping" />

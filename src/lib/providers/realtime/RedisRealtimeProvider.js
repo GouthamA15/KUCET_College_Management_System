@@ -9,8 +9,8 @@ export default class RedisRealtimeProvider extends RealtimeProvider {
     this.redis = null;
     const isDev = process.env.NODE_ENV === 'development';
     this.breaker = getBreaker('RedisRealtime', {
-      failureThreshold: isDev ? 2 : 5, // Fail faster in dev
-      recoveryTimeout: isDev ? 60000 : 30000 // Wait longer to retry in dev if it failed
+      failureThreshold: isDev ? 2 : 5,
+      recoveryTimeout: isDev ? 60000 : 30000,
     });
   }
 
@@ -20,16 +20,16 @@ export default class RedisRealtimeProvider extends RealtimeProvider {
       try {
         const { default: Redis } = await import('ioredis');
         const isDev = process.env.NODE_ENV === 'development';
-        
+
         this.redis = new Redis(this.url, {
-          maxRetriesPerRequest: isDev ? 0 : 3, // Don't retry at all in dev if connection fails
-          enableOfflineQueue: !isDev, // Don't queue commands if Redis is down in dev
-          connectTimeout: isDev ? 1000 : 10000, // Fail fast in dev
+          maxRetriesPerRequest: isDev ? 0 : 3,
+          enableOfflineQueue: !isDev,
+          connectTimeout: isDev ? 1000 : 10000,
           retryStrategy(times) {
-            if (isDev) return null; // Don't reconnect in dev
+            if (isDev) return null;
             if (times > 10) return null;
             return Math.min(times * 500, 5000);
-          }
+          },
         });
         this.redis.on('connect', () => logger.info('[REDIS_CONNECTED]'));
         this.redis.on('error', (err) => {
@@ -45,7 +45,7 @@ export default class RedisRealtimeProvider extends RealtimeProvider {
     }
   }
 
-  async broadcast(type, payload) {
+  async broadcast(type, payload, options = {}) {
     return await this.breaker.execute(async () => {
       await this.init();
       if (!this.redis) {
@@ -54,16 +54,25 @@ export default class RedisRealtimeProvider extends RealtimeProvider {
       }
 
       try {
+        const rooms = options.rooms || (options.room ? [options.room] : []);
         const data = {
           ...payload,
+          event: type,
           type,
-          timestamp: Date.now()
+          rooms,
+          timestamp: Date.now(),
         };
+
+        // 1. Publish to unified real-time channel
+        await this.redis.publish('kucet:realtime:events', JSON.stringify(data));
+
+        // 2. Publish to legacy attendance-sync channel for backward compatibility
         await this.redis.publish('attendance-sync', JSON.stringify(data));
-        logger.info({ type }, '[REDIS_BROADCAST_SUCCESS]');
+
+        logger.info({ type, rooms }, '[REDIS_BROADCAST_SUCCESS]');
       } catch (err) {
         logger.error(err, '[REDIS_BROADCAST_EXCEPTION]');
-        throw err; // Re-throw for circuit breaker
+        throw err;
       }
     });
   }

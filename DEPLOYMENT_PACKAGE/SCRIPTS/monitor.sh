@@ -32,6 +32,7 @@ LOG_ROTATE_THRESHOLD_MB=50
 # Map: container_name → compose service name
 declare -A CONTAINER_SERVICE_MAP=(
   ["kucet-cms-app"]="app"
+  ["kucet-cms-realtime"]="realtime"
   ["kucet-cms-proxy"]="nginx"
   ["kucet-cms-db"]="db"
   ["kucet-cms-redis"]="redis"

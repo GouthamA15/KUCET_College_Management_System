@@ -269,6 +269,41 @@ export function StudentProvider({ children }) {
     setCertificateRequestsLoaded(false);
   };
 
+  const handleRealtimeUpdate = useCallback((data) => {
+    if (!data || !data.type) return;
+    const { type, payload } = data;
+
+    const isTargetStudent =
+      !payload ||
+      (studentData &&
+        (payload.student_id === studentData.id ||
+          payload.student_id === studentData.student?.id ||
+          payload.roll_no === studentData.roll_no ||
+          payload.roll_no === studentData.student?.roll_no));
+
+    if (isTargetStudent) {
+      if (
+        [
+          'REQUEST_CREATED',
+          'REQUEST_UPDATED',
+          'request:created',
+          'request:updated',
+          'request:status-changed',
+          'request:completed',
+          'PROFILE_PHOTO_UPDATED',
+          'PROFILE_PHOTO_REMOVED',
+          'student:photo:updated',
+          'student:photo:removed',
+        ].includes(type)
+      ) {
+        const rollNo = studentData?.roll_no || studentData?.student?.roll_no;
+        if (rollNo) {
+          fetchProfile(rollNo);
+        }
+      }
+    }
+  }, [studentData, fetchProfile]);
+
   return (
     <StudentContext.Provider value={{
       studentData,
@@ -298,7 +333,7 @@ export function StudentProvider({ children }) {
         }
       }
     }}>
-      <RealtimeListener enableNotifications />
+      <RealtimeListener onUpdate={handleRealtimeUpdate} enableNotifications />
       {children}
     </StudentContext.Provider>
   );
