@@ -11,12 +11,20 @@ test.describe('Enterprise Capabilities & Infrastructure Verification', () => {
     expect(manifest.start_url).toBe('/');
   });
 
-  test('should render offline fallback page at /offline', async ({ page }) => {
+  test('should render offline fallback page with shortcuts and connection diagnostics', async ({ page }) => {
+    // 1. Visit /offline in standard mode (diagnostics view)
     await page.goto('/offline');
-    await expect(page.getByRole('heading', { name: 'You are Offline' })).toBeVisible();
+    const heading = page.getByRole('heading', { name: /You are Offline|Service Temporarily Unavailable|Connection Restored/i });
+    await expect(heading).toBeVisible({ timeout: 15000 });
     await expect(page.getByText('Digital ID Card')).toBeVisible();
     await expect(page.getByText('Fee Receipts')).toBeVisible();
     await expect(page.getByText('Weekly Timetable')).toBeVisible();
+
+    // 2. Simulate offline browser context
+    await page.context().setOffline(true);
+    await page.goto('/offline');
+    await expect(page.getByRole('heading', { name: 'You are Offline' })).toBeVisible({ timeout: 10000 });
+    await page.context().setOffline(false);
   });
 
   test('should enforce baseline authentication on admin backup schedule API', async ({ request }) => {
