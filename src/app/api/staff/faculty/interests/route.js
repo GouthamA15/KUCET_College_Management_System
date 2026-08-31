@@ -29,16 +29,25 @@ export async function POST(request) {
     const body = await request.json();
     const { subject_code, subject_name, branch, department_code, semester, academic_year } = body;
 
-    if (!subject_code || !subject_name || !branch || !department_code || !semester || !academic_year) {
+    if (!subject_code || !subject_name || !branch || !department_code || !semester) {
       return apiError('Missing required fields, including department_code', 400);
     }
 
-    if (!academic_year.match(/^\d{4}-\d{2}$/)) {
+    if (academic_year && !academic_year.match(/^\d{4}-\d{2}$/)) {
       return apiError('Invalid academic_year format. Expected YYYY-YY', 400);
     }
 
-    const { staffAcademicAffiliations, academicDepartments, academicPrograms } = await import('@/db/schema');
+    const { staffAcademicAffiliations, academicDepartments, academicPrograms, collegeInfo: collegeInfoTable } = await import('@/db/schema');
     const { inArray } = await import('drizzle-orm');
+    
+    // Resolve academic year if not provided
+    let resolvedAcademicYear = academic_year;
+    if (!resolvedAcademicYear) {
+       const { getCollegeAcademicYear } = await import('@/lib/academic-utils');
+       const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1)).limit(1);
+       const collegeInfo = collegeRows[0] || null;
+       resolvedAcademicYear = await getCollegeAcademicYear(collegeInfo) || '2025-26';
+    }
 
     const affil = await db.select({ 
       dept_id: academicDepartments.id,
@@ -76,7 +85,7 @@ export async function POST(request) {
         eq(facultySubjectAssignments.subject_code, subject_code),
         eq(facultySubjectAssignments.branch, branch),
         eq(facultySubjectAssignments.course_semester, semester),
-        eq(facultySubjectAssignments.academic_year, academic_year),
+        eq(facultySubjectAssignments.academic_year, resolvedAcademicYear),
         eq(facultySubjectAssignments.is_active, true)
       )
     });
@@ -92,7 +101,7 @@ export async function POST(request) {
         eq(facultySubjectInterests.subject_code, subject_code),
         eq(facultySubjectInterests.branch, branch),
         eq(facultySubjectInterests.semester, semester),
-        eq(facultySubjectInterests.academic_year, academic_year)
+        eq(facultySubjectInterests.academic_year, resolvedAcademicYear)
       )
     });
 
@@ -107,7 +116,7 @@ export async function POST(request) {
       branch,
       department_code,
       semester: parseInt(semester),
-      academic_year,
+      academic_year: resolvedAcademicYear,
       status: 'PENDING'
     });
 
