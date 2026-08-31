@@ -1,10 +1,10 @@
 'use client';
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { useSearchParams, useRouter } from 'next/navigation';
 import { AdmissionModal } from './AdmissionModal';
 import AdmissionWorkspaceFilter from './AdmissionWorkspaceFilter';
-import RealtimeListener from '@/components/RealtimeListener';
+import { RealtimeListener } from '@/components/staff/RealtimeListener';
 import { 
     getDefaultAdmissionWorkspace, 
     normalizeAdmissionWorkspace, 
@@ -175,19 +175,17 @@ const AdmissionRequestsPanel = () => {
             const res = await fetch(`/api/staff/admission/drafts/${detail.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    status: 'REJECTED', 
-                    rejection_reason: rejectionReason 
+                body: JSON.stringify({
+                    status: 'REJECTED',
+                    rejection_reason: rejectionReason.trim(),
                 }),
             });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Rejection failed.');
 
-            toast.success('Application marked as REJECTED and preserved in audit queue.', { id: toastId });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to reject application.');
+
+            toast.success('Application rejected and preserved in audit archive.', { id: toastId });
             setDetail(null);
-            setSelectedDraftId(null);
-            setRejectionMode(false);
-            setRejectionReason('');
             fetchWorkspaceDrafts(workspace, activeQueueTab);
         } catch (error) {
             toast.error(error.message, { id: toastId });
@@ -199,29 +197,27 @@ const AdmissionRequestsPanel = () => {
     const handleRestore = async () => {
         if (!detail) return;
         if (!restorationReason.trim()) {
-            toast.error('Please specify a reason for restoring this application.');
+            toast.error('Please provide a reason for restoring this application.');
             return;
         }
 
         setProcessing(true);
-        const toastId = toast.loading('Restoring application to intake queue...');
+        const toastId = toast.loading('Restoring application to active queue...');
         try {
             const res = await fetch(`/api/staff/admission/drafts/${detail.id}/restore`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     target_status: 'DRAFT',
-                    restoration_reason: restorationReason
-                })
+                    restoration_reason: restorationReason.trim()
+                }),
             });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Restoration failed.');
 
-            toast.success('Application restored to pending queue!', { id: toastId });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to restore application.');
+
+            toast.success('Application restored successfully!', { id: toastId });
             setDetail(null);
-            setSelectedDraftId(null);
-            setRestorationMode(false);
-            setRestorationReason('');
             fetchWorkspaceDrafts(workspace, activeQueueTab);
         } catch (error) {
             toast.error(error.message, { id: toastId });
@@ -234,31 +230,15 @@ const AdmissionRequestsPanel = () => {
         if (!detail) return;
         setProcessing(true);
         try {
-            // 1) Persist edited fields (full update)
-            if (editForm && Object.keys(editForm).length > 0) {
-                const saveRes = await fetch(`/api/staff/admission/drafts/${detail.id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(editForm),
-                });
-                const saveData = await saveRes.json();
-                if (!saveRes.ok) throw new Error(saveData.error || 'Failed to save changes before verification.');
-            }
-
-            // 2) Update status to PROCESSED (status-only path in API)
-            const statusRes = await fetch(`/api/staff/admission/drafts/${detail.id}`, {
+            const res = await fetch(`/api/staff/admission/drafts/${detail.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: 'PROCESSED' }),
             });
-            const statusData = await statusRes.json();
-            if (!statusRes.ok) throw new Error(statusData.error || 'Update failed.');
-
-            toast.success('Application Verified Successfully!');
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to mark verified.');
+            toast.success('Candidate Verified and Moved to Finalize Queue');
             setDetail(null);
-            setSelectedDraftId(null);
-            setIsEditing(false);
-            setEditData({});
             fetchWorkspaceDrafts(workspace, activeQueueTab);
         } catch (error) {
             toast.error(error.message);

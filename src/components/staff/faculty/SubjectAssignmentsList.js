@@ -1,9 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
-import { getNowSync } from '@/lib/clock';
 import { useStaff } from '@/context/StaffContext';
-import AcademicYearSelect from '@/components/ui/AcademicYearSelect';
 
 export default function SubjectAssignmentsList() {
   const { staffData, refreshFaculty } = useStaff();
@@ -14,34 +12,12 @@ export default function SubjectAssignmentsList() {
   const [syllabus, setSyllabus] = useState([]);
   const [loadingSyllabus, setLoadingSyllabus] = useState(false);
   const [submittingId, setSubmittingId] = useState(null);
-  const [academicYear, setAcademicYear] = useState('');
-  const [startYear, setStartYear] = useState(2020);
-
-  // Set default academic year (current)
-  useEffect(() => {
-    const id = setTimeout(() => {
-      const now = getNowSync();
-      const currentYear = now.getFullYear();
-      const currentMonth = now.getMonth() + 1;
-      let yearStr = '';
-      if (currentMonth >= 6) {
-        yearStr = `${currentYear}-${(currentYear + 1).toString().slice(-2)}`;
-        setStartYear(currentYear - 1);
-      } else {
-        yearStr = `${currentYear - 1}-${currentYear.toString().slice(-2)}`;
-        setStartYear(currentYear - 2);
-      }
-      setAcademicYear(yearStr);
-    }, 0);
-
-    return () => clearTimeout(id);
-  }, []);
 
   const fetchSyllabus = useCallback(async () => {
-    if (!selectedBranch || !selectedSemester || !academicYear) return;
+    if (!selectedBranch || !selectedSemester) return;
     setLoadingSyllabus(true);
     try {
-      const res = await fetch(`/api/staff/faculty/syllabus?branch=${selectedBranch}&semester=${selectedSemester}&academicYear=${academicYear}`);
+      const res = await fetch(`/api/staff/faculty/syllabus?branch=${selectedBranch}&semester=${selectedSemester}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch syllabus');
       setSyllabus(data.data || []);
@@ -50,7 +26,7 @@ export default function SubjectAssignmentsList() {
     } finally {
       setLoadingSyllabus(false);
     }
-  }, [selectedBranch, selectedSemester, academicYear]);
+  }, [selectedBranch, selectedSemester]);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -69,8 +45,7 @@ export default function SubjectAssignmentsList() {
           subject_code: subject.code,
           subject_name: subject.title,
           branch: selectedBranch,
-          semester: selectedSemester,
-          academic_year: academicYear
+          semester: selectedSemester
         })
       });
       const data = await res.json();
@@ -141,7 +116,7 @@ export default function SubjectAssignmentsList() {
 
   return (
     <div className="space-y-6 w-full">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div>
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Branch</label>
           <select
@@ -183,16 +158,6 @@ export default function SubjectAssignmentsList() {
               <option value="core">Core</option>
               <option value="elective">Elective</option>
             </select>
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Academic Year</label>
-            <AcademicYearSelect
-              value={academicYear}
-              onChange={(e) => setAcademicYear(e.target.value)}
-              startYear={startYear}
-              numYears={3}
-              className="w-full h-10 px-3 border border-slate-200 rounded-sm bg-slate-50 text-sm font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
           </div>
         </div>
 

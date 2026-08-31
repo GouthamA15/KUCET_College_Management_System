@@ -41,19 +41,24 @@ export async function GET(request) {
       }
 
       // 2. Fetch allocations
-      let allocations = [];
-      if (academicYear) {
-        allocations = await db.select({
-          subject_code: facultySubjectAssignments.subject_code,
-          faculty_id: facultySubjectAssignments.staff_account_id
-        })
-        .from(facultySubjectAssignments)
-        .where(and(
-          eq(facultySubjectAssignments.branch, branch),
-          eq(facultySubjectAssignments.course_semester, semester),
-          eq(facultySubjectAssignments.academic_year, academicYear)
-        ));
+      let resolvedAcademicYear = academicYear;
+      if (!resolvedAcademicYear) {
+         const { collegeInfo: collegeInfoTable } = await import('@/db/schema');
+         const { getCollegeAcademicYear } = await import('@/lib/academic-utils');
+         const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1)).limit(1);
+         resolvedAcademicYear = await getCollegeAcademicYear(collegeRows[0] || null) || '2025-26';
       }
+
+      let allocations = await db.select({
+        subject_code: facultySubjectAssignments.subject_code,
+        faculty_id: facultySubjectAssignments.staff_account_id
+      })
+      .from(facultySubjectAssignments)
+      .where(and(
+        eq(facultySubjectAssignments.branch, branch),
+        eq(facultySubjectAssignments.course_semester, semester),
+        eq(facultySubjectAssignments.academic_year, resolvedAcademicYear)
+      ));
 
       const check = (code) => {
         if (!code) return { is_allocated: false, allocated_to_me: false };
