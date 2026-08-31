@@ -19,17 +19,34 @@ const AdmissionRequestsPanel = () => {
     const [rejectionMode, setRejectionMode] = useState(false);
     const [rejectionReason, setRejectionReason] = useState('');
 
-    // Editing state
+    // Filters state
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedBranch, setSelectedBranch] = useState('');
+
+    const [selectedEntrance, setSelectedEntrance] = useState('');
+
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditData] = useState({});
 
-    const drafts = [...(admissionDrafts || [])].sort((a, b) => {
+    const uniqueBranches = [...new Set((admissionDrafts || []).map(d => d.branch).filter(Boolean))].sort();
+    const uniqueEntrances = [...new Set((admissionDrafts || []).map(d => d.entrance_exam).filter(Boolean))].sort();
+
+    const drafts = [...(admissionDrafts || [])]
+        .filter(d => {
+            const searchLower = searchTerm.toLowerCase();
+            const matchesName = (d.name || '').toLowerCase().includes(searchLower) || 
+                                (d.application_no || d.id || '').toString().toLowerCase().includes(searchLower);
+            const matchesBranch = selectedBranch ? d.branch === selectedBranch : true;
+            const matchesEntrance = selectedEntrance ? d.entrance_exam === selectedEntrance : true;
+            return matchesName && matchesBranch && matchesEntrance;
+        })
+        .sort((a, b) => {
         const dateA = new Date(a.created_at || 0).getTime();
         const dateB = new Date(b.created_at || 0).getTime();
         if (dateA !== dateB) return dateB - dateA;
         return (b.id || 0) > (a.id || 0) ? 1 : -1;
     });
-    const loading = isLoadingRequests && drafts.length === 0;
+    const loading = isLoadingRequests && (admissionDrafts || []).length === 0;
 
     const fetchDetail = useCallback(async (id) => {
         setFetchingDetail(true);
@@ -162,21 +179,57 @@ const AdmissionRequestsPanel = () => {
         setEditData(prev => ({ ...prev, [name]: val }));
     }, []);
 
+    const formatDate = (dateStr) => {
+        if (!dateStr) return 'N/A';
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + 
+               d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    };
+
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center px-1 mb-2">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center px-1 mb-4 gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-800">Admission Queue</h2>
                   <p className="text-sm text-gray-500 mt-1">Review newly reported admission applications.</p>
                 </div>
-                <button 
-                    onClick={refreshAdmissionDrafts} 
-                    disabled={isLoadingRequests}
-                    className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors rounded-md shadow-sm cursor-pointer"
-                >
-                    <span className={`inline-block ${isLoadingRequests ? 'animate-spin' : ''}`}>↻</span> 
-                    {isLoadingRequests ? 'Syncing...' : 'Sync'}
-                </button>
+                <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                    <input 
+                        type="text" 
+                        placeholder="Search by name or app no..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578]"
+                    />
+                    <select 
+                        value={selectedBranch}
+                        onChange={(e) => setSelectedBranch(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578] bg-white cursor-pointer"
+                    >
+                        <option value="">All Branches</option>
+                        {uniqueBranches.map(branch => (
+                            <option key={branch} value={branch}>{branch}</option>
+                        ))}
+                    </select>
+                    <select 
+                        value={selectedEntrance}
+                        onChange={(e) => setSelectedEntrance(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578] bg-white cursor-pointer"
+                    >
+                        <option value="">All Entrances</option>
+                        {uniqueEntrances.map(ent => (
+                            <option key={ent} value={ent}>{ent}</option>
+                        ))}
+                    </select>
+                    <button 
+                        onClick={refreshAdmissionDrafts} 
+                        disabled={isLoadingRequests}
+                        className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors rounded-md shadow-sm cursor-pointer"
+                    >
+                        <span className={`inline-block ${isLoadingRequests ? 'animate-spin' : ''}`}>↻</span> 
+                        {isLoadingRequests ? 'Syncing...' : 'Sync'}
+                    </button>
+                </div>
             </div>
 
             <div className="space-y-4">
@@ -187,15 +240,20 @@ const AdmissionRequestsPanel = () => {
                     </div>
                 ) : drafts.length === 0 ? (
                     <div className="text-center py-20 text-gray-500 bg-slate-50 border border-slate-200 rounded-xl">
-                        <p className="text-sm font-medium">No pending admission requests.</p>
+                        <p className="text-sm font-medium">
+                            {(searchTerm || selectedBranch || selectedEntrance) 
+                                ? 'No requests match the selected filters.' 
+                                : 'No pending admission requests.'}
+                        </p>
                     </div>
                 ) : (
                     <div className="bg-slate-50/50 border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                         {/* Desktop Table Header */}
                         <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 border-b border-slate-200 bg-white/60 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                            <div className="col-span-4">Student Name</div>
+                            <div className="col-span-3">Student Name</div>
                             <div className="col-span-3">Application No.</div>
-                            <div className="col-span-3">Entrance Type</div>
+                            <div className="col-span-2">Branch</div>
+                            <div className="col-span-2">Entrance Type</div>
                             <div className="col-span-2 text-right">Action</div>
                         </div>
 
@@ -206,18 +264,27 @@ const AdmissionRequestsPanel = () => {
                                     {/* Mobile labels & stacked layout vs Desktop grid */}
                                     
                                     {/* Name */}
-                                    <div className="md:col-span-4 flex flex-col md:block">
+                                    <div className="md:col-span-3 flex flex-col md:block">
                                         <h3 className="font-medium text-slate-900 text-[15px] truncate">{draft.name}</h3>
                                     </div>
                                     
-                                    {/* App No */}
+                                    {/* App No & Date */}
                                     <div className="md:col-span-3 flex items-center justify-between md:block">
-                                        <span className="md:hidden text-xs text-slate-500 font-medium uppercase tracking-wider">Application No.</span>
-                                        <p className="text-[14px] text-slate-600 font-mono tracking-tight">{draft.application_no || draft.id}</p>
+                                        <span className="md:hidden text-xs text-slate-500 font-medium uppercase tracking-wider">App No. / Date</span>
+                                        <div>
+                                            <p className="text-[14px] text-slate-600 font-mono tracking-tight">{draft.application_no || draft.id}</p>
+                                            <p className="text-[11px] text-slate-400 mt-0.5">{formatDate(draft.created_at)}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Branch */}
+                                    <div className="md:col-span-2 flex items-center justify-between md:block">
+                                        <span className="md:hidden text-xs text-slate-500 font-medium uppercase tracking-wider">Branch</span>
+                                        <p className="text-[14px] text-slate-600">{draft.branch}</p>
                                     </div>
                                     
                                     {/* Entrance */}
-                                    <div className="md:col-span-3 flex items-center justify-between md:block">
+                                    <div className="md:col-span-2 flex items-center justify-between md:block">
                                         <span className="md:hidden text-xs text-slate-500 font-medium uppercase tracking-wider">Entrance Type</span>
                                         <p className="text-[14px] text-slate-600">{draft.entrance_exam}</p>
                                     </div>
