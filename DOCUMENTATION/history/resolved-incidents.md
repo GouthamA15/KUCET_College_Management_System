@@ -10,6 +10,7 @@
 
 | Session | Date | Category | Affected Subsystem | Primary Root Cause Summary | Resolution Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Session 209** | Aug 31, 2026 | Deployment & DevOps | Multi-Service Stack & Nginx | `.dockerignore` excluded `DEPLOYMENT_PACKAGE` causing realtime build failure; `deploy.sh` only rebuilt `app`; Nginx DNS crashed on missing `kucet-cms-realtime:4000` upstream, closing port 80 and failing healthchecks | **RESOLVED** |
 | **Session 208** | Aug 25, 2026 | DB Schema & API | Admin & HOD Analytics | `facultySubjectAssignments.faculty_id` Drizzle object mapping crash; Admin actor mismatch in `faculty_hod_assignments.assigned_by` FK | **RESOLVED** |
 | **Session 207** | Aug 18, 2026 | Caching & State | Service Worker & Student State | `public/sw.js` Stale-While-Revalidate caching of `/api/*` across student logins; un-scoped `localStorage` keys | **RESOLVED** |
 | **Session 206** | Aug 14, 2026 | Security & Media | Storage & Upload Pipeline | `FailoverStorageProvider` forwarded options object as `publicId` producing `[object Object].webp`; API routes assigned `StorageResult` object directly to DB string columns | **RESOLVED** |
@@ -25,7 +26,42 @@
 
 ## Detailed Forensics & Technical Resolutions
 
-### 1. Session 208: Forensic Resolution of Drizzle ORM Mapping & Foreign Key Constraints
+### 1. Session 209: Forensic Resolution of Realtime Build Failure, Deployment Rollbacks & Nginx Upstream DNS Crashes
+
+#### Incident Summary
+Automated CI/CD deployments on the self-hosted Ubuntu production server succeeded at the Next.js application build stage (`kucet-cms-app`), but immediately rolled back during post-deployment health checks with `failed:health-check`. The proxy container (`kucet-cms-proxy`) entered a continuous crash-restart loop (`Restarting (1)`), all local curl requests returned `HTTP 000000` (Connection refused), and the public Tailscale Funnel endpoint intermittently timed out.
+
+#### Root Cause Analysis
+Forensic analysis of `/var/log/kucet/deploy_*.log` and Docker container logs identified three interconnected faults:
+
+1. **Docker Build Context Exclusion in `.dockerignore`**:
+   - `.dockerignore` contained `DEPLOYMENT_PACKAGE`.
+   - When Docker BuildKit attempted to build `Dockerfile.realtime` via `COPY DEPLOYMENT_PACKAGE/CONFIGS/socket-server.js ./socket-server.js`, the file was filtered out by `.dockerignore`.
+   - BuildKit failed with `"/DEPLOYMENT_PACKAGE/CONFIGS/socket-server.js": not found`, preventing the `kucet-cms-realtime` image from being created.
+
+2. **Single-Service Build Scope in `deploy.sh` and `rollback.sh`**:
+   - `deploy.sh` executed `docker compose up -d --build --no-deps app`, recreating only `kucet-cms-app` while omitting `realtime`.
+   - `kucet-cms-realtime` remained in an un-started or non-existent state on the Docker network (`cms-network`).
+
+3. **Nginx Upstream DNS Crash Loop**:
+   - `nginx.conf` defined `upstream realtime_upstream { server kucet-cms-realtime:4000; }`.
+   - When Nginx initialized, Docker internal DNS (127.0.0.11) could not resolve `kucet-cms-realtime`.
+   - Nginx exited immediately: `2026/08/30 19:05:37 [emerg] host not found in upstream "kucet-cms-realtime:4000"`.
+   - Because Nginx was down, port 80 refused connections (`HTTP 000000`), triggering an automated rollback.
+
+4. **Undeclared Framework Dependency in Socket Server**:
+   - `socket-server.js` imported `express`, which was not in `package.json` and not required for a microservice WebSocket server.
+
+#### Resolution Steps
+- **Un-ignore Deployment Configs in `.dockerignore`**: Removed `DEPLOYMENT_PACKAGE` from `.dockerignore`, enabling BuildKit to copy `socket-server.js` into `Dockerfile.realtime`.
+- **Zero-Dependency Native HTTP Server**: Replaced `express` with Node.js built-in `http.createServer` in `DEPLOYMENT_PACKAGE/CONFIGS/socket-server.js` for instant `/health` probing and Socket.IO initialization without third-party frameworks.
+- **Multi-Service Lifecycle in `deploy.sh` & `rollback.sh`**: Updated deployment scripts to build and start both `app` and `realtime` simultaneously (`up -d --build --no-deps app realtime`) and poll the health of both containers before reloading Nginx.
+- **Hardened Health Checks (`health-check.sh`)**: Added 3-attempt retry loops for HTTP endpoints, direct `/health` check on port 4000 for `realtime`, and classified containers into critical (`app`, `realtime`, `proxy`, `db`, `redis`) vs optional (`monitor`).
+- **Production Verification**: Confirmed all 17 health checks passed (HTTP 200) and public Tailscale Funnel returned `HTTP/2 200 OK`.
+
+---
+
+### 2. Session 208: Forensic Resolution of Drizzle ORM Mapping & Foreign Key Constraints
 
 #### Incident Summary
 Multiple internal 500 server errors were detected across HOD endpoints (`/api/staff/hod/faculty-load`, `/api/staff/hod/subject-assignments`, and `/api/staff/faculty/syllabus`), resulting in "TypeError: Cannot convert undefined or null to object" crashes on the frontend. Additionally, Admin attempts to promote Faculty to HOD via `PUT /api/admin/staff/[id]` resulted in Foreign Key constraint violations.

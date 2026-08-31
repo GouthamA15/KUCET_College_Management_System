@@ -31,7 +31,7 @@ The KUCET CMS application is hosted on a **Hostinger VPS KVM 2** virtual private
                                                   |
                                                   v
                                 +-----------------------------------+
-                                |    Hostinger VPS Ingress (KVM 2)  |
+                                |  Tailscale Funnel / VPS Ingress   |
                                 +-----------------------------------+
                                                   |
                                                   v
@@ -40,15 +40,18 @@ The KUCET CMS application is hosted on a **Hostinger VPS KVM 2** virtual private
                                 |     (Ports 80 / 443 | HTTP/2)     |
                                 +-----------------------------------+
                                                   |
-                   +------------------------------+------------------------------+
-                   |                              |                              |
-                   v                              v                              v
-+------------------------------------+ +--------------------+ +------------------------------------+
-| Next.js 16 App Container (Node 20) | | Redis 7 Container  | | Uptime Kuma Monitor Container      |
-|           (Port 3000)              | |    (Port 6379)     | |            (Port 3001)             |
-+------------------------------------+ +--------------------+ +------------------------------------+
-                   |                              |
-                   v                              v
+          +-----------------------+---------------+-----------------------+
+          |                       |               |                       |
+          v                       v               v                       v
++--------------------+ +--------------------+ +-------+ +------------------------------------+
+| Next.js 16 App     | | Socket.IO Realtime | | Redis | | Uptime Kuma Monitor Container      |
+| Container (Node 20)| | Container (Node 20)| |   7   | |            (Port 3001)             |
+|    (Port 3000)     | |    (Port 4000)     | |(6379) | |                                    |
++--------------------+ +--------------------+ +-------+ +------------------------------------+
+          |                       |               |
+          +-----------------------+---------------+
+                                  |
+                                  v
 +------------------------------------------------------------------------------------------------------+
 | Mounted Persistent Storage Volume: /var/www/kucet-storage                                            |
 +------------------------------------------------------------------------------------------------------+
@@ -73,15 +76,49 @@ services:
     expose:
       - "3000"
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     env_file:
       - .env.production
     volumes:
-      # Persistent VPS Storage Root mounted to container storage path
       - /var/www/kucet-storage:/app/storage
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - cms-network
+
+  realtime:
+    build:
+      context: .
+      dockerfile: DEPLOYMENT_PACKAGE/Dockerfile.realtime
+    container_name: kucet-cms-realtime
+    restart: unless-stopped
+    expose:
+      - "4000"
+    ports:
+      - "127.0.0.1:4000:4000"
+    env_file:
+      - .env.production
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - SOCKET_PORT=4000
+      - SOCKET_HOST=0.0.0.0
+      - CORS_ORIGIN=*
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:4000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
       redis:
         condition: service_healthy
     networks:
@@ -93,47 +130,20 @@ services:
     restart: always
     ports:
       - "80:80"
-      - "443:443"
     volumes:
       - ./DEPLOYMENT_PACKAGE/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      # Read-only mount for Nginx internal X-Accel-Redirect delivery
       - /var/www/kucet-storage:/usr/share/nginx/html/storage:ro
-      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
-      - app
-    networks:
-      - cms-network
-
-  uptime-kuma:
-    image: louislam/uptime-kuma:1
-    container_name: kucet-cms-monitor
-    restart: always
-    ports:
-      - "3001:3001"
-    volumes:
-      - uptime-kuma-data:/app/data
-    networks:
-      - cms-network
-
-  db:
-    image: mysql:8.0
-    container_name: kucet-cms-db
-    restart: always
-    env_file:
-      - .env.production
-    environment:
-      MYSQL_DATABASE: ${DB_DATABASE:-kucet_cms}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "3306:3306"
-    volumes:
-      - db-data:/var/lib/mysql
+      app:
+        condition: service_healthy
+      realtime:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
-      retries: 10
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:80/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     networks:
       - cms-network
 
@@ -143,7 +153,7 @@ services:
     restart: always
     command: redis-server --appendonly yes
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -153,15 +163,6 @@ services:
       retries: 5
     networks:
       - cms-network
-
-networks:
-  cms-network:
-    driver: bridge
-
-volumes:
-  db-data:
-  redis-data:
-  uptime-kuma-data:
 ```
 
 ---

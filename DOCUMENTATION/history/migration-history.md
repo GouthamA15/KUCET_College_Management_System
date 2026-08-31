@@ -28,6 +28,7 @@ The database schema evolution is managed version-by-version using Drizzle Kit. E
 | **`0013`** | `0013_thin_outlaw_kid.sql` | **Performance & Foreign Key Indexes:** Optimized indexes across active operations and registration lookup tables. |
 | **`0014`** | `0014_zero_clerk_hard_break.sql` | **Zero Clerk Hard Break & Staff Unification:** Migrated all role enums from `clerk` to `staff`, dropped legacy `clerks` and `clerk_registration_requests` tables. |
 | **`0015`** | `0015_database_backup_logs.sql` | **Database Backup & Recovery Engine:** Created `database_backup_logs` operational metadata table tracking backup filenames, SHA-256 checksums, durations, types, and statuses. |
+| **`0016`** | `0016_elective_groups.sql` | **Elective Groups & Curriculum Structure:** Created `elective_groups` and `elective_group_subjects` tables for professional, open, and mandatory non-credit course buckets. |
 
 ---
 
@@ -144,13 +145,30 @@ See [Session 207 Complete Change Analysis](./session-207-testvanilla-changes.md)
 
 ---
 
-## 7. Cross-References & Related Documentation
+## 7. Session 209 Multi-Service Production Deployment & Elective Groups Architecture (August 31, 2026)
+
+### Key Engineering Milestones:
+- **Elective Groups & Curriculum Structure (`src/db/schema/academic.js`)**:
+  - Introduced `elective_groups` table with `group_type` enum (`PROFESSIONAL_ELECTIVE`, `OPEN_ELECTIVE`, `MANDATORY_NON_CREDIT`, `OTHER`), `subject_mode` (`theory`/`lab`), sequence numbers, and unique constraint on `(branch, semester, group_code)`.
+  - Introduced `elective_group_subjects` junction table with foreign keys to `elective_groups.id` and `syllabus_subjects.subject_code` with `onDelete: 'restrict'`.
+  - Upgraded `/api/staff/hod/syllabus` with full CRUD action dispatcher (`ADD_CORE_SUBJECT`, `CREATE_ELECTIVE_GROUP`, `ADD_ELECTIVE_SUBJECT`, `EDIT_SUBJECT`, `EDIT_ELECTIVE_GROUP`, `DELETE_CORE_MAPPING`, `DELETE_ELECTIVE_GROUP`, `REMOVE_FROM_GROUP`) and authorized branch boundaries.
+  - Revamped `SyllabusManager.js` UI with interactive modals, Theory/Lab badges, and real-time state synchronization.
+- **Docker Compose Multi-Service Lifecycle**:
+  - Updated `deploy.sh` and `rollback.sh` to build and manage both `app` and `realtime` containers concurrently (`up -d --build --no-deps app realtime`).
+  - Removed `DEPLOYMENT_PACKAGE` exclusion from `.dockerignore` to allow BuildKit to copy `Dockerfile.realtime` configuration files.
+  - Replaced `express` with Node.js built-in `http.createServer` in `socket-server.js` for zero-dependency native health checking on port 4000.
+  - Hardened `health-check.sh` with container classification (critical vs optional) and HTTP retry loops, resolving Nginx upstream DNS resolution crash loops and preventing spurious deployment rollbacks.
+- **Test Suite & Build Verification**: 57/57 test files passed (437/437 unit tests passed), 208 Next.js routes built.
+
+---
+
+## 8. Cross-References & Related Documentation
 
 - [System Architectural Decision Records (ADRs)](./architectural-decisions.md)
 - [Chronological Forensics of Resolved Incidents](./resolved-incidents.md)
-- [Old Cloudinary Storage Migration History](./old-cloudinary-migration.md)
-- [Drizzle Migration Rules & Coding Standards](../development/coding-standards.md)
-- [Session 207 Complete Change Analysis](./session-207-testvanilla-changes.md)
-- [Session 207 Final Hard Break & Attendance Validation](./session-207-final-hard-break-and-faculty-attendance.md)
+- [Database Schema Reference](../database/schema.md)
+- [Backend Architecture & Service Ecosystem](../architecture/backend.md)
+- [Production Deployment & DevOps Specification](../architecture/deployment.md)
+- [Head of Department (HOD) Console](../pages/hod-pages.md)
 
 

@@ -209,14 +209,68 @@ Pending staff self-registration requests awaiting admin approval.
 
 ## 2. Academic Domain
 
-Stores curriculum data, syllabus structures, academic calendars, and department configurations.
+Stores curriculum data, syllabus structures, elective group buckets, academic calendars, and department configurations.
 
-- **`system_configs`**: Key-value system configuration records (`config_key`, `config_value`, `category`).
-- **`college_info`**: Institutional metadata (college name, principal signature, accreditation details).
-- **`academic_calendar`**: Term start/end dates, holiday lists, exam windows.
-- **`syllabus_structure`**: Semester-wise course structure, regulation years (e.g. R20, R23), branch codes (CSE, ECE, EEE, MECH, CIVIL).
-- **`syllabus_subjects`**: Subject master records (subject code, title, credits, lecture hours, lab status, elective flag).
-- **`semesters`**: Active academic term configurations.
+### Table: `syllabus_subjects`
+Global subject catalogue defining all theoretical and laboratory subjects across regulations.
+- `subject_code` (`VARCHAR(50)`, PK) — unique identifier (e.g. `CS501PC`, `EC302ES`)
+- `subject_name` (`VARCHAR(255)`, Not Null) — subject title
+- `subject_type` (`ENUM('theory', 'lab')`, Default: `'theory'`, Not Null)
+- `credits` (`DECIMAL(3,1)`, Default: `3.0`)
+- `lecture_hours` (`INT`, Default: `3`)
+- `tutorial_hours` (`INT`, Default: `0`)
+- `practical_hours` (`INT`, Default: `0`)
+- `is_elective` (`BOOLEAN`, Default: `false`)
+- `created_at` (`TIMESTAMP`, Default: `NOW()`)
+
+### Table: `syllabus_structure`
+Branch and semester curriculum mapping for core subjects.
+- `id` (`INT`, PK, Auto-Increment)
+- `branch` (`VARCHAR(50)`, Not Null) — Department branch (e.g. `CSE`, `ECE`, `EEE`, `MECH`, `CIVIL`, `CSD`, `IT`)
+- `semester` (`TINYINT`, Not Null) — Semester index (1 through 8)
+- `subject_code` (`VARCHAR(50)`, Not Null, Index: `idx_syllabus_subject_code`) → FK `syllabus_subjects.subject_code`
+- `regulation` (`VARCHAR(20)`, Default: `'R22'`)
+- `is_mandatory` (`BOOLEAN`, Default: `true`)
+- `display_order` (`INT`, Default: `0`)
+- `created_at` (`TIMESTAMP`, Default: `NOW()`)
+- **Unique Index:** `unique_mapping` on `(branch, semester, subject_code)`
+
+### Table: `elective_groups` *(New)*
+Curriculum elective grouping buckets (Professional Electives, Open Electives, Mandatory Non-Credit courses).
+- `id` (`INT`, PK, Auto-Increment)
+- `branch` (`VARCHAR(50)`, Not Null) — Department branch
+- `semester` (`TINYINT`, Not Null) — Semester index (1 through 8)
+- `group_code` (`VARCHAR(50)`, Not Null) — Unique code within branch/sem (e.g. `PE-I`, `PE-II`, `OE-I`, `MC-I`)
+- `group_name` (`VARCHAR(255)`, Not Null) — Human-readable group name (e.g. `Professional Elective - I`)
+- `group_type` (`ENUM('PROFESSIONAL_ELECTIVE', 'OPEN_ELECTIVE', 'MANDATORY_NON_CREDIT', 'OTHER')`, Not Null)
+- `subject_mode` (`ENUM('theory', 'lab')`, Default: `'theory'`, Not Null)
+- `sequence_num` (`TINYINT`, Default: `0`, Not Null) — Sequence position
+- `display_order` (`INT`, Default: `0`, Not Null)
+- `is_active` (`BOOLEAN`, Default: `true`, Not Null)
+- `created_at` (`TIMESTAMP`, Default: `NOW()`)
+- **Unique Index:** `uq_elective_group` on `(branch, semester, group_code)`
+- **Index:** `idx_eg_branch_sem` on `(branch, semester)`
+
+### Table: `elective_group_subjects` *(New)*
+Junction mapping subjects to specific elective groups.
+- `id` (`INT`, PK, Auto-Increment)
+- `group_id` (`INT`, Not Null, Index: `idx_egs_group_id`) → FK `elective_groups.id` (`onDelete: 'restrict'`)
+- `subject_code` (`VARCHAR(50)`, Not Null) → FK `syllabus_subjects.subject_code` (`onDelete: 'restrict'`)
+- `display_order` (`INT`, Default: `0`, Not Null)
+- `created_at` (`TIMESTAMP`, Default: `NOW()`)
+- **Unique Index:** `uq_group_subject` on `(group_id, subject_code)`
+
+### Table: `academic_calendar`
+Academic term start/end dates, holiday schedules, and examination windows.
+- `id` (`INT`, PK, Auto-Increment)
+- `academic_year` (`VARCHAR(9)`, Not Null) — e.g. `2025-2026`
+- `semester` (`TINYINT`, Not Null) — Semester index (1-8)
+- `start_date` (`DATE`, Not Null)
+- `end_date` (`DATE`, Not Null)
+- `is_current` (`BOOLEAN`, Default: `false`)
+
+### Table: `system_configs` & `college_info`
+Institutional key-value configurations, branding signatures, and college accreditation metadata.
 
 ---
 
