@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
 import { getAssetUrl } from '@/lib/assets';
@@ -13,6 +13,9 @@ export default function PendingStaffRequests({ onRequestAction, categoryFilter }
   const [rejectingReq, setRejectingReq] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [submittingReject, setSubmittingReject] = useState(false);
+
+  // Stable ref so the useCallback below never needs fetchRequests in its dep array
+  const fetchRequestsRef = useRef(null);
 
   const fetchRequests = useCallback(async () => {
     try {
@@ -30,6 +33,18 @@ export default function PendingStaffRequests({ onRequestAction, categoryFilter }
       setLoading(false);
     }
   }, [categoryFilter]);
+
+  // Keep ref current so handleRealtimeUpdate (below) never needs fetchRequests as dep
+  useEffect(() => {
+    fetchRequestsRef.current = fetchRequests;
+  }, [fetchRequests]);
+
+  // Stable callback — never recreated across renders, so RealtimeListener never re-subscribes
+  const handleRealtimeUpdate = useCallback((data) => {
+    if (data?.type?.includes('staff')) {
+      fetchRequestsRef.current?.();
+    }
+  }, []); // empty deps intentional: delegates via ref
 
   useEffect(() => {
     let isMounted = true;
@@ -121,49 +136,55 @@ export default function PendingStaffRequests({ onRequestAction, categoryFilter }
 
   if (loading) {
     return (
-      <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-[#0b3578] uppercase tracking-wide">
-            Pending Staff Registration Requests
-          </h2>
+      <>
+        {/* Single canonical RealtimeListener — always mounted regardless of loading/empty state */}
+        <RealtimeListener onUpdate={handleRealtimeUpdate} />
+        <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-[#0b3578] uppercase tracking-wide">
+              Pending Staff Registration Requests
+            </h2>
+          </div>
+          <div className="py-8 text-center text-sm text-slate-500 animate-pulse">
+            Loading registration requests...
+          </div>
         </div>
-        <div className="py-8 text-center text-sm text-slate-500 animate-pulse">
-          Loading registration requests...
-        </div>
-      </div>
+      </>
     );
   }
 
   if (requests.length === 0) {
     return (
-      <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs mb-8">
-        <RealtimeListener onUpdate={(data) => { if (data.type?.includes('staff')) fetchRequests(); }} />
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold text-[#0b3578] uppercase tracking-wide">
-              Pending Staff Registration Requests
-            </h2>
-            <span className="bg-slate-100 text-slate-600 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-slate-200">
-              0 Pending
-            </span>
+      <>
+        <RealtimeListener onUpdate={handleRealtimeUpdate} />
+        <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs mb-8">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-bold text-[#0b3578] uppercase tracking-wide">
+                Pending Staff Registration Requests
+              </h2>
+              <span className="bg-slate-100 text-slate-600 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-slate-200">
+                0 Pending
+              </span>
+            </div>
+            <button
+              onClick={fetchRequests}
+              className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+            >
+              🔄 Refresh
+            </button>
           </div>
-          <button
-            onClick={fetchRequests}
-            className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
-          >
-            🔄 Refresh
-          </button>
+          <p className="text-slate-500 text-sm italic py-4">
+            No pending self-registration requests. Newly submitted staff requests will appear here for review.
+          </p>
         </div>
-        <p className="text-slate-500 text-sm italic py-4">
-          No pending self-registration requests. Newly submitted staff requests will appear here for review.
-        </p>
-      </div>
+      </>
     );
   }
 
   return (
     <div className="bg-white border border-amber-200 rounded-lg p-6 shadow-xs mb-8">
-      <RealtimeListener onUpdate={(data) => { if (data.type?.includes('staff')) fetchRequests(); }} />
+      <RealtimeListener onUpdate={handleRealtimeUpdate} />
       <div className="flex items-center justify-between mb-6 pb-3 border-b border-amber-100">
         <div className="flex items-center gap-3">
           <div className="w-3 h-3 rounded-full bg-amber-500 animate-ping" />

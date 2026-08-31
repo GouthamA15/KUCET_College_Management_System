@@ -1,19 +1,38 @@
 "use client";
-import React, { useState, useEffect, useCallback, Suspense } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "react";
 import toast from "react-hot-toast";
-import { useRouter } from 'next/navigation';
-import { COLLEGE_CONFIG } from "@/lib/college-config";
-import { validateRollNo, getIntakeYear } from "@/lib/rollNumber";
+import { useRouter, useSearchParams } from 'next/navigation';
+import { validateRollNo } from "@/lib/rollNumber";
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { AdmissionModal } from "@/components/staff/requests/AdmissionModal";
+import AdmissionWorkspaceFilter from "@/components/staff/requests/AdmissionWorkspaceFilter";
+import RealtimeListener from "@/components/RealtimeListener";
+import { 
+    getDefaultAdmissionWorkspace, 
+    normalizeAdmissionWorkspace, 
+    matchesAdmissionWorkspace 
+} from "@/lib/admission-workspace";
 
 function FinalizeAdmissionContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+
+    const urlExam = searchParams.get('exam') || searchParams.get('entrance_exam') || searchParams.get('intakeExam');
+    const urlBranch = searchParams.get('branch') || searchParams.get('targetBranch');
+    const urlYear = searchParams.get('year') || searchParams.get('entryYear') || searchParams.get('admission_year');
+
+    const activeWorkspace = useMemo(() => {
+        const normalized = normalizeAdmissionWorkspace({
+            intakeExam: urlExam,
+            targetBranch: urlBranch,
+            entryYear: urlYear
+        });
+        return normalized || getDefaultAdmissionWorkspace();
+    }, [urlExam, urlBranch, urlYear]);
+
+    const [workspace, setWorkspace] = useState(activeWorkspace);
     const [drafts, setDrafts] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [selectedBranch, setSelectedBranch] = useState('CSE');
-    const [selectedExam, setSelectedExam] = useState('TG EAPCET');
-    const [joiningYear, setJoiningYear] = useState(getIntakeYear());
     const [rollNumbers, setRollNumbers] = useState({});
     const [finalizingId, setFinalizingId] = useState(null);
     const [generating, setGenerating] = useState(false);
@@ -28,11 +47,45 @@ function FinalizeAdmissionContent() {
     const [rejectionMode, setRejectionMode] = useState(false);
     const [rejectionReason, setRejectionReason] = useState('');
 
-    const fetchVerifiedDrafts = useCallback(async () => {
-        if (!selectedBranch || !selectedExam) return;
+    // Sync workspace when URL params change externally (browser back/forward, manual URL edit)
+    // Uses prev refs to avoid setState cascades that would re-trigger on every re-render
+    const prevUrlExam = useRef(urlExam);
+    const prevUrlBranch = useRef(urlBranch);
+    const prevUrlYear = useRef(urlYear);
+    useEffect(() => {
+        if (
+            prevUrlExam.current !== urlExam ||
+            prevUrlBranch.current !== urlBranch ||
+            prevUrlYear.current !== urlYear
+        ) {
+            prevUrlExam.current = urlExam;
+            prevUrlBranch.current = urlBranch;
+            prevUrlYear.current = urlYear;
+            setWorkspace(activeWorkspace);
+        }
+    }, [urlExam, urlBranch, urlYear, activeWorkspace]);
+
+    const workspaceRef = useRef(workspace);
+    // Ref updated inside effect to avoid illegal render-phase mutation
+    useEffect(() => {
+        workspaceRef.current = workspace;
+    }, [workspace]);
+
+    const fetchVerifiedDrafts = useCallback(async (currentWs = workspaceRef.current) => {
+
+        if (!currentWs?.targetBranch || !currentWs?.intakeExam) return;
         setLoading(true);
         try {
-            const res = await fetch(`/api/staff/admission/drafts?branch=${selectedBranch}&entrance_exam=${selectedExam}&status=PROCESSED&t=${Date.now()}`);
+            const queryParams = new URLSearchParams({
+                branch: currentWs.targetBranch,
+                entrance_exam: currentWs.intakeExam,
+                status: 'PROCESSED',
+                t: String(Date.now())
+            });
+            if (currentWs.entryYear) {
+                queryParams.set('entry_year', String(currentWs.entryYear));
+            }
+            const res = await fetch(`/api/staff/admission/drafts?${queryParams.toString()}`);
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to fetch drafts.');
             const sortedData = (data.data || []).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -42,15 +95,20 @@ function FinalizeAdmissionContent() {
         } finally {
             setLoading(false);
         }
-    }, [selectedBranch, selectedExam]);
+    }, []);
 
     useEffect(() => {
-        const id = setTimeout(() => {
-            fetchVerifiedDrafts();
-        }, 0);
+        fetchVerifiedDrafts(workspace);
+    }, [workspace, fetchVerifiedDrafts]);
 
-        return () => clearTimeout(id);
-    }, [fetchVerifiedDrafts]);
+    const handleWorkspaceChange = (newWs) => {
+        setWorkspace(newWs);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('exam', newWs.intakeExam);
+        params.set('branch', newWs.targetBranch);
+        params.set('year', String(newWs.entryYear));
+        router.replace(`/staff/admission/finalize?${params.toString()}`);
+    };
 
     const fetchDetail = useCallback(async (id) => {
         setFetchingDetail(true);
@@ -174,18 +232,11 @@ function FinalizeAdmissionContent() {
     const handleGenerateRollNumbers = async () => {
         if (drafts.length === 0) return;
         
-        let targetYear = parseInt(joiningYear, 10);
+        const targetYear = parseInt(workspace.entryYear, 10);
         if (!Number.isInteger(targetYear) || targetYear < 2000 || targetYear > 2100) {
           toast.error('Please specify a valid joining year (e.g. 2026)');
           return;
         }
-
-        // For Lateral Entry (TG ECET), the roll number prefix usually corresponds to 
-        // the year they join college (which is 1 year after the regular batch start)
-        // However, the API expects the "joiningYear" which is then used as prefix.
-        // If we want prefix 26 for TG ECET, we send 2026.
-        // If the regulars of this batch joined in 2025 (prefix 25), then laterals joining in 2026 (prefix 26) 
-        // are part of the same "2025-2029" batch.
         
         setGenerating(true);
         const toastId = toast.loading('Generating roll numbers...');
@@ -194,8 +245,8 @@ function FinalizeAdmissionContent() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    branch: selectedBranch,
-                    examType: selectedExam,
+                    branch: workspace.targetBranch,
+                    examType: workspace.intakeExam,
                     joiningYear: targetYear,
                     count: drafts.length,
                 }),
@@ -225,8 +276,26 @@ function FinalizeAdmissionContent() {
         return { isValid: true };
     };
 
+    // Realtime integration: Workspace-aware event dispatcher
+    const handleRealtimeUpdate = useCallback((data) => {
+        if (!data?.type) return;
+        const { type, payload } = data;
+
+        if ([
+            'ADMISSION_DRAFT_CREATED', 'ADMISSION_DRAFT_UPDATED', 'ADMISSION_DRAFT_FINALIZED', 'ADMISSION_DRAFT_DELETED',
+            'admission:created', 'admission:updated', 'admission:finalized', 'admission:deleted',
+            'admission:draft:created', 'admission:draft:updated', 'admission:draft:finalized', 'admission:draft:deleted'
+        ].includes(type)) {
+            if (!payload || matchesAdmissionWorkspace(payload, workspaceRef.current)) {
+                fetchVerifiedDrafts(workspaceRef.current);
+            }
+        }
+    }, [fetchVerifiedDrafts]);
+
     return (
         <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
+            <RealtimeListener onUpdate={handleRealtimeUpdate} />
+
             <header className="mb-4 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-semibold text-gray-800">Finalize Admissions</h1>
@@ -243,68 +312,38 @@ function FinalizeAdmissionContent() {
                 </div>
             </header>
 
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-6 border border-gray-300 rounded-md shadow-sm">
-                <div>
-                  <h2 className="text-sm font-semibold text-gray-700 ">Workspace Filter</h2>
-                  <p className="text-sm text-gray-500 mt-1 ">Select target branch and intake examination</p>
-                </div>
-                
-                <div className="w-full md:w-auto flex flex-col sm:flex-row gap-3">
-                    <div className="flex-1 sm:w-40">
-                      <label className="block text-sm font-medium text-gray-400 mb-1.5 ">Intake Exam</label>
-                      <select 
-                          value={selectedExam} 
-                          onChange={e => setSelectedExam(e.target.value)} 
-                          className="w-full px-4 py-2 bg-gray-50 border border-gray-200 text-sm font-medium text-[#0b3578] focus:outline-none focus:ring-2 focus:ring-blue-100 rounded-md transition-all"
-                      >
-                          <option value="TG EAPCET">TG EAPCET</option>
-                          <option value="TG ECET">TG ECET</option>
-                      </select>
-                    </div>
-                    <div className="flex-1 sm:w-60">
-                      <label className="block text-sm font-medium text-gray-400 mb-1.5 ">Target Branch</label>
-                      <select 
-                          value={selectedBranch} 
-                          onChange={e => setSelectedBranch(e.target.value)} 
-                          className="w-full px-4 py-2 bg-gray-50 border border-gray-200 text-sm font-medium text-[#0b3578] focus:outline-none focus:ring-2 focus:ring-blue-100 rounded-md transition-all"
-                      >
-                          {COLLEGE_CONFIG.branches.map(b => <option key={b.code} value={b.name}>{b.name.toUpperCase()}</option>)}
-                      </select>
-                    </div>
-                    <div className="flex-1 sm:w-32">
-                      <label className="block text-sm font-medium text-gray-400 mb-1.5 ">Entry Year</label>
-                      <input 
-                          type="number"
-                          value={joiningYear} 
-                          onChange={e => setJoiningYear(e.target.value)} 
-                          className="w-full px-4 py-2 bg-gray-50 border border-gray-200 text-sm font-medium text-[#0b3578] focus:outline-none focus:ring-2 focus:ring-blue-100 rounded-md transition-all"
-                          placeholder="e.g. 2026"
-                      />
-                    </div>
-                    <div className="flex-1 sm:w-56 sm:self-end">
-                        <button
-                            type="button"
-                            onClick={handleGenerateRollNumbers}
-                            disabled={loading || generating || drafts.length === 0}
-                            className="w-full px-6 py-2 border-2 border-gray-200 text-gray-600 text-sm font-medium rounded-md hover:bg-gray-50 transition-all shadow-sm disabled:opacity-50"
-                        >
-                            {generating ? 'Generating...' : 'Generate Roll Numbers'}
-                        </button>
-                    </div>
-                </div>
-            </div>
+            {/* Canonical Shared Workspace Filter */}
+            <AdmissionWorkspaceFilter
+                workspace={workspace}
+                onChange={handleWorkspaceChange}
+                isLoading={loading}
+                actions={
+                    <button
+                        type="button"
+                        onClick={handleGenerateRollNumbers}
+                        disabled={loading || generating || drafts.length === 0}
+                        className="w-full px-6 py-2 border-2 border-gray-200 text-gray-600 text-sm font-medium rounded-md hover:bg-gray-50 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+                    >
+                        {generating ? 'Generating...' : 'Generate Roll Numbers'}
+                    </button>
+                }
+            />
 
             <div className="bg-white border border-gray-200 shadow-sm rounded-md overflow-hidden min-h-[400px]">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-24 text-gray-400">
                         <div className="animate-spin h-6 w-6 border-2 border-[#0b3578] border-t-transparent rounded-full mb-4"></div>
-                        <p className="text-[10px] font-bold ">Accessing {selectedExam} Queue...</p>
+                        <p className="text-[10px] font-bold">Accessing {workspace.intakeExam} Queue...</p>
                     </div>
                 ) : drafts.length === 0 ? (
                     <div className="text-center py-24 text-gray-400">
                       <span className="text-5xl block mb-6 opacity-20">📂</span>
-                      <h3 className="text-[10px] font-bold text-gray-800 ">No {selectedExam} drafts found</h3>
-                      <p className="text-[10px] font-medium text-gray-500 mt-2 max-w-xs mx-auto">Verify new applications in the Requests Center to populate this registry.</p>
+                      <h3 className="text-[10px] font-bold text-gray-800">
+                        No {workspace.intakeExam} verified drafts found for {workspace.targetBranch} ({workspace.entryYear})
+                      </h3>
+                      <p className="text-[10px] font-medium text-gray-500 mt-2 max-w-xs mx-auto">
+                        Verify new applications in the Requests Center to populate this registry.
+                      </p>
                     </div>
                 ) : (
                     <>
@@ -315,7 +354,7 @@ function FinalizeAdmissionContent() {
                                         <th className="px-6 py-5 w-16 border-r border-gray-200">ID</th>
                                         <th className="px-6 py-5 border-r border-gray-200 w-full">Applicant Identity</th>
                                         <th className="px-6 py-5 w-[18ch] border-r border-gray-200">Institutional Roll Number</th>
-                                        <th className="px-6 py-5 text-right ">Operational Actions</th>
+                                        <th className="px-6 py-5 text-right">Operational Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 text-sm">
@@ -326,7 +365,7 @@ function FinalizeAdmissionContent() {
                                         return (
                                             <tr key={draft.id} className="hover:bg-gray-50 transition-colors group">
                                                 <td className="px-6 py-4 text-gray-400 font-bold border-r border-gray-100">{index + 1}</td>
-                                                <td className="px-6 py-4 font-medium text-gray-800 border-r border-gray-100 ">
+                                                <td className="px-6 py-4 font-medium text-gray-800 border-r border-gray-100">
                                                     <div className="flex flex-col">
                                                         <span>{draft.name}</span>
                                                         <span className="text-[9px] text-gray-400 font-medium lowercase mt-0.5">{draft.email}</span>
@@ -357,14 +396,14 @@ function FinalizeAdmissionContent() {
                                                         <button 
                                                             onClick={() => fetchDetail(draft.id)}
                                                             disabled={fetchingDetail}
-                                                            className="px-3 py-2 border-2 border-gray-800 text-gray-800 text-sm font-medium hover:bg-gray-50 rounded-md transition-all"
+                                                            className="px-3 py-2 border-2 border-gray-800 text-gray-800 text-sm font-medium hover:bg-gray-50 rounded-md transition-all cursor-pointer"
                                                         >
                                                             {selectedDraftId === draft.id && fetchingDetail ? '...' : 'View/Edit'}
                                                         </button>
                                                         <button 
                                                             onClick={() => handleFinalize(draft.id)} 
                                                             disabled={!validation.isValid || finalizingId === draft.id} 
-                                                            className="px-6 py-2 bg-[#0b3578] text-white rounded-md font-medium text-[10px] hover:bg-blue-900 shadow-lg shadow-blue-100 disabled:opacity-50 transition-all active:scale-95"
+                                                            className="px-6 py-2 bg-[#0b3578] text-white rounded-md font-medium text-[10px] hover:bg-blue-900 shadow-lg shadow-blue-100 disabled:opacity-50 transition-all active:scale-95 cursor-pointer"
                                                         >
                                                             {finalizingId === draft.id ? 'Finalizing...' : 'Finalize'}
                                                         </button>
@@ -416,14 +455,14 @@ function FinalizeAdmissionContent() {
                                             <button 
                                                 onClick={() => fetchDetail(draft.id)}
                                                 disabled={fetchingDetail}
-                                                className="flex-1 py-2 border-2 border-gray-800 text-gray-800 text-xs font-bold hover:bg-gray-50 rounded-md transition-all uppercase"
+                                                className="flex-1 py-2 border-2 border-gray-800 text-gray-800 text-xs font-bold hover:bg-gray-50 rounded-md transition-all uppercase cursor-pointer"
                                             >
                                                 {selectedDraftId === draft.id && fetchingDetail ? '...' : 'View/Edit'}
                                             </button>
                                             <button 
                                                 onClick={() => handleFinalize(draft.id)} 
                                                 disabled={!validation.isValid || finalizingId === draft.id} 
-                                                className="flex-1 py-2 bg-[#0b3578] text-white rounded-md font-bold text-xs uppercase hover:bg-blue-900 shadow-lg shadow-blue-100 disabled:opacity-50 transition-all active:scale-95"
+                                                className="flex-1 py-2 bg-[#0b3578] text-white rounded-md font-bold text-xs uppercase hover:bg-blue-900 shadow-lg shadow-blue-100 disabled:opacity-50 transition-all active:scale-95 cursor-pointer"
                                             >
                                                 {finalizingId === draft.id ? 'Finalizing...' : 'Finalize'}
                                             </button>

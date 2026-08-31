@@ -38,6 +38,10 @@ src/app/api/
 │   ├── admission/
 │   │   ├── students/route.js         # Finalizing student admissions
 │   │   └── bulk-import/route.js      # Excel migration batch processing
+│   ├── hod/
+│   │   ├── syllabus/route.js         # Core & Elective curriculum management
+│   │   ├── active-faculty/route.js   # Departmental faculty management
+│   │   └── subject-assignments/route.js # Faculty subject allocations
 │   ├── scholarship/
 │   │   └── summary/[rollno]/route.js # RTF/MTF scholarship status per student
 │   ├── faculty/
@@ -366,6 +370,29 @@ export const POST = verifySignatureAppRouter(handler);
 ### Self-Hosted Synchronous Fallback
 
 For deployments where `QSTASH_TOKEN` is not configured, endpoints such as `src/app/api/staff/admission/bulk-import/route.js` automatically fail over to transactional synchronous batch execution via `StudentService.upsertStudent()`, guaranteeing 100% operational autonomy without external dependencies.
+
+---
+
+## 📚 HOD Curriculum & Elective Action Pipeline (`/api/staff/hod/syllabus`)
+
+The HOD Syllabus API endpoint provides zero-trust curriculum orchestration divided into Core Subjects and Elective Group buckets with strict departmental boundary enforcement:
+
+### Supported Action Directives
+
+| Action Directive | Payload Schema Requirements | Database Mutation & Behavior |
+| :--- | :--- | :--- |
+| `ADD_CORE_SUBJECT` | `{ branch, semester, subject_code, subject_name, subject_type }` | Upserts `syllabus_subjects` and creates unique `syllabus_structure` mapping. |
+| `CREATE_ELECTIVE_GROUP` | `{ branch, semester, group_code, group_name, group_type, subject_mode, sequence_num, display_order }` | Inserts into `elective_groups` with unique `(branch, semester, group_code)` constraint. |
+| `ADD_ELECTIVE_SUBJECT` | `{ group_id, branch, subject_code, subject_name, subject_type }` | Upserts subject in catalogue and links to `elective_group_subjects`. |
+| `EDIT_SUBJECT` | `{ subject_code, subject_name, subject_type }` | Updates subject master metadata across all branches in `syllabus_subjects`. |
+| `EDIT_ELECTIVE_GROUP` | `{ id, branch, group_name, subject_mode, display_order }` | Modifies elective group configuration in `elective_groups`. |
+| `DELETE_CORE_MAPPING` | `{ subject_code, branch, semester }` | Validates dependencies via `ValidationService.checkSubjectBranchDependencies`; removes mapping from `syllabus_structure`. |
+| `DELETE_ELECTIVE_GROUP` | `{ id, branch }` | Rejects deletion if mapped subjects exist; removes group from `elective_groups`. |
+| `REMOVE_FROM_GROUP` | `{ egs_id, branch, subject_code }` | Removes individual subject mapping from `elective_group_subjects`. |
+
+### Department Boundary & Relational Safety Guards
+1. **Authorized Branch Verification**: Every action resolves the authenticated HOD's affiliated branches (`staffAcademicAffiliations` JOIN `academicDepartments`) and rejects any request outside their branch domain with `403 Forbidden`.
+2. **Relational Deletion Locks**: Core mappings cannot be deleted if active student marks or attendance logs exist. Elective groups cannot be deleted until all assigned subjects are unlinked.
 
 ---
 

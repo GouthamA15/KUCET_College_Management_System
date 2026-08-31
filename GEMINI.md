@@ -1,9 +1,9 @@
 # KUCET College Management System - Technical Index & Core Architecture
 
-**System Version:** Session 209 - In Development
-**Last Updated:** August 30, 2026
-**Status:** Active Development / Pre-Merge  
-**Test Suite Verification:** 44+ test files — testvanilla branch ahead by 6 commits
+**System Version:** Session 209 - In Production / Multi-Service Stack
+**Last Updated:** August 31, 2026
+**Status:** Active Production / Synchronized  
+**Test Suite Verification:** 57 test files (437 unit tests) — testvanilla branch synchronized with origin
 
 ---
 
@@ -83,12 +83,12 @@ DOCUMENTATION/
 | **Styling** | Tailwind CSS 4 | Kakatiya Navy/Gold tokens, Mobile Section Drawers |
 | **Database** | TiDB Cloud (MySQL 8.0) | Drizzle ORM, Modular DDD schemas in `src/db/schema/` |
 | **Authentication** | JWT (HTTP-only) | `jose` JWTs, unified `setCookie` helpers, raw `newCookiesToSet` array buffering |
-| **Real-Time** | Supabase Broadcast & Redis | Supabase Realtime channels (`room:pulse`), `ioredis` pub/sub |
+| **Real-Time** | Socket.IO, Supabase & Redis | Standalone Node.js Socket.IO server on port 4000 (`kucet-cms-realtime`), `ioredis` pub/sub |
 | **Storage** | Strategy Pattern Provider | Cloudinary, Local Disk (`/var/www/kucet-storage`), S3/R2 |
 | **Logging** | Pino Logger | Structured JSON logging via `@/lib/logger` (no bare `console.log`) |
 | **Validation** | Zod & `wrapHandler` | Zero-trust input validation on all API endpoints |
-| **Testing** | Vitest & Playwright | 47 test files (337 unit tests), E2E test suites |
-| **Infrastructure** | Docker Compose & Nginx | Hostinger VPS, Tailscale mesh network, PM2 runner |
+| **Testing** | Vitest & Playwright | 57 test files (437 unit tests), E2E test suites |
+| **Infrastructure** | Docker Compose & Nginx | Hostinger VPS, Tailscale mesh network, PM2 runner, Multi-Service Stack |
 
 ---
 
@@ -207,6 +207,8 @@ Session 205 resolved critical cookie persistence bugs, hardened authentication b
 | `pending` | Session 209 — Mobile Layout Shift Fix (Phase F7) | 1. **Mobile Layout Shift Resolution**: Identified and resolved a severe mobile layout shift occurring during initial application load where the screen would split in half. 2. **Root Cause**: The root cause was the `Sidebar.js` `<Suspense>` fallback (`<div className="w-64 bg-[#0b3578] h-full"></div>`) rendering unconditionally on all screen sizes before hydration. 3. **Responsive Suspense Suppression**: Applied `hidden lg:block` to the Suspense fallback to ensure the placeholder is completely suppressed on mobile devices, preventing it from consuming 256px of the viewport. 4. **Desktop Layout Shift Prevention**: Desktop layout shift prevention remains fully intact. |
 | `pending` | Session 209 — HOD Syllabus Management & Students Lookup (Phases H6 & F4) | 1. **Phase H6 HOD Syllabus Management**: Built dedicated UI in Academics Hub (`/staff/faculty/academics`); refactored `SyllabusManager.js` for authorized HODs to view/add/delete subject-branch mappings with validation blocking deletion on timetable/marks dependencies. 2. **Phase F4 Students Lookup Panel Enhancements**: Added 'More' column opening a detailed student profile modal (Name, Roll No, Parents from `student_personal_details`, DOB, Contact, dynamic 7-component Address without country, Year, Batch). 3. **Excel Export**: Replaced CSV with styled native `.xlsx` export via `xlsx-js-style` featuring 11 full columns and dynamic filenames based on search state (`CSE_Year_2.xlsx`, `Search_Results_21B81A0501.xlsx`). |
 | `pending` | Session 209 — Phase H6 Elective Management Updates | Expanded `SyllabusManager.js` UI to fully support Professional and Open Electives with hierarchical data table rendering (groups as row headers, children visually indented). The "Add Subject" modal features three mode toggles: Standard Subject, Elective Group, and Elective Subject (dynamically requiring parent group selection). API upgrades in `/api/staff/hod/syllabus` validate `is_group` and `parent_group_code` inserts. Added a database safety lock blocking HODs from deleting an Elective Group if it contains mapped child subjects. Fast-action "+ Add Elective" shortcuts added directly to Elective Group table headers. |
+| `c564e71a` / `8ff914b1` | Session 209 — Elective Groups Schema & Syllabus Edit Fix | 1. **Drizzle Tables**: Created `elective_groups` (`group_type` enum `PROFESSIONAL_ELECTIVE`, `OPEN_ELECTIVE`, `MANDATORY_NON_CREDIT`, `OTHER`, `subject_mode` `theory`/`lab`, sequence numbers) and `elective_group_subjects` junction in `src/db/schema/academic.js`. 2. **Action Dispatcher**: Implemented full CRUD (`ADD_CORE_SUBJECT`, `CREATE_ELECTIVE_GROUP`, `ADD_ELECTIVE_SUBJECT`, `EDIT_SUBJECT`, `EDIT_ELECTIVE_GROUP`, `DELETE_CORE_MAPPING`, `DELETE_ELECTIVE_GROUP`, `REMOVE_FROM_GROUP`) in `/api/staff/hod/syllabus/route.js`. 3. **Revamped SyllabusManager**: Complete interactive modals with edit, delete, group creation, subject mapping, and department boundary validation. |
+| `d2d22d86` / `559605ba` | Session 209 — Multi-Service Deployment & Realtime Resiliency | 1. **Docker Build Fix**: Un-ignored `DEPLOYMENT_PACKAGE` in `.dockerignore` for BuildKit compilation. 2. **Zero-Dependency Socket Server**: Native Node.js `http.createServer` for `/health` and Socket.IO. 3. **Multi-Service Lifecycle**: `deploy.sh` and `rollback.sh` build and orchestrate both `app` and `realtime` microservices, eliminating Nginx upstream DNS resolution crashes. 4. **Hardened Health Checks**: Retries, port 4000 socket server probing, and critical container classification. |
 
 
 ---

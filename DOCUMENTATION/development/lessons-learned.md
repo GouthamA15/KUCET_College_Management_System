@@ -146,6 +146,10 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 - **The Pitfall:** Writing raw base64 data URLs for user images into `localStorage` during draft auto-save can exceed browser storage quotas (~5MB), causing silent uncaught `QuotaExceededError` exceptions and broken form state persistence.
 - **The Inviolable Guardrail:** Wrap `localStorage.setItem` calls in `try/catch` blocks that catch `QuotaExceededError` and fall back to storing structured text fields with media pointers (`{ pfp: null, signature: null }`), keeping client draft recovery intact.
 
+### Rule 17: Deterministically Clean Up Async Lifecycle Resources & Avoid Inline Callbacks in Realtime Listeners
+- **The Pitfall:** (1) Returning cleanup functions from async functions inside `useEffect` leaves intervals and event listeners uncleaned because React ignores returned Promises. (2) Passing inline arrow callbacks to singleton event listeners (`<RealtimeListener onUpdate={(d) => ...} />`) causes the listener effect to tear down and re-register on every render.
+- **The Inviolable Guardrail:** Store async cleanup closures in component-scoped mutable variables to call them in `useEffect` teardown. Stabilize realtime callbacks with `useRef` or empty-dep `useCallback` so singleton event subscriptions remain persistent and zero-churn across re-renders.
+
 ---
 
 ## 9. Incident Summary Matrix
@@ -159,6 +163,7 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 | **Session 207 Cross-Student Profile Leakage** | Service Worker SW Stale-While-Revalidate caching of `/api/*` & unscoped storage | Bypassed all `/api/*` in SW, bumped to `v3`, enforced `no-store` headers, roll-scoped storage keys, and complete login/logout cache purge. |
 | **Session 207 Deployment & Storage Hardening** | Docker network reconnect conflict & non-root host bind-mount permission denial | Idempotent network checks, directory-scoped `prepare-storage.sh`, eliminated `chmod 777`, diagnostic health checks. |
 | **Session 209 Production Readiness & Lifecycle Audit** | Transitive dependency deprecations, unbounded DOM polling, and localStorage quota risks on draft media | `npm audit fix` patch updates, bounded `ScrollHandler` poll loops, eager heartbeat interval cleanup in `RealtimeListener`, and quota-safe base64 draft persistence. |
+| **Session 209 Memory & Lifecycle Resolution** | Next.js internal `httpxy` proxy listener accumulation during sequential silent refreshes; Socket.IO token expiry loops; uncleaned PWA worker intervals; duplicate realtime listeners | Route-scoped parallel silent refresh in `proxy.js`; automatic `/api/auth/refresh` on socket connect_error; deterministic Promise worker cleanup in `PwaRegister.js`; ref-hoisted single `<RealtimeListener>` in `PendingStaffRequests.js`. |
 
 ---
 
