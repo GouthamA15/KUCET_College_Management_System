@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader2, Plus, Edit2, Trash2, X, Info, Search, ChevronDown, ChevronUp, BookOpen, FlaskConical } from 'lucide-react';
-import logger from '@/lib/logger';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -234,7 +233,7 @@ export default function SyllabusManager() {
         otherGroups: d.otherGroups || [],
       });
     } catch (e) {
-      logger.error({ err: e }, 'Failed to fetch syllabus data');
+      console.error('Failed to fetch syllabus data:', e);
       setLoadError(e.message || 'Failed to load syllabus data');
     } finally {
       setLoading(false);

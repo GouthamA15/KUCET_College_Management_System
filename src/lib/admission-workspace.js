@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { COLLEGE_CONFIG } from './college-config';
 import { getIntakeYear } from './rollNumber';
-import { eq, like } from 'drizzle-orm';
+import { eq, like, or } from 'drizzle-orm';
 
 export const ADMISSION_EXAM_OPTIONS = ['TG EAPCET', 'TG ECET'];
 export const DEFAULT_ADMISSION_EXAM = 'TG EAPCET';
@@ -112,9 +112,9 @@ export function matchesAdmissionWorkspace(record, workspace) {
 }
 
 /**
- * Builds Drizzle ORM query conditions for filtering student admission drafts by workspace and status.
+ * Builds Drizzle ORM query conditions for filtering student admission drafts by workspace, status, and search term.
  */
-export function buildAdmissionWorkspaceConditions(table, workspace, status = null) {
+export function buildAdmissionWorkspaceConditions(table, workspace, status = null, search = null) {
   const conditions = [];
   if (status) {
     conditions.push(eq(table.status, status));
@@ -127,6 +127,16 @@ export function buildAdmissionWorkspaceConditions(table, workspace, status = nul
   }
   if (workspace?.entryYear) {
     conditions.push(like(table.admission_year, `${workspace.entryYear}%`));
+  }
+  if (search && typeof search === 'string' && search.trim() !== '') {
+    const term = `%${search.trim()}%`;
+    conditions.push(
+      or(
+        like(table.name, term),
+        like(table.roll_no, term),
+        like(table.email, term)
+      )
+    );
   }
   return conditions;
 }

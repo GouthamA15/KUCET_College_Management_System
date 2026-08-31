@@ -162,7 +162,29 @@ See [Session 207 Complete Change Analysis](./session-207-testvanilla-changes.md)
 
 ---
 
-## 8. Cross-References & Related Documentation
+## 8. Session 210 — Admission Soft Rejection, Status History & Controlled Restoration (August 31, 2026)
+
+### Problem & Forensic Analysis:
+Prior to Session 210, rejecting a student admission draft executed an unrecoverable hard deletion (`db.delete(studentAdmissionDrafts)` and `storage.delete(pfp, signature)`), permanently wiping student records and proof assets upon rejection.
+
+### Architectural Solution:
+- **Migration `0018_admission_rejection_and_history.sql`**:
+  - Extended `student_admission_drafts.status` enum to `('DRAFT','PROCESSED','FINALIZED','REJECTED')`.
+  - Added audit metadata columns: `rejection_reason`, `rejected_by_staff_id`, `rejected_at`, `restored_by_staff_id`, `restored_at`, `restoration_reason`.
+  - Created immutable `admission_status_history` table (`id`, `draft_id`, `old_status`, `new_status`, `reason`, `changed_by_user_id`, `changed_by_user_type`, `metadata`, `created_at`).
+- **Atomic Transactional Rejection (`PUT /api/staff/admission/drafts/[id]`)**:
+  - Transitions status to `REJECTED` in a database transaction.
+  - Inserts transition record into `admission_status_history` and `audit_logs`.
+  - Preserves all uploaded candidate media and identity documentation intact.
+- **Application-Level Controlled Restoration (`POST /api/staff/admission/drafts/[id]/restore`)**:
+  - Allows authorized staff/admin to review rejected applications and restore them back to the intake queue with a mandatory restoration reason and audit logging.
+- **Admission Queue UI Overhaul (`AdmissionRequestsPanel.js` & `AdmissionModal.js`)**:
+  - Added dedicated **Rejected Applications** tab with quick search, rejection reason previews, full lifecycle audit history timeline, and 1-click application restoration.
+- **Test Suite Verification**: 58/58 test files passed (454/454 unit tests passed).
+
+---
+
+## 9. Cross-References & Related Documentation
 
 - [System Architectural Decision Records (ADRs)](./architectural-decisions.md)
 - [Chronological Forensics of Resolved Incidents](./resolved-incidents.md)

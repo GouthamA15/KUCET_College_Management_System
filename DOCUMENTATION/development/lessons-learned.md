@@ -64,6 +64,10 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 - **The Pitfall:** Exposing public background webhook endpoints (e.g., `/api/webhooks/qstash/*`) without cryptographic signature verification allows unauthenticated external actors to trigger unauthorized batch operations, send spam notifications, or manipulate system tasks.
 - **The Inviolable Guardrail:** ALWAYS wrap QStash webhook route handlers with `verifySignatureAppRouter()` and maintain synchronized `QSTASH_CURRENT_SIGNING_KEY` and `QSTASH_NEXT_SIGNING_KEY` credentials.
 
+### Rule 13: Never Physically Delete Records on Rejection (Soft Rejection & History Preservation)
+- **The Pitfall:** Executing physical SQL `DELETE` (`db.delete()`) and storage deletion (`storage.delete()`) on application rejections wipes historical student applications and proof assets permanently. This prevents staff from auditing past rejections, reviewing rejection rationales, or restoring erroneously rejected applicants.
+- **The Inviolable Guardrail:** ALWAYS transition records to a `REJECTED` status enum in an atomic transaction, record the transition in `admission_status_history` / `audit_logs`, and preserve all uploaded media assets. Exclude `REJECTED` records from active duplicate constraints so applicants can re-apply if instructed.
+
 ---
 
 ## 3. Database Migration Safety Lessons

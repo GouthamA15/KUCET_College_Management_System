@@ -64,7 +64,7 @@ export const studentAcademicBackground = mysqlTable('student_academic_background
 
 export const studentAdmissionDrafts = mysqlTable('student_admission_drafts', {
   id: int('id').autoincrement().primaryKey().notNull(),
-  status: mysqlEnum('status', ['DRAFT', 'PROCESSED', 'FINALIZED']).default('DRAFT').notNull(),
+  status: mysqlEnum('status', ['DRAFT', 'PROCESSED', 'FINALIZED', 'REJECTED']).default('DRAFT').notNull(),
   admission_year: varchar('admission_year', { length: 9 }).notNull(),
   entrance_exam: varchar('entrance_exam', { length: 10 }).notNull(),
   branch: varchar('branch', { length: 50 }).notNull(),
@@ -120,6 +120,12 @@ export const studentAdmissionDrafts = mysqlTable('student_admission_drafts', {
   admission_date: date('admission_date'),
   data_policy_consented_at: timestamp('data_policy_consented_at'),
   roll_no: varchar('roll_no', { length: 255 }),
+  rejection_reason: text('rejection_reason'),
+  rejected_by_staff_id: int('rejected_by_staff_id'),
+  rejected_at: timestamp('rejected_at'),
+  restored_by_staff_id: int('restored_by_staff_id'),
+  restored_at: timestamp('restored_at'),
+  restoration_reason: text('restoration_reason'),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
 }, (table) => ({
@@ -168,4 +174,19 @@ export const studentImportLogs = mysqlTable('student_import_logs', {
   created_at: timestamp('created_at').defaultNow(),
 }, (table) => ({
   importCreatedAtIdx: index('idx_import_created_at').on(table.created_at),
+}));
+
+export const admissionStatusHistory = mysqlTable('admission_status_history', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  draft_id: int('draft_id').notNull(),
+  old_status: varchar('old_status', { length: 50 }),
+  new_status: varchar('new_status', { length: 50 }).notNull(),
+  reason: text('reason'),
+  changed_by_user_id: int('changed_by_user_id'),
+  changed_by_user_type: varchar('changed_by_user_type', { length: 50 }).default('staff'),
+  metadata: json('metadata'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  draftIdx: index('idx_ash_draft_id').on(table.draft_id),
+  createdAtIdx: index('idx_ash_created_at').on(table.created_at),
 }));

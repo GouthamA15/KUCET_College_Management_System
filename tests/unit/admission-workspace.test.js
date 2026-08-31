@@ -230,6 +230,24 @@ describe('Canonical Admission Workspace Architecture', () => {
       expect(conditions).toBeInstanceOf(Array);
       expect(conditions.length).toBe(4); // status, branch, entrance_exam, admission_year
     });
+
+    it('constructs search conditions when search term is supplied', () => {
+      const mockTable = {
+        status: 'status_col',
+        branch: 'branch_col',
+        entrance_exam: 'exam_col',
+        admission_year: 'year_col',
+        name: 'name_col',
+        roll_no: 'roll_col',
+        email: 'email_col'
+      };
+
+      const workspace = { intakeExam: 'TG EAPCET', targetBranch: 'CSE', entryYear: 2026 };
+      const conditions = buildAdmissionWorkspaceConditions(mockTable, workspace, 'DRAFT', 'Rao');
+
+      expect(conditions).toBeInstanceOf(Array);
+      expect(conditions.length).toBe(5); // status, branch, entrance_exam, admission_year, search
+    });
   });
 
   describe('5. API Route - GET /api/staff/admission/drafts', () => {

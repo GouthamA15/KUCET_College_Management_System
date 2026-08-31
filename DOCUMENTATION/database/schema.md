@@ -269,14 +269,60 @@ Institutional key-value configurations, branding signatures, and college accredi
 
 ## 3. Registry Domain
 
-Manages student enrollment, personal demographics, academic history, admission drafts, and document verification.
+Manages student enrollment, personal demographics, academic history, admission drafts, soft rejection tracking, and document verification.
 
+### Table: `student_admission_drafts`
+Staging table for multi-step admission intake applications before final roll number assignment and active student provisioning.
+- `id` (`INT`, PK, Auto-Increment)
+- `status` (`ENUM('DRAFT', 'PROCESSED', 'FINALIZED', 'REJECTED')`, Default: `'DRAFT'`, Not Null, Index: `idx_draft_status`)
+- `admission_year` (`VARCHAR(9)`, Not Null) — e.g. `2026-2030`
+- `entrance_exam` (`VARCHAR(10)`, Not Null) — `TG EAPCET`, `TG ECET`, `PGECET`, `Other`
+- `branch` (`VARCHAR(50)`, Not Null)
+- `name` (`VARCHAR(255)`, Not Null)
+- `father_name`, `mother_name` (`VARCHAR(255)`)
+- `dob` (`DATE`), `gender` (`VARCHAR(10)`)
+- `email` (`VARCHAR(255)`, Index: `idx_draft_email`)
+- `student_mobile` (`VARCHAR(255)` - AES-256 Encrypted)
+- `mobile_hash` (`VARCHAR(64)`, Index: `idx_draft_mobile_hash` - Blind Index)
+- `guardian_mobile` (`VARCHAR(255)` - AES-256 Encrypted)
+- `pfp` (`TEXT` - Storage Provider URI)
+- `signature` (`TEXT` - Storage Provider URI)
+- `exam_rank` (`INT`), `area_status` (`VARCHAR(50)`), `category` (`VARCHAR(50)`), `sub_caste` (`VARCHAR(100)`), `seat_allotted_category` (`VARCHAR(100)`)
+- `ssc_marks` (`VARCHAR(50)`), `inter_diploma_marks` (`VARCHAR(50)`)
+- `nationality`, `religion`, `mother_tongue`, `blood_group`, `place_of_birth`, `father_occupation`, `annual_income`
+- `aadhaar_no` (`VARCHAR(255)` - Encrypted), `aadhaar_hash` (`VARCHAR(64)`, Index: `idx_draft_aadhaar_hash`)
+- `fee_reimbursement` (`ENUM('YES', 'NO', 'GOV')`)
+- `identification_mark_1`, `identification_mark_2` (`TEXT`)
+- `perm_house_no`...`curr_house_no` (Complete Address Breakdown)
+- `is_current_same_as_permanent` (`BOOLEAN`, Default: `false`)
+- `admission_date` (`DATE`), `roll_no` (`VARCHAR(255)`), `data_policy_consented_at` (`TIMESTAMP`)
+- `rejection_reason` (`TEXT`) — Rationale provided when rejected
+- `rejected_by_staff_id` (`INT`) — Staff member ID who authorized rejection
+- `rejected_at` (`TIMESTAMP`) — Timestamp of rejection
+- `restored_by_staff_id` (`INT`) — Staff member ID who authorized restoration
+- `restored_at` (`TIMESTAMP`) — Timestamp of restoration
+- `restoration_reason` (`TEXT`) — Rationale provided when restored
+- `created_at` (`TIMESTAMP`, Default: `NOW()`), `updated_at` (`TIMESTAMP`, On Update: `NOW()`)
+
+### Table: `admission_status_history` *(New)*
+Immutable audit trail recording every state transition for student admission drafts across their entire lifecycle.
+- `id` (`INT`, PK, Auto-Increment)
+- `draft_id` (`INT`, Not Null, Index: `idx_ash_draft_id`) → References `student_admission_drafts.id`
+- `old_status` (`VARCHAR(50)`) — Status prior to transition (e.g. `DRAFT`, `REJECTED`, `PROCESSED`)
+- `new_status` (`VARCHAR(50)`, Not Null) — Status post-transition
+- `reason` (`TEXT`) — Action rationale or memo
+- `changed_by_user_id` (`INT`) — Staff/Admin ID who authorized the transition
+- `changed_by_user_type` (`VARCHAR(50)`, Default: `'staff'`) — Role category (`'staff'`, `'admin'`, `'system'`)
+- `metadata` (`JSON`) — Candidate and workspace metadata snapshot
+- `created_at` (`TIMESTAMP`, Default: `NOW()`, Not Null, Index: `idx_ash_created_at`)
+
+### Other Registry Tables
 - **`student_personal_details`**: Encrypted demographics (father name, mother name, caste, category, Aadhaar hash, permanent address).
 - **`student_academic_background`**: SSC, Intermediate, EAMCET/ECET rank, hall ticket numbers, prior institution marks.
-- **`student_admission_drafts`**: Staging table for multi-step admission forms before final roll number assignment.
 - **`student_images`**: Cloudinary media pointers for student profile photos.
 - **`student_signatures`**: Digital signature uploads.
-- **`student_profile_requests`**: Profile update request workflow.
+- **`student_profile_requests`**: Profile update request workflow (`status: 'pending' | 'approved' | 'rejected'`).
+- **`student_import_logs`**: Bulk Excel/CSV student onboarding audit logs.
 
 ---
 

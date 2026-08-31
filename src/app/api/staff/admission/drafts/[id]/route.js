@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentAdmissionDrafts } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -41,6 +42,27 @@ export const GET = wrapHandler({
 
     // Ensure HTML <input type="date"> can display this (expects YYYY-MM-DD)
     if (draft.dob) draft.dob = toMySQLDate(draft.dob);
+
+    // Fetch complete status history
+    const { admissionStatusHistory, staffAccounts } = await import('@/db/schema');
+    const { desc } = await import('drizzle-orm');
+    const history = await db.select({
+      id: admissionStatusHistory.id,
+      old_status: admissionStatusHistory.old_status,
+      new_status: admissionStatusHistory.new_status,
+      reason: admissionStatusHistory.reason,
+      changed_by_user_id: admissionStatusHistory.changed_by_user_id,
+      changed_by_user_type: admissionStatusHistory.changed_by_user_type,
+      staff_name: staffAccounts.name,
+      metadata: admissionStatusHistory.metadata,
+      created_at: admissionStatusHistory.created_at
+    })
+    .from(admissionStatusHistory)
+    .leftJoin(staffAccounts, eq(admissionStatusHistory.changed_by_user_id, staffAccounts.id))
+    .where(eq(admissionStatusHistory.draft_id, id))
+    .orderBy(desc(admissionStatusHistory.created_at));
+
+    draft.status_history = history;
     
     return { data: draft };
   }
@@ -61,49 +83,124 @@ export const PUT = wrapHandler({
     if (!currentDraft) return apiError('Draft not found', 404);
 
     // Handle simple status update including rejection
-    if (body.status && Object.keys(body).length <= 3) {
+    if (body.status && Object.keys(body).length <= 4) {
         if (!['DRAFT', 'PROCESSED', 'FINALIZED', 'REJECTED'].includes(body.status)) {
             return apiError('Invalid status', 400);
         }
 
+        const staffId = user.staffId || user.id || null;
+
         if (body.status === 'REJECTED') {
-          const reason = body.rejection_reason || 'Information provided was incomplete or inconsistent with documents.';
+          const reason = body.rejection_reason?.trim() || 'Information provided was incomplete or inconsistent with documents.';
           
-          await sendInstitutionalEmail({
-            to: currentDraft.email,
-            subject: 'Admission Application Update - KUCET',
-            title: 'Application Rejection',
-            bodyHtml: `<p>Dear ${currentDraft.name},</p><p>We regret to inform you that your admission application to KUCET has been rejected for the following reason:</p><div style="background:#fff5f5; border-left:4px solid #f56565; padding:12px; margin:16px 0;"><strong>Reason:</strong> ${reason}</div><p>You may submit a fresh application with the corrected information if applicable.</p>`,
-            infoRows: [
-              { label: 'Application ID', value: id },
-              { label: 'Status', value: 'REJECTED' }
-            ]
+          await db.transaction(async (tx) => {
+            // 1. Soft update status to REJECTED with rejection metadata
+            const { admissionStatusHistory, auditLogs } = await import('@/db/schema');
+            await tx.update(studentAdmissionDrafts)
+              .set({ 
+                status: 'REJECTED',
+                rejection_reason: reason,
+                rejected_by_staff_id: staffId,
+                rejected_at: new Date(),
+                updated_at: new Date()
+              })
+              .where(eq(studentAdmissionDrafts.id, id));
+
+            // 2. Record immutable status transition history
+            await tx.insert(admissionStatusHistory).values({
+              draft_id: id,
+              old_status: currentDraft.status,
+              new_status: 'REJECTED',
+              reason: reason,
+              changed_by_user_id: staffId,
+              changed_by_user_type: user.role === 'admin' ? 'admin' : 'staff',
+              metadata: {
+                name: currentDraft.name,
+                branch: currentDraft.branch,
+                entrance_exam: currentDraft.entrance_exam,
+                admission_year: currentDraft.admission_year,
+                email: currentDraft.email
+              }
+            });
+
+            // 3. Record audit event
+            await tx.insert(auditLogs).values({
+              user_id: staffId,
+              user_type: user.role === 'admin' ? 'admin' : 'staff',
+              action: 'REJECT_ADMISSION_DRAFT',
+              target_id: String(id),
+              target_type: 'admission_draft',
+              payload_before: { status: currentDraft.status, name: currentDraft.name, email: currentDraft.email },
+              payload_after: { status: 'REJECTED', rejection_reason: reason, rejected_by_staff_id: staffId },
+              ip_address: req.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1',
+              user_agent: req.headers.get('user-agent') || 'system'
+            });
           });
 
-          if (currentDraft.pfp) await storage.delete(currentDraft.pfp);
-          if (currentDraft.signature) await storage.delete(currentDraft.signature);
-
-          await db.delete(studentAdmissionDrafts).where(eq(studentAdmissionDrafts.id, id));
+          // 4. Send institutional email asynchronously (do NOT delete documents or media)
+          if (currentDraft.email) {
+            sendInstitutionalEmail({
+              to: currentDraft.email,
+              subject: 'Admission Application Update - KUCET',
+              title: 'Application Rejection',
+              bodyHtml: `<p>Dear ${currentDraft.name},</p><p>We regret to inform you that your admission application to KUCET has been rejected for the following reason:</p><div style="background:#fff5f5; border-left:4px solid #f56565; padding:12px; margin:16px 0;"><strong>Reason:</strong> ${reason}</div><p>You may submit a fresh application or contact the admission cell if you believe this was in error.</p>`,
+              infoRows: [
+                { label: 'Application ID', value: id },
+                { label: 'Status', value: 'REJECTED' }
+              ]
+            }).catch(e => logger.error(e, 'Failed to send rejection email'));
+          }
 
           try {
             const { broadcastUpdate } = await import('@/lib/sse');
-            await broadcastUpdate('ADMISSION_DRAFT_DELETED', { 
+            await broadcastUpdate('ADMISSION_DRAFT_UPDATED', { 
               id, 
+              status: 'REJECTED',
               branch: currentDraft.branch, 
               entrance_exam: currentDraft.entrance_exam, 
-              admission_year: currentDraft.admission_year,
-              status: 'REJECTED'
+              admission_year: currentDraft.admission_year
             });
           } catch (_e) {
             /* non-blocking */
           }
 
-          return { success: true, message: 'Application rejected, student notified, and draft removed.' };
+          return { success: true, message: 'Application rejected, student notified, and record preserved in rejected queue.' };
         }
 
-        await db.update(studentAdmissionDrafts)
-          .set({ status: body.status })
-          .where(eq(studentAdmissionDrafts.id, id));
+        // Status transition (e.g., DRAFT -> PROCESSED)
+        await db.transaction(async (tx) => {
+          const { admissionStatusHistory, auditLogs } = await import('@/db/schema');
+          await tx.update(studentAdmissionDrafts)
+            .set({ status: body.status, updated_at: new Date() })
+            .where(eq(studentAdmissionDrafts.id, id));
+
+          if (currentDraft.status !== body.status) {
+            await tx.insert(admissionStatusHistory).values({
+              draft_id: id,
+              old_status: currentDraft.status,
+              new_status: body.status,
+              reason: body.reason || `Status updated to ${body.status}`,
+              changed_by_user_id: staffId,
+              changed_by_user_type: user.role === 'admin' ? 'admin' : 'staff',
+              metadata: {
+                name: currentDraft.name,
+                branch: currentDraft.branch
+              }
+            });
+
+            await tx.insert(auditLogs).values({
+              user_id: staffId,
+              user_type: user.role === 'admin' ? 'admin' : 'staff',
+              action: `UPDATE_ADMISSION_DRAFT_STATUS`,
+              target_id: String(id),
+              target_type: 'admission_draft',
+              payload_before: { status: currentDraft.status },
+              payload_after: { status: body.status },
+              ip_address: req.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1',
+              user_agent: req.headers.get('user-agent') || 'system'
+            });
+          }
+        });
 
         try {
           const { broadcastUpdate } = await import('@/lib/sse');

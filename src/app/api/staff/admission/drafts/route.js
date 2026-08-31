@@ -17,8 +17,9 @@ export async function GET(req) {
     const entranceExam = searchParams.get('entrance_exam') || searchParams.get('entranceExam') || searchParams.get('intakeExam') || searchParams.get('exam');
     const entryYear = searchParams.get('entry_year') || searchParams.get('entryYear') || searchParams.get('joiningYear') || searchParams.get('admission_year') || searchParams.get('year');
     const status = searchParams.get('status') || 'DRAFT';
+    const search = searchParams.get('search')?.trim() || null;
 
-    if (!['DRAFT', 'PROCESSED', 'FINALIZED'].includes(status)) {
+    if (!['DRAFT', 'PROCESSED', 'FINALIZED', 'REJECTED', 'ALL'].includes(status)) {
       return apiError('Invalid status parameter', 400);
     }
 
@@ -57,7 +58,8 @@ export async function GET(req) {
     const conditions = buildAdmissionWorkspaceConditions(
       studentAdmissionDrafts,
       effectiveWorkspace,
-      status
+      status === 'ALL' ? null : status,
+      search
     );
 
     const drafts = await db.select({
@@ -71,7 +73,12 @@ export async function GET(req) {
       status: studentAdmissionDrafts.status,
       roll_no: studentAdmissionDrafts.roll_no,
       email: studentAdmissionDrafts.email,
-      created_at: studentAdmissionDrafts.created_at
+      rejection_reason: studentAdmissionDrafts.rejection_reason,
+      rejected_at: studentAdmissionDrafts.rejected_at,
+      restored_at: studentAdmissionDrafts.restored_at,
+      restoration_reason: studentAdmissionDrafts.restoration_reason,
+      created_at: studentAdmissionDrafts.created_at,
+      updated_at: studentAdmissionDrafts.updated_at
     })
     .from(studentAdmissionDrafts)
     .where(and(...conditions))
