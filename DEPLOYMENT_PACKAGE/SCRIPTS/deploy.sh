@@ -150,42 +150,56 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Build and restart ONLY the app container
+# Build and start app and realtime containers
 # ---------------------------------------------------------------------------
-log "Removing old app container ..."
-docker rm -f kucet-cms-app 2>&1 || true
-
-log "Building and starting app container ..."
+log "Building and starting app and realtime containers ..."
 docker compose \
   -p deployment_package \
   -f "$COMPOSE_FILE" \
-  up -d --build --no-deps app 2>&1
+  up -d --build --no-deps app realtime 2>&1
 
-log "App container build and start initiated."
+log "App and realtime container build and start initiated."
 
 # ---------------------------------------------------------------------------
-# Wait for app container health (up to 60 seconds, check every 5s)
+# Wait for app and realtime container health (up to 60 seconds)
 # ---------------------------------------------------------------------------
-log "Waiting for app container to become healthy (max 60s) ..."
+log "Waiting for app and realtime containers to become healthy (max 60s) ..."
 WAIT_MAX=60
 WAIT_INTERVAL=5
 WAITED=0
-APP_HEALTHY=false
+SERVICES_HEALTHY=false
 
 while [[ $WAITED -lt $WAIT_MAX ]]; do
-  CONTAINER_STATE=$(docker inspect --format='{{.State.Status}}' kucet-cms-app 2>/dev/null || echo "missing")
-  HEALTH_STATE=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' kucet-cms-app 2>/dev/null || echo "unknown")
+  APP_STATE=$(docker inspect --format='{{.State.Status}}' kucet-cms-app 2>/dev/null || echo "missing")
+  APP_HEALTH=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' kucet-cms-app 2>/dev/null || echo "unknown")
+  RT_STATE=$(docker inspect --format='{{.State.Status}}' kucet-cms-realtime 2>/dev/null || echo "missing")
+  RT_HEALTH=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' kucet-cms-realtime 2>/dev/null || echo "unknown")
 
-  log "  [${WAITED}s] container=$CONTAINER_STATE health=$HEALTH_STATE"
+  log "  [${WAITED}s] app=$APP_STATE ($APP_HEALTH) | realtime=$RT_STATE ($RT_HEALTH)"
 
-  if [[ "$CONTAINER_STATE" == "running" ]]; then
-    if [[ "$HEALTH_STATE" == "healthy" || "$HEALTH_STATE" == "no-healthcheck" ]]; then
-      APP_HEALTHY=true
-      break
-    fi
-  elif [[ "$CONTAINER_STATE" == "exited" || "$CONTAINER_STATE" == "dead" ]]; then
+  APP_OK=false
+  RT_OK=false
+
+  if [[ "$APP_STATE" == "running" && ("$APP_HEALTH" == "healthy" || "$APP_HEALTH" == "no-healthcheck") ]]; then
+    APP_OK=true
+  fi
+  if [[ "$RT_STATE" == "running" && ("$RT_HEALTH" == "healthy" || "$RT_HEALTH" == "no-healthcheck") ]]; then
+    RT_OK=true
+  fi
+
+  if $APP_OK && $RT_OK; then
+    SERVICES_HEALTHY=true
+    break
+  fi
+
+  if [[ "$APP_STATE" == "exited" || "$APP_STATE" == "dead" ]]; then
     log "ERROR: App container exited unexpectedly!"
     docker logs kucet-cms-app --tail 50 2>&1 || true
+    break
+  fi
+  if [[ "$RT_STATE" == "exited" || "$RT_STATE" == "dead" ]]; then
+    log "ERROR: Realtime container exited unexpectedly!"
+    docker logs kucet-cms-realtime --tail 50 2>&1 || true
     break
   fi
 
@@ -193,35 +207,43 @@ while [[ $WAITED -lt $WAIT_MAX ]]; do
   WAITED=$((WAITED + WAIT_INTERVAL))
 done
 
-if ! $APP_HEALTHY; then
-  log "ERROR: App container did not become healthy within ${WAIT_MAX}s."
+if ! $SERVICES_HEALTHY; then
+  log "ERROR: App or Realtime container did not become healthy within ${WAIT_MAX}s."
   DEPLOY_STATUS="failed:container-health"
 fi
 
 # ---------------------------------------------------------------------------
-# Reconnect app container to network with alias (if needed)
+# Reload Nginx proxy safely
 # ---------------------------------------------------------------------------
-log "Checking app container network connectivity ..."
-IS_CONNECTED=$(docker inspect -f '{{json .NetworkSettings.Networks}}' kucet-cms-app 2>/dev/null | grep -o 'deployment_package_cms-network' || true)
-if [[ -z "$IS_CONNECTED" ]]; then
-  log "Connecting app container to cms-network with alias 'app' ..."
-  docker network connect deployment_package_cms-network kucet-cms-app --alias app 2>&1 || true
+log "Validating and reloading Nginx proxy ..."
+docker compose -p deployment_package -f "$COMPOSE_FILE" up -d --no-deps nginx 2>&1
+
+if docker exec kucet-cms-proxy nginx -t 2>&1; then
+  log "Nginx config is valid. Reloading proxy configuration ..."
+  docker exec kucet-cms-proxy nginx -s reload 2>&1 || docker restart kucet-cms-proxy 2>&1
+  log "Proxy reloaded successfully."
 else
-  log "App container is already connected to cms-network."
+  log "ERROR: Nginx config validation failed! Attempting restart ..."
+  docker restart kucet-cms-proxy 2>&1 || true
 fi
-log "Network connectivity confirmed."
 
 # ---------------------------------------------------------------------------
-# Reload Nginx proxy
+# Wait for Nginx proxy to accept HTTP requests on port 80 (up to 20s)
 # ---------------------------------------------------------------------------
-log "Validating nginx configuration ..."
-if docker exec kucet-cms-proxy nginx -t 2>&1; then
-  log "Nginx config is valid. Restarting proxy container ..."
-  docker restart kucet-cms-proxy 2>&1
-  log "Proxy restarted."
-else
-  log "ERROR: Nginx config validation failed! Proxy NOT restarted."
-  DEPLOY_STATUS="failed:nginx-config"
+log "Waiting for Nginx proxy to accept HTTP traffic on port 80 ..."
+PROXY_READY=false
+for i in $(seq 1 10); do
+  HTTP_CHECK=$(curl -so /dev/null -w "%{http_code}" --max-time 3 "http://127.0.0.1:80/api/health" 2>/dev/null || echo "000")
+  if [[ "$HTTP_CHECK" == "200" ]]; then
+    PROXY_READY=true
+    log "Nginx proxy is actively serving HTTP traffic (HTTP 200) after ${i} checks."
+    break
+  fi
+  sleep 2
+done
+
+if ! $PROXY_READY; then
+  log "WARNING: Proxy did not return 200 during pre-flight check (last status: $HTTP_CHECK)."
 fi
 
 # ---------------------------------------------------------------------------

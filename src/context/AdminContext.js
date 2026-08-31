@@ -142,17 +142,26 @@ export function AdminProvider({ children }) {
 
   // Realtime update handler
   const handleRealtimeUpdate = useCallback((data) => {
-    if (!data || !data.type || !data.payload) return;
+    if (!data || !data.type) return;
     const { type, payload } = data;
 
-    if (type === 'STAFF_CREATED') {
-      addStaffToList(payload);
-    } else if (type === 'STAFF_UPDATED') {
-      updateStaffInList(payload);
-    } else if (type === 'STAFF_STATUS_CHANGED') {
-      setStaffActiveStatus(payload.id, payload.is_active);
+    if (['STAFF_CREATED', 'staff:created'].includes(type)) {
+      if (payload) addStaffToList(payload);
+    } else if (['STAFF_UPDATED', 'staff:updated'].includes(type)) {
+      if (payload) updateStaffInList(payload);
+    } else if (['STAFF_STATUS_CHANGED', 'staff:status-changed'].includes(type)) {
+      if (payload) setStaffActiveStatus(payload.id, payload.is_active);
+    } else if (['STAFF_REGISTRATION_CREATED', 'staff:registration:created'].includes(type)) {
+      fetchStaff();
+    } else if (['STUDENT_STATS_UPDATED', 'student:stats:updated', 'ADMISSION_FINALIZED', 'admission:finalized'].includes(type)) {
+      fetchStudentStats();
     }
-  }, [addStaffToList, updateStaffInList, setStaffActiveStatus]);
+  }, [addStaffToList, updateStaffInList, setStaffActiveStatus, fetchStaff, fetchStudentStats]);
+
+  const adminDataRef = useRef(adminData);
+  useEffect(() => {
+    adminDataRef.current = adminData;
+  }, [adminData]);
 
   const refreshAll = useCallback(async () => {
     if (activePromiseRef.current) {
@@ -161,7 +170,7 @@ export function AdminProvider({ children }) {
 
     const promise = (async () => {
       try {
-        if (!adminData) setLoading(true);
+        if (!adminDataRef.current) setLoading(true);
         await Promise.all([
           fetchAdminMe(),
           fetchStaff(),
@@ -179,16 +188,17 @@ export function AdminProvider({ children }) {
 
     activePromiseRef.current = promise;
     return promise;
-  }, [fetchAdminMe, fetchStaff, fetchStudentStats, fetchCollegeInfo, adminData]);
+  }, [fetchAdminMe, fetchStaff, fetchStudentStats, fetchCollegeInfo]);
 
   const handleResume = useCallback(async (event) => {
     const now = Date.now();
     const isBfcacheRestore = event?.type === 'pageshow' && event.persisted;
-    const isStuck = loading && !adminData;
+    const currentAdmin = adminDataRef.current;
+    const isStuck = loading && !currentAdmin;
 
     // Check if we should revalidate
     const shouldReinit = isBfcacheRestore || isStuck;
-    const throttleTime = 5000; // 5 seconds throttle
+    const throttleTime = 60000; // 60 seconds throttle
     const isThrottled = now - lastFetchTimeRef.current < throttleTime;
 
     if (!shouldReinit && isThrottled) {
@@ -196,7 +206,7 @@ export function AdminProvider({ children }) {
     }
 
     if (activePromiseRef.current) {
-      if (shouldReinit) {
+      if (shouldReinit && !currentAdmin) {
         setLoading(true);
       }
       try {
@@ -208,7 +218,7 @@ export function AdminProvider({ children }) {
     }
 
     isInitializingRef.current = true;
-    if (shouldReinit) {
+    if (shouldReinit && !currentAdmin) {
       setLoading(true);
     }
 
@@ -220,7 +230,7 @@ export function AdminProvider({ children }) {
       setLoading(false);
       isInitializingRef.current = false;
     }
-  }, [loading, adminData, refreshAll]);
+  }, [loading, refreshAll]);
 
   useEffect(() => {
     if (adminData || isInitializingRef.current) return;
@@ -245,7 +255,7 @@ export function AdminProvider({ children }) {
       cancelled = true;
       isInitializingRef.current = false;
     };
-  }, [refreshAll, adminData]);
+  }, [adminData, refreshAll]);
 
   // Keep a stable ref to handleResume so the event listener effect only runs once.
   const handleResumeRef = useRef(handleResume);

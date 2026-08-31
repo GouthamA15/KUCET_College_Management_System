@@ -101,6 +101,11 @@ export function StudentProvider({ children }) {
     return null;
   }, []);
 
+  const studentDataRef = useRef(studentData);
+  useEffect(() => {
+    studentDataRef.current = studentData;
+  }, [studentData]);
+
   const lastFetchTimeRef = useRef(0);
   const activePromiseRef = useRef(null);
 
@@ -119,8 +124,9 @@ export function StudentProvider({ children }) {
             return null;
           }
 
+          const current = studentDataRef.current;
           // If current in-memory student doesn't match the newly authenticated roll number, purge previous child states
-          if (studentData && (studentData.student?.roll_no !== user.roll_no && studentData.roll_no !== user.roll_no)) {
+          if (current && (current.student?.roll_no !== user.roll_no && current.roll_no !== user.roll_no)) {
             setStudentData(null);
             setAcademicPerformance(null);
             setLatestProfileRequest(null);
@@ -148,20 +154,17 @@ export function StudentProvider({ children }) {
 
     activePromiseRef.current = promise;
     return promise;
-  }, [fetchProfile, fetchCollegeInfo, fetchAcademicPerformance, studentData]);
+  }, [fetchProfile, fetchCollegeInfo, fetchAcademicPerformance]);
 
   const handleResume = useCallback(async (event) => {
-    if (process.env.NODE_ENV === 'development') {
-      const trigger = event?.type || 'initial mount';
-      console.info(`[StudentContext] handleResume() invoked. Triggered by: ${trigger}`);
-    }
     const now = Date.now();
     const isBfcacheRestore = event?.type === 'pageshow' && event.persisted;
-    const isStuck = loading && !studentData;
+    const currentStudent = studentDataRef.current;
+    const isStuck = loading && !currentStudent;
 
     // Check if we should revalidate
     const shouldReinit = isBfcacheRestore || isStuck;
-    const throttleTime = 5000; // 5 seconds throttle
+    const throttleTime = 60000; // 60 seconds throttle
     const isThrottled = now - lastFetchTimeRef.current < throttleTime;
 
     if (!shouldReinit && isThrottled) {
@@ -169,7 +172,7 @@ export function StudentProvider({ children }) {
     }
 
     if (activePromiseRef.current) {
-      if (shouldReinit) {
+      if (shouldReinit && !currentStudent) {
         setLoading(true);
       }
       try {
@@ -181,7 +184,7 @@ export function StudentProvider({ children }) {
     }
 
     isInitializingRef.current = true;
-    if (shouldReinit) {
+    if (shouldReinit && !currentStudent) {
       setLoading(true);
     }
 
@@ -193,7 +196,7 @@ export function StudentProvider({ children }) {
       setLoading(false);
       isInitializingRef.current = false;
     }
-  }, [loading, studentData, refreshData]);
+  }, [loading, refreshData]);
 
   useEffect(() => {
     // Avoid a refresh loop: refreshData() sets studentData,
@@ -269,6 +272,41 @@ export function StudentProvider({ children }) {
     setCertificateRequestsLoaded(false);
   };
 
+  const handleRealtimeUpdate = useCallback((data) => {
+    if (!data || !data.type) return;
+    const { type, payload } = data;
+
+    const isTargetStudent =
+      !payload ||
+      (studentData &&
+        (payload.student_id === studentData.id ||
+          payload.student_id === studentData.student?.id ||
+          payload.roll_no === studentData.roll_no ||
+          payload.roll_no === studentData.student?.roll_no));
+
+    if (isTargetStudent) {
+      if (
+        [
+          'REQUEST_CREATED',
+          'REQUEST_UPDATED',
+          'request:created',
+          'request:updated',
+          'request:status-changed',
+          'request:completed',
+          'PROFILE_PHOTO_UPDATED',
+          'PROFILE_PHOTO_REMOVED',
+          'student:photo:updated',
+          'student:photo:removed',
+        ].includes(type)
+      ) {
+        const rollNo = studentData?.roll_no || studentData?.student?.roll_no;
+        if (rollNo) {
+          fetchProfile(rollNo);
+        }
+      }
+    }
+  }, [studentData, fetchProfile]);
+
   return (
     <StudentContext.Provider value={{
       studentData,
@@ -298,7 +336,7 @@ export function StudentProvider({ children }) {
         }
       }
     }}>
-      <RealtimeListener enableNotifications />
+      <RealtimeListener onUpdate={handleRealtimeUpdate} enableNotifications />
       {children}
     </StudentContext.Provider>
   );
