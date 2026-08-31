@@ -87,7 +87,13 @@ export const PUT = wrapHandler({
 
           try {
             const { broadcastUpdate } = await import('@/lib/sse');
-            await broadcastUpdate('ADMISSION_DRAFT_DELETED', { id });
+            await broadcastUpdate('ADMISSION_DRAFT_DELETED', { 
+              id, 
+              branch: currentDraft.branch, 
+              entrance_exam: currentDraft.entrance_exam, 
+              admission_year: currentDraft.admission_year,
+              status: 'REJECTED'
+            });
           } catch (_e) {
             /* non-blocking */
           }
@@ -101,7 +107,13 @@ export const PUT = wrapHandler({
 
         try {
           const { broadcastUpdate } = await import('@/lib/sse');
-          await broadcastUpdate('ADMISSION_DRAFT_UPDATED', { id, status: body.status });
+          await broadcastUpdate('ADMISSION_DRAFT_UPDATED', { 
+            id, 
+            status: body.status,
+            branch: currentDraft.branch, 
+            entrance_exam: currentDraft.entrance_exam, 
+            admission_year: currentDraft.admission_year
+          });
         } catch (_e) {
           /* non-blocking */
         }
@@ -161,7 +173,13 @@ export const PUT = wrapHandler({
 
     try {
       const { broadcastUpdate } = await import('@/lib/sse');
-      await broadcastUpdate('ADMISSION_DRAFT_UPDATED', { id, ...updateObj });
+      await broadcastUpdate('ADMISSION_DRAFT_UPDATED', { 
+        id, 
+        branch: updateObj.branch || currentDraft.branch,
+        entrance_exam: updateObj.entrance_exam || currentDraft.entrance_exam,
+        admission_year: currentDraft.admission_year,
+        ...updateObj 
+      });
     } catch (_e) {
       /* non-blocking */
     }

@@ -160,19 +160,34 @@ export function StaffProvider({ children }) {
     }
   }, []);
 
-  const fetchAdmissionDrafts = useCallback(async () => {
+  const fetchAdmissionDrafts = useCallback(async (workspace = null) => {
     setIsLoadingRequests(true);
     try {
-      const res = await fetch(`/api/staff/admission/drafts?status=DRAFT&t=${Date.now()}`);
+      let url = `/api/staff/admission/drafts?status=DRAFT&t=${Date.now()}`;
+      if (workspace?.targetBranch && workspace?.intakeExam) {
+        const queryParams = new URLSearchParams({
+          status: 'DRAFT',
+          branch: workspace.targetBranch,
+          entrance_exam: workspace.intakeExam,
+          t: String(Date.now())
+        });
+        if (workspace.entryYear) {
+          queryParams.set('entry_year', String(workspace.entryYear));
+        }
+        url = `/api/staff/admission/drafts?${queryParams.toString()}`;
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (res.ok) {
         setAdmissionDrafts(data.data || []);
+        return data.data || [];
       }
     } catch (e) {
       console.error('Failed to fetch admission drafts', e);
     } finally {
       setIsLoadingRequests(false);
     }
+    return [];
   }, []);
 
   const fetchStudentHistory = useCallback(async (scope = 'my') => {

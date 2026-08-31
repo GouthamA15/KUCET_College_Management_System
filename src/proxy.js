@@ -113,29 +113,54 @@ export default async function proxy(request) {
   let staffPayload = staffRes.payload;
   let studentPayload = studentRes.payload;
 
-  // 2. Silent refresh for expired access tokens when companion session cookie exists
-  if (!adminPayload && (adminRes.expired || !adminAuth) && (cookies.get('admin_refresh_token') || cookies.get('admin_logged_in'))) {
-    const refreshed = await trySilentRefresh(request, 'admin', jwtSecret);
-    if (refreshed) {
-      adminPayload = refreshed.payload;
-      applyRefreshedCookies(response, refreshed.cookiesToSet);
-    }
-  }
+  // 2. Silent refresh — only for roles that (a) don't have a valid payload and (b) have refresh cookies.
+  // Determine which roles need refresh based on current pathname to avoid unnecessary httpxy proxy calls.
+  // Each refresh is an internal HTTP round-trip through httpxy/compression; limiting them keeps the
+  // ServerResponse close-listener count below Node's default 10 even under concurrent navigation.
+  const isAdminPath = pathname.startsWith('/admin') || pathname.startsWith('/api/admin');
+  const isStaffPath = pathname.startsWith('/staff') || pathname.startsWith('/api/staff');
+  const isStudentPath = pathname.startsWith('/student') || pathname.startsWith('/api/student');
+  const isHomePath = pathname === '/';
 
-  if (!staffPayload && (staffRes.expired || !staffAuth) && (cookies.get('staff_refresh_token') || cookies.get('staff_logged_in'))) {
-    const refreshed = await trySilentRefresh(request, 'staff', jwtSecret);
-    if (refreshed) {
-      staffPayload = refreshed.payload;
-      applyRefreshedCookies(response, refreshed.cookiesToSet);
-    }
-  }
+  const needsAdminRefresh =
+    !adminPayload &&
+    (adminRes.expired || !adminAuth) &&
+    (cookies.get('admin_refresh_token') || cookies.get('admin_logged_in')) &&
+    (isAdminPath || isHomePath || (!isStaffPath && !isStudentPath));
 
-  if (!studentPayload && (studentRes.expired || !studentAuth) && (cookies.get('student_refresh_token') || cookies.get('student_logged_in'))) {
-    const refreshed = await trySilentRefresh(request, 'student', jwtSecret);
-    if (refreshed) {
-      studentPayload = refreshed.payload;
-      applyRefreshedCookies(response, refreshed.cookiesToSet);
-    }
+  const needsStaffRefresh =
+    !staffPayload &&
+    (staffRes.expired || !staffAuth) &&
+    (cookies.get('staff_refresh_token') || cookies.get('staff_logged_in')) &&
+    (isStaffPath || isHomePath || (!isAdminPath && !isStudentPath));
+
+  const needsStudentRefresh =
+    !studentPayload &&
+    (studentRes.expired || !studentAuth) &&
+    (cookies.get('student_refresh_token') || cookies.get('student_logged_in')) &&
+    (isStudentPath || isHomePath || (!isAdminPath && !isStaffPath));
+
+  // Run needed refreshes in parallel (not sequential) to minimize time window during which
+  // multiple ServerResponse close listeners accumulate on any single connection
+  const refreshResults = await Promise.all([
+    needsAdminRefresh ? trySilentRefresh(request, 'admin', jwtSecret) : Promise.resolve(null),
+    needsStaffRefresh ? trySilentRefresh(request, 'staff', jwtSecret) : Promise.resolve(null),
+    needsStudentRefresh ? trySilentRefresh(request, 'student', jwtSecret) : Promise.resolve(null),
+  ]);
+
+  const [adminRefreshed, staffRefreshed, studentRefreshed] = refreshResults;
+
+  if (adminRefreshed) {
+    adminPayload = adminRefreshed.payload;
+    applyRefreshedCookies(response, adminRefreshed.cookiesToSet);
+  }
+  if (staffRefreshed) {
+    staffPayload = staffRefreshed.payload;
+    applyRefreshedCookies(response, staffRefreshed.cookiesToSet);
+  }
+  if (studentRefreshed) {
+    studentPayload = studentRefreshed.payload;
+    applyRefreshedCookies(response, studentRefreshed.cookiesToSet);
   }
 
   // ─── Route: Home "/" ──────────────────────────────────────────────────────

@@ -66,6 +66,34 @@ export const syllabusStructure = mysqlTable('syllabus_structure', {
   uqMapping: uniqueIndex('unique_mapping').on(table.branch, table.semester, table.subject_code),
 }));
 
+export const electiveGroups = mysqlTable('elective_groups', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  branch: varchar('branch', { length: 50 }).notNull(),
+  semester: tinyint('semester').notNull(),
+  group_code: varchar('group_code', { length: 50 }).notNull(),
+  group_name: varchar('group_name', { length: 255 }).notNull(),
+  group_type: mysqlEnum('group_type', ['PROFESSIONAL_ELECTIVE', 'OPEN_ELECTIVE', 'MANDATORY_NON_CREDIT', 'OTHER']).notNull(),
+  subject_mode: mysqlEnum('subject_mode', ['theory', 'lab']).notNull().default('theory'),
+  sequence_num: tinyint('sequence_num').notNull().default(0),
+  display_order: int('display_order').notNull().default(0),
+  is_active: boolean('is_active').notNull().default(true),
+  created_at: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  uqGroup: uniqueIndex('uq_elective_group').on(table.branch, table.semester, table.group_code),
+  branchSemIdx: index('idx_eg_branch_sem').on(table.branch, table.semester),
+}));
+
+export const electiveGroupSubjects = mysqlTable('elective_group_subjects', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  group_id: int('group_id').notNull().references(() => electiveGroups.id, { onDelete: 'restrict' }),
+  subject_code: varchar('subject_code', { length: 50 }).notNull().references(() => syllabusSubjects.subject_code, { onDelete: 'restrict' }),
+  display_order: int('display_order').notNull().default(0),
+  created_at: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  uqGroupSubject: uniqueIndex('uq_group_subject').on(table.group_id, table.subject_code),
+  groupIdIdx: index('idx_egs_group_id').on(table.group_id),
+}));
+
 export const semesters = mysqlTable('semesters', {
   id: int('id').autoincrement().primaryKey().notNull(),
   academic_year: varchar('academic_year', { length: 9 }).notNull(),

@@ -14,6 +14,7 @@ Access requires `staff_auth` credentials where `is_hod: true` and a recognized d
 | :--- | :--- | :--- | :---: |
 | `/staff/hod/dashboard` | HOD Overview | Department summary, attendance health, faculty status | `VIEW_OWN_RECORDS` |
 | `/staff/hod/staff-management` | Active Faculty Management | Manage faculty accounts, subject accesses, and interests | `STAFF_MANAGE` |
+| `/staff/hod/syllabus` | Syllabus & Elective Groups | Core curriculum mapping, Elective group buckets, and subject catalogue | `STAFF_MANAGE` |
 | `/staff/hod/timetable` | Semester Timetable Matrix | Schedule 8 semesters (S1-S8), resolve room conflicts | `ATTENDANCE_EDIT` |
 | `/staff/hod/faculty-load` | Faculty Workload Tracker | Weekly lecture hour distribution, substitutions | `REPORT_EXPORT` |
 | `/staff/hod/attendance-analytics` | Attendance Condonation | Identify low attendance, generate condonation lists | `REPORT_EXPORT` |
@@ -59,9 +60,30 @@ Monitors student attendance compliance across all branch sections:
 
 ---
 
+### 5. Syllabus & Elective Groups Management Console (`/staff/hod/syllabus`)
+Equips HODs with full interactive curriculum configuration across semesters S1-S8 for their authorized department branches:
+- **Dual Curriculum Architecture**:
+  - **Core Subjects Matrix**: Mandatory foundational theory and laboratory courses mapped via `syllabus_structure`.
+  - **Elective Group Buckets**: Group-based course selections (`elective_groups`) categorized as:
+    - `PROFESSIONAL_ELECTIVE` (e.g., PE-I, PE-II)
+    - `OPEN_ELECTIVE` (e.g., OE-I, OE-II)
+    - `MANDATORY_NON_CREDIT` (e.g., Constitution of India, Environmental Science)
+    - `OTHER`
+- **Interactive UI Modals (`SyllabusManager.js`)**:
+  - **Add Core Subject**: Search/select from global subject catalogue or define a new subject code, name, and mode (`theory`/`lab`).
+  - **Create Elective Group**: Specify Group Code, Group Name, Group Type, Subject Mode (`theory`/`lab`), Sequence Number, and Display Order.
+  - **Add Elective Subject**: Map specific theory or lab subjects into an existing elective group.
+  - **Edit Subject Details**: Update title and subject type in the global catalogue (`syllabus_subjects`).
+  - **Edit Elective Group**: Modify group name, mode, and sequence order dynamically.
+  - **Delete Mapping / Group**: Enforces relational guardrails via `ValidationService.checkSubjectBranchDependencies` — prevents deleting core mappings or elective groups if active student records or unremoved child subjects exist.
+- **Security & Authorization Boundaries**: Strict server-side verification in `/api/staff/hod/syllabus` ensures HODs can only manage curriculums belonging to their affiliated department branches (`authorizedBranches`).
+
+---
+
 ## Cross-References
 
 - [Authentication Architecture](../authentication/authentication.md)
 - [Authorization System & Fine-Grained RBAC](../authentication/authorization.md)
 - [Faculty Portal & Attendance Sheets](./faculty-pages.md)
+- [Database Schema (Academic Domain)](../database/schema.md#2-academic-domain)
 - [Student Portal Attendance View](./student-pages.md#3-subject-wise-attendance-analytics-studentattendance)

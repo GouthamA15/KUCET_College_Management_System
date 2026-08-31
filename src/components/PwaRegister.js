@@ -76,6 +76,7 @@ export default function PwaRegister() {
     // 2. Service Worker Lifecycle Management
     if ('serviceWorker' in navigator) {
       let refreshing = false;
+      let workerCleanup = null; // Stores cleanup returned by registerWorker
 
       // Handle service worker updates without reload loops
       navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -115,20 +116,37 @@ export default function PwaRegister() {
             reg.update().catch(() => {});
           }, 15 * 60 * 1000);
 
+          // Return cleanup so the useEffect teardown can release these resources
           return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             clearInterval(intervalId);
           };
         } catch (err) {
           console.warn('[PWA] ServiceWorker registration failed:', err);
+          return null;
         }
       };
 
       if (document.readyState === 'complete') {
-        registerWorker();
+        registerWorker().then((cleanup) => { workerCleanup = cleanup; });
       } else {
-        window.addEventListener('load', registerWorker);
+        const onLoad = () => {
+          registerWorker().then((cleanup) => { workerCleanup = cleanup; });
+        };
+        window.addEventListener('load', onLoad);
+        // Store onLoad for removal; overwrite workerCleanup to also remove the load listener
+        const previousCleanup = workerCleanup;
+        workerCleanup = () => {
+          window.removeEventListener('load', onLoad);
+          if (previousCleanup) previousCleanup();
+        };
       }
+
+      return () => {
+        window.removeEventListener('error', handleError);
+        window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+        if (workerCleanup) workerCleanup();
+      };
     }
 
     return () => {

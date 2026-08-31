@@ -109,7 +109,10 @@ export const POST = wrapHandler({
           studentId, 
           studentEmail: studentData.email, 
           studentName: studentData.name, 
-          rollNo 
+          rollNo,
+          branch: draft.branch,
+          entrance_exam: draft.entrance_exam,
+          admission_year: draft.admission_year
         };
       });
 
@@ -145,7 +148,14 @@ export const POST = wrapHandler({
 
       try {
         const { broadcastUpdate } = await import('@/lib/sse');
-        await broadcastUpdate('ADMISSION_DRAFT_FINALIZED', { id, studentId: result.studentId, rollNo: result.rollNo });
+        await broadcastUpdate('ADMISSION_DRAFT_FINALIZED', { 
+          id, 
+          studentId: result.studentId, 
+          rollNo: result.rollNo,
+          branch: result.branch,
+          entrance_exam: result.entrance_exam,
+          admission_year: result.admission_year
+        });
       } catch (_e) {
         /* non-blocking */
       }

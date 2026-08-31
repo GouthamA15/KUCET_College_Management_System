@@ -1,19 +1,40 @@
 'use client';
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { useStaff } from '@/context/StaffContext';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { AdmissionModal } from './AdmissionModal';
+import AdmissionWorkspaceFilter from './AdmissionWorkspaceFilter';
+import RealtimeListener from '@/components/RealtimeListener';
+import { 
+    getDefaultAdmissionWorkspace, 
+    normalizeAdmissionWorkspace, 
+    matchesAdmissionWorkspace 
+} from '@/lib/admission-workspace';
 
 const AdmissionRequestsPanel = () => {
-    const { admissionDrafts, isLoadingRequests, refreshAdmissionDrafts } = useStaff();
+    const searchParams = useSearchParams();
+    const router = useRouter();
+
+    const urlExam = searchParams.get('exam') || searchParams.get('entrance_exam') || searchParams.get('intakeExam');
+    const urlBranch = searchParams.get('branch') || searchParams.get('targetBranch');
+    const urlYear = searchParams.get('year') || searchParams.get('entryYear') || searchParams.get('admission_year');
+
+    const activeWorkspace = useMemo(() => {
+        const normalized = normalizeAdmissionWorkspace({
+            intakeExam: urlExam,
+            targetBranch: urlBranch,
+            entryYear: urlYear
+        });
+        return normalized || getDefaultAdmissionWorkspace();
+    }, [urlExam, urlBranch, urlYear]);
+
+    const [workspace, setWorkspace] = useState(activeWorkspace);
+    const [drafts, setDrafts] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [selectedDraftId, setSelectedDraftId] = useState(null);
     const [detail, setDetail] = useState(null);
     const [fetchingDetail, setFetchingDetail] = useState(false);
     const [processing, setProcessing] = useState(false);
-    
-    React.useEffect(() => {
-        refreshAdmissionDrafts();
-    }, [refreshAdmissionDrafts]);
     
     // Rejection state
     const [rejectionMode, setRejectionMode] = useState(false);
@@ -23,13 +44,74 @@ const AdmissionRequestsPanel = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditData] = useState({});
 
-    const drafts = [...(admissionDrafts || [])].sort((a, b) => {
-        const dateA = new Date(a.created_at || 0).getTime();
-        const dateB = new Date(b.created_at || 0).getTime();
-        if (dateA !== dateB) return dateB - dateA;
-        return (b.id || 0) > (a.id || 0) ? 1 : -1;
-    });
-    const loading = isLoadingRequests && drafts.length === 0;
+    // Sync workspace from URL when search params change externally (e.g. browser back/forward)
+    // Done inside useEffect to avoid setState-during-render cascades
+    const prevUrlExam = useRef(urlExam);
+    const prevUrlBranch = useRef(urlBranch);
+    const prevUrlYear = useRef(urlYear);
+    useEffect(() => {
+        if (
+            prevUrlExam.current !== urlExam ||
+            prevUrlBranch.current !== urlBranch ||
+            prevUrlYear.current !== urlYear
+        ) {
+            prevUrlExam.current = urlExam;
+            prevUrlBranch.current = urlBranch;
+            prevUrlYear.current = urlYear;
+            setWorkspace(activeWorkspace);
+        }
+    }, [urlExam, urlBranch, urlYear, activeWorkspace]);
+
+    const workspaceRef = useRef(workspace);
+    // Update ref inside effect — never during render — so realtime callbacks always see latest value
+    useEffect(() => {
+        workspaceRef.current = workspace;
+    }, [workspace]);
+
+    const fetchWorkspaceDrafts = useCallback(async (targetWs = workspaceRef.current) => {
+
+        if (!targetWs?.targetBranch || !targetWs?.intakeExam) return;
+        setLoading(true);
+        try {
+            const queryParams = new URLSearchParams({
+                status: 'DRAFT',
+                branch: targetWs.targetBranch,
+                entrance_exam: targetWs.intakeExam,
+                t: String(Date.now())
+            });
+            if (targetWs.entryYear) {
+                queryParams.set('entry_year', String(targetWs.entryYear));
+            }
+            const res = await fetch(`/api/staff/admission/drafts?${queryParams.toString()}`);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to fetch admission drafts.');
+            const sortedData = [...(data.data || [])].sort((a, b) => {
+                const dateA = new Date(a.created_at || 0).getTime();
+                const dateB = new Date(b.created_at || 0).getTime();
+                if (dateA !== dateB) return dateB - dateA;
+                return (b.id || 0) > (a.id || 0) ? 1 : -1;
+            });
+            setDrafts(sortedData);
+        } catch (error) {
+            toast.error(error.message);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchWorkspaceDrafts(workspace);
+    }, [workspace, fetchWorkspaceDrafts]);
+
+    const handleWorkspaceChange = (newWs) => {
+        setWorkspace(newWs);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('tab', 'admissions');
+        params.set('exam', newWs.intakeExam);
+        params.set('branch', newWs.targetBranch);
+        params.set('year', String(newWs.entryYear));
+        router.replace(`/staff/admission/requests?${params.toString()}`);
+    };
 
     const fetchDetail = useCallback(async (id) => {
         setFetchingDetail(true);
@@ -41,7 +123,7 @@ const AdmissionRequestsPanel = () => {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to fetch detail.');
             setDetail(data.data);
-            setEditData(data.data); // Initialize edit form
+            setEditData(data.data);
             setSelectedDraftId(id);
         } catch (error) {
             toast.error(error.message);
@@ -76,7 +158,7 @@ const AdmissionRequestsPanel = () => {
             setSelectedDraftId(null);
             setRejectionMode(false);
             setRejectionReason('');
-            refreshAdmissionDrafts();
+            fetchWorkspaceDrafts();
         } catch (error) {
             toast.error(error.message, { id: toastId });
         } finally {
@@ -114,7 +196,7 @@ const AdmissionRequestsPanel = () => {
             setSelectedDraftId(null);
             setIsEditing(false);
             setEditData({});
-            refreshAdmissionDrafts();
+            fetchWorkspaceDrafts();
         } catch (error) {
             toast.error(error.message);
         } finally {
@@ -135,10 +217,9 @@ const AdmissionRequestsPanel = () => {
                 throw new Error(data.error || 'Failed to update application.');
             }
             toast.success('Changes Saved Successfully');
-            // Refresh detail view
             setDetail({ ...editForm });
             setIsEditing(false);
-            refreshAdmissionDrafts();
+            fetchWorkspaceDrafts();
         } catch (err) {
             toast.error(err.message);
         } finally {
@@ -162,32 +243,62 @@ const AdmissionRequestsPanel = () => {
         setEditData(prev => ({ ...prev, [name]: val }));
     }, []);
 
+    // Realtime integration: Workspace-aware event dispatcher
+    const handleRealtimeUpdate = useCallback((data) => {
+        if (!data?.type) return;
+        const { type, payload } = data;
+
+        if ([
+            'ADMISSION_DRAFT_CREATED', 'ADMISSION_DRAFT_UPDATED', 'ADMISSION_DRAFT_FINALIZED', 'ADMISSION_DRAFT_DELETED',
+            'admission:created', 'admission:updated', 'admission:finalized', 'admission:deleted',
+            'admission:draft:created', 'admission:draft:updated', 'admission:draft:finalized', 'admission:draft:deleted'
+        ].includes(type)) {
+            // Workspace isolation: check if event payload matches current active workspace
+            if (!payload || matchesAdmissionWorkspace(payload, workspaceRef.current)) {
+                fetchWorkspaceDrafts(workspaceRef.current);
+            }
+        }
+    }, [fetchWorkspaceDrafts]);
+
     return (
         <div className="space-y-6">
+            <RealtimeListener onUpdate={handleRealtimeUpdate} />
+
+            {/* Canonical Admission Workspace Filter */}
+            <AdmissionWorkspaceFilter
+                workspace={workspace}
+                onChange={handleWorkspaceChange}
+                onRefresh={() => fetchWorkspaceDrafts(workspace)}
+                isLoading={loading}
+            />
+
             <div className="flex justify-between items-center px-1 mb-2">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-800">Admission Queue</h2>
-                  <p className="text-sm text-gray-500 mt-1">Review newly reported admission applications.</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Review newly reported admission applications for{' '}
+                    <span className="font-semibold text-[#0b3578]">{workspace.intakeExam}</span> •{' '}
+                    <span className="font-semibold text-[#0b3578]">{workspace.targetBranch}</span> •{' '}
+                    <span className="font-semibold text-[#0b3578]">{workspace.entryYear}</span>.
+                  </p>
                 </div>
-                <button 
-                    onClick={refreshAdmissionDrafts} 
-                    disabled={isLoadingRequests}
-                    className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors rounded-md shadow-sm cursor-pointer"
-                >
-                    <span className={`inline-block ${isLoadingRequests ? 'animate-spin' : ''}`}>↻</span> 
-                    {isLoadingRequests ? 'Syncing...' : 'Sync'}
-                </button>
             </div>
 
             <div className="space-y-4">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-20 text-gray-500 bg-slate-50 border border-slate-200 rounded-xl">
                         <div className="animate-spin h-6 w-6 border-2 border-[#0b3578] border-t-transparent rounded-full mb-4"></div>
-                        <p className="text-sm font-medium">Accessing Intake Records...</p>
+                        <p className="text-sm font-medium">Accessing {workspace.intakeExam} Intake Records...</p>
                     </div>
                 ) : drafts.length === 0 ? (
                     <div className="text-center py-20 text-gray-500 bg-slate-50 border border-slate-200 rounded-xl">
-                        <p className="text-sm font-medium">No pending admission requests.</p>
+                        <span className="text-4xl block mb-3 opacity-30">📂</span>
+                        <p className="text-sm font-medium text-gray-700">
+                            No pending admission requests found for {workspace.intakeExam} • {workspace.targetBranch} ({workspace.entryYear}).
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                            When new candidates submit applications for this branch and exam, they will appear here.
+                        </p>
                     </div>
                 ) : (
                     <div className="bg-slate-50/50 border border-slate-200 rounded-xl overflow-hidden shadow-sm">
@@ -203,11 +314,12 @@ const AdmissionRequestsPanel = () => {
                         <div className="divide-y divide-slate-200/70">
                             {drafts.map(draft => (
                                 <div key={draft.id} className="flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 px-4 md:px-6 py-4 md:py-3 md:items-center bg-white hover:bg-slate-50/80 transition-colors">
-                                    {/* Mobile labels & stacked layout vs Desktop grid */}
-                                    
                                     {/* Name */}
                                     <div className="md:col-span-4 flex flex-col md:block">
                                         <h3 className="font-medium text-slate-900 text-[15px] truncate">{draft.name}</h3>
+                                        <span className="text-[11px] text-gray-400 font-medium">
+                                            Rank: {draft.exam_rank || 'N/A'} • {draft.branch}
+                                        </span>
                                     </div>
                                     
                                     {/* App No */}

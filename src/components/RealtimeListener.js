@@ -37,6 +37,27 @@ function notifyEvent(eventData) {
 /**
  * Initializes and maintains a single centralized Socket.IO connection.
  */
+let isRefreshingToken = false;
+
+async function trySilentTokenRefresh() {
+  if (isRefreshingToken) return false;
+  isRefreshingToken = true;
+  try {
+    // Attempt to refresh all possible role tokens. The server ignores missing refresh tokens.
+    const res = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ type: 'staff' }),
+    });
+    return res.ok;
+  } catch (_e) {
+    return false;
+  } finally {
+    isRefreshingToken = false;
+  }
+}
+
 function ensureSocketConnection() {
   if (typeof window === 'undefined' || (sharedSocket && sharedSocket.connected)) return;
 
@@ -73,7 +94,27 @@ function ensureSocketConnection() {
   });
 
   sharedSocket.on('connect_error', (err) => {
-    console.warn('[Realtime] Socket connection error:', err.message);
+    const msg = err?.message || '';
+    const isAuthFailure =
+      msg.includes('Authentication') ||
+      msg.includes('exp') ||
+      msg.includes('expired') ||
+      msg.includes('Invalid or expired');
+
+    if (isAuthFailure) {
+      // Token may have expired — silently refresh, then let Socket.IO retry
+      console.info('[Realtime] Auth token expired — attempting silent refresh before reconnect');
+      trySilentTokenRefresh().then((refreshed) => {
+        if (refreshed) {
+          console.info('[Realtime] Token refreshed — reconnecting socket');
+        } else {
+          console.warn('[Realtime] Token refresh failed — socket will retry with existing credentials');
+        }
+        // Socket.IO reconnection loop will pick up the new cookie automatically on the next attempt
+      });
+    } else {
+      console.warn('[Realtime] Socket connection error:', msg);
+    }
     notifyStatus('error');
   });
 
