@@ -1,12 +1,12 @@
 # Database & Infrastructure Migration Log
 
-**Last Updated:** August 18, 2026  
+**Last Updated:** August 31, 2026  
 **Status:** Historical & Architectural Log  
-**Scope:** Drizzle ORM Schema Migrations (`0000` to `0013`), Storage Key Transformations, and Infrastructure Upgrades.
+**Scope:** Drizzle ORM Schema Migrations (`0000` to `0018`), Storage Key Transformations, and Infrastructure Upgrades.
 
 ---
 
-## 1. Drizzle ORM Migration Evolution (`0000` to `0013`)
+## 1. Drizzle ORM Migration Evolution (`0000` to `0018`)
 
 The database schema evolution is managed version-by-version using Drizzle Kit. Each migration SQL script in `drizzle/` represents a milestone in database structure and data integrity.
 

@@ -219,5 +219,5 @@ export const studentRequestImages = mysqlTable('student_request_images', {
 
 - Digital Certificate Engine: [certificates.md](./certificates.md)
 - Admission System & Draft Staging: [admissions.md](./admissions.md)
-- System Storage Architecture: [06_STORAGE_SYSTEM.md](../storage/06_STORAGE_SYSTEM.md)
-- User Authentication: [02_AUTHENTICATION.md](../authentication/02_AUTHENTICATION.md)
+- System Storage Architecture: [storage.md](../architecture/storage.md)
+- User Authentication: [authentication.md](../authentication/authentication.md)

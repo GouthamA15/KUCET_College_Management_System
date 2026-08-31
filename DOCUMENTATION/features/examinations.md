@@ -162,5 +162,5 @@ The marks intelligence engine (`/api/intelligence/analytics/marks`) computes rea
 
 - Proxy-Free Attendance System: [attendance.md](./attendance.md)
 - Academic Archival & Grade Archival: [reports.md](./reports.md)
-- Database Schemas: [03_DATABASE.md](../database/03_DATABASE.md)
-- User Authentication: [02_AUTHENTICATION.md](../authentication/02_AUTHENTICATION.md)
+- Database Schemas: [schema.md](../database/schema.md)
+- User Authentication: [authentication.md](../authentication/authentication.md)

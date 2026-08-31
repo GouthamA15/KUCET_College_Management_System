@@ -252,7 +252,7 @@ const result = await db.transaction(async (tx) => {
 
 ## 8. Cross-References
 
-- Database Schemas: [03_DATABASE.md](../database/03_DATABASE.md)
+- Database Schemas: [schema.md](../database/schema.md)
 - Storage Lifecycle & Media Promotion: [requests.md](./requests.md)
 - Institutional Certificates: [certificates.md](./certificates.md)
-- Identity & User Management: [02_AUTHENTICATION.md](../authentication/02_AUTHENTICATION.md)
+- Identity & User Management: [authentication.md](../authentication/authentication.md)

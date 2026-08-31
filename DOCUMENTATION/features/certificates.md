@@ -201,5 +201,5 @@ const stampUrl = await InstitutionAssetService.getAssetDataUrl('institution/seal
 
 - Student Requests Workflow: [requests.md](./requests.md)
 - Admissions System: [admissions.md](./admissions.md)
-- System Storage Architecture: [06_STORAGE_SYSTEM.md](../storage/06_STORAGE_SYSTEM.md)
-- Database Schema Documentation: [03_DATABASE.md](../database/03_DATABASE.md)
+- System Storage Architecture: [storage.md](../architecture/storage.md)
+- Database Schema Documentation: [schema.md](../database/schema.md)
