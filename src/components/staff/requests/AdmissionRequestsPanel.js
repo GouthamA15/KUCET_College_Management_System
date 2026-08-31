@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { AdmissionModal } from './AdmissionModal';
 import AdmissionWorkspaceFilter from './AdmissionWorkspaceFilter';
-import { RealtimeListener } from '@/components/staff/RealtimeListener';
+import RealtimeListener from '@/components/RealtimeListener';
 import { 
     getDefaultAdmissionWorkspace, 
     normalizeAdmissionWorkspace, 
