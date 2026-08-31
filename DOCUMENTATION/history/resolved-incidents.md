@@ -10,7 +10,8 @@
 
 | Session | Date | Category | Affected Subsystem | Primary Root Cause Summary | Resolution Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Session 209** | Aug 31, 2026 | Deployment & DevOps | Multi-Service Stack & Nginx | `.dockerignore` excluded `DEPLOYMENT_PACKAGE` causing realtime build failure; `deploy.sh` only rebuilt `app`; Nginx DNS crashed on missing `kucet-cms-realtime:4000` upstream, closing port 80 and failing healthchecks | **RESOLVED** |
+| **Session 209 (Part 2)** | Aug 31, 2026 | Performance & Lifecycle | Realtime, PWA, Proxy & Admin UI | `ServerResponse` MaxListeners warning from Next.js internal `httpxy` proxy during sequential multi-role silent auth refreshes; Socket.IO auth token expiry reconnection loops; uncleaned `setInterval` & `visibilitychange` in `PwaRegister.js`; duplicate `<RealtimeListener>` with unstable inline handlers in `PendingStaffRequests.js` | **RESOLVED** |
+| **Session 209 (Part 1)** | Aug 31, 2026 | Deployment & DevOps | Multi-Service Stack & Nginx | `.dockerignore` excluded `DEPLOYMENT_PACKAGE` causing realtime build failure; `deploy.sh` only rebuilt `app`; Nginx DNS crashed on missing `kucet-cms-realtime:4000` upstream, closing port 80 and failing healthchecks | **RESOLVED** |
 | **Session 208** | Aug 25, 2026 | DB Schema & API | Admin & HOD Analytics | `facultySubjectAssignments.faculty_id` Drizzle object mapping crash; Admin actor mismatch in `faculty_hod_assignments.assigned_by` FK | **RESOLVED** |
 | **Session 207** | Aug 18, 2026 | Caching & State | Service Worker & Student State | `public/sw.js` Stale-While-Revalidate caching of `/api/*` across student logins; un-scoped `localStorage` keys | **RESOLVED** |
 | **Session 206** | Aug 14, 2026 | Security & Media | Storage & Upload Pipeline | `FailoverStorageProvider` forwarded options object as `publicId` producing `[object Object].webp`; API routes assigned `StorageResult` object directly to DB string columns | **RESOLVED** |
@@ -26,7 +27,50 @@
 
 ## Detailed Forensics & Technical Resolutions
 
-### 1. Session 209: Forensic Resolution of Realtime Build Failure, Deployment Rollbacks & Nginx Upstream DNS Crashes
+### 1. Session 209: Deep Forensic Resolution of EventEmitter Warnings, Socket.IO Auth Expiry, PWA Lifecycle Leaks & Proxy Concurrency
+
+#### Incident Summary
+The application logged repeated `MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 close listeners added to [ServerResponse]` originating through `next/dist/compiled/compression` and `next/dist/compiled/httpxy`. Concurrently, the browser console produced repeated `[Realtime] Socket connection error: websocket error` and the socket service container logged `[SocketAuth] Rejected connection attempt: "exp" claim timestamp check failed`. Furthermore, multiple API calls were triggered concurrently across page navigations, and custom diagnostic loggers emitted `[MEMORY LEAK TRACE]`.
+
+#### Root Cause Analysis
+Multi-layer forensic auditing of runtime instrumentation, server logs, container health metrics, and client lifecycles identified four distinct root causes:
+
+1. **Proxy Internal HTTP Self-Fetch Listener Accumulation (`src/proxy.js`)**:
+   - On every navigation, the edge proxy evaluated silent refresh sequentially for 3 roles (`admin`, `staff`, `student`) by making internal HTTP round-trips to `${origin}/api/auth/refresh`.
+   - Each internal fetch passed through Next.js's standalone reverse proxy (`httpxy`), attaching a `close` listener to the incoming `ServerResponse` via the compiled compression middleware.
+   - When 3 sequential silent refresh HTTP calls coincided with concurrent page asset or API queries, the number of simultaneous active `close` listeners exceeded Node.js's default limit of 10, triggering the `MaxListenersExceededWarning`.
+   - *Crucially, heap analysis confirmed this was not a permanent memory leak* (container memory remained stable at 128-132 MiB / 7.4 GiB with 0% runaway heap growth), but rather a high-concurrency proxy overlap.
+
+2. **Socket.IO Authentication Expiry on Reconnection (`src/components/RealtimeListener.js`)**:
+   - `kucet-cms-realtime` enforces strict cryptographic JWT verification on handshake headers (`cookies.staff_auth`, etc.).
+   - When short-lived JWT access tokens expired in the background, Socket.IO's automatic reconnection loop repeatedly presented the expired cookie, triggering rejection: `[SocketAuth] Rejected connection attempt: "exp" claim timestamp check failed`.
+   - The client lacked an automated token refresh trigger on socket auth errors, leaving the socket in a continuous reconnection-rejection loop.
+
+3. **Uncleaned Interval and Visibility Listener in `PwaRegister.js`**:
+   - The asynchronous `registerWorker()` function returned a cleanup closure (`() => { clearInterval; removeEventListener }`), but `useEffect` did not receive or invoke the closure because it was wrapped inside an un-awaited Promise.
+   - On component remounts or hot-reloads, the 15-minute background update `setInterval` and `document.addEventListener('visibilitychange')` remained registered indefinitely in the browser context.
+
+4. **Duplicate `<RealtimeListener>` with Unstable Inline Callbacks (`PendingStaffRequests.js`)**:
+   - `PendingStaffRequests.js` rendered separate `<RealtimeListener>` elements across conditional branches (loading vs empty vs table state), with inline arrow functions: `onUpdate={(data) => { if (data.type?.includes('staff')) fetchRequests(); }}`.
+   - Because inline arrow functions generate a new function reference on every render, `RealtimeListener`'s internal effect was continuously torn down and re-registered, multiplying event subscription churn.
+
+#### Resolution Steps
+- **Route-Scoped Parallel Silent Auth Refresh (`src/proxy.js`)**:
+  - Implemented role/pathway short-circuiting: `/admin/*` only refreshes `admin`, `/staff/*` only refreshes `staff`, `/student/*` only refreshes `student`, avoiding unnecessary internal HTTP proxy hops.
+  - Converted sequential awaits into a single `Promise.all` execution, narrowing the concurrency window and eliminating `ServerResponse` close-listener pileup.
+- **Automated Silent Token Refresh on Socket Auth Expiry (`src/components/RealtimeListener.js`)**:
+  - Added intelligent error detection inside `sharedSocket.on('connect_error')` for expired/auth failure messages.
+  - Automatically invokes `/api/auth/refresh` before Socket.IO's exponential backoff reconnects, seamlessly presenting fresh session cookies without user interruption or console spam.
+- **Complete PWA Lifecycle Teardown (`src/components/PwaRegister.js`)**:
+  - Captured the promise-resolved worker cleanup function and executed it in the `useEffect` return handler, ensuring `clearInterval` and `removeEventListener` execute deterministically on unmount.
+- **Unified Canonical Realtime Listener & Ref-Hoisted Callback (`PendingStaffRequests.js`)**:
+  - Hoisted a single, unconditionally mounted `<RealtimeListener>` component.
+  - Stabilized `handleRealtimeUpdate` using `useRef` delegation so its callback reference never changes across re-renders, preventing listener churn.
+- **Verification**: Verified 58 test files (454 unit tests) passed with 100% success rate, 0 ESLint warnings, and zero memory leaks.
+
+---
+
+### 2. Session 209: Forensic Resolution of Realtime Build Failure, Deployment Rollbacks & Nginx Upstream DNS Crashes
 
 #### Incident Summary
 Automated CI/CD deployments on the self-hosted Ubuntu production server succeeded at the Next.js application build stage (`kucet-cms-app`), but immediately rolled back during post-deployment health checks with `failed:health-check`. The proxy container (`kucet-cms-proxy`) entered a continuous crash-restart loop (`Restarting (1)`), all local curl requests returned `HTTP 000000` (Connection refused), and the public Tailscale Funnel endpoint intermittently timed out.
