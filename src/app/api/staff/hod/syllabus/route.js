@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { syllabusSubjects, syllabusStructure, electiveGroups, electiveGroupSubjects, academicDepartments, academicPrograms } from '@/db/schema';
-import { eq, and, asc, or, like, sql } from 'drizzle-orm';
+import { eq, and, asc, or, like, sql, inArray } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { ValidationService } from '@/services/ValidationService';
 import { z } from 'zod';
@@ -109,7 +109,7 @@ export async function GET(req) {
       })
       .from(electiveGroupSubjects)
       .innerJoin(syllabusSubjects, eq(electiveGroupSubjects.subject_code, syllabusSubjects.subject_code))
-      .where(sql`${electiveGroupSubjects.group_id} IN (${sql.raw(groupIds.join(','))})`)
+      .where(inArray(electiveGroupSubjects.group_id, groupIds))
       .orderBy(asc(electiveGroupSubjects.display_order), asc(syllabusSubjects.subject_name));
     }
 

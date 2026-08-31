@@ -101,6 +101,7 @@ git checkout "$BRANCH" 2>&1
 git reset --hard "origin/$BRANCH" 2>&1
 NEW_COMMIT=$(git rev-parse HEAD)
 log "Code updated: $PREV_COMMIT → $NEW_COMMIT"
+chmod +x "$SCRIPTS_DIR"/*.sh 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # Create automated pre-migration database snapshot

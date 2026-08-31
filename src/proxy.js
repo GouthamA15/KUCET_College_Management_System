@@ -215,7 +215,7 @@ export default async function proxy(request) {
     if (!studentPayload) return handleUnauthorized(request);
     const isVerified = studentPayload.is_email_verified && studentPayload.has_password_set;
     const allowedForUnverified = pathname === '/student' || pathname === '/student/settings/security' || pathname === '/student/profile';
-    if (!isVerified && !allowedForUnverified) return NextResponse.redirect(new URL('/student', request.url), 303);
+    if (!isVerified && !allowedForUnverified) return NextResponse.redirect(new URL('/student/settings/security', request.url), 303);
   }
 
   return response;

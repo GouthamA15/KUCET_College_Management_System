@@ -10,11 +10,15 @@ export function AcademicsProvider({ children, roll }) {
     if (!roll) return;
     const key = `academics_cache_${roll}`;
     const raw = sessionStorage.getItem(key) || localStorage.getItem(key);
+    let timer = null;
     if (raw) {
       // Defer setState to avoid synchronous setState inside effect
       const parsed = safeJsonParse(raw, null);
-      setTimeout(() => setCache(parsed), 0);
+      timer = setTimeout(() => setCache(parsed), 0);
     }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [roll]);
 
   const saveCache = React.useCallback((payload) => {
