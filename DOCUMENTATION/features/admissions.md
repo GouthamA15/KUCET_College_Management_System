@@ -89,6 +89,39 @@ stateDiagram-v2
 
 ---
 
+## 3.1. Canonical Admission Workspace Architecture
+
+To prevent data drift and ensure that Admission Requests (`/staff/admission/requests?tab=admissions`) and Finalize Admissions (`/staff/admission/finalize`) operate on identical cohorts, the system establishes a canonical **Admission Workspace** concept defined in `@/lib/admission-workspace`:
+
+$$\text{Admission Workspace} = \text{Intake Exam} + \text{Target Branch} + \text{Entry Year}$$
+
+```mermaid
+flowchart TD
+    subgraph AdmissionWorkspace["Canonical Admission Workspace (Exam + Branch + Year)"]
+        Filter[AdmissionWorkspaceFilter Component]
+        Norm[normalizeAdmissionWorkspace & validateAdmissionWorkspace]
+    end
+
+    Filter -->|Query: DRAFT Status| ReqTab["Student Requests / Admission Intake (/staff/admission/requests)"]
+    Filter -->|Query: PROCESSED Status| FinPage["Finalize Admissions (/staff/admission/finalize)"]
+
+    ReqTab -->|Audit & Verify| DB[(student_admission_drafts)]
+    DB -->|Status: PROCESSED| FinPage
+    FinPage -->|Generate Roll & Finalize| LiveDB[(students table)]
+
+    SSE[WebSocket / SSE Realtime Broadcast] -->|Workspace-Aware Filter| ReqTab
+    SSE -->|Workspace-Aware Filter| FinPage
+```
+
+### Workspace Specifications & Rules
+1. **Intake Exam (`intakeExam`)**: Validated against `ADMISSION_EXAM_OPTIONS` (`TG EAPCET`, `TG ECET`).
+2. **Target Branch (`targetBranch`)**: Normalized to institutional branch codes (`CSE`, `CSD`, `ECE`, `EEE`, `CIVIL`, `IT`, `MECH`).
+3. **Entry Year (`entryYear`)**: 4-digit academic entry year (default: `getIntakeYear()`, e.g. `2026`).
+4. **URL-Addressable Navigation**: Workspaces are synchronized to URL query parameters (`?exam=TG+EAPCET&branch=CSE&year=2026`), allowing bookmarking, deep-linking, and browser back/forward navigation without full page reloads.
+5. **Realtime Isolation**: WebSocket/SSE broadcast events (`ADMISSION_DRAFT_CREATED`, `ADMISSION_DRAFT_UPDATED`, `ADMISSION_DRAFT_FINALIZED`, `ADMISSION_DRAFT_DELETED`) verify `matchesAdmissionWorkspace(payload, workspace)` before modifying local component queues, preventing cross-branch or cross-year data pollution.
+
+---
+
 ## 4. Alphanumeric Roll Number Generation Engine
 
 KUCET follows a precise institutional roll number format implemented in `src/lib/rollNumber.js`. The format distinguishes between **Regular 4-Year B.Tech** and **3-Year Lateral Entry B.Tech (TG ECET)** students.
