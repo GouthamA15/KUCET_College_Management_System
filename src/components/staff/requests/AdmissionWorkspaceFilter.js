@@ -12,6 +12,14 @@ export default function AdmissionWorkspaceFilter({
     subtitle = 'Select target branch and intake examination',
     actions = null,
 }) {
+    const [prevPropYear, setPrevPropYear] = React.useState(workspace?.entryYear);
+    const [yearInput, setYearInput] = React.useState(String(workspace?.entryYear ?? ''));
+
+    if (workspace?.entryYear !== prevPropYear) {
+        setPrevPropYear(workspace?.entryYear);
+        setYearInput(String(workspace?.entryYear ?? ''));
+    }
+
     const handleExamChange = (e) => {
         onChange({ ...workspace, intakeExam: e.target.value });
     };
@@ -21,7 +29,14 @@ export default function AdmissionWorkspaceFilter({
     };
 
     const handleYearChange = (e) => {
-        onChange({ ...workspace, entryYear: e.target.value });
+        const val = e.target.value;
+        setYearInput(val);
+        if (/^\d{4}$/.test(val)) {
+            const parsed = parseInt(val, 10);
+            if (parsed >= 2000 && parsed <= 2100) {
+                onChange({ ...workspace, entryYear: parsed });
+            }
+        }
     };
 
     return (
@@ -68,7 +83,7 @@ export default function AdmissionWorkspaceFilter({
                     <label className="block text-sm font-medium text-gray-400 mb-1.5">Entry Year</label>
                     <input
                         type="number"
-                        value={workspace?.entryYear ?? ''}
+                        value={yearInput}
                         onChange={handleYearChange}
                         disabled={isLoading}
                         className="w-full px-4 py-2 bg-gray-50 border border-gray-200 text-sm font-medium text-[#0b3578] focus:outline-none focus:ring-2 focus:ring-blue-100 rounded-md transition-all disabled:opacity-60"

@@ -382,7 +382,7 @@ The HOD Syllabus API endpoint provides zero-trust curriculum orchestration divid
 | Action Directive | Payload Schema Requirements | Database Mutation & Behavior |
 | :--- | :--- | :--- |
 | `ADD_CORE_SUBJECT` | `{ branch, semester, subject_code, subject_name, subject_type }` | Upserts `syllabus_subjects` and creates unique `syllabus_structure` mapping. |
-| `CREATE_ELECTIVE_GROUP` | `{ branch, semester, group_code, group_name, group_type, subject_mode, sequence_num, display_order }` | Inserts into `elective_groups` with unique `(branch, semester, group_code)` constraint. |
+| `ADD_ELECTIVE_GROUP` | `{ branch, semester, group_code, group_name, group_type, subject_mode, sequence_num, display_order }` | Inserts into `elective_groups` with unique `(branch, semester, group_code)` constraint. |
 | `ADD_ELECTIVE_SUBJECT` | `{ group_id, branch, subject_code, subject_name, subject_type }` | Upserts subject in catalogue and links to `elective_group_subjects`. |
 | `EDIT_SUBJECT` | `{ subject_code, subject_name, subject_type }` | Updates subject master metadata across all branches in `syllabus_subjects`. |
 | `EDIT_ELECTIVE_GROUP` | `{ id, branch, group_name, subject_mode, display_order }` | Modifies elective group configuration in `elective_groups`. |
@@ -391,7 +391,7 @@ The HOD Syllabus API endpoint provides zero-trust curriculum orchestration divid
 | `REMOVE_FROM_GROUP` | `{ egs_id, branch, subject_code }` | Removes individual subject mapping from `elective_group_subjects`. |
 
 ### Department Boundary & Relational Safety Guards
-1. **Authorized Branch Verification**: Every action resolves the authenticated HOD's affiliated branches (`staffAcademicAffiliations` JOIN `academicDepartments`) and rejects any request outside their branch domain with `403 Forbidden`.
+1. **Authorized Branch Verification**: Every action resolves the authenticated HOD's affiliated branches via `getHodUserAndBranches` (which joins `academicPrograms` with `academicDepartments` and derives branches from `user.hod_department_code` and `program_code` values) and rejects any request outside their branch domain with `403 Forbidden`.
 2. **Relational Deletion Locks**: Core mappings cannot be deleted if active student marks or attendance logs exist. Elective groups cannot be deleted until all assigned subjects are unlinked.
 
 ---

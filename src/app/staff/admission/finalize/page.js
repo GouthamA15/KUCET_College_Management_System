@@ -102,11 +102,13 @@ function FinalizeAdmissionContent() {
     }, [workspace, fetchVerifiedDrafts]);
 
     const handleWorkspaceChange = (newWs) => {
-        setWorkspace(newWs);
+        const validated = normalizeAdmissionWorkspace(newWs);
+        if (!validated) return;
+        setWorkspace(validated);
         const params = new URLSearchParams(searchParams.toString());
-        params.set('exam', newWs.intakeExam);
-        params.set('branch', newWs.targetBranch);
-        params.set('year', String(newWs.entryYear));
+        params.set('exam', validated.intakeExam);
+        params.set('branch', validated.targetBranch);
+        params.set('year', String(validated.entryYear));
         router.replace(`/staff/admission/finalize?${params.toString()}`);
     };
 

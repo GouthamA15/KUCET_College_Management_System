@@ -70,12 +70,12 @@ Equips HODs with full interactive curriculum configuration across semesters S1-S
     - `MANDATORY_NON_CREDIT` (e.g., Constitution of India, Environmental Science)
     - `OTHER`
 - **Interactive UI Modals (`SyllabusManager.js`)**:
-  - **Add Core Subject**: Search/select from global subject catalogue or define a new subject code, name, and mode (`theory`/`lab`).
+  - **Add Core Subject**: Manual entry of subject code, name, and subject type (`theory`/`lab`).
   - **Create Elective Group**: Specify Group Code, Group Name, Group Type, Subject Mode (`theory`/`lab`), Sequence Number, and Display Order.
-  - **Add Elective Subject**: Map specific theory or lab subjects into an existing elective group.
-  - **Edit Subject Details**: Update title and subject type in the global catalogue (`syllabus_subjects`).
-  - **Edit Elective Group**: Modify group name, mode, and sequence order dynamically.
-  - **Delete Mapping / Group**: Enforces relational guardrails via `ValidationService.checkSubjectBranchDependencies` — prevents deleting core mappings or elective groups if active student records or unremoved child subjects exist.
+  - **Add Elective Subject**: Map specific theory or lab subjects into an existing elective group (via catalogue search or manual entry).
+  - **Edit Subject Details**: Update title and subject type in the global catalogue (`syllabus_subjects`) with read-only subject code.
+  - **Edit Elective Group**: Modify group name, subject mode, and display order dynamically.
+  - **Delete Mapping / Group**: Core subject mapping deletion is guarded by `ValidationService.checkSubjectBranchDependencies`; elective group deletion is blocked if `elective_group_subjects` rows remain assigned to the group.
 - **Security & Authorization Boundaries**: Strict server-side verification in `/api/staff/hod/syllabus` ensures HODs can only manage curriculums belonging to their affiliated department branches (`authorizedBranches`).
 
 ---

@@ -178,7 +178,7 @@ export const PUT = wrapHandler({
         branch: updateObj.branch || currentDraft.branch,
         entrance_exam: updateObj.entrance_exam || currentDraft.entrance_exam,
         admission_year: currentDraft.admission_year,
-        ...updateObj 
+        status: updateObj.status || currentDraft.status,
       });
     } catch (_e) {
       /* non-blocking */

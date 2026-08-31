@@ -215,24 +215,17 @@ Stores curriculum data, syllabus structures, elective group buckets, academic ca
 Global subject catalogue defining all theoretical and laboratory subjects across regulations.
 - `subject_code` (`VARCHAR(50)`, PK) — unique identifier (e.g. `CS501PC`, `EC302ES`)
 - `subject_name` (`VARCHAR(255)`, Not Null) — subject title
-- `subject_type` (`ENUM('theory', 'lab')`, Default: `'theory'`, Not Null)
-- `credits` (`DECIMAL(3,1)`, Default: `3.0`)
-- `lecture_hours` (`INT`, Default: `3`)
-- `tutorial_hours` (`INT`, Default: `0`)
-- `practical_hours` (`INT`, Default: `0`)
-- `is_elective` (`BOOLEAN`, Default: `false`)
-- `created_at` (`TIMESTAMP`, Default: `NOW()`)
+- `subject_type` (`ENUM('theory', 'lab')`, Not Null)
 
 ### Table: `syllabus_structure`
 Branch and semester curriculum mapping for core subjects.
 - `id` (`INT`, PK, Auto-Increment)
 - `branch` (`VARCHAR(50)`, Not Null) — Department branch (e.g. `CSE`, `ECE`, `EEE`, `MECH`, `CIVIL`, `CSD`, `IT`)
 - `semester` (`TINYINT`, Not Null) — Semester index (1 through 8)
-- `subject_code` (`VARCHAR(50)`, Not Null, Index: `idx_syllabus_subject_code`) → FK `syllabus_subjects.subject_code`
-- `regulation` (`VARCHAR(20)`, Default: `'R22'`)
-- `is_mandatory` (`BOOLEAN`, Default: `true`)
-- `display_order` (`INT`, Default: `0`)
-- `created_at` (`TIMESTAMP`, Default: `NOW()`)
+- `subject_code` (`VARCHAR(50)`, Not Null) → FK `syllabus_subjects.subject_code` (`onDelete: 'restrict'`)
+- `is_group` (`BOOLEAN`, Default: `false`)
+- `parent_group_code` (`VARCHAR(50)`)
+- **Indexes:** `branch` on `(branch, semester)`, `subject_code` on `subject_code`
 - **Unique Index:** `unique_mapping` on `(branch, semester, subject_code)`
 
 ### Table: `elective_groups` *(New)*

@@ -3,7 +3,7 @@ import { db } from '@/db';
 import { studentAdmissionDrafts } from '@/db/schema';
 import { and, asc } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { normalizeAdmissionWorkspace, buildAdmissionWorkspaceConditions } from '@/lib/admission-workspace';
+import { buildAdmissionWorkspaceConditions } from '@/lib/admission-workspace';
 
 export async function GET(req) {
   const user = await getAuthUser('admission');
@@ -22,24 +22,41 @@ export async function GET(req) {
       return apiError('Invalid status parameter', 400);
     }
 
-    // Try workspace normalization if workspace parameters provided
-    const workspace = (branch || entranceExam || entryYear)
-      ? normalizeAdmissionWorkspace({
-          intakeExam: entranceExam,
-          targetBranch: branch,
-          entryYear: entryYear
-        })
-      : null;
+    let effectiveWorkspace = null;
+    if (branch || entranceExam || entryYear) {
+      const { COLLEGE_CONFIG } = await import('@/lib/college-config');
+      const { ADMISSION_EXAM_OPTIONS } = await import('@/lib/admission-workspace');
+      effectiveWorkspace = {};
 
-    // If client supplied workspace query parameters but they were invalid, return error or empty
-    if ((branch || entranceExam || entryYear) && !workspace) {
-      return apiError('Invalid workspace parameters provided (intake exam, branch, or entry year).', 400);
+      if (branch) {
+        const match = COLLEGE_CONFIG.branches.find(b => b.name.toUpperCase() === branch.trim().toUpperCase());
+        if (!match) {
+          return apiError('Invalid workspace branch parameter provided.', 400);
+        }
+        effectiveWorkspace.targetBranch = match.name.toUpperCase();
+      }
+
+      if (entranceExam) {
+        const match = ADMISSION_EXAM_OPTIONS.find(opt => opt.toUpperCase() === entranceExam.trim().toUpperCase());
+        if (!match) {
+          return apiError('Invalid workspace entrance exam parameter provided.', 400);
+        }
+        effectiveWorkspace.intakeExam = match;
+      }
+
+      if (entryYear) {
+        const parsedYear = parseInt(String(entryYear).trim(), 10);
+        if (isNaN(parsedYear) || parsedYear < 2000 || parsedYear > 2100) {
+          return apiError('Invalid workspace entry year parameter provided.', 400);
+        }
+        effectiveWorkspace.entryYear = parsedYear;
+      }
     }
 
     // Build conditions using canonical helper
     const conditions = buildAdmissionWorkspaceConditions(
       studentAdmissionDrafts,
-      workspace,
+      effectiveWorkspace,
       status
     );
 
@@ -60,7 +77,7 @@ export async function GET(req) {
     .where(and(...conditions))
     .orderBy(asc(studentAdmissionDrafts.name));
     
-    return apiResponse({ data: drafts, workspace: workspace || null });
+    return apiResponse({ data: drafts, workspace: effectiveWorkspace || null });
 
   } catch (error) {
     logger.error('Error fetching admission drafts:', error);

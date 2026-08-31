@@ -151,7 +151,7 @@ See [Session 207 Complete Change Analysis](./session-207-testvanilla-changes.md)
 - **Elective Groups & Curriculum Structure (`src/db/schema/academic.js`)**:
   - Introduced `elective_groups` table with `group_type` enum (`PROFESSIONAL_ELECTIVE`, `OPEN_ELECTIVE`, `MANDATORY_NON_CREDIT`, `OTHER`), `subject_mode` (`theory`/`lab`), sequence numbers, and unique constraint on `(branch, semester, group_code)`.
   - Introduced `elective_group_subjects` junction table with foreign keys to `elective_groups.id` and `syllabus_subjects.subject_code` with `onDelete: 'restrict'`.
-  - Upgraded `/api/staff/hod/syllabus` with full CRUD action dispatcher (`ADD_CORE_SUBJECT`, `CREATE_ELECTIVE_GROUP`, `ADD_ELECTIVE_SUBJECT`, `EDIT_SUBJECT`, `EDIT_ELECTIVE_GROUP`, `DELETE_CORE_MAPPING`, `DELETE_ELECTIVE_GROUP`, `REMOVE_FROM_GROUP`) and authorized branch boundaries.
+  - Upgraded `/api/staff/hod/syllabus` with full CRUD action dispatcher (`ADD_CORE_SUBJECT`, `ADD_ELECTIVE_GROUP`, `ADD_ELECTIVE_SUBJECT`, `EDIT_SUBJECT`, `EDIT_ELECTIVE_GROUP`, `DELETE_CORE_MAPPING`, `DELETE_ELECTIVE_GROUP`, `REMOVE_FROM_GROUP`) and authorized branch boundaries.
   - Revamped `SyllabusManager.js` UI with interactive modals, Theory/Lab badges, and real-time state synchronization.
 - **Docker Compose Multi-Service Lifecycle**:
   - Updated `deploy.sh` and `rollback.sh` to build and manage both `app` and `realtime` containers concurrently (`up -d --build --no-deps app realtime`).
