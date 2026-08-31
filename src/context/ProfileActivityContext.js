@@ -100,7 +100,7 @@ export function ProfileActivityProvider({ children }) {
     return () => {
       mounted = false;
     };
-  }, [rollno, seenRequestId, seenStatus]);
+  }, [rollno]);
 
   // Student activity (scholarship thumb + hardcopy notifications)
   useEffect(() => {

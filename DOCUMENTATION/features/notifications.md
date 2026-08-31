@@ -216,7 +216,7 @@ export const notificationPreferences = mysqlTable('notification_preferences', {
 
 ## 6. Cross-References
 
-- User Security & Authentication: [02_AUTHENTICATION.md](../authentication/02_AUTHENTICATION.md)
+- User Security & Authentication: [authentication.md](../authentication/authentication.md)
 - Student Requests System: [requests.md](./requests.md)
 - Attendance System: [attendance.md](./attendance.md)
-- Database Security Schema: [03_DATABASE.md](../database/03_DATABASE.md)
+- Database Security Schema: [schema.md](../database/schema.md)

@@ -43,12 +43,23 @@ async function trySilentTokenRefresh() {
   if (isRefreshingToken) return false;
   isRefreshingToken = true;
   try {
-    // Attempt to refresh all possible role tokens. The server ignores missing refresh tokens.
+    // Dynamically detect user type from client-accessible companion cookies
+    let userType = 'staff';
+    if (typeof document !== 'undefined') {
+      const cookies = document.cookie || '';
+      if (cookies.includes('admin_logged_in=true') || cookies.includes('admin_auth')) {
+        userType = 'admin';
+      } else if (cookies.includes('student_logged_in=true') || cookies.includes('student_auth')) {
+        userType = 'student';
+      } else if (cookies.includes('staff_logged_in=true') || cookies.includes('staff_auth')) {
+        userType = 'staff';
+      }
+    }
+
     const res = await fetch('/api/auth/refresh', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ type: 'staff' }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: userType })
     });
     return res.ok;
   } catch (_e) {

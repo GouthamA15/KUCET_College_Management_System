@@ -75,17 +75,47 @@ All real-time events are defined canonically in `src/lib/events/realtime-events.
 
 ## 3. Security & Room Isolation
 
-1. **Authentication during Handshake:** Socket.IO connection handshakes extract session cookies (`admin_auth`, `staff_auth`, `student_auth`) and verify JWT signatures with `JWT_SECRET`. Unauthenticated connections are rejected.
+1. **Authentication during Handshake:** Socket.IO connection handshakes extract session cookies (`admin_auth`, `staff_auth`, `student_auth`) or Bearer authorization headers and verify JWT signatures via `jose` using `JWT_SECRET`. Unauthenticated connections are rejected immediately with HTTP 401.
 2. **Room Assignment:**
-   - `admin`: Joins `role:admin`, `channel:admissions`, `channel:requests`, `channel:staff`, `channel:students`, `channel:stats`, `user:admin:<id>`.
-   - `staff`: Joins `role:staff`, `role:<role>`, `dept:<branch>`, `user:staff:<id>`.
-   - `student`: Joins `role:student`, `student:<roll_no>`, `user:student:<id>`.
+   - `admin`: Automatically joins `role:admin`, `channel:admissions`, `channel:requests`, `channel:staff`, `channel:students`, `channel:stats`, `user:admin:<id>`.
+   - `staff`: Automatically joins `role:staff`, `role:<role>`, `dept:<branch>`, `user:staff:<id>`.
+   - `student`: Automatically joins `role:student`, `student:<roll_no>`, `user:student:<id>`.
 3. **Zero PII in Real-Time Broadcasts:** Payloads broadcast only resource IDs and event types (e.g. `{ id: 123, type: 'BONAFIDE' }`). Clients refetch detailed entities through authorized, Zod-validated API routes.
 
 ---
 
-## 4. Containerization & Production Resilience
+## 4. Frontend Singleton Management (`RealtimeListener.js`)
 
-- Dedicated Docker service `kucet-cms-realtime` running Alpine Node 20 on port 4000.
-- Docker Compose configured with `restart: unless-stopped` and active HTTP `/health` healthcheck.
-- Nginx reverse proxy routes `/socket.io/` with `Upgrade` and `Connection` headers and `proxy_read_timeout 86400s`.
+To prevent multiple redundant WebSocket connections and memory leaks across page navigations, the client uses a resilient singleton pattern:
+
+1. **Shared Socket Connection:** A single Socket.IO client instance (`sharedSocket`) is created and reused across all mounted React components and contexts.
+2. **Dynamic Subscription Handlers:** Components register event callbacks using `registerHandler(event, callback)`. When components unmount, callbacks are cleanly detached from the subscriber set without closing the underlying socket.
+3. **Automatic Silent Auth Recovery:** On `connect_error` or authentication expiration, `RealtimeListener` coordinates with `proxy.js` to refresh tokens and seamlessly reconnect.
+4. **Exponential Backoff:** Reconnection uses randomized exponential backoff (`reconnectionDelay: 1000`, `reconnectionDelayMax: 5000`) to avoid thundering herd reconnection storms.
+
+---
+
+## 5. CircuitBreaker & Database-First Invariant
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       DATABASE SOURCE OF TRUTH INVARIANT                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 1. All entity mutations MUST commit to MySQL/TiDB first.                   │
+│ 2. Realtime broadcast is published only AFTER successful transaction commit.│
+│ 3. If Redis/Socket server is unreachable, CircuitBreaker catches the error  │
+│    and logs a warning, allowing the HTTP API response to return 200 OK.     │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+1. **Transaction Independence:** Realtime broadcasting never blocks database transactions. If `RedisRealtimeProvider.broadcast()` fails, the database write remains committed and intact.
+2. **CircuitBreaker Integration:** The Redis client in `src/providers/realtime/RedisRealtimeProvider.js` is wrapped in a `CircuitBreaker`. When Redis is down or unreachable, the circuit opens, failing fast without incurring connection timeouts on user requests.
+
+---
+
+## 6. Containerization & Production Resilience
+
+- **Dedicated Service:** Docker service `kucet-cms-realtime` running Alpine Node 20 on port 4000 (`DEPLOYMENT_PACKAGE/CONFIGS/socket-server.js`).
+- **Health Probing:** Docker Compose configured with `restart: unless-stopped` and active HTTP `/health` healthcheck probing every 10 seconds.
+- **Nginx Ingress Routing:** Nginx reverse proxy maps `/socket.io/` to `realtime_upstream:4000` with WebSocket upgrade headers (`Upgrade: $http_upgrade`, `Connection: "upgrade"`) and `proxy_read_timeout 86400s`.
+- **Remote HTTPS Ingress:** Remote clients connecting through public Tailscale Funnel connect to same-origin `wss://.../socket.io/` without exposing raw port 4000 to the public internet.

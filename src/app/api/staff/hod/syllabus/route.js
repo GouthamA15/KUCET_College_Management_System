@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { syllabusSubjects, syllabusStructure, electiveGroups, electiveGroupSubjects, academicDepartments, academicPrograms } from '@/db/schema';
-import { eq, and, asc, or, like, sql } from 'drizzle-orm';
+import { eq, and, asc, or, like, sql, inArray } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { ValidationService } from '@/services/ValidationService';
 import { z } from 'zod';
@@ -109,7 +109,7 @@ export async function GET(req) {
       })
       .from(electiveGroupSubjects)
       .innerJoin(syllabusSubjects, eq(electiveGroupSubjects.subject_code, syllabusSubjects.subject_code))
-      .where(sql`${electiveGroupSubjects.group_id} IN (${sql.raw(groupIds.join(','))})`)
+      .where(inArray(electiveGroupSubjects.group_id, groupIds))
       .orderBy(asc(electiveGroupSubjects.display_order), asc(syllabusSubjects.subject_name));
     }
 
@@ -291,15 +291,19 @@ export async function POST(req) {
       if (!group.length) return apiError('Elective group not found', 404);
       if (!authorizedBranches.includes(group[0].branch)) return apiError('Forbidden - Group belongs to unauthorized branch', 403);
 
+      // Check for duplicate before starting transaction
+      const existing = await db.select({ id: electiveGroupSubjects.id }).from(electiveGroupSubjects)
+        .where(and(eq(electiveGroupSubjects.group_id, group_id), eq(electiveGroupSubjects.subject_code, subject_code)))
+        .limit(1);
+      if (existing.length) {
+        return apiError(`Subject ${subject_code} already exists in this elective group`, 409);
+      }
+
       await db.transaction(async (tx) => {
         // Upsert the subject in global catalogue
         await tx.insert(syllabusSubjects).values({ subject_code, subject_name, subject_type })
           .onDuplicateKeyUpdate({ set: { subject_name, subject_type } });
         // Add to group
-        const existing = await tx.select({ id: electiveGroupSubjects.id }).from(electiveGroupSubjects)
-          .where(and(eq(electiveGroupSubjects.group_id, group_id), eq(electiveGroupSubjects.subject_code, subject_code)))
-          .limit(1);
-        if (existing.length) throw new Error(`Subject ${subject_code} already exists in this elective group`);
         await tx.insert(electiveGroupSubjects).values({ group_id, subject_code, display_order: 0 });
       });
       return apiResponse({ success: true, message: 'Subject added to elective group' });
@@ -354,6 +358,25 @@ export async function POST(req) {
     if (action === 'REMOVE_FROM_GROUP') {
       const { egs_id, branch, subject_code } = validated.payload;
       if (!authorizedBranches.includes(branch)) return apiError('Forbidden', 403);
+
+      const mapping = await db.select({
+        id: electiveGroupSubjects.id,
+        group_id: electiveGroupSubjects.group_id,
+        branch: electiveGroups.branch
+      })
+      .from(electiveGroupSubjects)
+      .innerJoin(electiveGroups, eq(electiveGroupSubjects.group_id, electiveGroups.id))
+      .where(eq(electiveGroupSubjects.id, egs_id))
+      .limit(1);
+
+      if (!mapping.length) {
+        return apiError('Elective subject mapping not found', 404);
+      }
+
+      if (!authorizedBranches.includes(mapping[0].branch)) {
+        return apiError('Forbidden - Outside authorized branches', 403);
+      }
+
       await db.delete(electiveGroupSubjects).where(eq(electiveGroupSubjects.id, egs_id));
       return apiResponse({ success: true, message: `${subject_code} removed from group` });
     }
@@ -364,6 +387,6 @@ export async function POST(req) {
       return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
     }
     logger.error({ err: error }, 'HOD Syllabus POST Error');
-    return apiError(error.message || 'Internal Server Error', 500);
+    return apiError('Internal Server Error', 500);
   }
 }

@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentAdmissionDrafts, students, staffAccounts, studentPersonalDetails } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and, ne } from 'drizzle-orm';
 import { apiError, apiResponse } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
 import { getNow } from '@/lib/clock';
@@ -100,36 +100,48 @@ export async function POST(req) {
       is_current_same_as_permanent, pfp, signature, legal_consent: _legal_consent
     } = validatedData;
     
-    // 1. Email Uniqueness Check (Plain text)
+    // 1. Email Uniqueness Check (Exclude REJECTED drafts so student can re-apply)
     if (email) {
-        const emailInDraft = await db.query.studentAdmissionDrafts.findFirst({ where: eq(studentAdmissionDrafts.email, email) });
+        const emailInDraft = await db.query.studentAdmissionDrafts.findFirst({ 
+          where: and(
+            eq(studentAdmissionDrafts.email, email),
+            ne(studentAdmissionDrafts.status, 'REJECTED')
+          )
+        });
         const emailInStudent = await db.query.students.findFirst({ where: eq(students.email, email) });
         const emailInStaff = await db.query.staffAccounts.findFirst({ where: eq(staffAccounts.email, email) });
         
         if (emailInDraft || emailInStudent || emailInStaff) {
-            // ─── FIX #9: Generic message — was "email is already registered" which allows email enumeration ───
             return apiError('Please check your details and try again.', 409);
         }
     }
 
-    // 2. Mobile Uniqueness Check (Using Blind Index)
+    // 2. Mobile Uniqueness Check (Exclude REJECTED drafts)
     const mobileHash = hashForIndex(student_mobile);
-    const mobileInDraft = await db.query.studentAdmissionDrafts.findFirst({ where: eq(studentAdmissionDrafts.mobile_hash, mobileHash) });
+    const mobileInDraft = await db.query.studentAdmissionDrafts.findFirst({ 
+      where: and(
+        eq(studentAdmissionDrafts.mobile_hash, mobileHash),
+        ne(studentAdmissionDrafts.status, 'REJECTED')
+      )
+    });
     const mobileInStudent = await db.query.students.findFirst({ where: eq(students.mobile_hash, mobileHash) });
     
     if (mobileInDraft || mobileInStudent) {
-        // ─── FIX #9: Generic message — was "mobile already in use" which allows mobile enumeration ───
         return apiError('Please check your details and try again.', 409);
     }
 
-    // 3. Aadhaar Uniqueness Check (Using Blind Index)
+    // 3. Aadhaar Uniqueness Check (Exclude REJECTED drafts)
     if (aadhaar_no) {
         const aHash = hashForIndex(aadhaar_no);
-        const aadhaarInDraft = await db.query.studentAdmissionDrafts.findFirst({ where: eq(studentAdmissionDrafts.aadhaar_hash, aHash) });
+        const aadhaarInDraft = await db.query.studentAdmissionDrafts.findFirst({ 
+          where: and(
+            eq(studentAdmissionDrafts.aadhaar_hash, aHash),
+            ne(studentAdmissionDrafts.status, 'REJECTED')
+          )
+        });
         const aadhaarInStudent = await db.query.studentPersonalDetails.findFirst({ where: eq(studentPersonalDetails.aadhaar_hash, aHash) });
         
         if (aadhaarInDraft || aadhaarInStudent) {
-            // ─── FIX #9: Generic message — was "Aadhaar already registered" which allows Aadhaar enumeration ───
             return apiError('Please check your details and try again.', 409);
         }
     }

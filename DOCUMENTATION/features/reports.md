@@ -142,7 +142,7 @@ graph LR
 
 ## 6. Cross-References
 
-- Database Archive Schemas: [03_DATABASE.md](../database/03_DATABASE.md)
+- Database Archive Schemas: [schema.md](../database/schema.md)
 - Internal Marks & Examinations: [examinations.md](./examinations.md)
 - Proxy-Free Attendance System: [attendance.md](./attendance.md)
 - Financial & Fee Management System: [fees.md](./fees.md)

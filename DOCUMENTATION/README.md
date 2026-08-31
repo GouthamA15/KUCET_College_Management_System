@@ -20,20 +20,23 @@ DOCUMENTATION/
 │   ├── system-architecture.md                 # High-Level Architecture, DDD, & Core Stack
 │   ├── frontend.md                            # React 19 RSC, Tailwind CSS 4, Client State, Optimistic UI
 │   ├── backend.md                             # Node.js 20 ESM, wrapHandler, Services, Pino Logging
-│   ├── database.md                            # TiDB Cloud MySQL, Drizzle ORM, Connection Pooling
-│   ├── storage.md                             # Strategy Pattern Storage, Cloudinary CDN, Local Fallback
-│   ├── deployment.md                          # Hostinger VPS, Docker Compose, Nginx Reverse Proxy
+│   ├── database.md                            # Hybrid MySQL 8.0 & TiDB Cloud, Drizzle ORM, Schemas
+│   ├── realtime-system.md                     # Socket.IO Gateway, Redis Pub/Sub, Client Singleton
+│   ├── storage.md                             # Strategy Pattern Storage, Cloudinary CDN, Local NVMe
+│   ├── deployment.md                          # Hostinger VPS / Ubuntu Server, Docker Compose, Nginx
+│   ├── production-resilience-and-monitoring.md# Uptime Kuma, Health Probing, Sentry, Telemetry
+│   ├── tailscale-and-caching.md               # Tailscale Funnel Public Ingress & Cache Invalidation
 │   └── solutions-architect-audit-report.md    # Frontend RSC, Server Action & Performance Audit
 │
 ├── authentication/                            # Security, Identity & Session Management
-│   ├── authentication.md                      # JWT jose Auth, Multi-Role Cookies, Token Flow
+│   ├── authentication.md                      # JWT jose Auth, Multi-Role Cookies, Silent Token Flow
 │   ├── authorization.md                       # Zero-Trust RBAC Matrix, Role Boundaries
 │   └── session-management.md                  # Active Sessions Table, SSE Remote Revocation, Logout
 │
 ├── database/                                  # Database Schemas & Migrations
 │   ├── schema.md                              # Identity, Academic, Operations, Finance, Security Schemas
-│   ├── migrations.md                          # Safe 4-Step Drizzle Migration Standard (0000-0015)
-│   └── backup-strategy.md                     # Automated 02:30 AM Backups, 14-Day Retention, Guarded Restore, Hybrid MySQL/TiDB
+│   ├── migrations.md                          # Safe 4-Step Drizzle Migration Standard (0000-0018)
+│   └── backup-strategy.md                     # Automated 02:30 AM Backups, 14-Day Retention, Safe Restore
 │
 ├── deployment/                                # Infrastructure & Server Operations
 │   ├── vps.md                                 # Hostinger Ubuntu VPS Provisioning & Hardening
@@ -51,7 +54,7 @@ DOCUMENTATION/
 │
 ├── features/                                  # Detailed Feature Domain Specifications
 │   ├── staff-management.md                    # Staff Onboarding Wizard, Admin Approval, HOD Matrix
-│   ├── admissions.md                          # Multi-Stage Admission Engine, Roll Number Generator
+│   ├── admissions.md                          # Multi-Stage Admission Engine, Soft Rejections, Restore
 │   ├── attendance.md                          # 4-Mode Attendance: Manual, PIN, GPS Geofence, QR
 │   ├── certificates.md                        # React-PDF Generator, HMAC Signing, QR Verification
 │   ├── examinations.md                        # Internal Assessment & Mid-Exam Marks Entry
@@ -76,17 +79,22 @@ DOCUMENTATION/
 │
 ├── history/                                   # Historical Audits, ADRs & Release Notes
 │   ├── architectural-decisions.md             # System Architectural Decision Records (ADRs)
-│   ├── migration-history.md                   # Database Migrations Log (0000_... to 0015_...)
+│   ├── migration-history.md                   # Database Migrations Log (0000_... to 0018_...)
 │   ├── resolved-incidents.md                  # Forensic Post-Mortems (Sessions 176 - 205)
+│   ├── official-hosting-budget-and-migration-plan.md # Official Infrastructure Budget & Selection ADR
 │   ├── old-cloudinary-migration.md            # Legacy Cloudinary Migration Forensics
 │   ├── session-206-release-notes.md           # Session 206 Changelog (Web Push, QStash, Sentry)
 │   ├── session-207-testvanilla-changes.md     # Session 207 Staff Restructure & Schema Forensics
-│   └── session-207-pr-changes-and-workflow-audit.md # PR & Workflow Audit
+│   ├── session-207-pr-changes-and-workflow-audit.md # PR & Workflow Audit
+│   ├── session-207-hard-clerk-to-staff-migration.md # Hard Clerk to Staff Migration
+│   ├── session-207-final-hard-break-and-faculty-attendance.md # Final Break & Faculty Attendance
+│   └── session-210-comprehensive-system-audit.md # Complete 53-Section Architectural Audit
 │
 └── troubleshooting/                           # Diagnostics & Operational Runbooks
     ├── debugging-guide.md                     # Step-by-Step Problem Resolution Playbook
     ├── common-errors.md                       # Known Error Codes, Root Causes & Fixes
-    └── known-issues.md                        # Active Workarounds & Platform Considerations
+    ├── known-issues.md                        # Active Workarounds & Platform Considerations
+    └── navigation-and-state-lifecycle.md      # Navigation & Context Lifecycle Runbook
 ```
 
 ---
@@ -97,8 +105,10 @@ DOCUMENTATION/
 | :--- | :--- | :--- |
 | **System Overview & DDD Layers** | [`architecture/system-architecture.md`](./architecture/system-architecture.md) | [`architecture/backend.md`](./architecture/backend.md), [`development/project-conventions.md`](./development/project-conventions.md) |
 | **Frontend, React 19 & RSC** | [`architecture/frontend.md`](./architecture/frontend.md) | [`architecture/solutions-architect-audit-report.md`](./architecture/solutions-architect-audit-report.md), [`development/ui-guidelines.md`](./development/ui-guidelines.md) |
+| **Real-Time WebSocket & Redis** | [`architecture/realtime-system.md`](./architecture/realtime-system.md) | [`features/notifications.md`](./features/notifications.md), [`architecture/production-resilience-and-monitoring.md`](./architecture/production-resilience-and-monitoring.md) |
 | **Authentication & Cookie Engine** | [`authentication/authentication.md`](./authentication/authentication.md) | [`authentication/session-management.md`](./authentication/session-management.md), [`authentication/authorization.md`](./authentication/authorization.md) |
 | **Database Schema & ORM** | [`database/schema.md`](./database/schema.md) | [`database/migrations.md`](./database/migrations.md), [`architecture/database.md`](./architecture/database.md) |
+| **Disaster Recovery & Backups** | [`database/backup-strategy.md`](./database/backup-strategy.md) | [`architecture/database.md`](./architecture/database.md), [`history/migration-history.md`](./history/migration-history.md) |
 | **Storage Strategy & Relative Keys** | [`architecture/storage.md`](./architecture/storage.md) | [`storage/file-storage.md`](./storage/file-storage.md), [`storage/uploads.md`](./storage/uploads.md) |
 | **Staff & Faculty Onboarding** | [`features/staff-management.md`](./features/staff-management.md) | [`pages/staff-pages.md`](./pages/staff-pages.md), [`pages/faculty-pages.md`](./pages/faculty-pages.md) |
 | **HOD Matrix & Timetables** | [`pages/hod-pages.md`](./pages/hod-pages.md) | [`features/attendance.md`](./features/attendance.md), [`features/examinations.md`](./features/examinations.md) |
@@ -107,8 +117,8 @@ DOCUMENTATION/
 | **Certificates & Verification** | [`features/certificates.md`](./features/certificates.md) | [`features/requests.md`](./features/requests.md), [`pages/student-pages.md`](./pages/student-pages.md) |
 | **Hostinger VPS & Nginx** | [`deployment/vps.md`](./deployment/vps.md) | [`deployment/nginx.md`](./deployment/nginx.md), [`deployment/ssl.md`](./deployment/ssl.md) |
 | **Coding Standards & Invariants** | [`development/coding-standards.md`](./development/coding-standards.md) | [`development/lessons-learned.md`](./development/lessons-learned.md), [`development/ai-agent-guide.md`](./development/ai-agent-guide.md) |
-| **Incident Forensics & ADRs** | [`history/resolved-incidents.md`](./history/resolved-incidents.md) | [`history/architectural-decisions.md`](./history/architectural-decisions.md), [`history/session-207-testvanilla-changes.md`](./history/session-207-testvanilla-changes.md) |
-| **Debugging & Error Runbooks** | [`troubleshooting/debugging-guide.md`](./troubleshooting/debugging-guide.md) | [`troubleshooting/common-errors.md`](./troubleshooting/common-errors.md), [`troubleshooting/known-issues.md`](./troubleshooting/known-issues.md) |
+| **Incident Forensics & ADRs** | [`history/resolved-incidents.md`](./history/resolved-incidents.md) | [`history/architectural-decisions.md`](./history/architectural-decisions.md), [`history/migration-history.md`](./history/migration-history.md) |
+| **Debugging & Error Runbooks** | [`troubleshooting/debugging-guide.md`](./troubleshooting/debugging-guide.md) | [`troubleshooting/common-errors.md`](./troubleshooting/common-errors.md), [`troubleshooting/navigation-and-state-lifecycle.md`](./troubleshooting/navigation-and-state-lifecycle.md) |
 
 ---
 
@@ -156,7 +166,7 @@ graph LR
 # Start local development server (Turbopack)
 npm run dev
 
-# Run Vitest unit test suite (49 test files, 347 tests)
+# Run Vitest unit test suite (59 test files, 462 tests)
 npm run test:unit
 
 # Run ESLint compliance check
@@ -167,7 +177,7 @@ npm run build
 
 # Database schema migration workflow
 npm run db:generate   # Generate versioned migration SQL
-npm run db:migrate    # Apply migration to TiDB Cloud
+npm run db:migrate    # Apply migration with auto-baselining
 ```
 
 ---

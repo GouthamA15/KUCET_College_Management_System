@@ -171,7 +171,7 @@ export class IdempotencyService {
 
 ## 7. Cross-References
 
-- Database Finance Schemas: [03_DATABASE.md](../database/03_DATABASE.md)
+- Database Finance Schemas: [schema.md](../database/schema.md)
 - Digital Certificate Engine (Income Tax Certificate): [certificates.md](./certificates.md)
 - Student Requests System: [requests.md](./requests.md)
 - Archival & Financial Reports: [reports.md](./reports.md)

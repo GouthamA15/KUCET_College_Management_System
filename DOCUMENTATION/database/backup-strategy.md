@@ -147,3 +147,30 @@ After performing a restore or verifying disaster recovery readiness:
 3. Verify student and staff profile records.
 4. Check `database_backup_logs` and `audit_logs` for operational records.
 5. Verify that recent backup files in `/var/kucet-db-backup` have companion `.sha256` files.
+
+---
+
+## 10. Data Safety Hierarchy: Application vs. Database Recovery
+
+To guarantee data safety and operational efficiency, the system strictly separates **operational business transitions** from **cluster disaster recovery**:
+
+```
+                              DATA SAFETY STRATEGY
+                                       │
+            ┌──────────────────────────┴──────────────────────────┐
+            ▼                                                     ▼
+┌─────────────────────────────────┐                 ┌─────────────────────────────────┐
+│     APPLICATION-LEVEL LAYER     │                 │      DATABASE-LEVEL LAYER       │
+│    (Operational Data Safety)    │                 │       (Disaster Recovery)       │
+├─────────────────────────────────┤                 ├─────────────────────────────────┤
+│ • Soft Rejection (REJECTED enum)│                 │ • Automated Daily Gzip-9 Dumps  │
+│ • admission_status_history      │                 │ • SHA-256 Checksum Sidecars     │
+│ • Preserved Proof Media Files   │                 │ • Emergency Pre-Restore Dumps   │
+│ • 1-Click Surgical Restoration  │                 │ • Continuous WAL & PITR Logs    │
+│ • Zero Physical SQL DELETEs     │                 │ • Cluster Hardware Recovery     │
+└─────────────────────────────────┘                 └─────────────────────────────────┘
+```
+
+1. **Application-Level Operational Recovery:** Rejection of admission applications, student profile changes, or document disputes must **never** physically delete rows or assets. Instead, records transition into `REJECTED` status with full audit logging in `admission_status_history`, enabling staff to inspect rationale or surgically restore records in 1 click without affecting any other database record.
+2. **Database-Level Disaster Recovery:** Full-cluster restoration via `DatabaseBackupService` and point-in-time recovery (PITR) is reserved for catastrophic cluster outages, disk corruption, or infrastructure migration.
+

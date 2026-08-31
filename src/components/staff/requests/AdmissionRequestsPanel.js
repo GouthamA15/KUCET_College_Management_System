@@ -1,7 +1,7 @@
 'use client';
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { useSearchParams, useRouter } from 'next/navigation';
 import { AdmissionModal } from './AdmissionModal';
 import AdmissionWorkspaceFilter from './AdmissionWorkspaceFilter';
 import RealtimeListener from '@/components/RealtimeListener';
@@ -30,7 +30,9 @@ const AdmissionRequestsPanel = () => {
 
     const [workspace, setWorkspace] = useState(activeWorkspace);
     const [drafts, setDrafts] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
+    const [activeQueueTab, setActiveQueueTab] = useState('DRAFT'); // 'DRAFT' | 'REJECTED' | 'PROCESSED'
     const [selectedDraftId, setSelectedDraftId] = useState(null);
     const [detail, setDetail] = useState(null);
     const [fetchingDetail, setFetchingDetail] = useState(false);
@@ -40,9 +42,35 @@ const AdmissionRequestsPanel = () => {
     const [rejectionMode, setRejectionMode] = useState(false);
     const [rejectionReason, setRejectionReason] = useState('');
 
+    // Restoration state
+    const [restorationMode, setRestorationMode] = useState(false);
+    const [restorationReason, setRestorationReason] = useState('');
+
     // Editing state
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditData] = useState({});
+
+    // Filter drafts by search term (candidate name, app no, roll no, rank, email)
+    const filteredDrafts = useMemo(() => {
+        if (!searchTerm.trim()) return drafts;
+        const term = searchTerm.toLowerCase().trim();
+        return drafts.filter(draft => {
+            const nameMatch = draft.name?.toLowerCase().includes(term);
+            const appNoMatch = (draft.application_no || String(draft.id))?.toLowerCase().includes(term);
+            const rollNoMatch = draft.roll_no?.toLowerCase().includes(term);
+            const rankMatch = String(draft.exam_rank || '').includes(term);
+            const emailMatch = draft.email?.toLowerCase().includes(term);
+            return nameMatch || appNoMatch || rollNoMatch || rankMatch || emailMatch;
+        });
+    }, [drafts, searchTerm]);
+
+    const formatDate = (dateStr) => {
+        if (!dateStr) return null;
+        const d = new Date(dateStr);
+        return isNaN(d.getTime()) ? null :
+               d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' • ' +
+               d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    };
 
     // Sync workspace from URL when search params change externally (e.g. browser back/forward)
     // Done inside useEffect to avoid setState-during-render cascades
@@ -63,18 +91,18 @@ const AdmissionRequestsPanel = () => {
     }, [urlExam, urlBranch, urlYear, activeWorkspace]);
 
     const workspaceRef = useRef(workspace);
-    // Update ref inside effect — never during render — so realtime callbacks always see latest value
+    const queueTabRef = useRef(activeQueueTab);
     useEffect(() => {
         workspaceRef.current = workspace;
-    }, [workspace]);
+        queueTabRef.current = activeQueueTab;
+    }, [workspace, activeQueueTab]);
 
-    const fetchWorkspaceDrafts = useCallback(async (targetWs = workspaceRef.current) => {
-
+    const fetchWorkspaceDrafts = useCallback(async (targetWs = workspaceRef.current, status = queueTabRef.current) => {
         if (!targetWs?.targetBranch || !targetWs?.intakeExam) return;
         setLoading(true);
         try {
             const queryParams = new URLSearchParams({
-                status: 'DRAFT',
+                status: status || 'DRAFT',
                 branch: targetWs.targetBranch,
                 entrance_exam: targetWs.intakeExam,
                 t: String(Date.now())
@@ -86,8 +114,8 @@ const AdmissionRequestsPanel = () => {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to fetch admission drafts.');
             const sortedData = [...(data.data || [])].sort((a, b) => {
-                const dateA = new Date(a.created_at || 0).getTime();
-                const dateB = new Date(b.created_at || 0).getTime();
+                const dateA = new Date(a.updated_at || a.created_at || 0).getTime();
+                const dateB = new Date(b.updated_at || b.created_at || 0).getTime();
                 if (dateA !== dateB) return dateB - dateA;
                 return (b.id || 0) > (a.id || 0) ? 1 : -1;
             });
@@ -100,8 +128,8 @@ const AdmissionRequestsPanel = () => {
     }, []);
 
     useEffect(() => {
-        fetchWorkspaceDrafts(workspace);
-    }, [workspace, fetchWorkspaceDrafts]);
+        fetchWorkspaceDrafts(workspace, activeQueueTab);
+    }, [workspace, activeQueueTab, fetchWorkspaceDrafts]);
 
     const handleWorkspaceChange = (newWs) => {
         setWorkspace(newWs);
@@ -118,6 +146,8 @@ const AdmissionRequestsPanel = () => {
         setIsEditing(false);
         setRejectionMode(false);
         setRejectionReason('');
+        setRestorationMode(false);
+        setRestorationReason('');
         try {
             const res = await fetch(`/api/staff/admission/drafts/${id}`);
             const data = await res.json();
@@ -140,25 +170,55 @@ const AdmissionRequestsPanel = () => {
         }
 
         setProcessing(true);
-        const toastId = toast.loading('Rejecting application...');
+        const toastId = toast.loading('Preserving audit trail and rejecting application...');
         try {
             const res = await fetch(`/api/staff/admission/drafts/${detail.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    status: 'REJECTED', 
-                    rejection_reason: rejectionReason 
+                body: JSON.stringify({
+                    status: 'REJECTED',
+                    rejection_reason: rejectionReason.trim(),
                 }),
             });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Rejection failed.');
 
-            toast.success('Application Rejected Successfully', { id: toastId });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to reject application.');
+
+            toast.success('Application rejected and preserved in audit archive.', { id: toastId });
             setDetail(null);
-            setSelectedDraftId(null);
-            setRejectionMode(false);
-            setRejectionReason('');
-            fetchWorkspaceDrafts();
+            fetchWorkspaceDrafts(workspace, activeQueueTab);
+        } catch (error) {
+            toast.error(error.message, { id: toastId });
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    const handleRestore = async () => {
+        if (!detail) return;
+        if (!restorationReason.trim()) {
+            toast.error('Please provide a reason for restoring this application.');
+            return;
+        }
+
+        setProcessing(true);
+        const toastId = toast.loading('Restoring application to active queue...');
+        try {
+            const res = await fetch(`/api/staff/admission/drafts/${detail.id}/restore`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    target_status: 'DRAFT',
+                    restoration_reason: restorationReason.trim()
+                }),
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to restore application.');
+
+            toast.success('Application restored successfully!', { id: toastId });
+            setDetail(null);
+            fetchWorkspaceDrafts(workspace, activeQueueTab);
         } catch (error) {
             toast.error(error.message, { id: toastId });
         } finally {
@@ -170,33 +230,16 @@ const AdmissionRequestsPanel = () => {
         if (!detail) return;
         setProcessing(true);
         try {
-            // 1) Persist edited fields (full update)
-            if (editForm && Object.keys(editForm).length > 0) {
-                const saveRes = await fetch(`/api/staff/admission/drafts/${detail.id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(editForm),
-                });
-                const saveData = await saveRes.json();
-                if (!saveRes.ok) throw new Error(saveData.error || 'Failed to save changes before verification.');
-            }
-
-            // 2) Update status to PROCESSED (status-only path in API)
-            const statusRes = await fetch(`/api/staff/admission/drafts/${detail.id}`, {
+            const res = await fetch(`/api/staff/admission/drafts/${detail.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: 'PROCESSED' }),
             });
-            const statusData = await statusRes.json();
-            if (!statusRes.ok) throw new Error(statusData.error || 'Update failed.');
-
-            toast.success('Application Verified Successfully!');
-            // Clear editing state and refresh list so draft disappears from DRAFT queue
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to mark verified.');
+            toast.success('Candidate Verified and Moved to Finalize Queue');
             setDetail(null);
-            setSelectedDraftId(null);
-            setIsEditing(false);
-            setEditData({});
-            fetchWorkspaceDrafts();
+            fetchWorkspaceDrafts(workspace, activeQueueTab);
         } catch (error) {
             toast.error(error.message);
         } finally {
@@ -219,7 +262,7 @@ const AdmissionRequestsPanel = () => {
             toast.success('Changes Saved Successfully');
             setDetail({ ...editForm });
             setIsEditing(false);
-            fetchWorkspaceDrafts();
+            fetchWorkspaceDrafts(workspace, activeQueueTab);
         } catch (err) {
             toast.error(err.message);
         } finally {
@@ -255,7 +298,7 @@ const AdmissionRequestsPanel = () => {
         ].includes(type)) {
             // Workspace isolation: check if event payload matches current active workspace
             if (!payload || matchesAdmissionWorkspace(payload, workspaceRef.current)) {
-                fetchWorkspaceDrafts(workspaceRef.current);
+                fetchWorkspaceDrafts(workspaceRef.current, queueTabRef.current);
             }
         }
     }, [fetchWorkspaceDrafts]);
@@ -268,19 +311,81 @@ const AdmissionRequestsPanel = () => {
             <AdmissionWorkspaceFilter
                 workspace={workspace}
                 onChange={handleWorkspaceChange}
-                onRefresh={() => fetchWorkspaceDrafts(workspace)}
+                onRefresh={() => fetchWorkspaceDrafts(workspace, activeQueueTab)}
                 isLoading={loading}
             />
 
+            {/* Queue Sub-Tabs & In-Queue Search */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-slate-200 pb-3">
+                <div className="flex items-center gap-2 overflow-x-auto">
+                    <button
+                        onClick={() => setActiveQueueTab('DRAFT')}
+                        className={`px-3.5 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+                            activeQueueTab === 'DRAFT'
+                                ? 'bg-[#0b3578] text-white shadow-sm'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                    >
+                        Pending Applications
+                    </button>
+                    <button
+                        onClick={() => setActiveQueueTab('REJECTED')}
+                        className={`px-3.5 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                            activeQueueTab === 'REJECTED'
+                                ? 'bg-rose-700 text-white shadow-sm'
+                                : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
+                        }`}
+                    >
+                        <span>🚫</span> Rejected Applications
+                    </button>
+                    <button
+                        onClick={() => setActiveQueueTab('PROCESSED')}
+                        className={`px-3.5 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+                            activeQueueTab === 'PROCESSED'
+                                ? 'bg-emerald-700 text-white shadow-sm'
+                                : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                        }`}
+                    >
+                        Verified Candidates
+                    </button>
+                </div>
+
+                {/* Instant In-Queue Search Bar */}
+                <div className="relative flex-1 sm:max-w-xs">
+                    <input 
+                        type="text" 
+                        placeholder="Search name, app no, rank..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-300 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578] shadow-sm"
+                    />
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">🔍</span>
+                    {searchTerm && (
+                        <button
+                            onClick={() => setSearchTerm('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs px-1 font-bold"
+                            title="Clear search"
+                        >
+                            ✕
+                        </button>
+                    )}
+                </div>
+            </div>
+
             <div className="flex justify-between items-center px-1 mb-2">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-800">Admission Queue</h2>
+                  <h2 className="text-lg font-semibold text-gray-800">
+                    {activeQueueTab === 'REJECTED' ? 'Rejected Applications Archive' : activeQueueTab === 'PROCESSED' ? 'Verified Candidates Queue' : 'Admission Intake Queue'}
+                  </h2>
                   <p className="text-sm text-gray-500 mt-1">
-                    Review newly reported admission applications for{' '}
+                    {activeQueueTab === 'REJECTED' ? 'Auditable repository of rejected applications with instant restoration support for' : 'Review candidates for'}{' '}
                     <span className="font-semibold text-[#0b3578]">{workspace.intakeExam}</span> •{' '}
                     <span className="font-semibold text-[#0b3578]">{workspace.targetBranch}</span> •{' '}
                     <span className="font-semibold text-[#0b3578]">{workspace.entryYear}</span>.
                   </p>
+                </div>
+                <div className="text-xs text-slate-500 font-medium hidden sm:block">
+                    Showing <span className="font-bold text-slate-800">{filteredDrafts.length}</span> of {drafts.length} record{drafts.length === 1 ? '' : 's'}
                 </div>
             </div>
 
@@ -288,33 +393,50 @@ const AdmissionRequestsPanel = () => {
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-20 text-gray-500 bg-slate-50 border border-slate-200 rounded-xl">
                         <div className="animate-spin h-6 w-6 border-2 border-[#0b3578] border-t-transparent rounded-full mb-4"></div>
-                        <p className="text-sm font-medium">Accessing {workspace.intakeExam} Intake Records...</p>
+                        <p className="text-sm font-medium">Accessing {workspace.intakeExam} {activeQueueTab} Records...</p>
                     </div>
                 ) : drafts.length === 0 ? (
                     <div className="text-center py-20 text-gray-500 bg-slate-50 border border-slate-200 rounded-xl">
-                        <span className="text-4xl block mb-3 opacity-30">📂</span>
+                        <span className="text-4xl block mb-3 opacity-30">
+                            {activeQueueTab === 'REJECTED' ? '🛡️' : '📂'}
+                        </span>
                         <p className="text-sm font-medium text-gray-700">
-                            No pending admission requests found for {workspace.intakeExam} • {workspace.targetBranch} ({workspace.entryYear}).
+                            No {activeQueueTab.toLowerCase()} records found for {workspace.intakeExam} • {workspace.targetBranch} ({workspace.entryYear}).
                         </p>
                         <p className="text-xs text-gray-400 mt-1">
-                            When new candidates submit applications for this branch and exam, they will appear here.
+                            {activeQueueTab === 'REJECTED' 
+                                ? 'No applications have been rejected in this workspace.'
+                                : 'When candidates submit applications for this branch and exam, they will appear here.'}
                         </p>
+                    </div>
+                ) : filteredDrafts.length === 0 ? (
+                    <div className="text-center py-16 text-gray-500 bg-slate-50 border border-slate-200 rounded-xl">
+                        <span className="text-3xl block mb-2 opacity-40">🔍</span>
+                        <p className="text-sm font-medium text-gray-700">No applications match &quot;{searchTerm}&quot;</p>
+                        <p className="text-xs text-gray-400 mt-1">Try searching with a different candidate name, application number, or rank.</p>
+                        <button
+                            onClick={() => setSearchTerm('')}
+                            className="mt-3 px-3.5 py-1.5 bg-white border border-slate-300 text-xs font-semibold text-[#0b3578] rounded-md hover:bg-slate-50 cursor-pointer shadow-sm"
+                        >
+                            Clear Search Filter
+                        </button>
                     </div>
                 ) : (
                     <div className="bg-slate-50/50 border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                         {/* Desktop Table Header */}
                         <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 border-b border-slate-200 bg-white/60 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                             <div className="col-span-4">Student Name</div>
-                            <div className="col-span-3">Application No.</div>
-                            <div className="col-span-3">Entrance Type</div>
+                            <div className="col-span-2">Application No.</div>
+                            <div className="col-span-2">Entrance Type</div>
+                            <div className="col-span-2">{activeQueueTab === 'REJECTED' ? 'Rejection Reason' : 'Status'}</div>
                             <div className="col-span-2 text-right">Action</div>
                         </div>
 
                         {/* Queue Rows */}
                         <div className="divide-y divide-slate-200/70">
-                            {drafts.map(draft => (
+                            {filteredDrafts.map(draft => (
                                 <div key={draft.id} className="flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 px-4 md:px-6 py-4 md:py-3 md:items-center bg-white hover:bg-slate-50/80 transition-colors">
-                                    {/* Name */}
+                                    {/* Name & Rank */}
                                     <div className="md:col-span-4 flex flex-col md:block">
                                         <h3 className="font-medium text-slate-900 text-[15px] truncate">{draft.name}</h3>
                                         <span className="text-[11px] text-gray-400 font-medium">
@@ -322,26 +444,49 @@ const AdmissionRequestsPanel = () => {
                                         </span>
                                     </div>
                                     
-                                    {/* App No */}
-                                    <div className="md:col-span-3 flex items-center justify-between md:block">
-                                        <span className="md:hidden text-xs text-slate-500 font-medium uppercase tracking-wider">Application No.</span>
-                                        <p className="text-[14px] text-slate-600 font-mono tracking-tight">{draft.application_no || draft.id}</p>
+                                    {/* App No & Date */}
+                                    <div className="md:col-span-2 flex items-center justify-between md:block">
+                                        <span className="md:hidden text-xs text-slate-500 font-medium uppercase tracking-wider">App No. / Date</span>
+                                        <div>
+                                            <p className="text-[14px] text-slate-700 font-mono font-medium tracking-tight">{draft.application_no || draft.id}</p>
+                                            {formatDate(draft.created_at) && (
+                                                <p className="text-[11px] text-slate-400 mt-0.5">{formatDate(draft.created_at)}</p>
+                                            )}
+                                        </div>
                                     </div>
                                     
                                     {/* Entrance */}
-                                    <div className="md:col-span-3 flex items-center justify-between md:block">
+                                    <div className="md:col-span-2 flex items-center justify-between md:block">
                                         <span className="md:hidden text-xs text-slate-500 font-medium uppercase tracking-wider">Entrance Type</span>
                                         <p className="text-[14px] text-slate-600">{draft.entrance_exam}</p>
                                     </div>
+
+                                    {/* Status or Rejection Rationale */}
+                                    <div className="md:col-span-2 flex items-center justify-between md:block">
+                                        <span className="md:hidden text-xs text-slate-500 font-medium uppercase tracking-wider">
+                                            {activeQueueTab === 'REJECTED' ? 'Reason' : 'Status'}
+                                        </span>
+                                        {activeQueueTab === 'REJECTED' ? (
+                                            <p className="text-xs text-rose-700 italic truncate max-w-[200px]" title={draft.rejection_reason}>
+                                                {draft.rejection_reason || 'Incomplete details'}
+                                            </p>
+                                        ) : (
+                                            <span className={`px-2 py-0.5 rounded text-[11px] font-bold uppercase ${
+                                                draft.status === 'PROCESSED' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                                            }`}>
+                                                {draft.status || 'DRAFT'}
+                                            </span>
+                                        )}
+                                    </div>
                                     
                                     {/* Action */}
-                                    <div className="md:col-span-2 flex justify-end mt-2 md:mt-0">
+                                    <div className="md:col-span-2 flex justify-end gap-2 mt-2 md:mt-0">
                                         <button 
                                             onClick={() => fetchDetail(draft.id)}
                                             disabled={fetchingDetail}
                                             className="w-full md:w-auto px-4 py-1.5 bg-white border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50 hover:text-blue-700 hover:border-blue-300 disabled:opacity-50 transition-all rounded-lg shadow-sm whitespace-nowrap cursor-pointer"
                                         >
-                                            {selectedDraftId === draft.id && fetchingDetail ? 'Auditing...' : 'View & Verify'}
+                                            {selectedDraftId === draft.id && fetchingDetail ? 'Auditing...' : (activeQueueTab === 'REJECTED' ? 'Inspect / Restore' : 'View & Verify')}
                                         </button>
                                     </div>
                                 </div>
@@ -371,11 +516,16 @@ const AdmissionRequestsPanel = () => {
                     onSave={handleSaveEdit}
                     onVerify={handleVerify}
                     onReject={handleReject}
+                    onRestore={handleRestore}
                     processing={processing}
                     rejectionMode={rejectionMode}
                     setRejectionMode={setRejectionMode}
                     rejectionReason={rejectionReason}
                     setRejectionReason={setRejectionReason}
+                    restorationMode={restorationMode}
+                    setRestorationMode={setRestorationMode}
+                    restorationReason={restorationReason}
+                    setRestorationReason={setRestorationReason}
                 />
             )}
         </div>

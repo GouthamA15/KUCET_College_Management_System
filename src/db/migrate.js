@@ -127,6 +127,17 @@ async function runMigrations() {
           await baselineEntry(entry0017, 'staff_registration_requests.address column already exists');
         }
       }
+
+      // Check 4: 0018_admission_rejection_and_history detection
+      const entry0018 = entries.find(e => e.idx === 18);
+      if (entry0018 && !appliedTimestamps.has(entry0018.when)) {
+        const [ashCheck] = await connection.query(
+          'SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = "admission_status_history"'
+        );
+        if (ashCheck && ashCheck[0] && Number(ashCheck[0].count) > 0) {
+          await baselineEntry(entry0018, 'admission_status_history table already exists');
+        }
+      }
     }
 
     // 4. Run Drizzle ORM official migration runner

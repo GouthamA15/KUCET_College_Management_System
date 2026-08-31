@@ -35,7 +35,7 @@ The KUCET CMS application is hosted on a **Hostinger VPS KVM 2** virtual private
                                 +-----------------------------------+
                                                   |
                                                   v
-                                +-----------------------------------+
+                                +-----------------------------------+ ===> Mounted Storage: /var/www/kucet-storage:ro
                                 |  Nginx Reverse Proxy Container    |
                                 |     (Ports 80 / 443 | HTTP/2)     |
                                 +-----------------------------------+
@@ -48,13 +48,12 @@ The KUCET CMS application is hosted on a **Hostinger VPS KVM 2** virtual private
 | Container (Node 20)| | Container (Node 20)| |   7   | |            (Port 3001)             |
 |    (Port 3000)     | |    (Port 4000)     | |(6379) | |                                    |
 +--------------------+ +--------------------+ +-------+ +------------------------------------+
-          |                       |               |
-          +-----------------------+---------------+
-                                  |
-                                  v
-+------------------------------------------------------------------------------------------------------+
-| Mounted Persistent Storage Volume: /var/www/kucet-storage                                            |
-+------------------------------------------------------------------------------------------------------+
+          |                                       |
+          v                                       v
++------------------------------------+  +-------------------+
+| Mounted Persistent Storage Volume: |  | Mounted Volume:   |
+| /var/www/kucet-storage             |  | redis-data:/data  |
++------------------------------------+  +-------------------+
 ```
 
 ---

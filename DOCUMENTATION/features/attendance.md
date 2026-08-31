@@ -173,5 +173,5 @@ function handleStudentScanned(studentId) {
 
 - Examinations & Evaluation System: [examinations.md](./examinations.md)
 - Institutional Reports & Attendance Archival: [reports.md](./reports.md)
-- Database Attendance Schema: [03_DATABASE.md](../database/03_DATABASE.md)
+- Database Attendance Schema: [schema.md](../database/schema.md)
 - Student Request System: [requests.md](./requests.md)

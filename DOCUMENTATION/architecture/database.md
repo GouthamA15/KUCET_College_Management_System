@@ -50,67 +50,94 @@ src/db/
 
 ## 🗂️ Modular Schemas in `src/db/schema/`
 
-The database schema is divided into 8 modular schema domain files under `src/db/schema/`:
+The database schema is partitioned into 8 modular schema domain files under `src/db/schema/`:
 
 ### 1. Identity Domain (`identity.js`)
-Manages authentication credentials, user profiles, and institutional entity details.
-- `students`: Detailed student registry containing roll number, branch, admission batch, encrypted Aadhaar/mobile numbers, and `added_by_staff_id`.
-- `staff_accounts`: Unified identity table for all institutional staff (Faculty, Admission, Scholarship, HOD) with email, hashed password, status flags, pfp, and signature keys.
+Manages authentication credentials, user profiles, and institutional staff/student accounts.
+- `students`: Core student registry with roll number, branch, admission batch, encrypted Aadhaar/mobile numbers, and status flags.
+- `staff_accounts`: Unified identity table for institutional staff (Faculty, Admission, Scholarship, HOD) with email, password hash, status, pfp, and signature keys.
 - `staff_roles`: Institutional role definitions (`FACULTY`, `ADMISSION_CLERK`, `SCHOLARSHIP_CLERK`).
-- `staff_account_roles`: Mapping between staff accounts and their assigned institutional roles.
-- `staff_academic_affiliations`: Branch/department affiliations for faculty and staff.
-- `staff_account_activation_tokens`: Secure 48-hour SHA-256 tokens for new staff password setup.
+- `staff_account_roles`: Mapping between staff accounts and assigned institutional roles.
+- `staff_academic_affiliations`: Department and program affiliations for faculty and staff.
+- `staff_account_activation_tokens`: Secure SHA-256 tokens for new staff password setup.
 - `staff_registration_requests`: Pending public staff registration requests for admin approval.
-- `guardians`: Parent/guardian contact details and emergency verification records.
-- `clerks`: Legacy identity table (retained for backward migration reads).
+- `principal`: Super admin credentials and security audit timestamps.
+- `user_sessions`: Active user session registry, device metadata, and remote revocation flags.
+- `refresh_tokens`: Rotatable refresh token hashes with replacement tracking and revocation timestamps.
+- `otp_codes`: Ephemeral email OTP verification codes.
+- `password_reset_tokens`: Time-limited password reset tokens.
 
 ### 2. Academic Domain (`academic.js`)
-Defines the institutional academic structure and scheduling logic.
-- `departments`: Branch definitions (e.g., CSE, ECE, EEE, MECH, CIVIL).
-- `courses`: Degree programs (B.Tech 4-Year, M.Tech, Lateral Entry).
-- `academic_years`: Current academic cycle configurations (e.g., 2025-2026).
-- `semesters`: Active semester boundaries, start/end dates, and mark calculation weights.
-- `subjects`: Syllabus course subjects, internal/external mark allocation rules.
-- `timetables`: Daily classroom schedules, period timings, and assigned faculty IDs.
+Defines the institutional academic structure, syllabus, and calendar.
+- `academic_departments`: Branch definitions (e.g., CSE, ECE, EEE, INF, MEC, CIV).
+- `academic_programs`: Degree programs (e.g., B.Tech 4-Year, M.Tech, TG ECET Lateral).
+- `semesters`: Active semester configurations and mark calculation weights.
+- `syllabus_structure`: Curriculum course structure by branch, regulation, and semester.
+- `syllabus_subjects`: Syllabus course subjects, theory/lab classification, and credits.
+- `academic_calendar`: Institutional working days, instructional periods, and holidays.
 
 ### 3. Attendance Domain (`attendance.js`)
 Tracks real-time classroom attendance sessions and verification logs.
-- `attendance_sessions`: Faculty-initiated attendance sessions storing session PIN, branch, semester, expiry time.
-- `attendance_logs`: Individual student attendance records (`PRESENT`, `ABSENT`, `ON_DUTY`) with timestamp.
-- `gps_pins`: Campus GPS coordinate boundaries used to verify physical proximity during session submission.
+- `attendance_sessions`: Faculty-initiated attendance sessions storing dynamic 4-digit PIN, branch, semester, expiry time.
+- `student_attendance`: Individual student attendance records (`PRESENT`, `ABSENT`, `NCC`, `MEDICAL`) with timestamp.
+- `attendance_session_logs`: Immutable attendance audit log of session actions.
 
 ### 4. Finance Domain (`finance.js`)
 Manages tuition fees, payments, and government scholarship reimbursements.
-- `fee_structures`: Year-wise tuition, hostel, exam, and library fee breakdown by branch.
-- `scholarships`: Government scholarship application tracking (ePASS / Telangana ePASS).
-- `rtf_proceedings`: Reimbursement of Tuition Fee (RTF) government proceeding release records.
-- `mtf_proceedings`: Maintenance Fee (MTF) student bank transfer records.
-- `payments`: Fee transaction ledger storing payment receipt numbers, gateway responses, and payment dates.
+- `student_fee_payments`: Student fee transactions, payment hashes, amounts, and dates.
+- `scholarship_sanctions`: Government scholarship sanctions (Telangana ePASS RTF/MTF proceedings).
+- `scholarship_windows`: Active scholarship application windows.
 
 ### 5. Operations Domain (`operations.js`)
-Handles student request workflows and digital certificate issuance.
-- `student_requests`: Student profile modification requests, fee extension applications, bonafide requests.
-- `certificates`: Issued digital certificates storing verification QR codes and PDF document relative keys.
-- `notifications`: Institutional notice board postings and target recipient groups.
-- `institution_assets`: Logical asset keys mapping to official logos, stamps, and principal signatures.
+Handles student request workflows, timetables, marks, and digital certificates.
+- `student_marks`: Internal assessment (Mid-1, Mid-2, Lab, Record) marks with optimistic concurrency versioning.
+- `branch_config`: Branch-specific mid exam and assignment mark limits and lock states.
+- `branch_timetable`: Semester timetable grid mapping day of week and period to subjects and faculty.
+- `faculty_hod_assignments`: Department Head (HOD) appointments with date ranges and active flags.
+- `faculty_hod_requests`: Faculty HOD elevation requests.
+- `faculty_subject_assignments`: Faculty-to-subject teaching assignments.
+- `faculty_subject_interests`: Faculty elective/subject teaching preferences.
+- `faculty_substitutions`: Temporary faculty substitution arrangements.
+- `student_requests`: Student certificate (Bonafide, Custodian, Transfer) and profile update requests.
+- `student_request_images`: Payment receipt screenshots attached to student requests.
+- `certificate_verifications`: Public QR code certificate verification lookup logs with IP/geo tracking.
+- `certificate_verifications_archive`: Long-term archive for verification logs.
+- `bugReports`: Bug and feature request feedback submissions.
+- `database_backup_logs`: Backup execution log tracking filename, file size, SHA-256 checksum, and status.
 
 ### 6. Registry Domain (`registry.js`)
 Manages student admissions and roll number generation logic.
-- `roll_number_sequences`: Atomic incrementing counters for branch-specific roll number generation.
-- `admission_batches`: Admission year configurations (e.g., 2026 B.Tech Batch).
-- `draft_admissions`: Intermediate application drafts uploaded during online admission drives.
+- `student_personal_details`: Sensitive demographic data (Aadhaar, parent names, addresses, income).
+- `student_academic_background`: Qualifying exam marks, ranks, and previous college records.
+- `student_admission_drafts`: Multi-stage admission applications (`DRAFT`, `PROCESSED`, `FINALIZED`, `REJECTED`).
+- `admission_status_history`: Immutable state transition ledger for admission draft decisions.
+- `student_images`: Official student profile photos (`pfp`).
+- `student_signatures`: Official student signatures.
+- `student_profile_requests`: Profile data and photo update requests.
+- `student_import_logs`: Excel bulk student import execution logs.
 
 ### 7. Security Domain (`security.js`)
-Enforces system governance, auditing, and rate limiting.
-- `sessions`: Active JWT sessions, refresh tokens, IP addresses, user agent strings.
-- `audit_logs`: Immutable security audit trail recording user action, target ID, payload before/after.
-- `rate_limits`: Token bucket rate-limiting counters for API routes.
+Enforces system governance, auditing, rate limiting, and push notifications.
+- `system_configs`: Dynamic system configuration key-value store.
+- `audit_logs`: Immutable security audit trail recording user action, target ID, and payload diffs.
+- `rate_limits`: Database token bucket rate-limiting counters.
+- `security_events`: Security alert triggers (failed logins, brute force attempts, proxy violations).
+- `security_notifications`: User-directed in-app security notifications.
+- `notification_preferences`: User push and email notification settings.
+- `push_subscriptions`: Browser Web Push (VAPID) endpoint subscriptions.
+- `idempotency_keys`: Idempotency token storage preventing duplicate mutating requests.
 
 ### 8. Archive Domain (`archive.js`)
-Provides soft deletion recovery and historical snapshot archiving.
-- `archived_students`: Soft-deleted student records stored prior to purge operations.
-- `archived_attendance`: Historical attendance logs migrated to long-term storage tables.
-- `backup_logs`: System backup execution history and archive bundle metadata.
+Provides soft deletion recovery and long-term academic record archival.
+- `archive_students`: Archived student registry entries.
+- `archive_student_personal_details`: Archived demographic and personal details.
+- `archive_student_academic_background`: Archived qualifying marks.
+- `archive_student_marks`: Archived internal marks records.
+- `archive_student_attendance`: Archived student attendance records.
+- `archive_attendance_sessions`: Archived attendance sessions.
+- `archive_student_payments`: Archived financial transaction logs.
+- `archive_operations_log`: Historical log of archive and restore operations.
+- `archive_retention_policies`: Automated data retention policies by domain.
 
 ---
 

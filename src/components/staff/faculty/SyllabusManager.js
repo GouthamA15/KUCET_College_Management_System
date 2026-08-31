@@ -201,6 +201,7 @@ export default function SyllabusManager() {
   const [data, setData] = useState({ coreSubjects: [], professionalElectives: [], openElectives: [], otherGroups: [] });
   const [authorizedBranches, setAuthorizedBranches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [selectedBranch, setSelectedBranch] = useState('');
   const [selectedSemester, setSelectedSemester] = useState('');
   const [coreSearch, setCoreSearch] = useState('');
@@ -215,14 +216,16 @@ export default function SyllabusManager() {
   const fetchData = useCallback(async () => {
     if (!selectedBranch || !selectedSemester) {
       setData({ coreSubjects: [], professionalElectives: [], openElectives: [], otherGroups: [] });
+      setLoadError(null);
       setLoading(false);
       return;
     }
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await fetch(`/api/staff/hod/syllabus?branch=${selectedBranch}&semester=${selectedSemester}`);
       const d = await res.json();
-      if (!res.ok) throw new Error(d.error);
+      if (!res.ok) throw new Error(d.error || 'Failed to load syllabus data');
       setData({
         coreSubjects: d.coreSubjects || [],
         professionalElectives: d.professionalElectives || [],
@@ -230,7 +233,8 @@ export default function SyllabusManager() {
         otherGroups: d.otherGroups || [],
       });
     } catch (e) {
-      console.error(e);
+      console.error('Failed to fetch syllabus data:', e);
+      setLoadError(e.message || 'Failed to load syllabus data');
     } finally {
       setLoading(false);
     }
@@ -315,14 +319,18 @@ export default function SyllabusManager() {
       }
 
       if (type === 'ADD_ELECTIVE_SUBJECT') {
-        const sub = payload.selectedSubject;
-        if (!sub?.subject_code) throw new Error('Please select or enter a subject');
+        const subCode = payload.selectedSubject?.subject_code || payload.new_code?.trim();
+        const subName = payload.selectedSubject?.subject_name || payload.new_name?.trim();
+        const subType = payload.selectedSubject?.subject_type || payload.subject_type || 'theory';
+
+        if (!subCode || !subName) throw new Error('Please select an existing subject or enter both code and name');
+
         await apiPost({ action: 'ADD_ELECTIVE_SUBJECT', payload: {
           group_id: payload.group.id,
           branch: selectedBranch,
-          subject_code: sub.subject_code,
-          subject_name: sub.subject_name,
-          subject_type: sub.subject_type || payload.subject_type || 'theory',
+          subject_code: subCode.toUpperCase(),
+          subject_name: subName,
+          subject_type: subType,
         }});
       }
 
@@ -376,8 +384,8 @@ export default function SyllabusManager() {
 
   const allElectiveGroups = [...data.professionalElectives, ...data.openElectives, ...data.otherGroups];
 
-  const hasData = !loading && (filteredCore.length > 0 || allElectiveGroups.length > 0);
-  const isEmpty = !loading && selectedBranch && selectedSemester && !hasData;
+  const hasData = !loading && !loadError && (filteredCore.length > 0 || allElectiveGroups.length > 0);
+  const isEmpty = !loading && !loadError && selectedBranch && selectedSemester && !hasData;
 
   return (
     <div className="space-y-6">
@@ -428,8 +436,19 @@ export default function SyllabusManager() {
         </div>
       )}
 
+      {/* Error state */}
+      {!loading && loadError && (
+        <div className="bg-red-50 rounded-xl border border-red-200 p-8 text-center text-red-700">
+          <p className="text-sm font-semibold">Failed to load syllabus</p>
+          <p className="text-xs text-red-500 mt-1">{loadError}</p>
+          <button onClick={fetchData} className="mt-3 text-xs bg-red-100 hover:bg-red-200 text-red-800 font-medium px-3 py-1.5 rounded transition-colors cursor-pointer">
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Empty prompt */}
-      {(!selectedBranch || !selectedSemester) && !loading && (
+      {(!selectedBranch || !selectedSemester) && !loading && !loadError && (
         <div className="bg-white rounded-xl border border-dashed border-gray-300 p-12 text-center">
           <p className="text-sm text-slate-400 font-semibold uppercase tracking-widest">Select a branch and semester to view the syllabus</p>
         </div>
@@ -607,9 +626,7 @@ export default function SyllabusManager() {
                 <>
                   <div>
                     <label className={labelClass}>Subject Code</label>
-                    <input type="text" className={inputClass} value={modal.payload.subject_code}
-                      onChange={e => setModal(m => ({ ...m, payload: { ...m.payload, subject_code: e.target.value.toUpperCase() } }))} />
-                    <p className="text-[10px] text-slate-400 mt-1">Changing the code updates this subject globally across all branches that use it.</p>
+                    <input type="text" className={inputClass} value={modal.payload.subject_code} disabled />
                   </div>
                   <div>
                     <label className={labelClass}>Subject Name</label>
@@ -639,9 +656,7 @@ export default function SyllabusManager() {
                   </div>
                   <div>
                     <label className={labelClass}>Subject Code</label>
-                    <input type="text" className={inputClass} value={modal.payload.subject_code}
-                      onChange={e => setModal(m => ({ ...m, payload: { ...m.payload, subject_code: e.target.value.toUpperCase() } }))} />
-                    <p className="text-[10px] text-slate-400 mt-1">Changing the code updates this subject globally across all branches that use it.</p>
+                    <input type="text" className={inputClass} value={modal.payload.subject_code} disabled />
                   </div>
                   <div>
                     <label className={labelClass}>Subject Name</label>

@@ -62,34 +62,49 @@ The public admission portal allows prospective students to submit their demograp
 
 ---
 
-## 3. Draft Management & Staff Review Pipeline
+## 3. Draft Management, Soft Rejection & Controlled Restoration
 
-To ensure data integrity, public submissions are not placed directly into the active student registry. Instead, they follow a state machine pattern stored in the `student_admission_drafts` table.
+To ensure data integrity, public submissions are not placed directly into the active student registry. Instead, they follow a state machine pattern stored in the `student_admission_drafts` table, backed by an immutable `admission_status_history` audit trail.
 
-### Draft Lifecycle States
+### Draft Lifecycle States & State Machine
 
 ```mermaid
 stateDiagram-v2
     [*] --> DRAFT : Public Form Submission
     DRAFT --> PROCESSED : Staff Review & Verification
-    DRAFT --> REJECTED : Data Error / Document Rejection
+    DRAFT --> REJECTED : Soft Rejection (Reason Required)
+    REJECTED --> DRAFT : Controlled Staff/Admin Restoration
+    REJECTED --> PROCESSED : Direct Restoration & Verification
     PROCESSED --> FINALIZED : Roll Number Assignment & Provisioning
     FINALIZED --> [*]
 ```
 
 1. **`DRAFT`**: The initial state upon public submission. Sensitive details are encrypted, blind indices are created, and assets are saved in temporary staging storage (`admission_drafts/pfp/` and `admission_drafts/signatures/`).
-2. **`PROCESSED`**: The admission staff inspects physical certificates (SSC memo, Intermediate/Diploma memo, Caste certificate, Income certificate) and marks the draft verified.
-3. **`FINALIZED`**: The staff member assigns an institutional roll number and finalizes admission. The record is migrated to active student tables, and temporary draft storage is cleaned up.
-
-### Staff Management Features (`/staff/admission/student-management`)
-
-- **Bulk Import**: Allows admission staff to upload CSV/Excel files containing draft records via `POST /api/staff/admission/bulk-import`.
-- **Search & Uniqueness Guard**: Generic anti-enumeration error messages (`"Please check your details and try again."`) prevent malicious users from checking if a mobile or Aadhaar number exists in the system.
-- **Draft Correction**: Staff can update any field in the draft via `PUT /api/staff/admission/drafts/[id]` before finalization.
+2. **`REJECTED` (Soft Rejection)**: When staff rejects an application due to discrepancies (e.g. illegible certificate, memo mismatch), the record is **softly rejected** via `PUT /api/staff/admission/drafts/[id]`:
+   - **Zero Physical Deletion:** The draft row remains in `student_admission_drafts` with `status = 'REJECTED'`.
+   - **Proof Media Preserved:** All candidate uploaded photographs and signatures remain preserved in storage for audit compliance.
+   - **Immutable History:** A status transition row is written to `admission_status_history` capturing old status, new status, rejection reason, actor staff ID, and timestamp.
+   - **Student Email Notification:** Automated transactional email is dispatched explaining the rejection reason.
+3. **`PROCESSED`**: The admission staff inspects physical certificates (SSC memo, Intermediate/Diploma memo, Caste certificate, Income certificate) and marks the draft verified.
+4. **`FINALIZED`**: The staff member assigns an institutional roll number and finalizes admission. The record is migrated to active student tables, and temporary draft storage is cleaned up.
 
 ---
 
-## 3.1. Canonical Admission Workspace Architecture
+## 3.1. Candidate Re-Application & Uniqueness Rules
+
+When an application is rejected, the applicant may need to submit a fresh application or have staff restore their record:
+
+1. **Candidate Re-Application on `/admission`**:
+   - The uniqueness checks (`email`, `mobile_hash`, `aadhaar_hash` in `src/app/api/public/admission/route.js`) explicitly exclude `status = 'REJECTED'` records (`and(eq(col, val), ne(studentAdmissionDrafts.status, 'REJECTED'))`).
+   - Consequently, rejected candidates are **fully eligible to re-apply immediately** using their original email, phone number, and Aadhaar without encountering false positive duplication blocks.
+2. **Staff/Admin Instant Record Restoration**:
+   - Authorized staff can open the **Rejected Applications** tab in `/staff/admission/requests?tab=admissions`.
+   - Clicking **Inspect / Restore** opens the audit modal with the complete **Lifecycle Status History & Audit Trail**.
+   - Staff can invoke `POST /api/staff/admission/drafts/[id]/restore` with a mandatory `restoration_reason`, returning the application directly to the active `DRAFT` queue without forcing the student to re-enter data.
+
+---
+
+## 3.2. Canonical Admission Workspace Architecture
 
 To prevent data drift and ensure that Admission Requests (`/staff/admission/requests?tab=admissions`) and Finalize Admissions (`/staff/admission/finalize`) operate on identical cohorts, the system establishes a canonical **Admission Workspace** concept defined in `@/lib/admission-workspace`:
 
@@ -102,10 +117,11 @@ flowchart TD
         Norm[normalizeAdmissionWorkspace & validateAdmissionWorkspace]
     end
 
-    Filter -->|Query: DRAFT Status| ReqTab["Student Requests / Admission Intake (/staff/admission/requests)"]
+    Filter -->|Query: DRAFT / REJECTED Status| ReqTab["Admission Requests Panel (/staff/admission/requests)"]
     Filter -->|Query: PROCESSED Status| FinPage["Finalize Admissions (/staff/admission/finalize)"]
 
     ReqTab -->|Audit & Verify| DB[(student_admission_drafts)]
+    ReqTab -->|Status Transitions| Hist[(admission_status_history)]
     DB -->|Status: PROCESSED| FinPage
     FinPage -->|Generate Roll & Finalize| LiveDB[(students table)]
 
@@ -118,7 +134,7 @@ flowchart TD
 2. **Target Branch (`targetBranch`)**: Normalized to institutional branch codes (`CSE`, `CSD`, `ECE`, `EEE`, `CIVIL`, `IT`, `MECH`).
 3. **Entry Year (`entryYear`)**: 4-digit academic entry year (default: `getIntakeYear()`, e.g. `2026`).
 4. **URL-Addressable Navigation**: Workspaces are synchronized to URL query parameters (`?exam=TG+EAPCET&branch=CSE&year=2026`), allowing bookmarking, deep-linking, and browser back/forward navigation without full page reloads.
-5. **Realtime Isolation**: WebSocket/SSE broadcast events (`ADMISSION_DRAFT_CREATED`, `ADMISSION_DRAFT_UPDATED`, `ADMISSION_DRAFT_FINALIZED`, `ADMISSION_DRAFT_DELETED`) verify `matchesAdmissionWorkspace(payload, workspace)` before modifying local component queues, preventing cross-branch or cross-year data pollution.
+5. **Realtime Isolation**: WebSocket/SSE broadcast events (`ADMISSION_DRAFT_CREATED`, `ADMISSION_DRAFT_UPDATED`, `ADMISSION_DRAFT_FINALIZED`) verify `matchesAdmissionWorkspace(payload, workspace)` before modifying local component queues, preventing cross-branch or cross-year data pollution.
 
 ---
 
@@ -236,7 +252,7 @@ const result = await db.transaction(async (tx) => {
 
 ## 8. Cross-References
 
-- Database Schemas: [03_DATABASE.md](../database/03_DATABASE.md)
+- Database Schemas: [schema.md](../database/schema.md)
 - Storage Lifecycle & Media Promotion: [requests.md](./requests.md)
 - Institutional Certificates: [certificates.md](./certificates.md)
-- Identity & User Management: [02_AUTHENTICATION.md](../authentication/02_AUTHENTICATION.md)
+- Identity & User Management: [authentication.md](../authentication/authentication.md)

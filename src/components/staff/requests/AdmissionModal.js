@@ -519,6 +519,11 @@ export function AdmissionModal({
     setRejectionMode,
     rejectionReason,
     setRejectionReason,
+    restorationMode = false,
+    setRestorationMode = () => {},
+    restorationReason = '',
+    setRestorationReason = () => {},
+    onRestore,
     verifyLabel = "Validate & Authenticate"
 }) {
     const modal = (
@@ -530,11 +535,11 @@ export function AdmissionModal({
                         <div className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-1">Audit Environment</div>
                         <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Institutional Admission Review</h2>
                         <div className="text-[10px] text-slate-500 font-bold tracking-widest uppercase mt-1">
-                          Applicant: <span className="text-slate-800">{detail.name}</span> • Year {detail.admission_year} • Intake Rank {detail.exam_rank}
+                          Applicant: <span className="text-slate-800">{detail.name}</span> • Year {detail.admission_year} • Intake Rank {detail.exam_rank} • Status: <span className={`font-black ${detail.status === 'REJECTED' ? 'text-rose-600' : 'text-blue-600'}`}>{detail.status || 'DRAFT'}</span>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        {!rejectionMode && (
+                        {!rejectionMode && !restorationMode && detail.status !== 'REJECTED' && (
                             <button
                                 type="button"
                                 onClick={onToggleEditing}
@@ -557,12 +562,45 @@ export function AdmissionModal({
 
                 {/* Body */}
                 <div className="flex-1 overflow-y-auto p-4 sm:p-8">
-                    {rejectionMode ? (
+                    {restorationMode ? (
+                        <div className="flex flex-col items-center justify-center h-full max-w-lg mx-auto space-y-8 animate-fadeIn">
+                            <div className="text-center space-y-3">
+                                <span className="text-5xl block mb-2">🔄</span>
+                                <h3 className="text-lg font-black text-emerald-700 uppercase tracking-tight">Restore Application</h3>
+                                <p className="text-[11px] text-slate-500 font-bold leading-relaxed uppercase tracking-wider">Specify professional reason for restoring this application back to the intake processing queue.</p>
+                            </div>
+                            <div className="w-full">
+                                <label className="block text-[10px] font-black text-slate-400 mb-3 uppercase tracking-widest">Restoration Rationale</label>
+                                <textarea
+                                    className="w-full border-2 border-slate-200 p-5 text-xs font-bold focus:border-emerald-500 outline-none bg-white rounded-sm shadow-inner transition-all resize-none"
+                                    rows={6}
+                                    placeholder="e.g. Missing certificates verified; Candidate provided corrected documentation."
+                                    value={restorationReason}
+                                    onChange={(e) => setRestorationReason(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex w-full gap-4">
+                                <button
+                                    onClick={() => { setRestorationMode(false); setRestorationReason(''); }}
+                                    className="flex-1 px-6 py-3 border-2 border-slate-200 bg-white text-[10px] font-black text-slate-500 uppercase tracking-widest hover:bg-slate-50 rounded-sm transition-all shadow-sm"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={onRestore}
+                                    disabled={processing || !restorationReason.trim()}
+                                    className="flex-1 px-6 py-3 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 disabled:opacity-50 rounded-sm shadow-lg shadow-emerald-100 transition-all active:scale-95"
+                                >
+                                    {processing ? 'Restoring...' : 'Authorize Restoration'}
+                                </button>
+                            </div>
+                        </div>
+                    ) : rejectionMode ? (
                         <div className="flex flex-col items-center justify-center h-full max-w-lg mx-auto space-y-8 animate-fadeIn">
                             <div className="text-center space-y-3">
                                 <span className="text-5xl block grayscale mb-2">🚫</span>
                                 <h3 className="text-lg font-black text-rose-700 uppercase tracking-tight">Application Rejection Memo</h3>
-                                <p className="text-[11px] text-slate-500 font-bold leading-relaxed uppercase tracking-wider">Specify professional reason for rejection. This memo will be dispatched to the applicant&apos;s registered electronic mail.</p>
+                                <p className="text-[11px] text-slate-500 font-bold leading-relaxed uppercase tracking-wider">Specify professional reason for rejection. This record will remain preserved in the operational database for historical auditing and potential restoration.</p>
                             </div>
                             <div className="w-full">
                                 <label className="block text-[10px] font-black text-slate-400 mb-3 uppercase tracking-widest">Rejection Rationale</label>
@@ -591,29 +629,101 @@ export function AdmissionModal({
                             </div>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-10 h-full">
-                            <div className="space-y-6">
-                                <MediaSection detail={detail} isEditing={isEditing} onFieldChange={onFieldChange} />
-                            </div>
-                            <div className="space-y-10">
-                                <PersonalDetailsSection editForm={editForm} isEditing={isEditing} onFieldChange={onFieldChange} />
-                                <AcademicSection editForm={editForm} isEditing={isEditing} onFieldChange={onFieldChange} />
-                                <ContactSection editForm={editForm} isEditing={isEditing} onFieldChange={onFieldChange} />
+                        <div>
+                            {/* Rejection Alert Banner */}
+                            {detail.status === 'REJECTED' && (
+                                <div className="mb-6 bg-rose-50 border-l-4 border-rose-500 p-4 rounded-r-sm shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div>
+                                        <h4 className="text-xs font-black text-rose-800 uppercase tracking-wider flex items-center gap-1.5">
+                                            <span>🚫</span> Application Status: REJECTED
+                                        </h4>
+                                        <p className="text-xs text-rose-700 mt-1 font-medium">
+                                            <strong>Reason:</strong> {detail.rejection_reason || 'Information provided was incomplete or inconsistent with documents.'}
+                                        </p>
+                                        {detail.rejected_at && (
+                                            <p className="text-[10px] text-rose-500 mt-0.5 font-bold">
+                                                Rejected on: {new Date(detail.rejected_at).toLocaleString()}
+                                            </p>
+                                        )}
+                                    </div>
+                                    {onRestore && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setRestorationMode(true)}
+                                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest rounded-sm shadow-sm transition-all whitespace-nowrap self-start md:self-auto"
+                                        >
+                                            🔄 Restore Application
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-10">
+                                <div className="space-y-6">
+                                    <MediaSection detail={detail} isEditing={isEditing} onFieldChange={onFieldChange} />
+                                </div>
+                                <div className="space-y-10">
+                                    <PersonalDetailsSection editForm={editForm} isEditing={isEditing} onFieldChange={onFieldChange} />
+                                    <AcademicSection editForm={editForm} isEditing={isEditing} onFieldChange={onFieldChange} />
+                                    <ContactSection editForm={editForm} isEditing={isEditing} onFieldChange={onFieldChange} />
+                                    
+                                    {/* Status History & Audit Trail */}
+                                    {detail.status_history && detail.status_history.length > 0 && (
+                                        <div className="border border-slate-200 bg-white p-5 rounded-sm shadow-sm">
+                                            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                <span>📜</span> Lifecycle Status History & Audit Trail
+                                            </h3>
+                                            <div className="space-y-3">
+                                                {detail.status_history.map((h, i) => (
+                                                    <div key={h.id || i} className="flex items-start gap-3 text-xs pb-3 border-b border-slate-100 last:border-b-0">
+                                                        <span className="w-2.5 h-2.5 rounded-full bg-blue-500 mt-1 flex-shrink-0" />
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="font-bold text-slate-800 uppercase">
+                                                                    {h.old_status ? `${h.old_status} ➔ ` : ''}{h.new_status}
+                                                                </span>
+                                                                <span className="text-[10px] text-slate-400 font-mono">
+                                                                    {new Date(h.created_at).toLocaleString()}
+                                                                </span>
+                                                            </div>
+                                                            {h.reason && <p className="text-slate-600 mt-0.5 italic">{h.reason}</p>}
+                                                            {h.staff_name && (
+                                                                <p className="text-[10px] text-slate-400 font-medium">
+                                                                    Actor: {h.staff_name} ({h.changed_by_user_type})
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )}
                 </div>
 
                 {/* Footer */}
-                {!rejectionMode && (
+                {!rejectionMode && !restorationMode && (
                     <div className="px-4 sm:px-8 py-5 border-t border-slate-200 bg-white flex justify-between items-center">
-                        <button
-                            type="button"
-                            onClick={() => setRejectionMode(true)}
-                            className="px-6 py-2.5 border-2 border-rose-100 bg-rose-50 text-rose-700 text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all rounded-sm shadow-sm"
-                        >
-                            Issue Rejection
-                        </button>
+                        {detail.status !== 'REJECTED' ? (
+                            <button
+                                type="button"
+                                onClick={() => setRejectionMode(true)}
+                                className="px-6 py-2.5 border-2 border-rose-100 bg-rose-50 text-rose-700 text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all rounded-sm shadow-sm"
+                            >
+                                Issue Rejection
+                            </button>
+                        ) : onRestore ? (
+                            <button
+                                type="button"
+                                onClick={() => setRestorationMode(true)}
+                                className="px-6 py-2.5 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all rounded-sm shadow-sm"
+                            >
+                                🔄 Restore Application
+                            </button>
+                        ) : <div />}
                         
                         <div className="flex gap-4">
                             {isEditing ? (
@@ -625,7 +735,7 @@ export function AdmissionModal({
                                 >
                                     {processing ? 'Saving Audit...' : 'Commit Changes'}
                                 </button>
-                            ) : onVerify ? (
+                            ) : detail.status !== 'REJECTED' && onVerify ? (
                                 <button
                                     type="button"
                                     onClick={onVerify}
