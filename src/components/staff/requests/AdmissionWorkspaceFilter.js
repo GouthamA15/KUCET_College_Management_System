@@ -11,6 +11,7 @@ export default function AdmissionWorkspaceFilter({
     title = 'Workspace Filter',
     subtitle = 'Select target branch and intake examination',
     actions = null,
+    hideYear = false,
 }) {
     const [prevPropYear, setPrevPropYear] = React.useState(workspace?.entryYear);
     const [yearInput, setYearInput] = React.useState(String(workspace?.entryYear ?? ''));
@@ -79,22 +80,24 @@ export default function AdmissionWorkspaceFilter({
                     </select>
                 </div>
 
-                <div className="flex-1 sm:w-32">
-                    <label className="block text-sm font-medium text-gray-400 mb-1.5">Entry Year</label>
-                    <input
-                        type="number"
-                        value={yearInput}
-                        onChange={handleYearChange}
-                        disabled={isLoading}
-                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 text-sm font-medium text-[#0b3578] focus:outline-none focus:ring-2 focus:ring-blue-100 rounded-md transition-all disabled:opacity-60"
-                        placeholder="e.g. 2026"
-                        min="2000"
-                        max="2100"
-                    />
-                </div>
+                {!hideYear && (
+                    <div className="flex-1 sm:w-32">
+                        <label className="block text-sm font-medium text-gray-400 mb-1.5">Entry Year</label>
+                        <input
+                            type="number"
+                            value={yearInput}
+                            onChange={handleYearChange}
+                            disabled={isLoading}
+                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 text-sm font-medium text-[#0b3578] focus:outline-none focus:ring-2 focus:ring-blue-100 rounded-md transition-all disabled:opacity-60"
+                            placeholder="e.g. 2026"
+                            min="2000"
+                            max="2100"
+                        />
+                    </div>
+                )}
 
                 {actions ? (
-                    <div className="flex-1 sm:w-56 sm:self-end">
+                    <div className="flex-1 sm:self-end">
                         {actions}
                     </div>
                 ) : onRefresh ? (
