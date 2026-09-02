@@ -76,7 +76,8 @@ function RequestsCenterContent() {
                 />
 
                 <div className="border border-gray-300 rounded-md bg-white p-4">
-                    {activeTab === 'admissions' && <AdmissionRequestsPanel />}
+                    {activeTab === 'admissions' && <AdmissionRequestsPanel mode="DRAFT" />}
+                    {activeTab === 'rejected' && <AdmissionRequestsPanel mode="REJECTED" />}
                     {activeTab === 'certificates' && <CertificateRequestsPanel />}
                     {activeTab === 'updates' && <StudentUpdateRequestsPanel />}
                 </div>

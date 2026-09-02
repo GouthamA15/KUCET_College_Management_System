@@ -3,6 +3,7 @@
 const RequestTabs = ({ activeTab, onTabChange, badges = {} }) => {
     const tabs = [
         { id: 'admissions', label: 'Admission Intake', badge: badges.admissions },
+        { id: 'rejected', label: 'Rejected Applications', badge: badges.rejected },
         { id: 'certificates', label: 'Certificates & IDs', badge: badges.certificates },
         { id: 'updates', label: 'Profile Modifications', badge: badges.updates }
     ];
