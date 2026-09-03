@@ -160,18 +160,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 4. Next.js Static Chunks (/_next/static/chunks/...)
+  // 4. Next.js Static Assets & Chunks (/_next/static/...)
   // Immutable hashed assets are served directly from the browser's HTTP cache.
   // Do NOT intercept and return synthetic 503s on 404s, so that Next.js client-side
   // ChunkLoadError handlers can cleanly catch missing chunks and trigger auto-reload.
-  if (url.pathname.startsWith('/_next/static/chunks/')) {
+  if (url.pathname.startsWith('/_next/static/chunks/') || url.pathname.startsWith('/_next/static/')) {
     return;
   }
 
   // 5. Cache static web assets (images, fonts, stylesheets, icons) with Stale-While-Revalidate
   const isStaticMediaAsset =
-    url.pathname.startsWith('/_next/static/media/') ||
-    url.pathname.startsWith('/_next/static/css/') ||
     url.pathname.startsWith('/assets/') ||
     url.pathname.match(/\.(png|jpg|jpeg|svg|gif|webp|woff2|woff|ttf|ico)$/i);
 
