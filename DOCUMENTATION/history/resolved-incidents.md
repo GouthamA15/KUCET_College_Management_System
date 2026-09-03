@@ -10,6 +10,7 @@
 
 | Session | Date | Category | Affected Subsystem | Primary Root Cause Summary | Resolution Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Session 210** | Sep 03, 2026 | CI/CD & Git Worktree | GitHub Actions Runner & Scripts | Non-executable file mode `100644` in Git index caused runtime `chmod +x` to create unstaged mode diffs (`100755`); `deploy.sh` attempted `git checkout` before `git reset --hard`; runner user `deployer` (UID 1001) hit `Permission denied` on files owned by `kucet-dev` (UID 1000) | **RESOLVED** |
 | **Session 209 (Part 2)** | Aug 31, 2026 | Performance & Lifecycle | Realtime, PWA, Proxy & Admin UI | `ServerResponse` MaxListeners warning from Next.js internal `httpxy` proxy during sequential multi-role silent auth refreshes; Socket.IO auth token expiry reconnection loops; uncleaned `setInterval` & `visibilitychange` in `PwaRegister.js`; duplicate `<RealtimeListener>` with unstable inline handlers in `PendingStaffRequests.js` | **RESOLVED** |
 | **Session 209 (Part 1)** | Aug 31, 2026 | Deployment & DevOps | Multi-Service Stack & Nginx | `.dockerignore` excluded `DEPLOYMENT_PACKAGE` causing realtime build failure; `deploy.sh` only rebuilt `app`; Nginx DNS crashed on missing `kucet-cms-realtime:4000` upstream, closing port 80 and failing healthchecks | **RESOLVED** |
 | **Session 208** | Aug 25, 2026 | DB Schema & API | Admin & HOD Analytics | `facultySubjectAssignments.faculty_id` Drizzle object mapping crash; Admin actor mismatch in `faculty_hod_assignments.assigned_by` FK | **RESOLVED** |
@@ -26,6 +27,42 @@
 ---
 
 ## Detailed Forensics & Technical Resolutions
+
+### 0. Session 210: Forensic Resolution of Git Working Tree Mode Drift, CI/CD Checkout Failures & Runner Permission Hardening
+
+#### Incident Summary
+GitHub Actions automated deployment workflow `Deploy to Production (KUCET CMS)` failed during the `2. Deploy to Production VPS` step. Inspection of runner logs revealed:
+1. `error: Your local changes to the following files would be overwritten by checkout: DEPLOYMENT_PACKAGE/SCRIPTS/deploy.sh ...`
+2. `error: unable to unlink old 'DEPLOYMENT_PACKAGE/SCRIPTS/...': Permission denied`
+3. The deployment script aborted, triggering emergency rollback, which encountered the exact same working tree lock.
+
+#### Root Cause Analysis
+1. **Git File Mode Tracking Inconsistency (`100644` vs `100755`)**:
+   - Deployment scripts in `DEPLOYMENT_PACKAGE/SCRIPTS/` were originally added to Git with non-executable file mode `100644`.
+   - On the Linux production host, initialization and cron scripts executed `chmod +x` on the folder, altering file modes in the filesystem to `100755`.
+   - Git tracked this executable bit change as unstaged local modifications. When subsequent CI/CD runs executed `git checkout "$BRANCH"`, Git refused to switch branches due to uncommitted working tree changes.
+2. **Fragile Checkout Sequencing in `deploy.sh` and `rollback.sh`**:
+   - The deployment script executed `git checkout` prior to `git reset --hard`. In automated deployment runners, `git checkout` fails defensively when unstaged modifications exist.
+3. **Runner Service Account Permissions**:
+   - The GitHub Actions runner daemon runs under user account `deployer` (UID `1001`, GID `1001`). Certain files in `/var/www/kucet-cms` had been created under `kucet-dev` (UID `1000`) with restrictive `755` permissions, preventing `deployer` from unlinking old files during checkout.
+
+#### Resolution Steps
+1. **Explicit Index Mode Tracking**:
+   - Set canonical executable permissions directly in the repository Git index: `git update-index --chmod=+x DEPLOYMENT_PACKAGE/SCRIPTS/*.sh`.
+   - Git now tracks all deployment scripts canonically as `100755`, preventing runtime `chmod +x` commands on Linux from dirtying the working tree.
+2. **Atomic Remote Reset Pipeline**:
+   - Refactored `deploy.sh` and `rollback.sh` to synchronize remote changes unconditionally using:
+     ```bash
+     git fetch origin "$BRANCH" 2>&1
+     git reset --hard "origin/$BRANCH" 2>&1
+     git clean -fd 2>&1
+     ```
+3. **Dual-Group Server Ownership Configuration**:
+   - Configured `/var/www/kucet-cms` ownership to `1001:100` (`deployer:users`) with `chmod -R u+rwX,g+rwX`. Both `deployer` (CI runner) and `kucet-dev` (SSH administration) belong to group `users` (GID 100) and can modify/unlink files without permission barriers.
+4. **Shell Flag Resilience**:
+   - Replaced `set -euo pipefail` with `set -eu` and `set -o pipefail 2>/dev/null || true` across all shell scripts, ensuring compatibility across diverse subshells.
+
+---
 
 ### 1. Session 209: Deep Forensic Resolution of EventEmitter Warnings, Socket.IO Auth Expiry, PWA Lifecycle Leaks & Proxy Concurrency
 
