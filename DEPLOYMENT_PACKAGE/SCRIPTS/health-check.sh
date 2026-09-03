@@ -226,14 +226,25 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# CHECK 10: Public HTTPS Ingress Reachability
+# CHECK 10a: Public HTTPS API Ingress Reachability
 # ---------------------------------------------------------------------------
 PUBLIC_ENDPOINT="https://kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net/api/health"
 PUB_HTTPS_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 8 "$PUBLIC_ENDPOINT" 2>/dev/null || echo "000")
 if [[ "$PUB_HTTPS_STATUS" == "200" ]]; then
-  record "ingress:public-https" "PASS" "Public HTTPS responsive (HTTP $PUB_HTTPS_STATUS)"
+  record "ingress:public-https" "PASS" "Public HTTPS API responsive (HTTP $PUB_HTTPS_STATUS)"
 else
-  record "ingress:public-https" "WARN" "Public HTTPS returned HTTP $PUB_HTTPS_STATUS"
+  record "ingress:public-https" "WARN" "Public HTTPS API returned HTTP $PUB_HTTPS_STATUS"
+fi
+
+# ---------------------------------------------------------------------------
+# CHECK 10b: Public HTML Homepage Ingress Reachability
+# ---------------------------------------------------------------------------
+PUBLIC_ROOT="https://kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net/"
+PUB_ROOT_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 8 "$PUBLIC_ROOT" 2>/dev/null || echo "000")
+if [[ "$PUB_ROOT_STATUS" == "200" ]]; then
+  record "ingress:public-html" "PASS" "Public Homepage responsive (HTTP $PUB_ROOT_STATUS)"
+else
+  record "ingress:public-html" "WARN" "Public Homepage returned HTTP $PUB_ROOT_STATUS"
 fi
 
 # ---------------------------------------------------------------------------
@@ -334,6 +345,52 @@ for key in "${!RESULTS[@]}"; do
 done
 
 echo "╚══════════════════════════════╩═══════════╩══════════════════════════════╝"
+
+# ---------------------------------------------------------------------------
+# Layer-by-Layer Architectural Diagnostic Breakdown
+# ---------------------------------------------------------------------------
+echo ""
+echo "============================================================"
+echo "         ARCHITECTURAL LAYER DIAGNOSTIC BREAKDOWN"
+echo "============================================================"
+
+# Layer 1: Host System & Power
+echo "--- [LAYER 1: HOST SYSTEM & POWER] ---"
+printf "  %-32s : %s\n" "Disk Storage" "${RESULTS[disk:space]:-UNKNOWN}"
+printf "  %-32s : %s\n" "RAM Utilization" "${RESULTS[ram:usage]:-UNKNOWN}"
+printf "  %-32s : %s\n" "Power Sleep Masking" "${RESULTS[server:power-sleep]:-UNKNOWN}"
+
+# Layer 2: Docker Containers & Core Services
+echo "--- [LAYER 2: CONTAINER & CORE SERVICES] ---"
+printf "  %-32s : %s\n" "Next.js App Container" "${RESULTS[container:kucet-cms-app]:-UNKNOWN}"
+printf "  %-32s : %s\n" "Socket.IO Realtime Container" "${RESULTS[container:kucet-cms-realtime]:-UNKNOWN}"
+printf "  %-32s : %s\n" "Redis Cache Container" "${RESULTS[container:kucet-cms-redis]:-UNKNOWN}"
+printf "  %-32s : %s\n" "MySQL Database Container" "${RESULTS[container:kucet-cms-db]:-UNKNOWN}"
+printf "  %-32s : %s\n" "Nginx Reverse Proxy Container" "${RESULTS[container:kucet-cms-proxy]:-UNKNOWN}"
+printf "  %-32s : %s\n" "Health Monitor Container" "${RESULTS[container:kucet-cms-monitor]:-UNKNOWN}"
+
+# Layer 3: Storage & Local Reverse Proxy
+echo "--- [LAYER 3: STORAGE & REVERSE PROXY] ---"
+printf "  %-32s : %s\n" "Host Storage Mount" "${RESULTS[storage:host-mount]:-UNKNOWN}"
+printf "  %-32s : %s\n" "Container Storage Writable" "${RESULTS[storage:container-writable]:-UNKNOWN}"
+printf "  %-32s : %s\n" "Nginx Configuration" "${RESULTS[nginx:config]:-UNKNOWN}"
+
+# Layer 4: Tailscale & Public Internet Ingress
+echo "--- [LAYER 4: TAILSCALE & PUBLIC INGRESS] ---"
+printf "  %-32s : %s\n" "Tailscale Daemon Active" "${RESULTS[tailscale:daemon]:-UNKNOWN}"
+printf "  %-32s : %s\n" "Tailscale Funnel Proxy Mapping" "${RESULTS[tailscale:funnel]:-UNKNOWN}"
+printf "  %-32s : %s\n" "Public HTTPS API Ingress" "${RESULTS[ingress:public-https]:-UNKNOWN}"
+printf "  %-32s : %s\n" "Public HTML Homepage Ingress" "${RESULTS[ingress:public-html]:-UNKNOWN}"
+
+# Layer 5: Application & API Integrity
+echo "--- [LAYER 5: APPLICATION & API INTEGRITY] ---"
+printf "  %-32s : %s\n" "Internal Health API" "${RESULTS[http:/api/health]:-UNKNOWN}"
+printf "  %-32s : %s\n" "Realtime WebSocket API" "${RESULTS[realtime:health]:-UNKNOWN}"
+printf "  %-32s : %s\n" "Staff Requests API Guard" "${RESULTS[api:staff-requests]:-UNKNOWN}"
+printf "  %-32s : %s\n" "HOD Requests API Guard" "${RESULTS[api:hod-requests]:-UNKNOWN}"
+printf "  %-32s : %s\n" "PWA Service Worker Asset" "${RESULTS[pwa:service-worker]:-UNKNOWN}"
+printf "  %-32s : %s\n" "PWA Offline Fallback Page" "${RESULTS[pwa:offline-fallback]:-UNKNOWN}"
+echo "============================================================"
 
 if $CRITICAL_FAIL; then
   echo ""
