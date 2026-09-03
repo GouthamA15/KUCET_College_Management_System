@@ -11,7 +11,8 @@
 #   0  — All critical checks passed
 #   1  — One or more critical checks failed
 # =============================================================================
-set -euo pipefail
+set -eu
+set -o pipefail 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -120,7 +121,24 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# CHECK 6b: Endpoint crash check for critical admin routes (no 500 internal errors)
+# CHECK 6b: Database & Redis Connectivity Checks
+# ---------------------------------------------------------------------------
+if docker exec kucet-cms-db mysqladmin ping -h localhost >/dev/null 2>&1; then
+  record "database:ping" "PASS" "MySQL database responsive"
+else
+  record "database:ping" "FAIL" "MySQL ping failed (mysqladmin ping -h localhost)"
+  CRITICAL_FAIL=true
+fi
+
+if docker exec kucet-cms-redis redis-cli ping | grep -q "PONG" 2>/dev/null; then
+  record "redis:ping" "PASS" "Redis responsive (PONG)"
+else
+  record "redis:ping" "FAIL" "Redis ping failed (redis-cli ping)"
+  CRITICAL_FAIL=true
+fi
+
+# ---------------------------------------------------------------------------
+# CHECK 6c: Endpoint crash check for critical admin routes (no 500 internal errors)
 # ---------------------------------------------------------------------------
 STAFF_REQ_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 5 "http://localhost/api/admin/staff-requests" 2>/dev/null || echo "000")
 if [[ "$STAFF_REQ_STATUS" == "401" || "$STAFF_REQ_STATUS" == "200" || "$STAFF_REQ_STATUS" == "303" || "$STAFF_REQ_STATUS" == "307" ]]; then
@@ -139,7 +157,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# CHECK 6c: PWA Service Worker & Offline assets responsiveness
+# CHECK 6d: PWA Service Worker & Offline assets responsiveness
 # ---------------------------------------------------------------------------
 SW_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 5 "http://localhost/sw.js" 2>/dev/null || echo "000")
 if [[ "$SW_STATUS" == "200" || "$SW_STATUS" == "304" ]]; then
@@ -158,6 +176,45 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# CHECK 7: Host Server Power Management (Sleep/Suspend Masked)
+# ---------------------------------------------------------------------------
+ALL_SLEEP_MASKED=true
+if command -v systemctl >/dev/null 2>&1; then
+  for target in sleep.target suspend.target hibernate.target hybrid-sleep.target; do
+    t_status=$(systemctl is-enabled "$target" 2>/dev/null || echo "unknown")
+    if [[ "$t_status" != "masked" ]]; then
+      ALL_SLEEP_MASKED=false
+    fi
+  done
+fi
+
+if $ALL_SLEEP_MASKED; then
+  record "server:power-sleep" "PASS" "Host sleep/suspend targets masked"
+else
+  record "server:power-sleep" "WARN" "Some sleep targets not masked"
+fi
+
+# ---------------------------------------------------------------------------
+# CHECK 8: Tailscale Daemon & Public Funnel Status
+# ---------------------------------------------------------------------------
+if command -v tailscale >/dev/null 2>&1; then
+  if systemctl is-active tailscaled >/dev/null 2>&1; then
+    record "tailscale:daemon" "PASS" "tailscaled active"
+  else
+    record "tailscale:daemon" "FAIL" "tailscaled service inactive"
+    CRITICAL_FAIL=true
+  fi
+
+  if tailscale serve status 2>/dev/null | grep -q "127.0.0.1:80"; then
+    record "tailscale:funnel" "PASS" "Tailscale Funnel proxying to port 80"
+  else
+    record "tailscale:funnel" "WARN" "Tailscale Funnel not proxying to port 80"
+  fi
+else
+  record "tailscale:daemon" "WARN" "tailscale CLI not found"
+fi
+
+# ---------------------------------------------------------------------------
 # CHECK 9: Nginx config validity
 # ---------------------------------------------------------------------------
 nginx_out=$(docker exec kucet-cms-proxy nginx -t 2>&1 || echo "FAILED")
@@ -169,8 +226,15 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# (CHECK 10 removed: runner obviously works if this script is executing)
+# CHECK 10: Public HTTPS Ingress Reachability
 # ---------------------------------------------------------------------------
+PUBLIC_ENDPOINT="https://kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net/api/health"
+PUB_HTTPS_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 8 "$PUBLIC_ENDPOINT" 2>/dev/null || echo "000")
+if [[ "$PUB_HTTPS_STATUS" == "200" ]]; then
+  record "ingress:public-https" "PASS" "Public HTTPS responsive (HTTP $PUB_HTTPS_STATUS)"
+else
+  record "ingress:public-https" "WARN" "Public HTTPS returned HTTP $PUB_HTTPS_STATUS"
+fi
 
 # ---------------------------------------------------------------------------
 # CHECK 11a: Host storage directory exists

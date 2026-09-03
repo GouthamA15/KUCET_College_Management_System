@@ -8,7 +8,8 @@
 #
 # Usage: bash boot-recovery.sh
 # =============================================================================
-set -euo pipefail
+set -eu
+set -o pipefail 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -91,6 +92,7 @@ log "STEP 3: Bringing up all Docker containers (docker compose up -d) ..."
 docker compose \
   -p deployment_package \
   -f "$COMPOSE_FILE" \
+  --env-file "$KUCET_CMS_DIR/.env.production" \
   up -d 2>&1 | tee -a "$LOG_FILE"
 
 log "  docker compose up -d completed."

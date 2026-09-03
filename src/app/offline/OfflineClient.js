@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useSyncExternalStore, useRef } from 'react';
 import Link from 'next/link';
-import { WifiOff, ServerCrash, RefreshCw, CheckCircle2, AlertTriangle, User, CreditCard, Calendar } from 'lucide-react';
+import { WifiOff, ServerCrash, RefreshCw, CheckCircle2, AlertTriangle, User, CreditCard, Calendar, Home } from 'lucide-react';
 
 function subscribeOnline(callback) {
   if (typeof window === 'undefined') return () => {};
@@ -22,6 +22,8 @@ function getServerSnapshot() {
   return true;
 }
 
+const OFFLINE_RELOAD_KEY = 'kucet_offline_reload_ts';
+
 export default function OfflineClient() {
   const isOnline = useSyncExternalStore(subscribeOnline, getOnlineSnapshot, getServerSnapshot);
   const [isChecking, setIsChecking] = useState(false);
@@ -29,6 +31,31 @@ export default function OfflineClient() {
   const [retryCountdown, setRetryCountdown] = useState(null); // seconds until next auto-retry
   const [attemptCount, setAttemptCount] = useState(0);
   const countdownTimerRef = useRef(null);
+
+  const navigateToPortalOrReload = useCallback(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const now = Date.now();
+      const lastRetryStr = sessionStorage.getItem(OFFLINE_RELOAD_KEY);
+      const lastRetry = lastRetryStr ? parseInt(lastRetryStr, 10) : 0;
+      if (lastRetry && now - lastRetry < 2000) {
+        // Prevent rapid double triggers
+        return;
+      }
+      sessionStorage.setItem(OFFLINE_RELOAD_KEY, now.toString());
+      sessionStorage.removeItem('kucet_chunk_retry_ts');
+    } catch (_e) {
+      // Ignore storage errors
+    }
+
+    // If currently rendering on /offline, replace URL with root portal /
+    if (window.location.pathname === '/offline') {
+      window.location.replace('/');
+    } else {
+      window.location.reload();
+    }
+  }, []);
 
   const testServerHealth = useCallback(async () => {
     setIsChecking(true);
@@ -52,10 +79,8 @@ export default function OfflineClient() {
         setCheckResult('server_ok');
         setAttemptCount(0);
         setTimeout(() => {
-          if (typeof window !== 'undefined') {
-            window.location.reload();
-          }
-        }, 1200);
+          navigateToPortalOrReload();
+        }, 800);
       } else {
         setCheckResult('server_down');
         setAttemptCount((prev) => {
@@ -76,7 +101,7 @@ export default function OfflineClient() {
     } finally {
       setIsChecking(false);
     }
-  }, []);
+  }, [navigateToPortalOrReload]);
 
   // Handle countdown tick
   useEffect(() => {
@@ -112,14 +137,9 @@ export default function OfflineClient() {
     }
   }, [isOnline, testServerHealth]);
 
-  const handleManualReload = () => {
+  const handleManualAction = () => {
     if (typeof window !== 'undefined') {
-      try {
-        sessionStorage.removeItem('kucet_chunk_retry_ts');
-      } catch (err) {
-        void err;
-      }
-      window.location.reload();
+      navigateToPortalOrReload();
     }
   };
 
@@ -146,7 +166,19 @@ export default function OfflineClient() {
           <div className="space-y-2">
             <h1 className="text-2xl font-bold tracking-tight text-white">Connection Restored</h1>
             <p className="text-sm text-emerald-400">
-              KUCET campus server is reachable. Reloading portal...
+              KUCET campus server is reachable. Returning to portal...
+            </p>
+          </div>
+        </>
+      ) : isChecking && checkResult === null ? (
+        <>
+          <div className="w-16 h-16 bg-blue-500/20 text-blue-400 rounded-full flex items-center justify-center mx-auto animate-spin">
+            <RefreshCw className="w-8 h-8" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold tracking-tight text-white">Verifying Connection...</h1>
+            <p className="text-sm text-slate-400">
+              Checking connectivity with KUCET campus server endpoint...
             </p>
           </div>
         </>
@@ -229,10 +261,11 @@ export default function OfflineClient() {
         </button>
 
         <button
-          onClick={handleManualReload}
-          className="py-2.5 px-4 bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium rounded-xl text-sm transition-colors cursor-pointer"
+          onClick={handleManualAction}
+          className="py-2.5 px-4 bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium rounded-xl text-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
         >
-          Reload Page
+          <Home className="w-4 h-4" />
+          Return to Portal
         </button>
       </div>
     </div>
