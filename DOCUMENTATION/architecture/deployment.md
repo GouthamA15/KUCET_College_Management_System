@@ -282,6 +282,24 @@ Deployment is fully automated using GitHub Actions workflows (`.github/workflows
 - **Server User & Group Ownership**: `/var/www/kucet-cms` is owned by `deployer:users` (UID `1001:100`) with permissions `u+rwX,g+rwX`. This allows both the GitHub Actions runner daemon (`deployer`) and SSH maintenance users (`kucet-dev`) to execute builds, update files, and write logs without permission errors.
 - **Persistent Storage Volumes**: Host directory `/var/www/kucet-storage` is owned by UID `1001:1001` with `755` permissions, mounted inside containers at `/app/storage` to preserve user uploads independently of code checkouts.
 
+---
+
+## 🌐 Dual Ingress Architecture: Private Tailnet Mesh vs Public Funnel Edge Relays
+
+The self-hosted deployment supports two distinct traffic ingress paths:
+
+1. **Private Tailnet Route (Admin / Development Laptop):**
+   - **Mechanism:** The laptop runs the Tailscale client and is joined to the tailnet (`official.kucet@`, IP `100.78.176.78`).
+   - **Resolution:** Tailscale MagicDNS intercepts `kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net` and resolves it directly to the internal overlay IP **`100.102.153.50`**.
+   - **Path:** Traffic flows strictly through the encrypted WireGuard peer mesh or direct DERP tunnel, completely bypassing public internet DNS, external firewalls, and carrier routing.
+
+2. **Public Internet Ingress Route (Students, Faculty Mobile Devices, General Public):**
+   - **Mechanism:** External mobile devices (4G/5G/Broadband) have no Tailscale client installed.
+   - **Resolution:** Public DNS (Google `8.8.8.8`, Cloudflare `1.1.1.1`, or telecom carrier DNS) resolves `*.tailf6b4a7.ts.net` to Tailscale's public Funnel edge proxy IPs (`103.84.155.217`, `103.84.155.153`, and IPv6 `2403:...`).
+   - **Path:** Requests connect to Tailscale's public Funnel edge relays. Tailscale terminates external TLS with Let's Encrypt certificates, tunnels the requests over the DERP control channel to the host machine's `tailscaled` daemon, which forwards decrypted HTTP traffic to `http://127.0.0.1:80` (Nginx) -> Next.js container (`http://127.0.0.1:3000`).
+
+---
+
 ```mermaid
 sequenceDiagram
     autonumber
