@@ -102,13 +102,14 @@ CURRENT_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
 log "Current commit: $CURRENT_COMMIT"
 log "Rolling back to: $TARGET_COMMIT ..."
 
-git checkout --detach "$TARGET_COMMIT" 2>&1 || git checkout "$TARGET_COMMIT" 2>&1 || {
-  log "ERROR: git checkout $TARGET_COMMIT failed!"
+git reset --hard "$TARGET_COMMIT" 2>&1 || git checkout --force --detach "$TARGET_COMMIT" 2>&1 || {
+  log "ERROR: git reset/checkout to $TARGET_COMMIT failed!"
   send_webhook "❌ KUCET CMS: Rollback FAILED — git checkout ${TARGET_COMMIT:0:8} failed."
   exit 1
 }
+git clean -fd 2>&1
 
-log "Git checkout to $TARGET_COMMIT completed."
+log "Git reset to $TARGET_COMMIT completed."
 
 # ---------------------------------------------------------------------------
 # Prepare host storage directories with least privilege (no chmod 777)

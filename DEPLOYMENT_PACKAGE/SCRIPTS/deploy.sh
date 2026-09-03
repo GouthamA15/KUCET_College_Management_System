@@ -98,8 +98,8 @@ log "Previous commit (rollback target): $PREV_COMMIT"
 # ---------------------------------------------------------------------------
 log "Pulling latest code from origin/$BRANCH ..."
 git fetch origin "$BRANCH" 2>&1
-git checkout -B "$BRANCH" "origin/$BRANCH" 2>&1
 git reset --hard "origin/$BRANCH" 2>&1
+git clean -fd 2>&1
 NEW_COMMIT=$(git rev-parse HEAD)
 log "Code updated: $PREV_COMMIT → $NEW_COMMIT"
 chmod +x "$SCRIPTS_DIR"/*.sh 2>/dev/null || true
