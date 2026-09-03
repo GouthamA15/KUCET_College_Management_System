@@ -263,19 +263,17 @@ export function StaffProvider({ children }) {
     const now = Date.now();
     const isBfcacheRestore = event?.type === 'pageshow' && event.persisted;
     const currentStaff = staffDataRef.current;
-    const isStuck = loading && !currentStaff;
 
     // Check if we should revalidate
-    const shouldReinit = isBfcacheRestore || isStuck;
     const throttleTime = 60000; // 60 seconds throttle
     const isThrottled = now - lastFetchTimeRef.current < throttleTime;
 
-    if (!shouldReinit && isThrottled) {
+    if (!isBfcacheRestore && isThrottled) {
       return;
     }
 
     if (activePromiseRef.current) {
-      if (shouldReinit && !currentStaff) {
+      if (isBfcacheRestore && !currentStaff) {
         setLoading(true);
         setAreRequestsBootstrapping(true);
       }
@@ -289,7 +287,7 @@ export function StaffProvider({ children }) {
     }
 
     isInitializingRef.current = true;
-    if (shouldReinit && !currentStaff) {
+    if (isBfcacheRestore && !currentStaff) {
       setLoading(true);
       setAreRequestsBootstrapping(true);
     }
@@ -303,19 +301,27 @@ export function StaffProvider({ children }) {
       setAreRequestsBootstrapping(false);
       isInitializingRef.current = false;
     }
-  }, [loading, refreshAllData]);
+  }, [refreshAllData]);
 
+  // Stable ref to refreshAllData for initial mount
+  const refreshAllDataRef = useRef(refreshAllData);
   useEffect(() => {
-    if (staffData || isInitializingRef.current) return;
+    refreshAllDataRef.current = refreshAllData;
+  }, [refreshAllData]);
+
+  const hasInitializedRef = useRef(false);
+  useEffect(() => {
+    if (hasInitializedRef.current || staffDataRef.current) return;
+    hasInitializedRef.current = true;
 
     let isMounted = true;
     isInitializingRef.current = true;
 
     const init = async () => {
-      if (!staffData) setLoading(true);
+      setLoading(true);
       setAreRequestsBootstrapping(true);
       try {
-        await refreshAllData();
+        await refreshAllDataRef.current();
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -331,7 +337,7 @@ export function StaffProvider({ children }) {
       isMounted = false;
       isInitializingRef.current = false;
     };
-  }, [staffData, refreshAllData]);
+  }, []); // Run once on mount
 
   // Keep a stable ref to handleResume so the event listener effect only runs once.
   const handleResumeRef = useRef(handleResume);
@@ -361,8 +367,9 @@ export function StaffProvider({ children }) {
   const handleRealtimeUpdate = useCallback((data) => {
     if (!data || !data.type) return;
     const { type, payload } = data;
+    const currentStaff = staffDataRef.current;
 
-    if (staffData?.is_hod && (!payload?.branch || payload?.branch === staffData.branch)) {
+    if (currentStaff?.is_hod && (!payload?.branch || payload?.branch === currentStaff.branch)) {
       if ([
         'TIMETABLE_CHANGED', 'ATTENDANCE_SAVED', 'SESSION_STARTED', 'SESSION_ENDED',
         'academic:timetable:changed', 'attendance:saved', 'attendance:session:started', 'attendance:session:ended'
@@ -375,8 +382,8 @@ export function StaffProvider({ children }) {
       'REQUEST_CREATED', 'REQUEST_UPDATED',
       'request:created', 'request:updated', 'request:status-changed', 'request:completed'
     ].includes(type)) {
-      if (staffData?.role) {
-        refreshAllRequests(staffData.role);
+      if (currentStaff?.role) {
+        refreshAllRequests(currentStaff.role);
       }
     }
 
@@ -385,15 +392,15 @@ export function StaffProvider({ children }) {
       'admission:created', 'admission:updated', 'admission:finalized', 'admission:deleted',
       'admission:draft:created', 'admission:draft:updated', 'admission:draft:finalized', 'admission:draft:deleted'
     ].includes(type)) {
-      if (staffData?.role === 'admission') {
+      if (currentStaff?.role === 'admission') {
         fetchAdmissionDrafts();
       }
     }
 
-    if (['STAFF_UPDATED', 'staff:updated'].includes(type) && payload?.id === staffData?.id) {
+    if (['STAFF_UPDATED', 'staff:updated'].includes(type) && payload?.id === currentStaff?.id) {
       setStaffData(prev => ({ ...prev, ...payload }));
     }
-  }, [staffData, fetchHODData, refreshAllRequests, fetchAdmissionDrafts]);
+  }, [fetchHODData, refreshAllRequests, fetchAdmissionDrafts]);
 
   return (
     <StaffContext.Provider value={{

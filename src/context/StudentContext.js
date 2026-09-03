@@ -160,19 +160,17 @@ export function StudentProvider({ children }) {
     const now = Date.now();
     const isBfcacheRestore = event?.type === 'pageshow' && event.persisted;
     const currentStudent = studentDataRef.current;
-    const isStuck = loading && !currentStudent;
 
     // Check if we should revalidate
-    const shouldReinit = isBfcacheRestore || isStuck;
     const throttleTime = 60000; // 60 seconds throttle
     const isThrottled = now - lastFetchTimeRef.current < throttleTime;
 
-    if (!shouldReinit && isThrottled) {
+    if (!isBfcacheRestore && isThrottled) {
       return;
     }
 
     if (activePromiseRef.current) {
-      if (shouldReinit && !currentStudent) {
+      if (isBfcacheRestore && !currentStudent) {
         setLoading(true);
       }
       try {
@@ -184,7 +182,7 @@ export function StudentProvider({ children }) {
     }
 
     isInitializingRef.current = true;
-    if (shouldReinit && !currentStudent) {
+    if (isBfcacheRestore && !currentStudent) {
       setLoading(true);
     }
 
@@ -196,37 +194,39 @@ export function StudentProvider({ children }) {
       setLoading(false);
       isInitializingRef.current = false;
     }
-  }, [loading, refreshData]);
+  }, [refreshData]);
 
+  const refreshDataRef = useRef(refreshData);
   useEffect(() => {
-    // Avoid a refresh loop: refreshData() sets studentData,
-    // so we only initialize when there is no cached data.
-    if (studentData || isInitializingRef.current) return;
+    refreshDataRef.current = refreshData;
+  }, [refreshData]);
+
+  const hasInitializedRef = useRef(false);
+  useEffect(() => {
+    if (hasInitializedRef.current || studentDataRef.current) return;
+    hasInitializedRef.current = true;
 
     let cancelled = false;
     isInitializingRef.current = true;
 
-    const id = setTimeout(() => {
-      const init = async () => {
-        setLoading(true);
-        try {
-          await refreshData();
-        } finally {
-          if (!cancelled) {
-            setLoading(false);
-            isInitializingRef.current = false;
-          }
+    const init = async () => {
+      setLoading(true);
+      try {
+        await refreshDataRef.current();
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          isInitializingRef.current = false;
         }
-      };
-      init();
-    }, 0);
+      }
+    };
+    init();
 
     return () => {
       cancelled = true;
       isInitializingRef.current = false;
-      clearTimeout(id);
     };
-  }, [refreshData, studentData]);
+  }, []);
 
   // Keep a stable ref to handleResume so the event listener effect only runs once.
   // Without this pattern, the effect would re-run on every loading/studentData change,
@@ -275,14 +275,15 @@ export function StudentProvider({ children }) {
   const handleRealtimeUpdate = useCallback((data) => {
     if (!data || !data.type) return;
     const { type, payload } = data;
+    const currentStudent = studentDataRef.current;
 
     const isTargetStudent =
       !payload ||
-      (studentData &&
-        (payload.student_id === studentData.id ||
-          payload.student_id === studentData.student?.id ||
-          payload.roll_no === studentData.roll_no ||
-          payload.roll_no === studentData.student?.roll_no));
+      (currentStudent &&
+        (payload.student_id === currentStudent.id ||
+          payload.student_id === currentStudent.student?.id ||
+          payload.roll_no === currentStudent.roll_no ||
+          payload.roll_no === currentStudent.student?.roll_no));
 
     if (isTargetStudent) {
       if (
@@ -299,13 +300,13 @@ export function StudentProvider({ children }) {
           'student:photo:removed',
         ].includes(type)
       ) {
-        const rollNo = studentData?.roll_no || studentData?.student?.roll_no;
+        const rollNo = currentStudent?.roll_no || currentStudent?.student?.roll_no;
         if (rollNo) {
           fetchProfile(rollNo);
         }
       }
     }
-  }, [studentData, fetchProfile]);
+  }, [fetchProfile]);
 
   return (
     <StudentContext.Provider value={{

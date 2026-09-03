@@ -38,10 +38,13 @@ function notifyEvent(eventData) {
  * Initializes and maintains a single centralized Socket.IO connection.
  */
 let isRefreshingToken = false;
+let lastSilentRefreshTime = 0;
 
 async function trySilentTokenRefresh() {
-  if (isRefreshingToken) return false;
+  const now = Date.now();
+  if (isRefreshingToken || now - lastSilentRefreshTime < 30000) return false;
   isRefreshingToken = true;
+  lastSilentRefreshTime = now;
   try {
     // Dynamically detect user type from client-accessible companion cookies
     let userType = 'staff';
@@ -163,12 +166,19 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
 
   const studentDataRef = useRef(studentData);
   const staffDataRef = useRef(currentStaff);
+  const onUpdateRef = useRef(onUpdate);
+  const enableNotificationsRef = useRef(enableNotifications);
   const [_status, setStatus] = useState(sharedStatus);
 
   useEffect(() => {
     studentDataRef.current = studentData;
     staffDataRef.current = currentStaff;
   }, [studentData, currentStaff]);
+
+  useEffect(() => {
+    onUpdateRef.current = onUpdate;
+    enableNotificationsRef.current = enableNotifications;
+  }, [onUpdate, enableNotifications]);
 
   const handleNotification = useCallback((event, payload) => {
     const sData = studentDataRef.current;
@@ -209,11 +219,16 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
     }
   }, []);
 
+  const handleNotificationRef = useRef(handleNotification);
+  useEffect(() => {
+    handleNotificationRef.current = handleNotification;
+  }, [handleNotification]);
+
   useEffect(() => {
     const statusHandler = (nextStatus) => setStatus(nextStatus);
     const eventHandler = ({ type, payload }) => {
-      if (typeof onUpdate === 'function') onUpdate({ type, payload });
-      if (enableNotifications) handleNotification(type, payload || {});
+      if (typeof onUpdateRef.current === 'function') onUpdateRef.current({ type, payload });
+      if (enableNotificationsRef.current) handleNotificationRef.current(type, payload || {});
     };
 
     statusSubscribers.add(statusHandler);
@@ -225,7 +240,7 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
       statusSubscribers.delete(statusHandler);
       eventSubscribers.delete(eventHandler);
     };
-  }, [enableNotifications, handleNotification, onUpdate]);
+  }, []);
 
   return null;
 }

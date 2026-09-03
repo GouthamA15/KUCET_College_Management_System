@@ -5,6 +5,7 @@ import { withSentryConfig } from "@sentry/nextjs";
 const nextConfig = {
   /* config options here */
   output: 'standalone',
+  compress: false, // Delegate compression to Nginx reverse proxy to eliminate Node ServerResponse listener overhead
   reactCompiler: true,
   // Fix Render OOM (Out of Memory) by disabling memory-heavy build steps & externalizing heavy Node packages
   productionBrowserSourceMaps: false,

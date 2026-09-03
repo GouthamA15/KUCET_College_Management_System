@@ -194,19 +194,17 @@ export function AdminProvider({ children }) {
     const now = Date.now();
     const isBfcacheRestore = event?.type === 'pageshow' && event.persisted;
     const currentAdmin = adminDataRef.current;
-    const isStuck = loading && !currentAdmin;
 
     // Check if we should revalidate
-    const shouldReinit = isBfcacheRestore || isStuck;
     const throttleTime = 60000; // 60 seconds throttle
     const isThrottled = now - lastFetchTimeRef.current < throttleTime;
 
-    if (!shouldReinit && isThrottled) {
+    if (!isBfcacheRestore && isThrottled) {
       return;
     }
 
     if (activePromiseRef.current) {
-      if (shouldReinit && !currentAdmin) {
+      if (isBfcacheRestore && !currentAdmin) {
         setLoading(true);
       }
       try {
@@ -218,7 +216,7 @@ export function AdminProvider({ children }) {
     }
 
     isInitializingRef.current = true;
-    if (shouldReinit && !currentAdmin) {
+    if (isBfcacheRestore && !currentAdmin) {
       setLoading(true);
     }
 
@@ -230,18 +228,25 @@ export function AdminProvider({ children }) {
       setLoading(false);
       isInitializingRef.current = false;
     }
-  }, [loading, refreshAll]);
+  }, [refreshAll]);
 
+  const refreshAllRef = useRef(refreshAll);
   useEffect(() => {
-    if (adminData || isInitializingRef.current) return;
+    refreshAllRef.current = refreshAll;
+  }, [refreshAll]);
+
+  const hasInitializedRef = useRef(false);
+  useEffect(() => {
+    if (hasInitializedRef.current || adminDataRef.current) return;
+    hasInitializedRef.current = true;
 
     let cancelled = false;
     isInitializingRef.current = true;
 
     const init = async () => {
-      if (!adminData) setLoading(true);
+      setLoading(true);
       try {
-        await refreshAll();
+        await refreshAllRef.current();
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -255,7 +260,7 @@ export function AdminProvider({ children }) {
       cancelled = true;
       isInitializingRef.current = false;
     };
-  }, [adminData, refreshAll]);
+  }, []);
 
   // Keep a stable ref to handleResume so the event listener effect only runs once.
   const handleResumeRef = useRef(handleResume);

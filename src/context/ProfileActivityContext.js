@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { useStudent } from '@/context/StudentContext';
 
 const STORAGE_COUNT_KEY = 'profileStatusBarCount';
@@ -23,6 +23,13 @@ export function ProfileActivityProvider({ children }) {
   const [dismissCount, setDismissCount] = useState(0);
   const [seenRequestId, setSeenRequestId] = useState(null);
   const [seenStatus, setSeenStatus] = useState(null);
+  const seenRequestIdRef = useRef(seenRequestId);
+  const seenStatusRef = useRef(seenStatus);
+
+  useEffect(() => {
+    seenRequestIdRef.current = seenRequestId;
+    seenStatusRef.current = seenStatus;
+  }, [seenRequestId, seenStatus]);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -34,8 +41,10 @@ export function ProfileActivityProvider({ children }) {
       }
       try {
         setDismissCount(Number(localStorage.getItem(getStorageKey(STORAGE_COUNT_KEY, rollno)) || '0'));
-        setSeenRequestId(localStorage.getItem(getStorageKey(STORAGE_SEEN_ID_KEY, rollno)) || null);
-        setSeenStatus(localStorage.getItem(getStorageKey(STORAGE_SEEN_STATUS_KEY, rollno)) || null);
+        const storedId = localStorage.getItem(getStorageKey(STORAGE_SEEN_ID_KEY, rollno)) || null;
+        const storedStatus = localStorage.getItem(getStorageKey(STORAGE_SEEN_STATUS_KEY, rollno)) || null;
+        setSeenRequestId(storedId);
+        setSeenStatus(storedStatus);
       } catch (error) {
         console.error('Profile activity storage hydrate error:', error);
       }
@@ -73,7 +82,7 @@ export function ProfileActivityProvider({ children }) {
             const incomingId = req?.request_id ? String(req.request_id) : null;
             const incomingStatus = req?.status ? String(req.status) : null;
 
-            if ((incomingId && incomingId !== seenRequestId) || (incomingStatus && incomingStatus !== seenStatus)) {
+            if ((incomingId && incomingId !== seenRequestIdRef.current) || (incomingStatus && incomingStatus !== seenStatusRef.current)) {
               setDismissCount(0);
               setSeenRequestId(incomingId);
               setSeenStatus(incomingStatus);
