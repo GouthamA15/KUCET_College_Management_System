@@ -263,7 +263,24 @@ Deployment is fully automated using GitHub Actions workflows (`.github/workflows
 2. **Unit & Integration Test Suite**: Executes `npm test` via Vitest.
 3. **End-to-End (E2E) Test Suite**: Executes Playwright test suites (`npx playwright test`).
 4. **Docker Image Build**: Compiles Next.js standalone build in Docker context and tags image.
-5. **VPS Deployment via SSH**: SSHs into Hostinger VPS, executes database migrations (`npm run db:migrate`), pulls latest containers, and performs a zero-downtime rolling update.
+5. **VPS Deployment via Self-Hosted Runner**:
+   - Executes automated database snapshot (`DEPLOYMENT_PACKAGE/SCRIPTS/nightly-backup.sh`).
+   - Runs Drizzle DB migrations (`npm run db:migrate`).
+   - Rebuilds and restarts the Next.js app and Socket.IO realtime containers.
+   - Validates Nginx reverse proxy configuration (`nginx -t`) and executes safe reload.
+   - Runs the comprehensive 23-point system health check (`DEPLOYMENT_PACKAGE/SCRIPTS/health-check.sh`).
+   - Automatically triggers atomic rollback if any critical service check fails.
+
+### CI/CD Invariants & Operational Standards
+- **Git Working Tree Invariant**: In deployment pipelines, Git checkout must NEVER fail due to local working tree drifts. Deployment scripts use atomic remote reset:
+  ```bash
+  git fetch origin "$BRANCH" 2>&1
+  git reset --hard "origin/$BRANCH" 2>&1
+  git clean -fd 2>&1
+  ```
+- **Canonical File Mode Tracking**: All shell scripts in `DEPLOYMENT_PACKAGE/SCRIPTS/` are tracked with executable bit `100755` in the Git index (`git update-index --chmod=+x`), preventing runtime `chmod +x` commands from marking files as dirty on Linux.
+- **Server User & Group Ownership**: `/var/www/kucet-cms` is owned by `deployer:users` (UID `1001:100`) with permissions `u+rwX,g+rwX`. This allows both the GitHub Actions runner daemon (`deployer`) and SSH maintenance users (`kucet-dev`) to execute builds, update files, and write logs without permission errors.
+- **Persistent Storage Volumes**: Host directory `/var/www/kucet-storage` is owned by UID `1001:1001` with `755` permissions, mounted inside containers at `/app/storage` to preserve user uploads independently of code checkouts.
 
 ```mermaid
 sequenceDiagram

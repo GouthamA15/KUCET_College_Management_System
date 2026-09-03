@@ -68,6 +68,14 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 - **The Pitfall:** Executing physical SQL `DELETE` (`db.delete()`) and storage deletion (`storage.delete()`) on application rejections wipes historical student applications and proof assets permanently. This prevents staff from auditing past rejections, reviewing rejection rationales, or restoring erroneously rejected applicants.
 - **The Inviolable Guardrail:** ALWAYS transition records to a `REJECTED` status enum in an atomic transaction, record the transition in `admission_status_history` / `audit_logs`, and preserve all uploaded media assets. Exclude `REJECTED` records from active duplicate constraints so applicants can re-apply if instructed.
 
+### Rule 14: Never Track Deployment Scripts as Non-Executable & Always Use Unconditional Remote Git Sync in CI/CD Runners
+- **The Pitfall:** Tracking scripts under `DEPLOYMENT_PACKAGE/SCRIPTS/` with Git file mode `100644` (non-executable) causes runtime `chmod +x` on the Linux VPS to mark the working tree as locally modified (`100644 -> 100755`). Running `git checkout $BRANCH` in automated runners then aborts with `Your local changes to the following files would be overwritten by checkout`. Furthermore, runner service account UID mismatches (e.g., `deployer` UID 1001 vs `kucet-dev` UID 1000) trigger `Permission denied` unlink errors during automated pulls.
+- **The Inviolable Guardrail:**
+  1. **Canonical Git Index Executable Bit:** ALWAYS track all deployment and operational shell scripts in the Git index with the executable bit explicitly set (`git update-index --chmod=+x DEPLOYMENT_PACKAGE/SCRIPTS/*.sh` -> mode `100755`).
+  2. **Atomic Remote Reset in CI/CD:** In automated deployment scripts (`deploy.sh`, `rollback.sh`), NEVER invoke `git checkout` prior to resetting. ALWAYS perform atomic remote synchronization: `git fetch origin "$BRANCH" && git reset --hard "origin/$BRANCH" && git clean -fd`.
+  3. **Dual-Group Production Ownership:** Ensure the production repository directory (`/var/www/kucet-cms`) is owned by `deployer:users` (UID `1001:100`) with `chmod -R u+rwX,g+rwX` so both automated GitHub Actions runners and SSH administration users operate without permission conflicts.
+  4. **Cross-Shell Portability:** Always use `set -eu` and `set -o pipefail 2>/dev/null || true` rather than bare `set -euo pipefail` to avoid syntax failure across different subshell environments.
+
 ---
 
 ## 3. Database Migration Safety Lessons
