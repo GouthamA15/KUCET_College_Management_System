@@ -9,7 +9,8 @@
 #   - Concurrency lock protection
 #   - Zero credential exposure in logs
 # =============================================================================
-set -euo pipefail
+set -eu
+set -o pipefail 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # Configuration & Environment

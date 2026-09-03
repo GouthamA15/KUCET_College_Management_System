@@ -8,7 +8,8 @@
 # Usage: sudo bash setup-all.sh
 # Must be run as root (for systemd and logrotate operations).
 # =============================================================================
-set -euo pipefail
+set -eu
+set -o pipefail 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # Constants

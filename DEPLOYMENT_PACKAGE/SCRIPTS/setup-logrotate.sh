@@ -6,7 +6,8 @@
 # Usage: sudo bash setup-logrotate.sh
 # Must be run as root to write to /etc/logrotate.d/
 # =============================================================================
-set -euo pipefail
+set -eu
+set -o pipefail 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # Constants
