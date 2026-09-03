@@ -107,11 +107,11 @@ describe('PWA & Chunk Recovery Resilience Suite', () => {
   });
 
   describe('Service Worker File Invariants', () => {
-    it('should contain CACHE_VERSION v4 and bypass /api/ routes', () => {
+    it('should contain CACHE_VERSION v5 and bypass /api/ routes', () => {
       const swPath = path.resolve(process.cwd(), 'public/sw.js');
       const swContent = fs.readFileSync(swPath, 'utf8');
 
-      expect(swContent).toContain("CACHE_VERSION = 'v4'");
+      expect(swContent).toContain("CACHE_VERSION = 'v5'");
       expect(swContent).toContain("url.pathname.startsWith('/api/')");
       expect(swContent).toContain("url.pathname.startsWith('/_next/static/chunks/')");
       expect(swContent).toContain("OFFLINE_URL = '/offline'");
