@@ -114,7 +114,6 @@ export default withSentryConfig(nextConfig, {
   project: "kucet-cms",
   silent: !process.env.CI,
   widenClientFileUpload: true,
-  tunnelRoute: "/monitoring",
   // Disable Sentry sourcemap upload during build on Render to fix 8GB memory leak
   sourcemaps: {
     disable: true,
