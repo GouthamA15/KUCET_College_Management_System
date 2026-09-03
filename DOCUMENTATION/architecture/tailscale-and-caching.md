@@ -5,18 +5,20 @@
 The KUCET College Management System self-hosted deployment on the institutional Ubuntu server (`HP Pro Tower 280 G9 PCI Desktop PC`) operates with multi-layer traffic ingress, reverse proxying, and client-side PWA resilience:
 
 ```text
-[ Browser / Client Device ]
-             │
-             ▼ (HTTPS / 443 via Tailscale MagicDNS: *.tailf6b4a7.ts.net)
+[ Public Web Visitors (No Tailscale Required) ]
+                 │
+                 ▼ (HTTPS / 443 via Public Ingress Relay / Tunnel)
 ┌─────────────────────────────────────────────────────────────┐
 │  Host OS (Ubuntu Linux / HP Pro Tower 280 G9 PC)            │
-│                                                             │
-│  Tailscale Serve (:443) -> Ingress Reverse Proxy (:80)      │
+│  - Campus LAN IP: 172.100.122.210 (behind Institutional NAT)│
+│  - Tailscale Funnel / Public Ingress -> Nginx (:80)         │
+│  - Tailscale SSH & Private Mesh (Admin Only)                │
 │                                                             │
 │  ┌────────────────────────────────────────────────────────┐ │
 │  │  Docker Container: kucet-cms-proxy (Nginx :80)         │ │
 │  │  - Static Asset Delivery (/_next/static/*)             │ │
 │  │  - Reverse Proxy (proxy_pass http://nextjs_upstream)   │ │
+│  │  - WebSocket Reverse Proxy (/socket.io/ -> :4000)      │ │
 │  │  - Internal Media Delivery (/internal_uploads/*)       │ │
 │  └────────────────────────┬───────────────────────────────┘ │
 │                           │                                 │
@@ -30,10 +32,17 @@ The KUCET College Management System self-hosted deployment on the institutional 
 
 ---
 
-## 2. Tailscale Configuration & Host Hardening
+## 2. Ingress Architecture & Public vs. Private Boundaries
 
-### 2.1 Tailscale Serve Mapping
-Tailscale Serve terminates HTTPS using the automatic Let's Encrypt certificate for the Tailnet hostname (`kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net`) and forwards cleartext HTTP to local port 80.
+### 2.1 Why NAT Traversal Ingress is Required
+The physical server sits inside the Kakatiya University local campus network (`172.100.122.210/16`) behind an institutional Carrier-Grade NAT gateway (`14.139.85.68`). Inbound ports 80/443 on the campus public IP are not forwarded by the university firewall.
+
+To serve public traffic without requiring end-users or students to install any VPN or client software:
+1. **Public Web Ingress (Zero-Client Requirement):** Tailscale Funnel / Cloudflare Tunnel maintains outbound encrypted connections to edge relays, exposing a public HTTPS URL (`https://kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net`) that any standard browser on the Internet can reach directly.
+2. **Private Administration Mesh:** Tailscale remains active on the host machine strictly for SSH administration (`ssh kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc`) and internal monitoring, completely isolated from public student traffic.
+
+### 2.2 Tailscale Serve & Funnel Configuration
+Tailscale Funnel terminates HTTPS using automatic Let's Encrypt certificates and forwards cleartext HTTP to local port 80.
 
 To configure and verify Tailscale Serve:
 ```bash

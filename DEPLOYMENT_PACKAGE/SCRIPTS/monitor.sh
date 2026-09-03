@@ -13,7 +13,8 @@
 #   - Sends webhook alerts on any auto-recovery action
 #   - Idempotent — safe to run every 5 minutes
 # =============================================================================
-set -euo pipefail
+set -eu
+set -o pipefail 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -117,6 +118,7 @@ for container in "${!CONTAINER_SERVICE_MAP[@]}"; do
     docker compose \
       -p deployment_package \
       -f "$COMPOSE_FILE" \
+      --env-file "$ENV_FILE" \
       up -d "$service" 2>&1 | tee -a "$LOG_FILE" || \
       log "  [ERROR] Failed to restart $container/$service!"
 
@@ -194,16 +196,16 @@ else
   if [[ $NEW_FAILURES -ge $HEALTH_FAILURE_THRESHOLD ]]; then
     log "  [CRITICAL] Health check failed $NEW_FAILURES consecutive times — triggering rollback!"
 
-    LAST_GOOD_COMMIT=$(python3 - <<'PYEOF' 2>/dev/null || echo "")
+    LAST_GOOD_COMMIT=$(python3 -c '
 import json, sys
 try:
     with open("/var/log/kucet/deployments.json") as f:
         records = json.load(f)
     good = [r for r in reversed(records) if r.get("status") == "success"]
     print(good[0]["new_commit"] if good else "")
-except:
+except Exception:
     print("")
-PYEOF
+' 2>/dev/null || echo "")
 
     if [[ -n "$LAST_GOOD_COMMIT" ]]; then
       log "  Rolling back to last known good commit: $LAST_GOOD_COMMIT"
