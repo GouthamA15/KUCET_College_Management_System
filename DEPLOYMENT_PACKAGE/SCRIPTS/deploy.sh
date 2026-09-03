@@ -15,7 +15,8 @@
 #   6. Runs health check — rolls back automatically on failure
 #   7. Writes a JSON deployment record
 # =============================================================================
-set -euo pipefail
+set -eu
+set -o pipefail 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -96,8 +97,8 @@ log "Previous commit (rollback target): $PREV_COMMIT"
 # Pull latest code
 # ---------------------------------------------------------------------------
 log "Pulling latest code from origin/$BRANCH ..."
-git fetch --all 2>&1
-git checkout "$BRANCH" 2>&1
+git fetch origin "$BRANCH" 2>&1
+git checkout -B "$BRANCH" "origin/$BRANCH" 2>&1
 git reset --hard "origin/$BRANCH" 2>&1
 NEW_COMMIT=$(git rev-parse HEAD)
 log "Code updated: $PREV_COMMIT → $NEW_COMMIT"
@@ -157,6 +158,7 @@ log "Building and starting app and realtime containers ..."
 docker compose \
   -p deployment_package \
   -f "$COMPOSE_FILE" \
+  --env-file "$ENV_FILE" \
   up -d --build --no-deps app realtime 2>&1
 
 log "App and realtime container build and start initiated."
@@ -217,7 +219,7 @@ fi
 # Reload Nginx proxy safely
 # ---------------------------------------------------------------------------
 log "Validating and reloading Nginx proxy ..."
-docker compose -p deployment_package -f "$COMPOSE_FILE" up -d --no-deps nginx 2>&1
+docker compose -p deployment_package -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --no-deps nginx 2>&1
 
 if docker exec kucet-cms-proxy nginx -t 2>&1; then
   log "Nginx config is valid. Reloading proxy configuration ..."

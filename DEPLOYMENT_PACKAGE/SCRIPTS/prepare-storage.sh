@@ -9,7 +9,8 @@
 # Usage:
 #   bash prepare-storage.sh [--storage-root <PATH>]
 # =============================================================================
-set -euo pipefail
+set -eu
+set -o pipefail 2>/dev/null || true
 
 STORAGE_ROOT="${1:-/var/www/kucet-storage}"
 

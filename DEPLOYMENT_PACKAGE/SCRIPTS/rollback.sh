@@ -12,7 +12,8 @@
 #   1  — Invalid arguments or rollback failed (health check still failing)
 #   2  — Rollback completed but health check still failing (CRITICAL)
 # =============================================================================
-set -euo pipefail
+set -eu
+set -o pipefail 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -86,7 +87,7 @@ if [[ -f "$ENV_FILE" ]]; then
   log "Loading environment from $ENV_FILE ..."
   set -a
   # shellcheck disable=SC1090
-  source "$ENV_FILE"
+  source <(tr -d '\r' < "$ENV_FILE")
   set +a
 else
   log "WARNING: $ENV_FILE not found — proceeding without it."
@@ -101,7 +102,7 @@ CURRENT_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
 log "Current commit: $CURRENT_COMMIT"
 log "Rolling back to: $TARGET_COMMIT ..."
 
-git checkout "$TARGET_COMMIT" 2>&1 || {
+git checkout --detach "$TARGET_COMMIT" 2>&1 || git checkout "$TARGET_COMMIT" 2>&1 || {
   log "ERROR: git checkout $TARGET_COMMIT failed!"
   send_webhook "❌ KUCET CMS: Rollback FAILED — git checkout ${TARGET_COMMIT:0:8} failed."
   exit 1
@@ -144,6 +145,7 @@ log "Building and starting app and realtime containers at rollback commit ..."
 docker compose \
   -p deployment_package \
   -f "$COMPOSE_FILE" \
+  --env-file "$ENV_FILE" \
   up -d --build --no-deps app realtime 2>&1
 
 # ---------------------------------------------------------------------------

@@ -7,7 +7,8 @@
 # Usage: sudo bash setup-runner-service.sh
 # Must be run as root (or with sudo) to interact with systemd.
 # =============================================================================
-set -euo pipefail
+set -eu
+set -o pipefail 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # Constants
