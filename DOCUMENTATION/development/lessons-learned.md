@@ -14,7 +14,7 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 
 ---
 
-## 2. Sixteen Inviolable Rules & Defensive Guardrails
+## 2. Eighteen Inviolable Rules & Defensive Guardrails
 
 ### Rule 1: Never Store Roll Numbers as Filenames
 - **The Pitfall:** Saving images as `24KUEC001.jpg` leaks PII, enables malicious file enumeration, and causes stale browser caching when a student updates their picture.
@@ -88,6 +88,14 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 - **The Inviolable Guardrail:**
   1. **Dynamic Origin Resolution:** In `src/components/RealtimeListener.js`, dynamically resolve WebSocket ingress URLs to `window.location.origin` when accessing over HTTPS (allowing Nginx reverse proxying via `/socket.io/`), while falling back to direct port `4000` only on true local development.
   2. **Unconditional Logout Cleansing:** On all authentication logout paths (`src/lib/logout.js`), explicitly invoke `disconnectRealtimeSocket()`, purge all session/local storage auth tokens, and issue HTTP 1970 cookie expirations.
+
+### Rule 17: Deterministically Clean Up Async Lifecycle Resources & Avoid Inline Callbacks in Realtime Listeners
+- **The Pitfall:** (1) Returning cleanup functions from async functions inside `useEffect` leaves intervals and event listeners uncleaned because React ignores returned Promises. (2) Passing inline arrow callbacks to singleton event listeners (`<RealtimeListener onUpdate={(d) => ...} />`) causes the listener effect to tear down and re-register on every render.
+- **The Inviolable Guardrail:** Store async cleanup closures in component-scoped mutable variables to call them in `useEffect` teardown. Stabilize realtime callbacks with `useRef` or empty-dep `useCallback` so singleton event subscriptions remain persistent and zero-churn across re-renders.
+
+### Rule 18: Never Dispatch Transitions or Secondary State Setters Inside React State Updaters
+- **The Pitfall:** Calling `startTransition(() => setOptimisticState(...))` or dispatching secondary state updates from inside a state updater callback (e.g., `setState(prev => { dispatchOtherState(); return next; })`) violates React 19 concurrent purity rules and triggers unrecoverable runtime crashes (`Minified React Error #479` / `dispatchOptimisticSetState`).
+- **The Inviolable Guardrail:** State updater functions passed to `setState((prev) => ...)` MUST remain 100% pure without side effects. Perform transitions or multi-state synchronizations outside updater functions or consolidate them into a single batch updater (`setBatchAttendanceStatus`). Also ensure Edge proxy (`src/proxy.js`) forwards refreshed JWT tokens via `x-staff-auth` headers so downstream routes never encounter expired tokens immediately post-refresh.
 
 ---
 
@@ -189,6 +197,8 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 | **Session 207 Deployment & Storage Hardening** | Docker network reconnect conflict & non-root host bind-mount permission denial | Idempotent network checks, directory-scoped `prepare-storage.sh`, eliminated `chmod 777`, diagnostic health checks. |
 | **Session 209 Production Readiness & Lifecycle Audit** | Transitive dependency deprecations, unbounded DOM polling, and localStorage quota risks on draft media | `npm audit fix` patch updates, bounded `ScrollHandler` poll loops, eager heartbeat interval cleanup in `RealtimeListener`, and quota-safe base64 draft persistence. |
 | **Session 209 Memory & Lifecycle Resolution** | Next.js internal `httpxy` proxy listener accumulation during sequential silent refreshes; Socket.IO token expiry loops; uncleaned PWA worker intervals; duplicate realtime listeners | Route-scoped parallel silent refresh in `proxy.js`; automatic `/api/auth/refresh` on socket connect_error; deterministic Promise worker cleanup in `PwaRegister.js`; ref-hoisted single `<RealtimeListener>` in `PendingStaffRequests.js`. |
+| **Session 210 CI/CD & Worktree Mode Drift** | Non-executable file mode `100644` in Git index caused runtime `chmod +x` to dirty working tree; `deploy.sh` called `checkout` before `reset --hard`; runner UID permission barrier | Set Git index mode `100755` via `git update-index --chmod=+x`, atomic `fetch -> reset --hard -> clean -fd` in runner, and `1001:100` (`deployer:users`) directory permissions. |
+| **Session 211 Faculty Attendance & Admission Filters** | Minified React error #479 from `startTransition` inside `setState` updater; 401 Unauthorized on calendar load and proxy token refresh header omission; missing inline topic logging; single-branch admission restriction | Pure deterministic state in `FacultyAttendanceContext.js`, edge proxy `x-staff-auth` header injection, dual inline/modal topic logging, and multi-branch filter support in admission workspace. |
 
 ---
 

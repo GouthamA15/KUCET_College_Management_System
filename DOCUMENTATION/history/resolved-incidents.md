@@ -10,6 +10,7 @@
 
 | Session | Date | Category | Affected Subsystem | Primary Root Cause Summary | Resolution Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Session 211** | Sep 04, 2026 | React 19 State & Auth Proxy | Faculty Attendance & Admission Workspace | Minified React error #479 from `startTransition` inside `setState` updater in `FacultyAttendanceContext.js`; 401 Unauthorized errors on calendar load and proxy JWT refresh header omission; missing inline topic logging; multi-branch filter extension in admission workspace | **RESOLVED** |
 | **Session 210** | Sep 03, 2026 | CI/CD & Git Worktree | GitHub Actions Runner & Scripts | Non-executable file mode `100644` in Git index caused runtime `chmod +x` to create unstaged mode diffs (`100755`); `deploy.sh` attempted `git checkout` before `git reset --hard`; runner user `deployer` (UID 1001) hit `Permission denied` on files owned by `kucet-dev` (UID 1000) | **RESOLVED** |
 | **Session 209 (Part 2)** | Aug 31, 2026 | Performance & Lifecycle | Realtime, PWA, Proxy & Admin UI | `ServerResponse` MaxListeners warning from Next.js internal `httpxy` proxy during sequential multi-role silent auth refreshes; Socket.IO auth token expiry reconnection loops; uncleaned `setInterval` & `visibilitychange` in `PwaRegister.js`; duplicate `<RealtimeListener>` with unstable inline handlers in `PendingStaffRequests.js` | **RESOLVED** |
 | **Session 209 (Part 1)** | Aug 31, 2026 | Deployment & DevOps | Multi-Service Stack & Nginx | `.dockerignore` excluded `DEPLOYMENT_PACKAGE` causing realtime build failure; `deploy.sh` only rebuilt `app`; Nginx DNS crashed on missing `kucet-cms-realtime:4000` upstream, closing port 80 and failing healthchecks | **RESOLVED** |
@@ -28,7 +29,46 @@
 
 ## Detailed Forensics & Technical Resolutions
 
-### 0. Session 210: Forensic Resolution of Git Working Tree Mode Drift, CI/CD Checkout Failures & Runner Permission Hardening
+### 0. Session 211: Forensic Resolution of Faculty Attendance Error #479, Proxy Auth Header Forwarding, Inline Topic Tracking & Admission Multi-Branch Filter
+
+#### Incident Summary
+Faculty members encountered recurring issues when accessing live attendance routes (`/staff/faculty/attendance/[assignmentId]/take/gps`, `.../manual`, `.../qr`):
+1. **Minified React Error #479**: Unexpected React crash with error screen when toggling attendance status or performing batch actions.
+2. **"Unauthorized" Poster / Error**: Loading the attendance page displayed 401 Unauthorized errors from the academic calendar component, and silent token refreshes failed to authenticate immediate downstream API requests.
+3. **Missing "Topic Completed" Field**: Faculty could not view or record lecture topics directly on the attendance sheet before submitting attendance.
+4. **Admission Multi-Branch Filter**: Admission workspace filters required extension to support selecting specific branches, multiple branches, or ALL branches simultaneously across Drafts and Finalized Students.
+
+#### Root Cause Analysis
+1. **React 19 Concurrency State Bug (`FacultyAttendanceContext.js`)**:
+   - `toggleAttendanceStatus()` executed `startTransition(() => setOptimisticStatusMap(...))` *inside* the state updater function `setAbsentCountMap((prevStages) => ...)`.
+   - In React 19 concurrent mode, state updater functions must be pure; dispatching an optimistic state transition from within another state computation violates React invariants and throws `dispatchOptimisticSetState` / Error #479.
+2. **Auth Header Omission in Edge Proxy (`src/proxy.js`)**:
+   - When silent token refresh was executed in `src/proxy.js`, the new JWT token was saved to `response.cookies` for subsequent requests, but omitted from the active downstream request headers (`requestHeaders.set('x-staff-auth', newAccessToken)`).
+   - Consequently, Route Handlers on the active request evaluated the old/expired token from the incoming headers, returning 401 Unauthorized until a subsequent page reload.
+3. **Calendar Endpoint Role Restriction (`/api/staff/academic-calendar`)**:
+   - `GET /api/staff/academic-calendar` enforced `getAuthUser('hod')`, rejecting ordinary faculty members with a 401 toast error upon mounting `FacultyAcademicCalendar.js`.
+4. **Topic Logging Architecture Decoupling**:
+   - The lecture topic was only queried and displayed inside a post-session modal (`LectureTopicModal.js`) on "Stop Session", rather than being queried on date/session change or editable directly in the main attendance sheet.
+
+#### Resolution Steps
+1. **Deterministic State Management in `FacultyAttendanceContext.js`**:
+   - Removed nested `startTransition` calls from inside state setters. Refactored the context to maintain deterministic `attendanceStatusMap` state.
+   - Added `setBatchAttendanceStatus(updates)` to execute multi-student updates ("Confirm All", "Follow Previous Session") in a single render pass.
+2. **Edge Proxy Request Header Injection (`src/proxy.js`)**:
+   - Injected freshly minted access tokens directly into `x-staff-auth`, `x-admin-auth`, and `x-student-auth` request headers on the active request before forwarding to downstream Route Handlers.
+3. **Granular Role Alignment**:
+   - Updated `GET /api/staff/academic-calendar` to require `getAuthUser('staff')`, allowing all faculty to view academic calendar events while keeping `POST` restricted to HODs and Admins.
+   - Extended `/api/staff/faculty/attendance/status` authorization to support assigned substitute faculty, department HODs, and Super Admins.
+4. **Dual Inline & Modal Topic Completed Flow**:
+   - Built inline quick-save panels into both `AttendanceSheet.js` (desktop) and `MobileAttendanceSheet.js` (mobile).
+   - Enhanced `GET /api/staff/faculty/attendance/status` to fetch and auto-populate `topic_covered` from `attendance_sessions`.
+   - Extended `POST /api/staff/faculty/attendance` to atomically persist `topic_covered` alongside student attendance marks.
+5. **Admission Workspace Multi-Branch Filters**:
+   - Refactored `src/lib/admission-workspace.js` to support comma-separated multi-branch parameters (`branch=CSE,ECE`), specific branch filtering, and "ALL" branches across `/api/staff/admission/drafts` and `/staff/admission/finalize`.
+
+---
+
+### 1. Session 210: Forensic Resolution of Git Working Tree Mode Drift, CI/CD Checkout Failures & Runner Permission Hardening
 
 #### Incident Summary
 GitHub Actions automated deployment workflow `Deploy to Production (KUCET CMS)` failed during the `2. Deploy to Production VPS` step. Inspection of runner logs revealed:
