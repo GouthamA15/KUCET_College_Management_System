@@ -14,7 +14,7 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 
 ---
 
-## 2. Twelve Inviolable Rules & Defensive Guardrails
+## 2. Sixteen Inviolable Rules & Defensive Guardrails
 
 ### Rule 1: Never Store Roll Numbers as Filenames
 - **The Pitfall:** Saving images as `24KUEC001.jpg` leaks PII, enables malicious file enumeration, and causes stale browser caching when a student updates their picture.
@@ -75,6 +75,19 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
   2. **Atomic Remote Reset in CI/CD:** In automated deployment scripts (`deploy.sh`, `rollback.sh`), NEVER invoke `git checkout` prior to resetting. ALWAYS perform atomic remote synchronization: `git fetch origin "$BRANCH" && git reset --hard "origin/$BRANCH" && git clean -fd`.
   3. **Dual-Group Production Ownership:** Ensure the production repository directory (`/var/www/kucet-cms`) is owned by `deployer:users` (UID `1001:100`) with `chmod -R u+rwX,g+rwX` so both automated GitHub Actions runners and SSH administration users operate without permission conflicts.
   4. **Cross-Shell Portability:** Always use `set -eu` and `set -o pipefail 2>/dev/null || true` rather than bare `set -euo pipefail` to avoid syntax failure across different subshell environments.
+
+### Rule 15: Always Enforce Single-Process Deployment Locks and Rollback Cooldown Safeguards
+- **The Pitfall:** When multiple CI/CD runs trigger concurrently or when automated health monitors detect transient failures, running un-gated deployment or rollback scripts causes parallel `docker compose build` races and infinite rollback loops. Furthermore, timestamped log proliferation without retention pruning leads to inode and disk exhaustion.
+- **The Inviolable Guardrail:**
+  1. **Deployment Mutex (`flock`):** Guard `deploy.sh` with a kernel-level lockfile (`/tmp/kucet_deploy.lock` via `flock -n 200`) so overlapping deployment runs exit immediately without corrupting container state.
+  2. **Rollback Cooldown:** Enforce a minimum 30-minute cooldown marker (`/tmp/kucet_rollback_cooldown`) in self-healing monitor cron jobs (`monitor.sh`) to prevent cascading rollback loops during external infrastructure outages.
+  3. **Deterministic Logrotate & Pruning:** Enforce static file rotation in `/etc/logrotate.d/kucet-cms` and automated 14-day log pruning (`find /var/log/kucet -name "*.log*" -mtime +14 -delete`) across all operational scripts.
+
+### Rule 16: Enforce Ingress-Aware Realtime Socket Resolution & Clean Session Disconnects
+- **The Pitfall:** Hardcoding WebSocket connection targets to `http://localhost:4000` causes public HTTPS clients to fail to connect due to Mixed Content security blocks and loopback misdirection. Additionally, retaining background socket listeners across user logout causes cross-session event bleed.
+- **The Inviolable Guardrail:**
+  1. **Dynamic Origin Resolution:** In `src/components/RealtimeListener.js`, dynamically resolve WebSocket ingress URLs to `window.location.origin` when accessing over HTTPS (allowing Nginx reverse proxying via `/socket.io/`), while falling back to direct port `4000` only on true local development.
+  2. **Unconditional Logout Cleansing:** On all authentication logout paths (`src/lib/logout.js`), explicitly invoke `disconnectRealtimeSocket()`, purge all session/local storage auth tokens, and issue HTTP 1970 cookie expirations.
 
 ---
 
