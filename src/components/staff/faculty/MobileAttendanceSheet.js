@@ -51,20 +51,22 @@ const MobileSessionControlPanel = () => {
     dateValidation,
     verifiedStudentIds,
     students,
-    setAttendanceStatus,
+    setBatchAttendanceStatus,
     fetchAttendanceStatus
   } = useFacultyAttendance();
 
   const verifiedList = students.filter(s => verifiedStudentIds.has(s.id));
 
   const handleConfirmAll = () => {
+    const updates = {};
     students.forEach(s => {
       if (verifiedStudentIds.has(s.id)) {
-        setAttendanceStatus(s.id, 'PRESENT');
+        updates[s.id] = 'PRESENT';
       } else if (s.status === null) {
-        setAttendanceStatus(s.id, 'ABSENT');
+        updates[s.id] = 'ABSENT';
       }
     });
+    setBatchAttendanceStatus(updates);
     toast.success(`Marked verified students as PRESENT and others as ABSENT.`);
   };
 
@@ -176,6 +178,104 @@ const MobilePendingSyncIndicator = () => {
   );
 };
 
+const MobileLectureTopicInlinePanel = () => {
+  const { 
+    assignment, 
+    selectedDate, 
+    selectedSession, 
+    currentTopicCovered, 
+    setCurrentTopicCovered, 
+    dateValidation, 
+    existingSessionsForSelectedDate,
+    setTopicModalSession 
+  } = useFacultyAttendance();
+  const [savingTopic, setSavingTopic] = useState(false);
+
+  if (!selectedDate || !dateValidation?.isValid) return null;
+
+  const isSessionRecorded = existingSessionsForSelectedDate.includes(selectedSession);
+
+  const handleQuickSaveTopic = async () => {
+    if (!currentTopicCovered || currentTopicCovered.trim().length < 2) {
+      toast.error('Topic covered is required (minimum 2 characters).');
+      return;
+    }
+    setSavingTopic(true);
+    try {
+      const res = await fetch('/api/staff/faculty/attendance/session/topic', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignment_id: assignment.id,
+          date: selectedDate,
+          session: selectedSession,
+          topic_covered: currentTopicCovered.trim()
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save topic');
+      toast.success('Lecture topic saved successfully');
+    } catch (err) {
+      toast.error(err.message || 'Failed to save topic');
+    } finally {
+      setSavingTopic(false);
+    }
+  };
+
+  return (
+    <div className="mb-4 bg-blue-50/70 border border-blue-200 rounded-xl p-3 shadow-xs">
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <div className="flex items-center gap-1.5">
+          <svg className="w-3.5 h-3.5 text-blue-800 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+          <label htmlFor="mobile-inline-topic-input" className="text-[11px] font-bold text-blue-900 uppercase tracking-wide">
+            Topic (S{selectedSession})
+          </label>
+        </div>
+        <div className="flex items-center gap-1">
+          {isSessionRecorded && (
+            <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 uppercase">
+              Recorded
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setTopicModalSession({
+              assignmentId: assignment.id,
+              date: selectedDate,
+              session: selectedSession,
+              initialTopic: currentTopicCovered || ''
+            })}
+            className="text-[10px] font-bold text-blue-700 hover:text-blue-900 underline cursor-pointer"
+          >
+            Modal
+          </button>
+        </div>
+      </div>
+      <div className="flex gap-1.5 items-center">
+        <input
+          id="mobile-inline-topic-input"
+          type="text"
+          value={currentTopicCovered || ''}
+          onChange={(e) => setCurrentTopicCovered(e.target.value.slice(0, 500))}
+          placeholder="e.g. Tree Traversal Algorithms"
+          maxLength={500}
+          className="flex-1 text-xs bg-white border border-blue-200 rounded-lg px-2.5 py-1.5 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+        />
+        <button
+          type="button"
+          onClick={handleQuickSaveTopic}
+          disabled={savingTopic || !currentTopicCovered || currentTopicCovered.trim().length < 2}
+          className="px-2.5 py-1.5 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors disabled:opacity-50 cursor-pointer shrink-0"
+        >
+          {savingTopic ? '...' : 'Save'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export default function MobileAttendanceSheet({ onBack, mode }) {
   const {
     assignment,
@@ -186,6 +286,7 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
     selectedSession,
     setSelectedSession,
     setAttendanceStatus,
+    setBatchAttendanceStatus,
     submitting,
     dateValidation,
     dayInfo,
@@ -223,14 +324,14 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
   };
 
   const handleQRStop = () => {
-    let changed = false;
+    const updates = {};
     (students || []).forEach(s => {
       if (s.status === null) {
-        setAttendanceStatus(s.id, 'ABSENT');
-        changed = true;
+        updates[s.id] = 'ABSENT';
       }
     });
-    if (changed) {
+    if (Object.keys(updates).length > 0) {
+      setBatchAttendanceStatus(updates);
       toast.success('Scanner stopped. Remaining students marked as ABSENT.', { id: 'qr-stop-mobile' });
     }
   };
@@ -364,12 +465,15 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
                       prevSession={selectedSession - 1}
                       selectedDate={selectedDate}
                       students={students}
-                      setAttendanceStatus={setAttendanceStatus}
+                      setBatchAttendanceStatus={setBatchAttendanceStatus}
                     />
                   )}
                 </>
               )}
             </div>
+
+            {/* In-Line Lecture Topic Section (Mobile) */}
+            <MobileLectureTopicInlinePanel />
 
             {/* Mobile Table */}
             <div className="mt-2">
@@ -495,7 +599,7 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
 }
 
   {/* Follow Previous Mobile Button Component */}
-  function FollowPreviousMobileButton({ assignment, prevSession, selectedDate, students, setAttendanceStatus }) {
+  function FollowPreviousMobileButton({ assignment, prevSession, selectedDate, students, setBatchAttendanceStatus }) {
     const [loading, setLoading] = useState(false);
 
     const handleFollow = async () => {
@@ -512,11 +616,14 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
         const statusMap = (data.data || []).reduce((acc, r) => {
           acc[r.student_id] = r.status;
           return acc;
-        }, { /* empty */ });
+        }, {});
 
+        const updates = {};
         (students || []).forEach((s) => {
-          setAttendanceStatus(s.id, statusMap[s.id] ?? null);
+          updates[s.id] = statusMap[s.id] ?? null;
         });
+
+        setBatchAttendanceStatus(updates);
 
         toast.success('Session attendance copied from previous session');
       } catch (err) {

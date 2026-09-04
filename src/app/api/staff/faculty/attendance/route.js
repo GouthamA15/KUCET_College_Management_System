@@ -25,6 +25,7 @@ export async function POST(request) {
       assignment_id: z.preprocess(v => Number(v), z.number().int().positive()),
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       session: z.number().int().min(1).max(8),
+      topic_covered: z.string().trim().max(500).optional().nullable(),
       attendance_data: z.array(z.object({
         student_id: z.number().int().positive(),
         status: z.enum(['PRESENT', 'ABSENT', 'NCC', 'MEDICAL'])
@@ -32,7 +33,7 @@ export async function POST(request) {
     });
 
     const validatedData = attendanceSchema.parse(json);
-    const { assignment_id, date, session, attendance_data } = validatedData;
+    const { assignment_id, date, session, topic_covered, attendance_data } = validatedData;
 
     // 1. Verify assignment existence and get details
     const assignments = await db.select({
@@ -53,10 +54,10 @@ export async function POST(request) {
 
     const assignment = assignments[0];
 
-    // 2. Authorization logic (Primary Faculty, HOD, or Substitute)
+    // 2. Authorization logic (Primary Faculty, HOD, Substitute, or Admin)
     let isAuthorized = false;
 
-    if (assignment.faculty_id === user.id) {
+    if (assignment.faculty_id === user.id || user.role === 'admin') {
       isAuthorized = true;
     } else if (user.is_hod && user.branch === assignment.branch) {
       isAuthorized = true;
@@ -121,6 +122,24 @@ export async function POST(request) {
         });
     });
 
+    // AUTO-SAVE TOPIC COVERED if provided
+    let savedTopic = null;
+    if (topic_covered && topic_covered.trim().length >= 2) {
+      try {
+        const { AttendanceService } = await import('@/services/AttendanceService');
+        const topicResult = await AttendanceService.updateLectureTopic({
+          assignmentId: assignment_id,
+          date,
+          sessionNumber: session,
+          topicCovered: topic_covered.trim(),
+          user
+        });
+        savedTopic = topicResult.topic_covered;
+      } catch (topicErr) {
+        logger.warn({ err: topicErr }, 'Auto-saving lecture topic alongside attendance failed');
+      }
+    }
+
     // REAL-TIME: Notify HOD/Faculty
     try {
       const { broadcastUpdate } = await import('@/lib/sse');
@@ -147,7 +166,7 @@ export async function POST(request) {
       logger.warn({ err: ebErr }, '[EventBus] Attendance publish failed');
     }
 
-    return apiResponse({ message: 'Attendance updated successfully' });
+    return apiResponse({ message: 'Attendance updated successfully', topic_covered: savedTopic });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);

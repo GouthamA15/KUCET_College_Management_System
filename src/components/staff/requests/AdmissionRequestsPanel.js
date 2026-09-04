@@ -331,7 +331,7 @@ const AdmissionRequestsPanel = ({ mode = 'DRAFT' }) => {
                   <p className="text-sm text-gray-500 mt-1">
                     {mode === 'REJECTED' ? 'Auditable repository of rejected applications with instant restoration support for' : 'Review candidates for'}{' '}
                     <span className="font-semibold text-[#0b3578]">{workspace.intakeExam}</span> •{' '}
-                    <span className="font-semibold text-[#0b3578]">{workspace.targetBranch}</span> •{' '}
+                    <span className="font-semibold text-[#0b3578]">{workspace.targetBranch === 'ALL' ? 'All Branches' : workspace.targetBranch}</span> •{' '}
                     <span className="font-semibold text-[#0b3578]">{workspace.entryYear}</span>.
                   </p>
                 </div>
@@ -370,7 +370,7 @@ const AdmissionRequestsPanel = ({ mode = 'DRAFT' }) => {
                             {mode === 'REJECTED' ? '🛡️' : '📂'}
                         </span>
                         <p className="text-sm font-medium text-gray-700">
-                            No {mode.toLowerCase()} records found for {workspace.intakeExam} • {workspace.targetBranch} ({workspace.entryYear}).
+                            No {mode.toLowerCase()} records found for {workspace.intakeExam} • {workspace.targetBranch === 'ALL' ? 'All Branches' : workspace.targetBranch} ({workspace.entryYear}).
                         </p>
                         <p className="text-xs text-gray-400 mt-1">
                             {mode === 'REJECTED' 

@@ -243,23 +243,52 @@ function FinalizeAdmissionContent() {
         setGenerating(true);
         const toastId = toast.loading('Generating roll numbers...');
         try {
-            const res = await fetch('/api/admissions/generate-roll-number', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    branch: workspace.targetBranch,
-                    examType: workspace.intakeExam,
-                    joiningYear: targetYear,
-                    count: drafts.length,
-                }),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Failed to generate roll numbers.');
-            const list = data.rollNumbers || (data.rollNumber ? [data.rollNumber] : []);
-            if (list.length !== drafts.length) throw new Error('Roll generation returned unexpected count');
-            const nextMap = {};
-            drafts.forEach((d, idx) => { nextMap[d.id] = String(list[idx]).toUpperCase(); });
-            setRollNumbers(nextMap);
+            if (workspace.targetBranch && workspace.targetBranch !== 'ALL') {
+                const res = await fetch('/api/admissions/generate-roll-number', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        branch: workspace.targetBranch,
+                        examType: workspace.intakeExam,
+                        joiningYear: targetYear,
+                        count: drafts.length,
+                    }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to generate roll numbers.');
+                const list = data.rollNumbers || (data.rollNumber ? [data.rollNumber] : []);
+                if (list.length !== drafts.length) throw new Error('Roll generation returned unexpected count');
+                const nextMap = {};
+                drafts.forEach((d, idx) => { nextMap[d.id] = String(list[idx]).toUpperCase(); });
+                setRollNumbers(nextMap);
+            } else {
+                // Group drafts by branch for multi-branch generation
+                const branchGroups = {};
+                drafts.forEach(d => {
+                    const b = d.branch || 'CSE';
+                    if (!branchGroups[b]) branchGroups[b] = [];
+                    branchGroups[b].push(d);
+                });
+                const nextMap = {};
+                for (const [branchKey, groupDrafts] of Object.entries(branchGroups)) {
+                    const res = await fetch('/api/admissions/generate-roll-number', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            branch: branchKey,
+                            examType: workspace.intakeExam,
+                            joiningYear: targetYear,
+                            count: groupDrafts.length,
+                        }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || `Failed to generate roll numbers for branch ${branchKey}.`);
+                    const list = data.rollNumbers || (data.rollNumber ? [data.rollNumber] : []);
+                    if (list.length !== groupDrafts.length) throw new Error(`Roll generation returned unexpected count for branch ${branchKey}`);
+                    groupDrafts.forEach((d, idx) => { nextMap[d.id] = String(list[idx]).toUpperCase(); });
+                }
+                setRollNumbers(nextMap);
+            }
             toast.success('Roll numbers generated.', { id: toastId });
         } catch (error) {
             toast.error(error.message, { id: toastId });
@@ -341,7 +370,7 @@ function FinalizeAdmissionContent() {
                     <div className="text-center py-24 text-gray-400">
                       <span className="text-5xl block mb-6 opacity-20">📂</span>
                       <h3 className="text-[10px] font-bold text-gray-800">
-                        No {workspace.intakeExam} verified drafts found for {workspace.targetBranch} ({workspace.entryYear})
+                        No {workspace.intakeExam} verified drafts found for {workspace.targetBranch === 'ALL' ? 'All Branches' : workspace.targetBranch} ({workspace.entryYear})
                       </h3>
                       <p className="text-[10px] font-medium text-gray-500 mt-2 max-w-xs mx-auto">
                         Verify new applications in the Requests Center to populate this registry.
@@ -370,7 +399,9 @@ function FinalizeAdmissionContent() {
                                                 <td className="px-6 py-4 font-medium text-gray-800 border-r border-gray-100">
                                                     <div className="flex flex-col">
                                                         <span>{draft.name}</span>
-                                                        <span className="text-[9px] text-gray-400 font-medium lowercase mt-0.5">{draft.email}</span>
+                                                        <span className="text-[9px] text-gray-400 font-medium lowercase mt-0.5">
+                                                            {draft.email} • <span className="font-semibold text-[#0b3578] uppercase">{draft.branch}</span>
+                                                        </span>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 border-r border-gray-100">
@@ -427,7 +458,9 @@ function FinalizeAdmissionContent() {
                                         <div className="flex justify-between items-start border-b border-slate-100 pb-2">
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-gray-800 text-sm">{draft.name}</span>
-                                                <span className="text-[10px] text-gray-400 font-medium lowercase mt-0.5">{draft.email}</span>
+                                                <span className="text-[10px] text-gray-400 font-medium lowercase mt-0.5">
+                                                    {draft.email} • <span className="font-semibold text-[#0b3578] uppercase">{draft.branch}</span>
+                                                </span>
                                             </div>
                                         </div>
                                         

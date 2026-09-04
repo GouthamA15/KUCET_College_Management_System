@@ -30,11 +30,16 @@ export async function GET(req) {
       effectiveWorkspace = {};
 
       if (branch) {
-        const match = COLLEGE_CONFIG.branches.find(b => b.name.toUpperCase() === branch.trim().toUpperCase());
-        if (!match) {
-          return apiError('Invalid workspace branch parameter provided.', 400);
+        const branchTrimmed = branch.trim().toUpperCase();
+        if (branchTrimmed === 'ALL' || branchTrimmed === 'ALL BRANCHES') {
+          effectiveWorkspace.targetBranch = 'ALL';
+        } else {
+          const match = COLLEGE_CONFIG.branches.find(b => b.name.toUpperCase() === branchTrimmed);
+          if (!match) {
+            return apiError('Invalid workspace branch parameter provided.', 400);
+          }
+          effectiveWorkspace.targetBranch = match.name.toUpperCase();
         }
-        effectiveWorkspace.targetBranch = match.name.toUpperCase();
       }
 
       if (entranceExam) {

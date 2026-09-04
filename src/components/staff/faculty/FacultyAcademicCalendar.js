@@ -62,8 +62,8 @@ export default function FacultyAcademicCalendar({ assignment, selectedDate, onSe
   const [loading, setLoading] = useState(true);
 
   const academicYear = assignment?.academic_year;
-  const courseSemester = assignment?.course_semester;
-  const academicTerm = assignment?.academic_term ?? null;
+  const courseSemester = assignment?.course_semester || assignment?.semester;
+  const academicTerm = assignment?.academic_term || assignment?.course_semester || assignment?.semester || null;
 
   const fetchSemesterWindow = useCallback(async () => {
     if (!academicYear || !academicTerm) return;

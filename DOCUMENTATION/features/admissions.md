@@ -131,10 +131,10 @@ flowchart TD
 
 ### Workspace Specifications & Rules
 1. **Intake Exam (`intakeExam`)**: Validated against `ADMISSION_EXAM_OPTIONS` (`TG EAPCET`, `TG ECET`).
-2. **Target Branch (`targetBranch`)**: Normalized to institutional branch codes (`CSE`, `CSD`, `ECE`, `EEE`, `CIVIL`, `IT`, `MECH`).
+2. **Target Branch (`targetBranch`)**: Normalized to institutional branch codes (`CSE`, `CSD`, `ECE`, `EEE`, `CIVIL`, `IT`, `MECH`) or `ALL` (`All Branches`), which aggregates records across all permitted institutional departments.
 3. **Entry Year (`entryYear`)**: 4-digit academic entry year (default: `getIntakeYear()`, e.g. `2026`).
-4. **URL-Addressable Navigation**: Workspaces are synchronized to URL query parameters (`?exam=TG+EAPCET&branch=CSE&year=2026`), allowing bookmarking, deep-linking, and browser back/forward navigation without full page reloads.
-5. **Realtime Isolation**: WebSocket/SSE broadcast events (`ADMISSION_DRAFT_CREATED`, `ADMISSION_DRAFT_UPDATED`, `ADMISSION_DRAFT_FINALIZED`) verify `matchesAdmissionWorkspace(payload, workspace)` before modifying local component queues, preventing cross-branch or cross-year data pollution.
+4. **URL-Addressable Navigation**: Workspaces are synchronized to URL query parameters (`?exam=TG+EAPCET&branch=ALL&year=2026` or `branch=CSE`), allowing bookmarking, deep-linking, and browser back/forward navigation without full page reloads.
+5. **Realtime Isolation & Aggregation**: WebSocket/SSE broadcast events (`ADMISSION_DRAFT_CREATED`, `ADMISSION_DRAFT_UPDATED`, `ADMISSION_DRAFT_FINALIZED`) verify `matchesAdmissionWorkspace(payload, workspace)` before modifying local component queues. When `targetBranch = ALL`, events for all permitted branches matching the exam and entry year trigger queue refresh; when filtered to a specific branch, foreign branch updates are isolated.
 
 ---
 

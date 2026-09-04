@@ -5,7 +5,8 @@ import { eq, like, or } from 'drizzle-orm';
 
 export const ADMISSION_EXAM_OPTIONS = ['TG EAPCET', 'TG ECET'];
 export const DEFAULT_ADMISSION_EXAM = 'TG EAPCET';
-export const DEFAULT_ADMISSION_BRANCH = 'CSE';
+export const DEFAULT_ADMISSION_BRANCH = 'ALL BRANCHES';
+export const ALL_BRANCHES_VALUE = 'ALL';
 
 /**
  * Returns list of canonical uppercase branch codes/names from institutional config.
@@ -37,11 +38,18 @@ export const admissionWorkspaceSchema = z.object({
     return match || val;
   }),
   targetBranch: z.string().trim().refine(
-    val => COLLEGE_CONFIG.branches.some(b => b.name.toUpperCase() === val.toUpperCase()),
+    val => {
+      const u = val.toUpperCase();
+      return u === 'ALL' || u === 'ALL BRANCHES' || COLLEGE_CONFIG.branches.some(b => b.name.toUpperCase() === u);
+    },
     { message: 'Invalid target branch' }
   ).transform(val => {
-    const match = COLLEGE_CONFIG.branches.find(b => b.name.toUpperCase() === val.toUpperCase());
-    return match ? match.name.toUpperCase() : val.toUpperCase();
+    const u = val.toUpperCase();
+    if (u === 'ALL' || u === 'ALL BRANCHES') {
+      return 'ALL';
+    }
+    const match = COLLEGE_CONFIG.branches.find(b => b.name.toUpperCase() === u);
+    return match ? match.name.toUpperCase() : u;
   }),
   entryYear: z.preprocess(
     v => (typeof v === 'string' && v.trim() !== '' ? parseInt(v.trim(), 10) : Number(v)),
@@ -102,8 +110,10 @@ export function matchesAdmissionWorkspace(record, workspace) {
   if (exam && String(exam).toUpperCase() !== String(workspace.intakeExam).toUpperCase()) {
     return false;
   }
-  if (branch && String(branch).toUpperCase() !== String(workspace.targetBranch).toUpperCase()) {
-    return false;
+  if (workspace.targetBranch && workspace.targetBranch.toUpperCase() !== 'ALL' && workspace.targetBranch.toUpperCase() !== 'ALL BRANCHES') {
+    if (branch && String(branch).toUpperCase() !== String(workspace.targetBranch).toUpperCase()) {
+      return false;
+    }
   }
   if (year && !String(year).startsWith(String(workspace.entryYear))) {
     return false;
@@ -119,7 +129,7 @@ export function buildAdmissionWorkspaceConditions(table, workspace, status = nul
   if (status) {
     conditions.push(eq(table.status, status));
   }
-  if (workspace?.targetBranch) {
+  if (workspace?.targetBranch && workspace.targetBranch.toUpperCase() !== 'ALL' && workspace.targetBranch.toUpperCase() !== 'ALL BRANCHES') {
     conditions.push(eq(table.branch, workspace.targetBranch));
   }
   if (workspace?.intakeExam) {

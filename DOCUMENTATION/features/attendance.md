@@ -131,41 +131,26 @@ export const attendanceSessionLogs = mysqlTable('attendance_session_logs', {
 
 ---
 
-## 6. Lecture Topic Tracking (`LectureTopicModal.js`)
+## 6. Lecture Topic Tracking (`LectureTopicModal.js` & Inline Panels)
 
-To comply with NBA/NAAC syllabus coverage audits, faculty members must log the curriculum topics covered during each session before closing it.
+To comply with NBA/NAAC syllabus coverage audits, faculty members must log the curriculum topics covered during each session.
 
-### Workflow Integration
-1. When faculty clicks **"Stop Session"**, the `LectureTopicModal.js` component renders.
-2. Faculty enters topic descriptions (e.g., `"Unit 3: Graph Traversal Algorithms - BFS & DFS Implementation"`).
-3. The API updates `attendance_sessions.topic_covered` via `POST /api/staff/faculty/attendance/session/topic`.
-4. Topic logs are surfaced in HOD analytics and student syllabus progress trackers.
+### Dual Entry Workflows
+1. **Inline Quick-Save Panel**: Both desktop (`AttendanceSheet.js`) and mobile (`MobileAttendanceSheet.js`) feature an inline "Topic Completed / Lecture Notes" panel. Faculty can type topics directly into the sheet at any time and click **"Save Topic"** (`PATCH /api/staff/faculty/attendance/session/topic`) or save atomically alongside attendance marks (`POST /api/staff/faculty/attendance`).
+2. **Post-Session Modal**: When faculty clicks **"Stop Session"**, `LectureTopicModal.js` appears as a confirmation dialog to verify or enter topic descriptions before concluding.
+3. **Session Query Integration**: Whenever a past date or session number is selected on the attendance roster, `GET /api/staff/faculty/attendance/status` automatically queries `attendance_sessions` and populates the recorded topic.
 
 ---
 
-## 7. React 19 Optimistic Updates in Attendance Roster
+## 7. Deterministic Roster State Management & React 19 Stability
 
-The faculty live monitoring UI utilizes **React 19 Optimistic State Updates** (`useOptimistic` hook) to ensure responsive rendering without UI lag.
+The faculty live monitoring UI utilizes deterministic React state management in `FacultyAttendanceContext.js` to ensure zero rendering collisions and instant optimistic-feeling responsiveness across GPS, QR, and Manual entry modes.
 
-```javascript
-// Optimistic UI state pattern in Faculty Attendance Panel
-const [optimisticStudents, setOptimisticStudents] = useOptimistic(
-  studentsList,
-  (current, updatedStudentId) =>
-    current.map(student =>
-      student.id === updatedStudentId
-        ? { ...student, status: 'PRESENT', scanTime: new Date().toLocaleTimeString() }
-        : student
-    )
-);
-
-// Triggered via WebSockets or Server-Sent Events (SSE) upon student scan
-function handleStudentScanned(studentId) {
-  startTransition(() => {
-    setOptimisticStudents(studentId);
-  });
-}
-```
+### Stability & Concurrency Guardrails
+- **Pure State Updaters**: State setters (`attendanceStatusMap`, `absentCountMap`) avoid nesting `startTransition` or secondary dispatchers inside state updater functions, preventing React Error #479 (`dispatchOptimisticSetState` / nested transition collision).
+- **Batch Updates**: `setBatchAttendanceStatus()` enables bulk updates (e.g., "Confirm All", "Follow Previous Session") in a single render pass.
+- **Proxy Token Header Forwarding**: Edge proxy (`src/proxy.js`) forwards refreshed JWT tokens via `x-staff-auth` request headers, ensuring immediate authentication without downstream 401 drops.
+- **Role & Substitution Hierarchy**: Attendance status queries, assignment lookups, and topic logging support primary faculty, assigned substitute faculty (`faculty_substitutions`), department HODs, and Super Admins.
 
 ---
 

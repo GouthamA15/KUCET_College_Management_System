@@ -21,7 +21,7 @@ export class AttendanceService {
    * @param {Object} params.user Authenticated staff/faculty user
    */
   static async updateLectureTopic({ assignmentId, date, sessionNumber, topicCovered, user }) {
-    if (!user || user.role !== 'faculty') {
+    if (!user || (user.role !== 'faculty' && user.role !== 'admin')) {
       throw new Error('Unauthorized');
     }
 
@@ -41,7 +41,7 @@ export class AttendanceService {
 
     // 2. Authorization check
     let isAuthorized = false;
-    if (assignment.faculty_id === user.id) {
+    if (user.role === 'admin' || assignment.faculty_id === user.id) {
       isAuthorized = true;
     } else if (user.is_hod && user.branch === assignment.branch) {
       isAuthorized = true;

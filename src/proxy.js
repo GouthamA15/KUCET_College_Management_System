@@ -105,18 +105,11 @@ export default async function proxy(request) {
   let staffRes = staffAuth ? await verify(staffAuth.value, jwtSecret) : { payload: null, expired: false };
   let studentRes = studentAuth ? await verify(studentAuth.value, jwtSecret) : { payload: null, expired: false };
 
-  // Base response
-  let response = NextResponse.next({ request: { headers: requestHeaders } });
-  response.headers.set('x-request-id', requestId);
-
   let adminPayload = adminRes.payload;
   let staffPayload = staffRes.payload;
   let studentPayload = studentRes.payload;
 
   // 2. Silent refresh — only for roles that (a) don't have a valid payload and (b) have refresh cookies.
-  // Determine which roles need refresh based on current pathname to avoid unnecessary httpxy proxy calls.
-  // Each refresh is an internal HTTP round-trip through httpxy/compression; limiting them keeps the
-  // ServerResponse close-listener count below Node's default 10 even under concurrent navigation.
   const isAdminPath = pathname.startsWith('/admin') || pathname.startsWith('/api/admin');
   const isStaffPath = pathname.startsWith('/staff') || pathname.startsWith('/api/staff');
   const isStudentPath = pathname.startsWith('/student') || pathname.startsWith('/api/student');
@@ -140,8 +133,6 @@ export default async function proxy(request) {
     (cookies.get('student_refresh_token') || cookies.get('student_logged_in')) &&
     (isStudentPath || isHomePath || (!isAdminPath && !isStaffPath));
 
-  // Run needed refreshes in parallel (not sequential) to minimize time window during which
-  // multiple ServerResponse close listeners accumulate on any single connection
   const refreshResults = await Promise.all([
     needsAdminRefresh ? trySilentRefresh(request, 'admin', jwtSecret) : Promise.resolve(null),
     needsStaffRefresh ? trySilentRefresh(request, 'staff', jwtSecret) : Promise.resolve(null),
@@ -152,14 +143,36 @@ export default async function proxy(request) {
 
   if (adminRefreshed) {
     adminPayload = adminRefreshed.payload;
+    if (adminRefreshed.token) requestHeaders.set('x-admin-auth', adminRefreshed.token);
+  } else if (adminAuth?.value) {
+    requestHeaders.set('x-admin-auth', adminAuth.value);
+  }
+
+  if (staffRefreshed) {
+    staffPayload = staffRefreshed.payload;
+    if (staffRefreshed.token) requestHeaders.set('x-staff-auth', staffRefreshed.token);
+  } else if (staffAuth?.value) {
+    requestHeaders.set('x-staff-auth', staffAuth.value);
+  }
+
+  if (studentRefreshed) {
+    studentPayload = studentRefreshed.payload;
+    if (studentRefreshed.token) requestHeaders.set('x-student-auth', studentRefreshed.token);
+  } else if (studentAuth?.value) {
+    requestHeaders.set('x-student-auth', studentAuth.value);
+  }
+
+  // Base response with updated requestHeaders
+  let response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set('x-request-id', requestId);
+
+  if (adminRefreshed) {
     applyRefreshedCookies(response, adminRefreshed.cookiesToSet);
   }
   if (staffRefreshed) {
-    staffPayload = staffRefreshed.payload;
     applyRefreshedCookies(response, staffRefreshed.cookiesToSet);
   }
   if (studentRefreshed) {
-    studentPayload = studentRefreshed.payload;
     applyRefreshedCookies(response, studentRefreshed.cookiesToSet);
   }
 

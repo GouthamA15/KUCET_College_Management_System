@@ -7,7 +7,7 @@ import { getNow } from '@/lib/clock';
 
 export async function GET(request) {
   try {
-    const user = await getAuthUser('hod');
+    const user = await getAuthUser('staff');
     if (!user) return apiError('Unauthorized', 401);
 
     const { searchParams } = new URL(request.url);
