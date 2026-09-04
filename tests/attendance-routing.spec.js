@@ -69,38 +69,53 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
       });
     });
 
-    // Mock /api/staff/faculty/assignments — always returns the same set
-    await page.route('/api/staff/faculty/assignments', async (route) => {
+    // Mock /api/staff/faculty/assignments — handles both full list and ?id=... query
+    await page.route(/\/api\/staff\/faculty\/assignments(\?.*)?$/, async (route) => {
+      const url = new URL(route.request().url());
+      const id = url.searchParams.get('id') || url.searchParams.get('assignment_id');
+      const allAssignments = [
+        {
+          id: 101,
+          subject_name: 'Operating Systems',
+          subject_code: 'CS301',
+          branch: 'CSE',
+          semester: 5,
+          academic_year: '2026-27',
+          is_active: true,
+        },
+        {
+          id: 202,
+          subject_name: 'Database Management',
+          subject_code: 'CS302',
+          branch: 'CSE',
+          semester: 5,
+          academic_year: '2026-27',
+          is_active: false,
+        },
+      ];
+
+      let data = allAssignments;
+      if (id) {
+        data = allAssignments.filter(a => String(a.id) === String(id));
+      }
+
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({
-          data: [
-            {
-              id: 101,
-              subject_name: 'Operating Systems',
-              subject_code: 'CS301',
-              branch: 'CSE',
-              semester: 5,
-              academic_year: '2026-27',
-              is_active: true,
-            },
-            {
-              id: 202,
-              subject_name: 'Database Management',
-              subject_code: 'CS302',
-              branch: 'CSE',
-              semester: 5,
-              academic_year: '2026-27',
-              is_active: false,
-            },
-          ],
-        }),
+        body: JSON.stringify({ data }),
       });
     });
 
+    // Mock academic calendar and attendance status APIs
+    await page.route('/api/staff/academic-calendar*', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: [] }) });
+    });
+    await page.route('/api/staff/faculty/attendance/status*', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: { is_locked: false, count: 0, attendance_records: [], topic_covered: '' } }) });
+    });
+
     // Mock faculty interest & other satellite APIs
-    await page.route('/api/staff/faculty/interests', async (route) => {
+    await page.route('/api/staff/faculty/interests*', async (route) => {
       await route.fulfill({ status: 200, body: JSON.stringify({ data: [] }) });
     });
 

@@ -21,7 +21,7 @@ export default function AssignmentModeSelectorPage() {
         const res = await fetch(`/api/staff/faculty/assignments?id=${encodeURIComponent(assignmentId)}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to fetch');
-        const match = (data.data || []).find(a => String(a.id) === String(assignmentId)) || data.data?.[0];
+        const match = (data.data || []).find(a => String(a.id) === String(assignmentId));
         setAssignment(match || null);
       } catch (e) {
         toast.error(e.message || 'Error loading assignment');
@@ -52,7 +52,7 @@ export default function AssignmentModeSelectorPage() {
       const res = await fetch(`/api/staff/faculty/assignments?id=${encodeURIComponent(assignmentId)}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch');
-      const match = (data.data || []).find(a => String(a.id) === String(assignmentId)) || data.data?.[0];
+      const match = (data.data || []).find(a => String(a.id) === String(assignmentId));
       setAssignment(match || null);
     } catch (e) {
       toast.error(e.message);
@@ -75,7 +75,7 @@ export default function AssignmentModeSelectorPage() {
       <div className="max-w-7xl mx-auto w-full text-center py-12 px-4">
         <div className="max-w-md mx-auto bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
           <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 mx-auto flex items-center justify-center mb-4 font-bold text-xl">!</div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Assignment Unavailable</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Assignment Not Found</h2>
           <p className="text-sm text-gray-500 mb-6">
             Unable to load the requested subject assignment. Please check your network connection or permissions.
           </p>

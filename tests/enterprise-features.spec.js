@@ -20,11 +20,12 @@ test.describe('Enterprise Capabilities & Infrastructure Verification', () => {
     await expect(page.getByText('Fee Receipts')).toBeVisible();
     await expect(page.getByText('Weekly Timetable')).toBeVisible();
 
-    // 2. Simulate offline browser context
+    // 2. Simulate offline browser context while on the offline diagnostics page
     await page.context().setOffline(true);
-    await page.goto('/offline');
+    await page.evaluate(() => window.dispatchEvent(new Event('offline')));
     await expect(page.getByRole('heading', { name: 'You are Offline' })).toBeVisible({ timeout: 10000 });
     await page.context().setOffline(false);
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
   });
 
   test('should enforce baseline authentication on admin backup schedule API', async ({ request }) => {

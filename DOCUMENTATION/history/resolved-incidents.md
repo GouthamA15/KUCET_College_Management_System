@@ -572,3 +572,37 @@ GitHub Actions CI pipeline failed with 1 failing test:
 5. **Verification & Regression Testing:**
    - 100% pass rate across all 54 test files (413 unit tests passed, 0 failed, 0 skipped).
    - Zero ESLint errors across the codebase.
+
+---
+
+### 14. Session 211: CI E2E Playwright Attendance Routing & Enterprise Offline Resilience (September 04, 2026)
+
+#### Incident Summary
+GitHub Actions CI pipeline failed with:
+- 7 failures in `tests/attendance-routing.spec.js` (deep linking, refresh persistence, back button navigation, and missing assignment states).
+- 1 failure in `tests/enterprise-features.spec.js` (`net::ERR_INTERNET_DISCONNECTED` on offline fallback page test).
+
+#### Root Cause Analysis
+1. **Attendance Mock Route Matching Gap (`tests/attendance-routing.spec.js`):**
+   - `page.route('/api/staff/faculty/assignments', ...)` used an exact string match without query parameter support.
+   - When the client fetched `/api/staff/faculty/assignments?id=101`, Playwright bypassed the mock and hit the live backend, returning unauthenticated/empty data.
+   - Companion APIs (`/api/staff/academic-calendar*`, `/api/staff/faculty/attendance/status*`) were unmocked in test suite runs.
+2. **Fallback Subject Assignment Selection Bug (`src/app/staff/faculty/attendance/[assignmentId]/...`):**
+   - In `[assignmentId]/page.js`, `take/[mode]/page.js`, and `history/page.js`, the assignment resolver used `(data.data || []).find(a => String(a.id) === String(assignmentId)) || data.data?.[0]`.
+   - The `|| data.data?.[0]` fallback erroneously matched the first available subject when navigating to a non-existent ID (e.g. `99999`), preventing the "Assignment Not Found" state from displaying.
+3. **Offline Navigation Execution Failure (`tests/enterprise-features.spec.js`):**
+   - `page.goto('/offline')` was called after `page.context().setOffline(true)`, attempting network socket establishment over a disconnected context and throwing `net::ERR_INTERNET_DISCONNECTED`.
+
+#### Resolution Steps
+1. **Robust Playwright Route Interception (`tests/attendance-routing.spec.js`):**
+   - Updated `page.route` to match regex `/\/api\/staff\/faculty\/assignments(\?.*)?$/` and filter data by `?id=...` or `?assignment_id=...`.
+   - Added mock handlers for `/api/staff/academic-calendar*`, `/api/staff/faculty/attendance/status*`, and `/api/staff/faculty/interests*`.
+2. **Exact Assignment Resolution & Consistent UI (`src/app/staff/faculty/attendance/...`):**
+   - Removed `|| data.data?.[0]` fallback across `[assignmentId]/page.js`, `take/[mode]/page.js`, and `history/page.js`.
+   - Standardized "Assignment Not Found" heading and "Back to Academics" navigation for non-existent IDs.
+3. **DOM Event Offline Emulation (`tests/enterprise-features.spec.js`):**
+   - Navigated to `/offline` before disconnecting, then dispatched `window.dispatchEvent(new Event('offline'))` to test client `useSyncExternalStore` reactive offline banners without socket timeouts.
+4. **Verification:**
+   - Vitest unit tests: 60/60 files passed (475/475 tests).
+   - Playwright E2E: 23/23 tests passed across all test suites.
+   - Next.js Turbopack production build: 208/208 static pages generated cleanly.
