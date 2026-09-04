@@ -1,5 +1,5 @@
 import { apiResponse } from '@/lib/api-utils';
-
+import { handleLogoutRevocation, clearAllAuthCookies } from '@/lib/auth-utils';
 import { NextResponse } from 'next/server';
 
 export async function GET(request) {
@@ -9,38 +9,30 @@ export async function GET(request) {
   const redirectUrl = new URL(revoked === 'true' ? '/?revoked=true' : '/', request.url);
   const response = NextResponse.redirect(redirectUrl);
   
-  // Clear all potential auth cookies
-  const cookiesToClear = [
-    'admin_auth', 'admin_logged_in', 'admin_refresh_token', 'admin_session_id',
-    'staff_auth', 'staff_logged_in', 'staff_refresh_token', 'staff_role', 'staff_session_id',
-    'student_auth', 'student_logged_in', 'student_refresh_token', 'student_session_id',
-    'session_id'
-  ];
+  if (request) {
+    await handleLogoutRevocation(request, 'staff');
+    await handleLogoutRevocation(request, 'admin');
+    await handleLogoutRevocation(request, 'student');
+  }
 
-  cookiesToClear.forEach(name => {
-    response.cookies.delete(name);
-  });
-
+  clearAllAuthCookies(response);
   return response;
 }
 
-export async function POST(_request) {
+export async function POST(request) {
+  if (request) {
+    await handleLogoutRevocation(request, 'staff');
+    await handleLogoutRevocation(request, 'admin');
+    await handleLogoutRevocation(request, 'student');
+  }
+
   const response = apiResponse(
     { success: true, message: 'Logged out' },
     200,
     { 'Clear-Site-Data': '"cache", "storage"' }
   );
   
-  const cookiesToClear = [
-    'admin_auth', 'admin_logged_in', 'admin_refresh_token', 'admin_session_id',
-    'staff_auth', 'staff_logged_in', 'staff_refresh_token', 'staff_role', 'staff_session_id',
-    'student_auth', 'student_logged_in', 'student_refresh_token', 'student_session_id',
-    'session_id'
-  ];
-
-  cookiesToClear.forEach(name => {
-    response.cookies.delete(name);
-  });
-
+  clearAllAuthCookies(response);
   return response;
 }
+

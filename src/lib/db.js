@@ -36,6 +36,12 @@ export function getDb() {
         keepAliveInitialDelay: 10000,
         idleTimeout: 30000,
         maxIdle: 0,
+        typeCast: function (field, next) {
+          if (field.type === 'JSON') {
+            return field.string('utf8');
+          }
+          return next();
+        },
       };
       
       if (url.searchParams.get('ssl') === 'true' || url.hostname.includes('tidbcloud.com')) {
@@ -61,6 +67,12 @@ export function getDb() {
         keepAliveInitialDelay: 10000,
         idleTimeout: 30000, // Reduced to 30s to release connections faster in serverless
         maxIdle: 0,
+        typeCast: function (field, next) {
+          if (field.type === 'JSON') {
+            return field.string('utf8');
+          }
+          return next();
+        },
       };
 
       // TiDB Cloud and many production databases require SSL

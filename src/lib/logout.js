@@ -1,5 +1,6 @@
 // Centralized logout helpers (client-side only)
 import { invalidateAssetCache } from '@/lib/assets';
+import { disconnectRealtimeSocket } from '@/components/RealtimeListener';
 
 async function safePost(url) {
   if (!url) return;
@@ -26,14 +27,6 @@ function safeSessionClear() {
   }
 }
 
-function safeSessionRemoveItem(key) {
-  try {
-    sessionStorage.removeItem(key);
-  } catch {
-    // ignore
-  }
-}
-
 function safeLocalRemoveItem(key) {
   try {
     localStorage.removeItem(key);
@@ -47,6 +40,12 @@ function redirectTo(url = '/') {
 }
 
 async function purgeBrowserCaches() {
+  try {
+    disconnectRealtimeSocket();
+  } catch {
+    // ignore
+  }
+
   try {
     invalidateAssetCache();
   } catch {
@@ -71,11 +70,19 @@ async function purgeBrowserCaches() {
   }
 }
 
+const SENSITIVE_LOCAL_STORAGE_KEYS = [
+  'logged_in_student',
+  'admission_form_draft',
+  'kucet_gps_consent',
+  'profileStatusBarCount',
+  'profileStatusBarSeenRequestId',
+  'profileStatusBarSeenStatus'
+];
+
 async function logoutAndRedirect({
   endpoint,
   localStorageKeys = [],
-  clearSessionStorage = false,
-  sessionStorageKeys = [],
+  clearSessionStorage = true,
   cookies = [],
   redirect = '/',
 } = {}) {
@@ -83,15 +90,28 @@ async function logoutAndRedirect({
 
   await purgeBrowserCaches();
 
-  for (const key of localStorageKeys) safeLocalRemoveItem(key);
-
-  if (clearSessionStorage) {
-    safeSessionClear();
-  } else {
-    for (const key of sessionStorageKeys) safeSessionRemoveItem(key);
+  // Clean sensitive/role local storage keys
+  const keysToClean = new Set([...SENSITIVE_LOCAL_STORAGE_KEYS, ...localStorageKeys]);
+  for (const key of keysToClean) {
+    safeLocalRemoveItem(key);
   }
 
-  for (const cookieName of cookies) clearCookie(cookieName);
+  // Always clear entire sessionStorage to prevent cross-account contamination
+  if (clearSessionStorage !== false) {
+    safeSessionClear();
+  }
+
+  const allCookies = [
+    'admin_auth', 'admin_logged_in', 'admin_refresh_token', 'admin_session_id',
+    'staff_auth', 'staff_logged_in', 'staff_refresh_token', 'staff_role', 'staff_session_id',
+    'student_auth', 'student_logged_in', 'student_refresh_token', 'student_session_id',
+    'session_id',
+    ...cookies
+  ];
+
+  for (const cookieName of allCookies) {
+    clearCookie(cookieName);
+  }
 
   redirectTo(redirect);
 }
@@ -127,26 +147,21 @@ export async function logoutByRole({ role = 'guest', onLogout, redirect = '/' } 
   }
 
   if (role === 'admin') {
-    await logoutAndRedirect({ endpoint: '/api/admin/logout', redirect });
+    await logoutAndRedirect({ endpoint: '/api/admin/logout', clearSessionStorage: true, redirect });
     return;
   }
 
   if (['staff', 'admission', 'scholarship', 'faculty', 'hod'].includes(role)) {
-    await logoutAndRedirect({ endpoint: '/api/staff/logout', redirect });
+    await logoutAndRedirect({ endpoint: '/api/staff/logout', clearSessionStorage: true, redirect });
     return;
   }
 
-  await logoutAndRedirect({ endpoint: '/api/auth/logout', redirect });
+  await logoutAndRedirect({ endpoint: '/api/auth/logout', clearSessionStorage: true, redirect });
 }
 
 /**
- * Scholarship dashboard uses cookie/session flags instead of the shared logout endpoint.
- * This helper preserves that behavior.
+ * Scholarship dashboard logout helper.
  */
-export function logoutScholarshipDashboard({ redirect = '/' } = {}) {
-  void logoutAndRedirect({
-    cookies: ['staff_auth', 'staff_logged_in'],
-    sessionStorageKeys: ['staff_authenticated'],
-    redirect,
-  });
+export async function logoutScholarshipDashboard({ redirect = '/' } = {}) {
+  await logoutByRole({ role: 'staff', redirect });
 }

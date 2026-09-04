@@ -72,6 +72,19 @@ async function trySilentTokenRefresh() {
   }
 }
 
+export function disconnectRealtimeSocket() {
+  if (sharedSocket) {
+    try {
+      sharedSocket.removeAllListeners();
+      sharedSocket.disconnect();
+    } catch (_e) {
+      // ignore
+    }
+    sharedSocket = null;
+    notifyStatus('disconnected');
+  }
+}
+
 function ensureSocketConnection() {
   if (typeof window === 'undefined' || (sharedSocket && sharedSocket.connected)) return;
 
@@ -84,8 +97,16 @@ function ensureSocketConnection() {
 
   notifyStatus('connecting');
 
-  // If NEXT_PUBLIC_SOCKET_URL is set, use it; otherwise use window.location.origin (proxied by Nginx /socket.io/)
-  const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || window.location.origin;
+  // Resolve socket URL: on remote/production hosts, fallback to same origin if NEXT_PUBLIC_SOCKET_URL is localhost
+  let socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
+  if (typeof window !== 'undefined') {
+    const isLocalhostHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (!socketUrl || (!isLocalhostHost && (socketUrl.includes('localhost') || socketUrl.includes('127.0.0.1')))) {
+      socketUrl = window.location.origin;
+    }
+  } else {
+    socketUrl = socketUrl || 'http://localhost:4000';
+  }
 
   sharedSocket = io(socketUrl, {
     path: '/socket.io/',

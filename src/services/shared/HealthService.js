@@ -28,24 +28,50 @@ export class HealthService {
   }
 
   static async checkRedis() {
-    if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-      return { status: 'not_configured', latencyMs: 0, error: null };
+    if (process.env.REDIS_URL) {
+      let client = null;
+      try {
+        const start = Date.now();
+        const { default: IORedis } = await import('ioredis');
+        client = new IORedis(process.env.REDIS_URL, {
+          connectTimeout: 2000,
+          maxRetriesPerRequest: 1,
+          lazyConnect: true,
+          enableOfflineQueue: false,
+        });
+        await withTimeout(client.connect(), 2000, 'RedisConnect');
+        const ping = await withTimeout(client.ping(), TIMEOUT_MS, 'RedisPing');
+        const latencyMs = Date.now() - start;
+        const status = ping === 'PONG' ? 'ok' : 'degraded';
+        return { status, latencyMs, type: 'self-hosted', error: status === 'ok' ? null : 'Unexpected ping response' };
+      } catch (error) {
+        logger.error({ err: error }, '[HEALTH_CHECK] Redis (self-hosted) connection failed');
+        return { status: 'error', latencyMs: -1, error: error.message };
+      } finally {
+        if (client) {
+          try { client.disconnect(); } catch { /* ignore */ }
+        }
+      }
     }
 
-    try {
-      const start = Date.now();
-      const redis = new Redis({
-        url: process.env.UPSTASH_REDIS_REST_URL,
-        token: process.env.UPSTASH_REDIS_REST_TOKEN,
-      });
-      const ping = await withTimeout(redis.ping(), TIMEOUT_MS, 'Redis');
-      const latencyMs = Date.now() - start;
-      const status = ping === 'PONG' ? 'ok' : 'degraded';
-      return { status, latencyMs, error: status === 'ok' ? null : 'Unexpected ping response' };
-    } catch (error) {
-      logger.error({ err: error }, '[HEALTH_CHECK] Redis connection failed');
-      return { status: 'error', latencyMs: -1, error: error.message };
+    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+      try {
+        const start = Date.now();
+        const redis = new Redis({
+          url: process.env.UPSTASH_REDIS_REST_URL,
+          token: process.env.UPSTASH_REDIS_REST_TOKEN,
+        });
+        const ping = await withTimeout(redis.ping(), TIMEOUT_MS, 'Redis');
+        const latencyMs = Date.now() - start;
+        const status = ping === 'PONG' ? 'ok' : 'degraded';
+        return { status, latencyMs, type: 'upstash', error: status === 'ok' ? null : 'Unexpected ping response' };
+      } catch (error) {
+        logger.error({ err: error }, '[HEALTH_CHECK] Redis (Upstash) connection failed');
+        return { status: 'error', latencyMs: -1, error: error.message };
+      }
     }
+
+    return { status: 'not_configured', latencyMs: 0, error: null };
   }
 
   static checkEmailConfig() {

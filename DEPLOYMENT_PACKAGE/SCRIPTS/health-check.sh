@@ -181,8 +181,8 @@ fi
 ALL_SLEEP_MASKED=true
 if command -v systemctl >/dev/null 2>&1; then
   for target in sleep.target suspend.target hibernate.target hybrid-sleep.target; do
-    t_status=$(systemctl is-enabled "$target" 2>/dev/null || echo "unknown")
-    if [[ "$t_status" != "masked" ]]; then
+    t_status=$(systemctl is-enabled "$target" 2>&1 || true)
+    if [[ "$t_status" != *"masked"* ]]; then
       ALL_SLEEP_MASKED=false
     fi
   done

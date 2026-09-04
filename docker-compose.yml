@@ -115,9 +115,9 @@ services:
       - .env.production
     environment:
       MYSQL_DATABASE: ${DB_DATABASE:-kucet_cms}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-}
+      MYSQL_USER: ${DB_USER:-}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-}
     ports:
       # Restrict database host port strictly to local loopback (prevent LAN/public exposure)
       - "127.0.0.1:3306:3306"

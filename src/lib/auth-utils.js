@@ -1,7 +1,7 @@
 import { SignJWT } from 'jose';
 import crypto from 'crypto';
 import { db } from '@/db';
-import { refreshTokens, students, staffAccounts, principal } from '@/db/schema';
+import { refreshTokens, students, staffAccounts, principal, userSessions } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 
 export function getJwtSecretKey() {
@@ -395,3 +395,57 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
     return null;
   }
 }
+
+/**
+ * Revokes refresh tokens and active user sessions in the DB upon explicit logout.
+ */
+export async function handleLogoutRevocation(request, userType = 'staff') {
+  try {
+    const cookies = request.cookies;
+    const refreshToken = cookies.get(`${userType}_refresh_token`)?.value || cookies.get('refresh_token')?.value;
+    const sessionId = cookies.get(`${userType}_session_id`)?.value || cookies.get('session_id')?.value;
+
+    if (refreshToken) {
+      const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+      await db.update(refreshTokens)
+        .set({ revoked_at: new Date() })
+        .where(eq(refreshTokens.token_hash, tokenHash));
+    }
+
+    if (sessionId) {
+      const numericId = parseInt(sessionId, 10);
+      if (!isNaN(numericId)) {
+        await db.update(userSessions)
+          .set({ is_revoked: true, is_current: false })
+          .where(eq(userSessions.id, numericId));
+      }
+    }
+  } catch (err) {
+    console.warn(`[LogoutRevocationSkipped][${userType}]`, err?.message || err);
+  }
+}
+
+/**
+ * Clears all role and session cookies across the entire application domain.
+ */
+export function clearAllAuthCookies(response) {
+  const cookiesToClear = [
+    'admin_auth', 'admin_logged_in', 'admin_refresh_token', 'admin_session_id',
+    'staff_auth', 'staff_logged_in', 'staff_refresh_token', 'staff_role', 'staff_session_id',
+    'student_auth', 'student_logged_in', 'student_refresh_token', 'student_session_id',
+    'session_id'
+  ];
+
+  cookiesToClear.forEach(name => {
+    response.cookies.delete(name);
+    response.cookies.set(name, '', {
+      path: '/',
+      maxAge: 0,
+      expires: new Date(0),
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax'
+    });
+  });
+}
+

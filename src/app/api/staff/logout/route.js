@@ -1,16 +1,18 @@
 import { apiResponse } from '@/lib/api-utils';
+import { handleLogoutRevocation, clearAllAuthCookies } from '@/lib/auth-utils';
 
-export async function POST() {
+export async function POST(request) {
+  if (request) {
+    await handleLogoutRevocation(request, 'staff');
+  }
+
   const response = apiResponse(
     { success: true, message: 'Logout successful' },
     200,
     { 'Clear-Site-Data': '"cache", "storage"' }
   );
-  const cookiesToClear = [
-    'staff_auth', 'staff_logged_in', 'staff_refresh_token', 'staff_role', 'staff_session_id', 'session_id'
-  ];
-  cookiesToClear.forEach(name => {
-    response.cookies.delete(name);
-  });
+
+  clearAllAuthCookies(response);
   return response;
 }
+
