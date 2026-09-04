@@ -46,9 +46,22 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ---------------------------------------------------------------------------
+# Concurrency lock — prevent overlapping deployment runs
+# ---------------------------------------------------------------------------
+LOCK_FILE="/tmp/kucet_deploy.lock"
+exec 200>"$LOCK_FILE"
+if ! flock -n 200; then
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Another deployment is already in progress. Aborting."
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
 # Setup log dir and tee all output to deploy log
 # ---------------------------------------------------------------------------
 mkdir -p "$LOG_DIR"
+# Auto-clean deployment and rollback logs older than 14 days
+find "$LOG_DIR" -maxdepth 1 \( -name "deploy_*.log*" -o -name "rollback_*.log*" \) -mtime +14 -delete 2>/dev/null || true
+
 # From this point on, all stdout/stderr goes to both terminal AND log file
 exec > >(tee -a "$DEPLOY_LOG") 2>&1
 

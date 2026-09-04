@@ -63,9 +63,12 @@ touch "$LOG_FILE"
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
 
 # ---------------------------------------------------------------------------
-# Rotate log if > LOG_ROTATE_THRESHOLD_MB
+# Rotate log if > LOG_ROTATE_THRESHOLD_MB and clean old logs
 # ---------------------------------------------------------------------------
 rotate_log_if_needed() {
+  # Clean up individual deploy/rollback logs older than 14 days
+  find /var/log/kucet -maxdepth 1 \( -name "deploy_*.log*" -o -name "rollback_*.log*" \) -mtime +14 -delete 2>/dev/null || true
+
   if [[ -f "$LOG_FILE" ]]; then
     local size_mb
     size_mb=$(( $(stat -c%s "$LOG_FILE" 2>/dev/null || echo 0) / 1024 / 1024 ))
@@ -194,7 +197,19 @@ else
   log "  [WARN] /api/health returned HTTP $HTTP_STATUS. Consecutive failures: $NEW_FAILURES/$HEALTH_FAILURE_THRESHOLD"
 
   if [[ $NEW_FAILURES -ge $HEALTH_FAILURE_THRESHOLD ]]; then
-    log "  [CRITICAL] Health check failed $NEW_FAILURES consecutive times — triggering rollback!"
+    log "  [CRITICAL] Health check failed $NEW_FAILURES consecutive times — evaluating auto-rollback ..."
+
+    COOLDOWN_FILE="/tmp/kucet_rollback_cooldown"
+    if [[ -f "$COOLDOWN_FILE" ]]; then
+      COOLDOWN_TIME=$(cat "$COOLDOWN_FILE" 2>/dev/null || echo "0")
+      NOW=$(date +%s)
+      if (( NOW - COOLDOWN_TIME < 1800 )); then
+        log "  [INFO] Rollback cooldown active ($(( 1800 - (NOW - COOLDOWN_TIME) ))s remaining). Skipping auto-rollback loop."
+        ALERTS_TRIGGERED=true
+        rm -f "$HEALTH_FAILURES_FILE"
+        return 0 2>/dev/null || exit 0
+      fi
+    fi
 
     LAST_GOOD_COMMIT=$(python3 -c '
 import json, sys
@@ -209,6 +224,7 @@ except Exception:
 
     if [[ -n "$LAST_GOOD_COMMIT" ]]; then
       log "  Rolling back to last known good commit: $LAST_GOOD_COMMIT"
+      date +%s > "$COOLDOWN_FILE" 2>/dev/null || true
       send_webhook "🚨 KUCET CMS Monitor: Health endpoint failed $NEW_FAILURES times. Triggering auto-rollback to ${LAST_GOOD_COMMIT:0:8}."
       bash "$SCRIPTS_DIR/rollback.sh" "$LAST_GOOD_COMMIT" 2>&1 | tee -a "$LOG_FILE" || \
         log "  [CRITICAL] Rollback failed! Manual intervention required."

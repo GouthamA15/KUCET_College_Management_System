@@ -53,9 +53,14 @@ if [[ -f "$LOGROTATE_CONFIG_SRC" ]]; then
 else
   log "Repo config not found — writing inline logrotate config ..."
   cat > "$LOGROTATE_CONFIG_DEST" <<'EOF'
-/var/log/kucet/*.log {
+/var/log/kucet/monitor.log
+/var/log/kucet/monitor-cron.log
+/var/log/kucet/offsite-backup.log
+/var/log/kucet/boot-recovery.log
+/var/log/kucet/health-check.log
+/var/log/kucet/setup-*.log {
     daily
-    rotate 30
+    rotate 14
     compress
     delaycompress
     missingok
@@ -63,6 +68,9 @@ else
     copytruncate
     dateext
     dateformat -%Y%m%d
+    postrotate
+        find /var/log/kucet -maxdepth 1 \( -name "deploy_*.log*" -o -name "rollback_*.log*" \) -mtime +14 -delete 2>/dev/null || true
+    endscript
 }
 EOF
 fi
