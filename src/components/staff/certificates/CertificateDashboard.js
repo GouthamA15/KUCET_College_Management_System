@@ -8,10 +8,10 @@ import RealtimeListener from '@/components/RealtimeListener';
 import CertificateWorkspaceCard from "./CertificateWorkspaceCard";
 // Date-based history removed — replaced with scope-based history UI
 import CertificateRecordsView from "./CertificateRecordsView";
-import CertificateActionPanel from "./CertificateActionPanel";
 import FiltersPopover from "./FiltersPopover";
 import FiltersButton from "./FiltersButton";
 import { createPortal } from 'react-dom';
+import { CertificateReviewModal } from '@/components/ui/edit-modals/CertificateReviewModal';
 
 export default function CertificateDashboard({ staffType }) {
   const { pendingCertificateRequests, _isLoadingRequests, refreshCertificateRequests } = useStaff();
@@ -326,65 +326,18 @@ export default function CertificateDashboard({ staffType }) {
       </div>
 
       {/* Modal/Dialog for request details */}
-      {isDialogOpen && typeof document !== 'undefined' && createPortal(
-        (
-          <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl flex flex-col">
-            <div className="p-4 border-b flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-800">Request Details</h3>
-              <button
-                type="button"
-                className="text-gray-600 hover:text-gray-900"
-                onClick={closeDialog}
-                aria-label="Close dialog"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="p-6 overflow-y-auto max-h-[60vh]">
-              {isDialogLoading ? (
-                <div className="text-sm text-gray-600">Loading request details…</div>
-              ) : dialogError ? (
-                <div className="text-sm text-red-600">{dialogError}</div>
-              ) : (
-                <CertificateActionPanel request={selectedRequestDetails} />
-              )}
-            </div>
-            <div className="p-4 border-t bg-gray-50 flex items-center justify-end gap-2">
-              {selectedRequestDetails?.status === 'PENDING' ? (
-                <>
-                  <button type="button" className="px-4 py-2 rounded-md bg-red-600 text-white cursor-pointer disabled:opacity-60" disabled={isDialogLoading || !!dialogError || !selectedRequestId} onClick={() => setRejectReasonOpen(true)}>Reject</button>
-                  <button type="button" className="px-4 py-2 rounded-md bg-green-600 text-white cursor-pointer disabled:opacity-60" disabled={isDialogLoading || !!dialogError || !selectedRequestId} onClick={async () => {
-                    try {
-                      if (!selectedRequestId) return;
-                      // Guard: only allow PUT when request is still pending
-                      if (selectedRequestDetails?.status !== 'PENDING') return;
-                      const res = await fetch(`/api/staff/requests/${encodeURIComponent(selectedRequestId)}`, {
-                        method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'APPROVED' })
-                      });
-                      if (res.ok) {
-                        closeDialog();
-                        await refreshCertificateRequests(staffType);
-                        await fetchRecords();
-                      }
-                    } catch { /* empty */ }
-                  }}>Approve</button>
-                </>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={closeDialog}
-                className="px-4 py-2 rounded-md border cursor-pointer"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-          </div>
-        ),
-        document.body
-      )}
+      <CertificateReviewModal
+        isDialogOpen={isDialogOpen}
+        closeDialog={closeDialog}
+        isDialogLoading={isDialogLoading}
+        dialogError={dialogError}
+        selectedRequestDetails={selectedRequestDetails}
+        selectedRequestId={selectedRequestId}
+        setRejectReasonOpen={setRejectReasonOpen}
+        refreshCertificateRequests={refreshCertificateRequests}
+        fetchRecords={fetchRecords}
+        staffType={staffType}
+      />
 
       {/* Reject reason dialog */}
       {rejectReasonOpen && typeof document !== 'undefined' && createPortal(

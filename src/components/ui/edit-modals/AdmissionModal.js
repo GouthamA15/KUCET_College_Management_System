@@ -29,16 +29,23 @@ export const EditableField = React.memo(function EditableField({
         [name, onChange]
     );
 
-    const baseClass = 'block w-full border px-3 py-2 text-xs font-bold transition-all rounded-sm';
-    const activeClass = 'border-blue-400 bg-white focus:ring-2 focus:ring-blue-100 outline-none uppercase shadow-sm';
-    const readOnlyClass = 'border-slate-200 bg-slate-50 text-slate-500 uppercase tracking-tight';
+    const isEmail = type === 'email' || name === 'email';
+    const baseClass = 'block w-full border px-3 py-2 text-xs font-semibold transition-all rounded-sm';
+    const activeClass = `border-blue-400 bg-white focus:ring-2 focus:ring-blue-100 outline-none shadow-sm ${!isEmail ? 'uppercase' : ''}`;
+    const readOnlyClass = `border-slate-200 bg-slate-50 text-slate-700 tracking-tight ${!isEmail ? 'uppercase' : ''}`;
+
+    let resolvedValue = value || '';
+    if (options && value) {
+        const match = options.find(o => String(o).toLowerCase() === String(value).toLowerCase());
+        if (match) resolvedValue = match;
+    }
 
     return (
         <div className={`${fullWidth ? 'md:col-span-2 col-span-1' : ''}`}>
-            <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">{label}</label>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">{label}</label>
             {options ? (
                 <select
-                    value={value || ''}
+                    value={resolvedValue}
                     onChange={handleChange}
                     disabled={!isEditing}
                     className={`${baseClass} ${isEditing ? activeClass : readOnlyClass}`}
@@ -46,13 +53,13 @@ export const EditableField = React.memo(function EditableField({
                     <option value="">SELECT</option>
                     {options.map((o) => (
                         <option key={o} value={o}>
-                            {o.toUpperCase()}
+                            {String(o).toUpperCase()}
                         </option>
                     ))}
                 </select>
             ) : type === 'textarea' ? (
                 <textarea
-                    value={value || ''}
+                    value={resolvedValue}
                     onChange={handleChange}
                     disabled={!isEditing}
                     rows={3}
@@ -62,7 +69,7 @@ export const EditableField = React.memo(function EditableField({
             ) : (
                 <input
                     type={type}
-                    value={value || ''}
+                    value={resolvedValue}
                     onChange={handleChange}
                     disabled={!isEditing}
                     inputMode={inputMode}
@@ -270,7 +277,7 @@ export function AcademicSection({ editForm, isEditing, onFieldChange }) {
                 <EditableField
                     label="Area Residence Status"
                     name="area_status"
-                    options={['Local', 'Non Local']}
+                    options={['Local', 'Non-Local']}
                     value={editForm.area_status}
                     isEditing={isEditing}
                     onChange={onFieldChange}
@@ -337,6 +344,7 @@ export function ContactSection({ editForm, isEditing, onFieldChange }) {
                 <EditableField
                     label="Digital Mail Identity"
                     name="email"
+                    type="email"
                     fullWidth
                     value={editForm.email}
                     isEditing={isEditing}
