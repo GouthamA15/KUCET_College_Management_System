@@ -1,9 +1,10 @@
 'use client';
-import React, { useCallback, _useRef } from 'react';
+import React, { useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { getAssetUrl } from '@/lib/assets';
+import { X, CheckCircle, XCircle } from 'lucide-react';
 
 export const BLOOD_GROUP_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
 
@@ -29,10 +30,9 @@ export const EditableField = React.memo(function EditableField({
         [name, onChange]
     );
 
-    const isEmail = type === 'email' || name === 'email';
-    const baseClass = 'block w-full border px-3 py-2 text-xs font-semibold transition-all rounded-sm';
-    const activeClass = `border-blue-400 bg-white focus:ring-2 focus:ring-blue-100 outline-none shadow-sm ${!isEmail ? 'uppercase' : ''}`;
-    const readOnlyClass = `border-slate-200 bg-slate-50 text-slate-700 tracking-tight ${!isEmail ? 'uppercase' : ''}`;
+    const baseClass = 'block w-full border px-3 py-2 text-sm font-medium transition-colors rounded-md';
+    const activeClass = `border-gray-300 bg-white focus:ring-2 focus:ring-[#0b3578] focus:border-[#0b3578] outline-none shadow-sm`;
+    const readOnlyClass = `border-gray-200 bg-gray-50 text-gray-700`;
 
     let resolvedValue = value || '';
     if (options && value) {
@@ -42,7 +42,7 @@ export const EditableField = React.memo(function EditableField({
 
     return (
         <div className={`${fullWidth ? 'md:col-span-2 col-span-1' : ''}`}>
-            <label className="block text-[11px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">{label}</label>
+            <label className="block text-[10px] uppercase font-bold text-gray-500 mb-1.5 tracking-wide">{label}</label>
             {options ? (
                 <select
                     value={resolvedValue}
@@ -53,7 +53,7 @@ export const EditableField = React.memo(function EditableField({
                     <option value="">SELECT</option>
                     {options.map((o) => (
                         <option key={o} value={o}>
-                            {String(o).toUpperCase()}
+                            {String(o)}
                         </option>
                     ))}
                 </select>
@@ -103,11 +103,14 @@ export function MediaSection({ detail, isEditing, onFieldChange }) {
 
     return (
         <div className="space-y-6">
-            <div className="border border-slate-200 bg-white p-4 shadow-sm rounded-sm">
-                <div className="mb-3 flex items-center justify-between">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Identification Photo</span>
+            <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
+                <div className="mb-4 flex items-center justify-between border-b border-gray-100 pb-3">
+                    <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>
+                        Identification Photo
+                    </h4>
                     {isEditing && (
-                        <label className="cursor-pointer bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-[9px] font-black border border-blue-200 hover:bg-blue-100 transition-all uppercase tracking-widest">
+                        <label className="cursor-pointer bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold border border-blue-200 hover:bg-blue-100 transition-colors">
                             Replace
                             <input 
                                 type="file" 
@@ -118,21 +121,25 @@ export function MediaSection({ detail, isEditing, onFieldChange }) {
                         </label>
                     )}
                 </div>
-                <div className="w-full bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden" style={{ aspectRatio: '3 / 4' }}>
+                <div className="w-full bg-gray-50 border border-gray-200 rounded-md flex items-center justify-center overflow-hidden" style={{ aspectRatio: '3 / 4' }}>
                     {detail.pfp ? (
                         <div className="w-full h-full relative">
-                            <Image src={getAssetUrl(detail.pfp)} alt="Student Photo" fill sizes="180px" className="object-cover" unoptimized onError={(e) => { e.target.style.display = 'none'; if (e.target.parentNode) e.target.parentNode.innerHTML = '<div class="flex items-center justify-center w-full h-full text-[9px] font-bold text-slate-400 uppercase">Image Unavailable</div>'; }} />
+                            <Image src={getAssetUrl(detail.pfp)} alt="Student Photo" fill sizes="180px" className="object-cover" unoptimized onError={(e) => { e.target.style.display = 'none'; if (e.target.parentNode) e.target.parentNode.innerHTML = '<div class="flex items-center justify-center w-full h-full text-[10px] font-bold text-gray-400 uppercase">Image Unavailable</div>'; }} />
                         </div>
                     ) : (
-                        <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">No Record Found</span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">No Record Found</span>
                     )}
                 </div>
             </div>
-            <div className="border border-slate-200 bg-white p-4 shadow-sm rounded-sm">
-                <div className="mb-3 flex items-center justify-between">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Specimen Signature</span>
+            
+            <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
+                <div className="mb-4 flex items-center justify-between border-b border-gray-100 pb-3">
+                    <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>
+                        Specimen Signature
+                    </h4>
                     {isEditing && (
-                        <label className="cursor-pointer bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-[9px] font-black border border-blue-200 hover:bg-blue-100 transition-all uppercase tracking-widest">
+                        <label className="cursor-pointer bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold border border-blue-200 hover:bg-blue-100 transition-colors">
                             Replace
                             <input 
                                 type="file" 
@@ -143,13 +150,13 @@ export function MediaSection({ detail, isEditing, onFieldChange }) {
                         </label>
                     )}
                 </div>
-                <div className="w-full h-24 bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
+                <div className="w-full h-24 bg-gray-50 border border-gray-200 rounded-md flex items-center justify-center overflow-hidden">
                     {detail.signature ? (
                         <div className="w-full h-full relative p-2">
                             <Image src={getAssetUrl(detail.signature)} alt="Signature" fill sizes="240px" className="object-contain" unoptimized />
                         </div>
                     ) : (
-                        <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">No Record Found</span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">No Record Found</span>
                     )}
                 </div>
             </div>
@@ -159,11 +166,11 @@ export function MediaSection({ detail, isEditing, onFieldChange }) {
 
 export function PersonalDetailsSection({ editForm, isEditing, onFieldChange }) {
     return (
-        <section className="border border-slate-200 bg-white p-6 space-y-5 shadow-sm rounded-sm">
-            <div className="border-b border-slate-100 pb-2 mb-2 flex items-center gap-3">
-                <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500">01</span>
-                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Primary Identity Record</h3>
-            </div>
+        <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm space-y-4">
+            <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2 border-b border-gray-100 pb-3 mb-4">
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                Primary Identity Record
+            </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <EditableField label="Full Name" name="name" value={editForm.name} isEditing={isEditing} onChange={onFieldChange} />
                 <EditableField label="Gender" name="gender" value={editForm.gender} isEditing={isEditing} onChange={onFieldChange} />
@@ -205,11 +212,11 @@ export function PersonalDetailsSection({ editForm, isEditing, onFieldChange }) {
 
 export function AcademicSection({ editForm, isEditing, onFieldChange }) {
     return (
-        <section className="border border-slate-200 bg-white p-6 space-y-5 shadow-sm rounded-sm">
-            <div className="border-b border-slate-100 pb-2 mb-2 flex items-center gap-3">
-                <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500">02</span>
-                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Academic & Institutional Credentials</h3>
-            </div>
+        <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm space-y-4">
+            <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2 border-b border-gray-100 pb-3 mb-4">
+                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
+                Academic & Institutional Credentials
+            </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <EditableField
                     label="Entrance Exam"
@@ -321,11 +328,11 @@ export function ContactSection({ editForm, isEditing, onFieldChange }) {
     const isSame = !!editForm.is_current_same_as_permanent;
 
     return (
-        <section className="border border-slate-200 bg-white p-6 space-y-5 shadow-sm rounded-sm">
-            <div className="border-b border-slate-100 pb-2 mb-2 flex items-center gap-3">
-                <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500">03</span>
-                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Contact & Communication Registry</h3>
-            </div>
+        <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm space-y-4">
+            <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2 border-b border-gray-100 pb-3 mb-4">
+                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full"></div>
+                Contact & Communication Registry
+            </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <EditableField
                     label="Primary Mobile No"
@@ -371,139 +378,53 @@ export function ContactSection({ editForm, isEditing, onFieldChange }) {
             </div>
 
             {/* Current Address */}
-            <div className="border-t border-slate-100 pt-4">
-                <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-4">
+            <div className="border-t border-gray-100 pt-4 mt-6">
+                <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">
                     Current Address {isSame && "(Same as Permanent)"}
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <EditableField
-                        label="House No"
-                        name="curr_house_no"
-                        value={editForm.curr_house_no}
-                        isEditing={isEditing}
-                        onChange={handleAddressFieldChange}
-                    />
-                    <EditableField
-                        label="Apartment / Landmark"
-                        name="curr_apartment"
-                        value={editForm.curr_apartment}
-                        isEditing={isEditing}
-                        onChange={handleAddressFieldChange}
-                    />
-                    <EditableField
-                        label="Street"
-                        name="curr_street"
-                        value={editForm.curr_street}
-                        isEditing={isEditing}
-                        onChange={handleAddressFieldChange}
-                    />
-                    <EditableField
-                        label="City"
-                        name="curr_city"
-                        value={editForm.curr_city}
-                        isEditing={isEditing}
-                        onChange={handleAddressFieldChange}
-                    />
-                    <EditableField
-                        label="State"
-                        name="curr_state"
-                        value={editForm.curr_state}
-                        isEditing={isEditing}
-                        onChange={handleAddressFieldChange}
-                    />
-                    <EditableField
-                        label="Pincode"
-                        name="curr_pincode"
-                        value={editForm.curr_pincode}
-                        isEditing={isEditing}
-                        onChange={handleAddressFieldChange}
-                    />
-                    <EditableField
-                        label="Country"
-                        name="curr_country"
-                        value={editForm.curr_country}
-                        isEditing={isEditing}
-                        onChange={handleAddressFieldChange}
-                        fullWidth
-                    />
+                    <EditableField label="House No" name="curr_house_no" value={editForm.curr_house_no} isEditing={isEditing} onChange={handleAddressFieldChange} />
+                    <EditableField label="Apartment / Landmark" name="curr_apartment" value={editForm.curr_apartment} isEditing={isEditing} onChange={handleAddressFieldChange} />
+                    <EditableField label="Street" name="curr_street" value={editForm.curr_street} isEditing={isEditing} onChange={handleAddressFieldChange} />
+                    <EditableField label="City" name="curr_city" value={editForm.curr_city} isEditing={isEditing} onChange={handleAddressFieldChange} />
+                    <EditableField label="State" name="curr_state" value={editForm.curr_state} isEditing={isEditing} onChange={handleAddressFieldChange} />
+                    <EditableField label="Pincode" name="curr_pincode" value={editForm.curr_pincode} isEditing={isEditing} onChange={handleAddressFieldChange} />
+                    <EditableField label="Country" name="curr_country" value={editForm.curr_country} isEditing={isEditing} onChange={handleAddressFieldChange} fullWidth />
                 </div>
             </div>
 
             {/* Sync Checkbox */}
-            <div className="flex items-center gap-2 py-2">
+            <div className="flex items-center gap-2 py-3">
                 <input
                     type="checkbox"
                     id="modal_is_current_same_as_permanent"
                     checked={isSame}
                     disabled={!isEditing}
                     onChange={handleCheckboxChange}
-                    className="h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed"
+                    className="h-4 w-4 text-[#0b3578] border-gray-300 rounded focus:ring-[#0b3578] cursor-pointer disabled:cursor-not-allowed"
                 />
-                <label htmlFor="modal_is_current_same_as_permanent" className="text-xs font-bold text-slate-700 select-none cursor-pointer disabled:cursor-not-allowed">
+                <label htmlFor="modal_is_current_same_as_permanent" className="text-sm font-medium text-gray-700 select-none cursor-pointer disabled:cursor-not-allowed">
                     Mark as permanent address
                 </label>
             </div>
 
             {/* Permanent Address */}
-            <div className="border-t border-slate-100 pt-4">
-                <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-4">
+            <div className="border-t border-gray-100 pt-4 mt-2">
+                <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">
                     Permanent Address
                 </h4>
                 {!isSame ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <EditableField
-                            label="House No"
-                            name="perm_house_no"
-                            value={editForm.perm_house_no}
-                            isEditing={isEditing}
-                            onChange={onFieldChange}
-                        />
-                        <EditableField
-                            label="Apartment / Landmark"
-                            name="perm_apartment"
-                            value={editForm.perm_apartment}
-                            isEditing={isEditing}
-                            onChange={onFieldChange}
-                        />
-                        <EditableField
-                            label="Street"
-                            name="perm_street"
-                            value={editForm.perm_street}
-                            isEditing={isEditing}
-                            onChange={onFieldChange}
-                        />
-                        <EditableField
-                            label="City"
-                            name="perm_city"
-                            value={editForm.perm_city}
-                            isEditing={isEditing}
-                            onChange={onFieldChange}
-                        />
-                        <EditableField
-                            label="State"
-                            name="perm_state"
-                            value={editForm.perm_state}
-                            isEditing={isEditing}
-                            onChange={onFieldChange}
-                        />
-                        <EditableField
-                            label="Pincode"
-                            name="perm_pincode"
-                            value={editForm.perm_pincode}
-                            isEditing={isEditing}
-                            onChange={onFieldChange}
-                        />
-                        <EditableField
-                            label="Country"
-                            name="perm_country"
-                            value={editForm.perm_country}
-                            isEditing={isEditing}
-                            onChange={onFieldChange}
-                            fullWidth
-                        />
+                        <EditableField label="House No" name="perm_house_no" value={editForm.perm_house_no} isEditing={isEditing} onChange={onFieldChange} />
+                        <EditableField label="Apartment / Landmark" name="perm_apartment" value={editForm.perm_apartment} isEditing={isEditing} onChange={onFieldChange} />
+                        <EditableField label="Street" name="perm_street" value={editForm.perm_street} isEditing={isEditing} onChange={onFieldChange} />
+                        <EditableField label="City" name="perm_city" value={editForm.perm_city} isEditing={isEditing} onChange={onFieldChange} />
+                        <EditableField label="State" name="perm_state" value={editForm.perm_state} isEditing={isEditing} onChange={onFieldChange} />
+                        <EditableField label="Pincode" name="perm_pincode" value={editForm.perm_pincode} isEditing={isEditing} onChange={onFieldChange} />
+                        <EditableField label="Country" name="perm_country" value={editForm.perm_country} isEditing={isEditing} onChange={onFieldChange} fullWidth />
                     </div>
                 ) : (
-                    <div className="text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-100 p-3 rounded-sm uppercase tracking-wide">
+                    <div className="text-sm font-medium text-gray-500 bg-gray-50 border border-gray-200 p-4 rounded-md">
                         Permanent address is synchronized with current address.
                     </div>
                 )}
@@ -532,133 +453,138 @@ export function AdmissionModal({
     restorationReason = '',
     setRestorationReason = () => {},
     onRestore,
-    verifyLabel = "Validate & Authenticate"
+    verifyLabel = "Approve Record"
 }) {
+    if (typeof document === 'undefined') return null;
+
     const modal = (
-        <div className="fixed inset-0 z-[9998] bg-slate-900/60 backdrop-blur-sm flex items-stretch justify-center p-4 font-sans">
-            <div className="bg-slate-50 border border-slate-300 w-full max-w-6xl h-full flex flex-col shadow-2xl rounded-sm">
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4 sm:p-8">
+            <div 
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+                onClick={onClose}
+            ></div>
+            
+            <div className="relative bg-white border border-gray-200 w-full max-w-6xl h-full max-h-[95vh] flex flex-col shadow-2xl rounded-xl overflow-hidden animate-fadeInUp">
+                
                 {/* Header */}
-                <div className="px-4 sm:px-8 py-5 border-b border-slate-200 bg-white flex items-center justify-between">
+                <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-white sticky top-0 z-10">
                     <div>
-                        <div className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-1">Audit Environment</div>
-                        <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Institutional Admission Review</h2>
-                        <div className="text-[10px] text-slate-500 font-bold tracking-widest uppercase mt-1">
-                          Applicant: <span className="text-slate-800">{detail.name}</span> • Year {detail.admission_year} • Intake Rank {detail.exam_rank} • Status: <span className={`font-black ${detail.status === 'REJECTED' ? 'text-rose-600' : 'text-blue-600'}`}>{detail.status || 'DRAFT'}</span>
-                        </div>
+                        <h3 className="text-lg font-bold text-gray-900">Review Admission Record</h3>
+                        <p className="text-xs text-gray-500 font-mono mt-1">
+                            Applicant: <span className="font-semibold text-gray-800">{detail.name}</span> • Year {detail.admission_year} • Rank: {detail.exam_rank} • Status: <span className={`font-bold ${detail.status === 'REJECTED' ? 'text-rose-600' : 'text-[#0b3578]'}`}>{detail.status || 'DRAFT'}</span>
+                        </p>
                     </div>
                     <div className="flex items-center gap-3">
                         {!rejectionMode && !restorationMode && detail.status !== 'REJECTED' && (
                             <button
                                 type="button"
                                 onClick={onToggleEditing}
-                                className="px-4 py-2 border-2 border-slate-800 bg-white text-[10px] font-black text-slate-800 uppercase tracking-widest hover:bg-slate-50 transition-all rounded-sm shadow-sm"
+                                className="px-3 py-1.5 bg-white border border-gray-300 rounded-md text-sm font-medium text-[#0b3578] hover:bg-gray-50 transition-colors shadow-sm"
                             >
                                 {isEditing ? '🔒 Lock Record' : '✍️ Edit Record'}
                             </button>
                         )}
-                        <button
-                            type="button"
+                        <button 
                             onClick={onClose}
-                            className="inline-flex items-center justify-center w-10 h-10 border-2 border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-all rounded-sm shadow-sm"
-                            aria-label="Close admission review modal"
-                            title="Close"
+                            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
                         >
-                            <span className="text-lg leading-none font-black">×</span>
+                            <X className="w-5 h-5" />
                         </button>
                     </div>
                 </div>
 
                 {/* Body */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-8">
+                <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
                     {restorationMode ? (
-                        <div className="flex flex-col items-center justify-center h-full max-w-lg mx-auto space-y-8 animate-fadeIn">
-                            <div className="text-center space-y-3">
-                                <span className="text-5xl block mb-2">🔄</span>
-                                <h3 className="text-lg font-black text-emerald-700 uppercase tracking-tight">Restore Application</h3>
-                                <p className="text-[11px] text-slate-500 font-bold leading-relaxed uppercase tracking-wider">Specify professional reason for restoring this application back to the intake processing queue.</p>
+                        <div className="flex flex-col items-center justify-center h-full max-w-lg mx-auto space-y-6 animate-fadeIn">
+                            <div className="text-center space-y-2">
+                                <span className="text-5xl block mb-4">🔄</span>
+                                <h3 className="text-xl font-bold text-gray-900">Restore Application</h3>
+                                <p className="text-sm text-gray-600 leading-relaxed">Specify the rationale for restoring this application back to the active queue.</p>
                             </div>
                             <div className="w-full">
-                                <label className="block text-[10px] font-black text-slate-400 mb-3 uppercase tracking-widest">Restoration Rationale</label>
                                 <textarea
-                                    className="w-full border-2 border-slate-200 p-5 text-xs font-bold focus:border-emerald-500 outline-none bg-white rounded-sm shadow-inner transition-all resize-none"
-                                    rows={6}
+                                    className="w-full border border-gray-300 rounded-md p-4 text-sm focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none shadow-inner resize-none transition-all placeholder:text-gray-400"
+                                    rows={5}
                                     placeholder="e.g. Missing certificates verified; Candidate provided corrected documentation."
                                     value={restorationReason}
                                     onChange={(e) => setRestorationReason(e.target.value)}
+                                    autoFocus
                                 />
                             </div>
-                            <div className="flex w-full gap-4">
+                            <div className="flex w-full gap-3 mt-4">
                                 <button
                                     onClick={() => { setRestorationMode(false); setRestorationReason(''); }}
-                                    className="flex-1 px-6 py-3 border-2 border-slate-200 bg-white text-[10px] font-black text-slate-500 uppercase tracking-widest hover:bg-slate-50 rounded-sm transition-all shadow-sm"
+                                    className="flex-1 py-2.5 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors shadow-sm"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={onRestore}
                                     disabled={processing || !restorationReason.trim()}
-                                    className="flex-1 px-6 py-3 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 disabled:opacity-50 rounded-sm shadow-lg shadow-emerald-100 transition-all active:scale-95"
+                                    className="flex-1 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-md hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
                                 >
                                     {processing ? 'Restoring...' : 'Authorize Restoration'}
                                 </button>
                             </div>
                         </div>
                     ) : rejectionMode ? (
-                        <div className="flex flex-col items-center justify-center h-full max-w-lg mx-auto space-y-8 animate-fadeIn">
-                            <div className="text-center space-y-3">
-                                <span className="text-5xl block grayscale mb-2">🚫</span>
-                                <h3 className="text-lg font-black text-rose-700 uppercase tracking-tight">Application Rejection Memo</h3>
-                                <p className="text-[11px] text-slate-500 font-bold leading-relaxed uppercase tracking-wider">Specify professional reason for rejection. This record will remain preserved in the operational database for historical auditing and potential restoration.</p>
+                        <div className="flex flex-col items-center justify-center h-full max-w-lg mx-auto space-y-6 animate-fadeIn">
+                            <div className="text-center space-y-2">
+                                <XCircle className="w-16 h-16 text-rose-500 mx-auto mb-4" />
+                                <h3 className="text-xl font-bold text-gray-900">Application Rejection</h3>
+                                <p className="text-sm text-gray-600 leading-relaxed">Specify the reason for rejection. This record will remain preserved in the operational database.</p>
                             </div>
                             <div className="w-full">
-                                <label className="block text-[10px] font-black text-slate-400 mb-3 uppercase tracking-widest">Rejection Rationale</label>
                                 <textarea
-                                    className="w-full border-2 border-slate-200 p-5 text-xs font-bold focus:border-rose-500 outline-none bg-white rounded-sm shadow-inner transition-all resize-none"
-                                    rows={6}
+                                    className="w-full border border-gray-300 rounded-md p-4 text-sm focus:ring-2 focus:ring-rose-100 focus:border-rose-500 outline-none shadow-inner resize-none transition-all placeholder:text-gray-400"
+                                    rows={5}
                                     placeholder="e.g. Identity documentation mismatch, Illegible photography, or Credential verification failure."
                                     value={rejectionReason}
                                     onChange={(e) => setRejectionReason(e.target.value)}
+                                    autoFocus
                                 />
                             </div>
-                            <div className="flex w-full gap-4">
+                            <div className="flex w-full gap-3 mt-4">
                                 <button
                                     onClick={() => { setRejectionMode(false); setRejectionReason(''); }}
-                                    className="flex-1 px-6 py-3 border-2 border-slate-200 bg-white text-[10px] font-black text-slate-500 uppercase tracking-widest hover:bg-slate-50 rounded-sm transition-all shadow-sm"
+                                    className="flex-1 py-2.5 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors shadow-sm"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={onReject}
                                     disabled={processing || !rejectionReason.trim()}
-                                    className="flex-1 px-6 py-3 bg-rose-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-rose-800 disabled:opacity-50 rounded-sm shadow-lg shadow-rose-100 transition-all active:scale-95"
+                                    className="flex-1 py-2.5 text-sm font-semibold text-white bg-rose-600 rounded-md hover:bg-rose-700 disabled:opacity-50 transition-colors shadow-sm"
                                 >
-                                    {processing ? 'Processing...' : 'Authorize Rejection'}
+                                    {processing ? 'Processing...' : 'Issue Rejection'}
                                 </button>
                             </div>
                         </div>
                     ) : (
-                        <div>
+                        <div className="space-y-6 max-w-5xl mx-auto">
                             {/* Rejection Alert Banner */}
                             {detail.status === 'REJECTED' && (
-                                <div className="mb-6 bg-rose-50 border-l-4 border-rose-500 p-4 rounded-r-sm shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                    <div>
-                                        <h4 className="text-xs font-black text-rose-800 uppercase tracking-wider flex items-center gap-1.5">
-                                            <span>🚫</span> Application Status: REJECTED
-                                        </h4>
-                                        <p className="text-xs text-rose-700 mt-1 font-medium">
-                                            <strong>Reason:</strong> {detail.rejection_reason || 'Information provided was incomplete or inconsistent with documents.'}
-                                        </p>
-                                        {detail.rejected_at && (
-                                            <p className="text-[10px] text-rose-500 mt-0.5 font-bold">
-                                                Rejected on: {new Date(detail.rejected_at).toLocaleString()}
+                                <div className="bg-rose-50 border border-rose-200 p-4 rounded-lg shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div className="flex items-start gap-3">
+                                        <XCircle className="w-5 h-5 text-rose-600 mt-0.5" />
+                                        <div>
+                                            <h4 className="text-sm font-bold text-rose-900">Application Status: REJECTED</h4>
+                                            <p className="text-sm text-rose-700 mt-1">
+                                                <strong>Reason:</strong> {detail.rejection_reason || 'Information provided was incomplete or inconsistent with documents.'}
                                             </p>
-                                        )}
+                                            {detail.rejected_at && (
+                                                <p className="text-xs text-rose-500 mt-1 font-medium">
+                                                    Rejected on: {new Date(detail.rejected_at).toLocaleString()}
+                                                </p>
+                                            )}
+                                        </div>
                                     </div>
                                     {onRestore && (
                                         <button
                                             type="button"
                                             onClick={() => setRestorationMode(true)}
-                                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest rounded-sm shadow-sm transition-all whitespace-nowrap self-start md:self-auto"
+                                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-md shadow-sm transition-colors whitespace-nowrap"
                                         >
                                             🔄 Restore Application
                                         </button>
@@ -666,37 +592,38 @@ export function AdmissionModal({
                                 </div>
                             )}
 
-                            <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-10">
+                            <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
                                 <div className="space-y-6">
                                     <MediaSection detail={detail} isEditing={isEditing} onFieldChange={onFieldChange} />
                                 </div>
-                                <div className="space-y-10">
+                                <div className="space-y-6">
                                     <PersonalDetailsSection editForm={editForm} isEditing={isEditing} onFieldChange={onFieldChange} />
                                     <AcademicSection editForm={editForm} isEditing={isEditing} onFieldChange={onFieldChange} />
                                     <ContactSection editForm={editForm} isEditing={isEditing} onFieldChange={onFieldChange} />
                                     
                                     {/* Status History & Audit Trail */}
                                     {detail.status_history && detail.status_history.length > 0 && (
-                                        <div className="border border-slate-200 bg-white p-5 rounded-sm shadow-sm">
-                                            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                <span>📜</span> Lifecycle Status History & Audit Trail
-                                            </h3>
-                                            <div className="space-y-3">
+                                        <div className="bg-white border border-gray-200 p-5 rounded-lg shadow-sm space-y-4">
+                                            <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2 border-b border-gray-100 pb-3 mb-4">
+                                                <div className="w-1.5 h-1.5 bg-slate-500 rounded-full"></div>
+                                                Lifecycle Status History & Audit Trail
+                                            </h4>
+                                            <div className="space-y-4 pl-1">
                                                 {detail.status_history.map((h, i) => (
-                                                    <div key={h.id || i} className="flex items-start gap-3 text-xs pb-3 border-b border-slate-100 last:border-b-0">
-                                                        <span className="w-2.5 h-2.5 rounded-full bg-blue-500 mt-1 flex-shrink-0" />
+                                                    <div key={h.id || i} className="flex items-start gap-4 text-sm pb-4 border-b border-gray-100 last:border-b-0 last:pb-0">
+                                                        <div className="w-2 h-2 rounded-full bg-[#0b3578] mt-1.5 flex-shrink-0" />
                                                         <div className="flex-1">
                                                             <div className="flex items-center justify-between">
-                                                                <span className="font-bold text-slate-800 uppercase">
+                                                                <span className="font-semibold text-gray-800">
                                                                     {h.old_status ? `${h.old_status} ➔ ` : ''}{h.new_status}
                                                                 </span>
-                                                                <span className="text-[10px] text-slate-400 font-mono">
+                                                                <span className="text-xs text-gray-500 font-mono bg-gray-50 px-2 py-0.5 rounded">
                                                                     {new Date(h.created_at).toLocaleString()}
                                                                 </span>
                                                             </div>
-                                                            {h.reason && <p className="text-slate-600 mt-0.5 italic">{h.reason}</p>}
+                                                            {h.reason && <p className="text-gray-600 mt-1 italic text-sm">{h.reason}</p>}
                                                             {h.staff_name && (
-                                                                <p className="text-[10px] text-slate-400 font-medium">
+                                                                <p className="text-xs text-gray-400 font-medium mt-1">
                                                                     Actor: {h.staff_name} ({h.changed_by_user_type})
                                                                 </p>
                                                             )}
@@ -714,51 +641,49 @@ export function AdmissionModal({
 
                 {/* Footer */}
                 {!rejectionMode && !restorationMode && (
-                    <div className="px-4 sm:px-8 py-5 border-t border-slate-200 bg-white flex justify-between items-center">
+                    <div className="bg-white border-t border-gray-200 p-4 sticky bottom-0 z-10 flex gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                         {detail.status !== 'REJECTED' ? (
                             <button
                                 type="button"
                                 onClick={() => setRejectionMode(true)}
-                                className="px-6 py-2.5 border-2 border-rose-100 bg-rose-50 text-rose-700 text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all rounded-sm shadow-sm"
+                                className="flex-1 flex items-center justify-center gap-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 py-2.5 rounded-lg font-bold text-sm transition-colors shadow-sm"
                             >
-                                Issue Rejection
+                                <XCircle className="w-4 h-4" /> Reject
                             </button>
                         ) : onRestore ? (
                             <button
                                 type="button"
                                 onClick={() => setRestorationMode(true)}
-                                className="px-6 py-2.5 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all rounded-sm shadow-sm"
+                                className="flex-[2] flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-lg font-bold text-sm transition-colors shadow-md"
                             >
                                 🔄 Restore Application
                             </button>
-                        ) : <div />}
+                        ) : <div className="flex-1" />}
                         
-                        <div className="flex gap-4">
-                            {isEditing ? (
-                                <button
-                                    type="button"
-                                    onClick={onSave}
-                                    disabled={processing}
-                                    className="px-4 sm:px-8 py-2.5 border-2 border-amber-500 bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 disabled:opacity-60 transition-all rounded-sm shadow-lg shadow-amber-100 active:scale-95"
-                                >
-                                    {processing ? 'Saving Audit...' : 'Commit Changes'}
-                                </button>
-                            ) : detail.status !== 'REJECTED' && onVerify ? (
-                                <button
-                                    type="button"
-                                    onClick={onVerify}
-                                    disabled={processing}
-                                    className="px-4 sm:px-8 py-2.5 bg-[#0b3578] text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-900 disabled:opacity-60 transition-all rounded-sm shadow-lg shadow-blue-100 active:scale-95"
-                                >
-                                    {processing ? 'Finalizing...' : verifyLabel}
-                                </button>
-                            ) : null}
-                        </div>
+                        {isEditing ? (
+                            <button
+                                type="button"
+                                onClick={onSave}
+                                disabled={processing}
+                                className="flex-[2] flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-lg font-bold text-sm transition-colors disabled:opacity-50 shadow-md"
+                            >
+                                {processing ? 'Saving Audit...' : 'Commit Changes'}
+                            </button>
+                        ) : detail.status !== 'REJECTED' && onVerify ? (
+                            <button
+                                type="button"
+                                onClick={onVerify}
+                                disabled={processing}
+                                className="flex-[2] flex items-center justify-center gap-2 bg-[#0b3578] hover:bg-blue-900 text-white py-2.5 rounded-lg font-bold text-sm transition-colors disabled:opacity-50 shadow-md"
+                            >
+                                <CheckCircle className="w-4 h-4" /> {processing ? 'Finalizing...' : verifyLabel}
+                            </button>
+                        ) : null}
                     </div>
                 )}
             </div>
         </div>
     );
 
-    return typeof document !== 'undefined' ? createPortal(modal, document.body) : null;
+    return createPortal(modal, document.body);
 }
