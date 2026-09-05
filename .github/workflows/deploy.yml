@@ -14,8 +14,8 @@ concurrency:
 jobs:
   validate-and-test:
     name: 1. Code Validation & Unit Tests
-    runs-on: self-hosted
-    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -42,7 +42,7 @@ jobs:
     name: 2. Deploy to Production VPS
     needs: validate-and-test
     runs-on: self-hosted
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       # -----------------------------------------------------------------
