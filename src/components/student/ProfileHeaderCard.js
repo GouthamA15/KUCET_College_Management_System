@@ -77,7 +77,7 @@ export default function ProfileHeaderCard({ student }) {
                 setShowFullViewModal(true);
               }
             }}
-            className={`w-full h-full rounded-full border-4 border-gray-300 overflow-hidden flex items-center justify-center bg-gray-100 relative ${
+              className={`w-full h-full rounded-full border-4 border-gray-300 overflow-hidden flex items-center justify-center bg-gray-100 relative ${
               resolvedPhotoUrl && !showLoaderOverlay && !imageError ? 'cursor-zoom-in' : ''
             }`}
           >

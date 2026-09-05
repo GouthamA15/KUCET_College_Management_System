@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { AdmissionModal } from './AdmissionModal';
+import { AdmissionModal } from '@/components/ui/edit-modals/AdmissionModal';
 import AdmissionWorkspaceFilter from './AdmissionWorkspaceFilter';
 import RealtimeListener from '@/components/RealtimeListener';
 import { 

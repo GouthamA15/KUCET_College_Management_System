@@ -140,7 +140,8 @@ export async function GET(request, context) {
         const verificationUrl = `${baseUrl}/verify?id=${certId?.trim()}&roll=${rollNo?.trim()}`;
         const qrBase64 = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 150 });
 
-        const formattedDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+        const approvedDate = certRequest.updated_at ? new Date(certRequest.updated_at) : await getNow();
+        const formattedDate = `${String(approvedDate.getDate()).padStart(2, '0')}/${String(approvedDate.getMonth() + 1).padStart(2, '0')}/${approvedDate.getFullYear()}`;
         
         let formattedDob = 'N/A';
         if (student.date_of_birth) {

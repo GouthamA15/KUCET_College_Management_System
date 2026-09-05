@@ -32,8 +32,8 @@ export default function FiltersPopover({ filters, setFilters, onApply, onClear }
           </select>
         </div>
         <div className="flex items-center justify-end gap-2">
-          <button type="button" onClick={onClear} className="px-3 py-1 text-sm rounded border">Clear Filters</button>
-          <button type="button" onClick={onApply} className="px-3 py-1 text-sm rounded bg-indigo-600 text-white">Apply Filters</button>
+          <button type="button" onClick={onClear} className="px-3 py-1 text-sm rounded border cursor-pointer">Clear Filters</button>
+          <button type="button" onClick={onApply} className="px-3 py-1 text-sm rounded bg-[#0b3578] text-white cursor-pointer hover:bg-blue-900">Apply Filters</button>
         </div>
       </div>
     </div>

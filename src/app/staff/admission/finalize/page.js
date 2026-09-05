@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import { useRouter, useSearchParams } from 'next/navigation';
 import { validateRollNo } from "@/lib/rollNumber";
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import { AdmissionModal } from "@/components/staff/requests/AdmissionModal";
+import { AdmissionModal } from "@/components/ui/edit-modals/AdmissionModal";
 import AdmissionWorkspaceFilter from "@/components/staff/requests/AdmissionWorkspaceFilter";
 import RealtimeListener from "@/components/RealtimeListener";
 import { 

@@ -690,7 +690,7 @@ function SidebarInner({
 
         {/* Navigation list */}
         <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto custom-scrollbar">
-          {menu.map((item, idx) => {
+          {menu.filter(item => getDisplayLabel({ effectiveRole, label: item.label }).toUpperCase() !== 'PROFILE').map((item, idx) => {
             const displayLabel = getDisplayLabel({ effectiveRole, label: item.label });
             const iconKey = pickIconKey(displayLabel);
             const Icon = Icons[iconKey] || Icons.requests;
