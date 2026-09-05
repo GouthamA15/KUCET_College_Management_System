@@ -1,7 +1,8 @@
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import CertificateActionPanel from '@/components/staff/certificates/CertificateActionPanel';
+import { X, CheckCircle, XCircle } from 'lucide-react';
 
 export const CertificateReviewModal = ({
   isDialogOpen,
@@ -15,50 +16,82 @@ export const CertificateReviewModal = ({
   fetchRecords,
   staffType
 }) => {
+  const [processing, setProcessing] = useState(false);
+
   if (!isDialogOpen || typeof document === 'undefined') return null;
 
   const modal = (
-    <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl flex flex-col">
-        <div className="p-4 border-b flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-800">Request Details</h3>
+    <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4 animate-fadeIn" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl flex flex-col overflow-hidden animate-fadeInUp">
+        
+        {/* Header */}
+        <div className="p-5 border-b border-gray-200 flex items-center justify-between bg-gray-50/50">
+          <div>
+            <h3 className="text-xl font-bold text-[#0b2447] flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-500 block"></span>
+              Document Verification
+            </h3>
+            <p className="text-sm font-medium text-gray-500 mt-0.5">
+              {selectedRequestDetails?.roll_number ? `Student: ${selectedRequestDetails.roll_number}` : 'Review Request Details'}
+            </p>
+          </div>
           <button
             type="button"
-            className="text-gray-600 hover:text-gray-900 cursor-pointer"
+            className="text-gray-400 hover:text-gray-800 cursor-pointer p-2 rounded-full hover:bg-gray-200 transition-colors"
             onClick={closeDialog}
             aria-label="Close dialog"
           >
-            ✕
+            <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-6 overflow-y-auto max-h-[60vh]">
+
+        {/* Content */}
+        <div className="p-6 overflow-y-auto max-h-[65vh] bg-gray-50/30">
           {isDialogLoading ? (
-            <div className="text-sm text-gray-600">Loading request details…</div>
+            <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+              <div className="animate-spin h-8 w-8 border-4 border-[#0b3578] border-t-transparent rounded-full mb-4"></div>
+              <p className="text-sm font-medium text-gray-500">Retrieving details...</p>
+            </div>
           ) : dialogError ? (
-            <div className="text-sm text-red-600">{dialogError}</div>
+            <div className="p-4 bg-rose-50 border border-rose-200 rounded-lg text-sm font-medium text-rose-600 flex items-center gap-2">
+              <XCircle className="w-5 h-5" /> {dialogError}
+            </div>
           ) : (
-            <CertificateActionPanel request={selectedRequestDetails} />
+            <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden p-1">
+              <CertificateActionPanel request={selectedRequestDetails} />
+            </div>
           )}
         </div>
-        <div className="p-4 border-t bg-gray-50 flex items-center justify-end gap-2">
-          {selectedRequestDetails?.status === 'PENDING' ? (
+
+        {/* Footer */}
+        <div className="p-5 border-t border-gray-200 bg-white flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={closeDialog}
+            className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-semibold cursor-pointer hover:bg-gray-50 transition-colors shadow-sm"
+          >
+            Close
+          </button>
+          
+          {selectedRequestDetails?.status === 'PENDING' && (
             <>
               <button 
                 type="button" 
-                className="px-4 py-2 rounded-md bg-red-600 text-white cursor-pointer disabled:opacity-60 transition-colors hover:bg-red-700" 
-                disabled={isDialogLoading || !!dialogError || !selectedRequestId} 
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-rose-600 text-white font-bold cursor-pointer disabled:opacity-50 transition-colors hover:bg-rose-700 shadow-sm" 
+                disabled={isDialogLoading || !!dialogError || !selectedRequestId || processing} 
                 onClick={() => setRejectReasonOpen(true)}
               >
-                Reject
+                <XCircle className="w-4 h-4" /> Reject Request
               </button>
               <button 
                 type="button" 
-                className="px-4 py-2 rounded-md bg-green-600 text-white cursor-pointer disabled:opacity-60 transition-colors hover:bg-green-700" 
-                disabled={isDialogLoading || !!dialogError || !selectedRequestId} 
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#0b3578] text-white font-bold cursor-pointer disabled:opacity-50 transition-colors hover:bg-blue-900 shadow-sm" 
+                disabled={isDialogLoading || !!dialogError || !selectedRequestId || processing} 
                 onClick={async () => {
                   try {
                     if (!selectedRequestId) return;
                     if (selectedRequestDetails?.status !== 'PENDING') return;
+                    setProcessing(true);
                     const res = await fetch(`/api/staff/requests/${encodeURIComponent(selectedRequestId)}`, {
                       method: 'PUT', 
                       credentials: 'same-origin', 
@@ -70,21 +103,16 @@ export const CertificateReviewModal = ({
                       await refreshCertificateRequests(staffType);
                       await fetchRecords();
                     }
-                  } catch { /* empty */ }
+                  } catch { /* empty */ } finally {
+                    setProcessing(false);
+                  }
                 }}
               >
-                Approve
+                {processing ? <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" /> : <CheckCircle className="w-4 h-4" />} 
+                Authorize & Approve
               </button>
             </>
-          ) : null}
-
-          <button
-            type="button"
-            onClick={closeDialog}
-            className="px-4 py-2 rounded-md border cursor-pointer hover:bg-gray-100 transition-colors"
-          >
-            Close
-          </button>
+          )}
         </div>
       </div>
     </div>

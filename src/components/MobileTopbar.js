@@ -1,19 +1,54 @@
 'use client';
 
-import { useMemo } from 'react';
-import { usePathname } from 'next/navigation';
+import { useMemo, useContext } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { getPortalTitle } from '@/lib/path-utils';
 import { useAssets } from '@/context/AssetContext';
+import { StudentContext } from '@/context/StudentContext';
+import { StaffContext } from '@/context/StaffContext';
+
+const DefaultAvatarSVG = () => (
+  <svg 
+    className="w-6 h-6 text-slate-400" 
+    fill="currentColor" 
+    viewBox="0 0 24 24"
+  >
+    <path 
+      fillRule="evenodd" 
+      d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" 
+      clipRule="evenodd" 
+    />
+  </svg>
+);
 
 export default function MobileTopbar({ onMenuClick, title }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { getAsset } = useAssets();
+
+  const studentCtx = useContext(StudentContext);
+  const staffCtx = useContext(StaffContext);
+
+  const studentData = studentCtx?.studentData?.student;
+  const staffData = staffCtx?.staffData;
+  const user = studentData || staffData;
 
   const resolvedTitle = useMemo(() => {
     if (title) return title;
     return getPortalTitle(pathname);
   }, [title, pathname]);
+
+  const isProfilePage = pathname === '/student/profile' || pathname.endsWith('/profile');
+
+  const handleProfileClick = () => {
+    let route = '/student/profile';
+    if (staffData) {
+      // Use role to find profile page (e.g. /staff/faculty/profile)
+      route = `/staff/${staffData.role || 'faculty'}/profile`;
+    }
+    router.push(route);
+  };
 
   return (
     <header className="lg:hidden sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80 w-full transition-all duration-200 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
@@ -52,9 +87,27 @@ export default function MobileTopbar({ onMenuClick, title }) {
           </div>
         </div>
 
-        {/* Right: Empty spacer for balance, maintaining 44px min-width */}
+        {/* Right: Profile Badge */}
         <div className="flex items-center justify-end min-w-[44px] w-11 h-11">
-          {/* Optional: Add notification bell or profile picture here in the future */}
+          {user && (
+            <button 
+              onClick={handleProfileClick}
+              className={`w-9 h-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-bold text-[13px] shadow-sm overflow-hidden border border-slate-200 transition-all duration-300 active:scale-95 ${
+                isProfilePage ? 'opacity-0 scale-50 pointer-events-none' : 'opacity-100 scale-100'
+              }`}
+              title="View Profile"
+            >
+              {user?.pfp ? (
+                <img 
+                  src={getAsset(user.pfp)} 
+                  alt="Profile" 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <DefaultAvatarSVG />
+              )}
+            </button>
+          )}
         </div>
       </div>
     </header>

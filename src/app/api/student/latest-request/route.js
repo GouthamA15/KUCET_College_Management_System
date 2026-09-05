@@ -4,6 +4,8 @@ import { studentRequests, students } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
   try {
     const user = await getAuthUser('student');
