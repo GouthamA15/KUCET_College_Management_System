@@ -623,7 +623,6 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                   <span className="text-gray-600">New User? </span>
                   <Link 
                     href="/admission" 
-                    prefetch={true}
                     className="font-semibold text-[#0b3578] hover:text-[#1a4a8f] hover:underline transition-colors duration-200 cursor-pointer relative z-50 inline-block py-2 -my-2 px-1 -mx-1"
                   >
                     Register for Admission &rarr;
@@ -761,7 +760,6 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                       <span className="text-gray-600">New Staff Member?</span>
                       <Link
                         href="/staff-registration"
-                        prefetch={true}
                         className="font-bold text-[#0b3578] hover:text-blue-800 hover:underline relative z-50 inline-block py-2 -my-2 px-1 -mx-1"
                       >
                         Register Yourself &rarr;

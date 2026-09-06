@@ -501,6 +501,27 @@ export default function ManageStaffClient() {
                             </div>
                           </div>
                         )}
+
+                        {activeTab !== 'faculty' && (
+                          <div className="bg-slate-50 rounded-lg p-5 border border-slate-100 mb-6">
+                            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Administrative Role</label>
+                            <select
+                               className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-[#0b3578] outline-none bg-white"
+                               value={editedStaff.roles?.find(r => ['admission', 'scholarship'].includes(r)) || ''}
+                               onChange={(e) => {
+                                 const newRole = e.target.value;
+                                 setEditedStaff(prev => {
+                                   const otherRoles = prev.roles?.filter(r => !['admission', 'scholarship'].includes(r)) || [];
+                                   return { ...prev, roles: [...otherRoles, newRole] };
+                                 });
+                               }}
+                            >
+                               <option value="admission">Admission Staff</option>
+                               <option value="scholarship">Scholarship Staff</option>
+                            </select>
+                            <p className="text-[10px] text-slate-500 mt-2">Non-teaching staff can be reassigned between administrative departments.</p>
+                          </div>
+                        )}
                           
                           {/* HOD Requests History Section */}
                           {selectedStaff?.role === 'faculty' && (
