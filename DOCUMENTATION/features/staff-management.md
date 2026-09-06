@@ -105,3 +105,22 @@ HODs can view all active faculty members affiliated with their department. Throu
 ### Transactional Integrity
 To ensure system consistency, all HOD management actions execute via atomic database transactions. Modifications to account status, subject assignments, or interest approvals commit simultaneously, and all actions log comprehensive event records to the `audit_logs` table for administrative oversight.
 
+---
+
+## 8. Non-Teaching Staff Role Shifting & Department Reassignment
+
+In the Super Admin Staff Management console (`/admin/manage-staff`), administrators can seamlessly reassign non-teaching staff members between administrative departments (Admission Staff $\leftrightarrow$ Scholarship Staff).
+
+### Administrative Role Shifting Workflow:
+1. **Selection**: Administrator navigates to either the **Admission Staff** or **Scholarship Staff** tab in `/admin/manage-staff` and clicks **"Edit Profile"** for a non-teaching staff member.
+2. **Role Reassignment**: Under the **"Administrative Role"** section, the administrator selects the new role (`Admission Staff` or `Scholarship Staff`).
+3. **Database Transaction (`PUT /api/admin/staff/[id]`)**:
+   - The backend retrieves existing roles from `staff_account_roles` $\bowtie$ `staff_roles`.
+   - **Teaching vs. Non-Teaching Invariant Guard**:
+     - Teaching accounts (`faculty`) **cannot** be shifted to non-teaching roles.
+     - Non-teaching accounts (`admission`, `scholarship`) **cannot** be shifted to teaching roles. Attempting to violate this invariant throws an explicit validation error: `"Teaching roles (faculty) cannot be shifted to non-teaching roles."` or `"Non-teaching roles cannot be shifted to teaching roles."`
+   - Atomically updates `staff_account_roles` by deleting non-HOD roles and inserting the corresponding new `role_id` (`ADMISSION_STAFF` or `SCHOLARSHIP_STAFF`).
+   - If profile details (name, email, employee ID, active status) are also modified, `staff_accounts` master record is updated in the same transaction.
+4. **Session Synchronization**: Next time the user refreshes their token or makes an authenticated request, `src/app/api/auth/refresh` dynamically resolves the new role code from `staff_account_roles` and issues the updated role claim (`staff_role` and JWT `role`).
+
+

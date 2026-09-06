@@ -179,9 +179,13 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 - **The Pitfall:** Writing raw base64 data URLs for user images into `localStorage` during draft auto-save can exceed browser storage quotas (~5MB), causing silent uncaught `QuotaExceededError` exceptions and broken form state persistence.
 - **The Inviolable Guardrail:** Wrap `localStorage.setItem` calls in `try/catch` blocks that catch `QuotaExceededError` and fall back to storing structured text fields with media pointers (`{ pfp: null, signature: null }`), keeping client draft recovery intact.
 
-### Rule 17: Deterministically Clean Up Async Lifecycle Resources & Avoid Inline Callbacks in Realtime Listeners
-- **The Pitfall:** (1) Returning cleanup functions from async functions inside `useEffect` leaves intervals and event listeners uncleaned because React ignores returned Promises. (2) Passing inline arrow callbacks to singleton event listeners (`<RealtimeListener onUpdate={(d) => ...} />`) causes the listener effect to tear down and re-register on every render.
-- **The Inviolable Guardrail:** Store async cleanup closures in component-scoped mutable variables to call them in `useEffect` teardown. Stabilize realtime callbacks with `useRef` or empty-dep `useCallback` so singleton event subscriptions remain persistent and zero-churn across re-renders.
+### Rule 18: Pure Synchronous State Transformations in State Setters & Complete Auth Token Forwarding
+- **The Pitfall:** (1) Invoking `startTransition` or asynchronous dispatchers inside a functional `setState(prev => ...)` updater triggers React's invariant violation (Minified React error #479: "Cannot update a component while rendering a different component"). (2) Next.js route handlers querying `headers()` without Edge proxy token injection can fail to read refreshed JWTs from cookies during silent refresh cycles, producing false 401 Unauthorized errors on dependent backend services.
+- **The Inviolable Guardrail:** Functional state updaters passed to `useState`/`useReducer` MUST be pure, synchronous, and zero side-effect. Whenever `proxy.js` rotates auth tokens via silent refresh, it MUST forward the new token string directly to downstream API route handlers via explicit `x-[role]-auth` request headers.
+
+### Rule 19: Never Bypass Edge Proxy Route Guards & Never Mutate React DOM via `parentNode.innerHTML` in Media Fallbacks
+- **The Pitfall:** (1) Adding path-based bypasses (such as `!pathname.includes('...')`) in the Edge proxy/middleware creates security holes allowing unauthenticated requests to reach backend handlers even if inner wrappers exist. (2) Mutating `e.target.parentNode.innerHTML` inside an `onError` handler on Next.js `<Image />` destroys React's internal DOM Fiber nodes, triggering `NotFoundError: Failed to execute 'removeChild' on 'Node'` upon component re-render or tab switching.
+- **The Inviolable Guardrail:** All `/api/admin/*` routes must be uniformly gated by Super Admin credentials in Edge proxy without exceptions. Image error handling MUST use pure React state (`const [imgError, setImgError] = useState(false)`) with conditional fallback JSX rendering, never direct DOM destruction.
 
 ---
 
@@ -199,6 +203,7 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 | **Session 209 Memory & Lifecycle Resolution** | Next.js internal `httpxy` proxy listener accumulation during sequential silent refreshes; Socket.IO token expiry loops; uncleaned PWA worker intervals; duplicate realtime listeners | Route-scoped parallel silent refresh in `proxy.js`; automatic `/api/auth/refresh` on socket connect_error; deterministic Promise worker cleanup in `PwaRegister.js`; ref-hoisted single `<RealtimeListener>` in `PendingStaffRequests.js`. |
 | **Session 210 CI/CD & Worktree Mode Drift** | Non-executable file mode `100644` in Git index caused runtime `chmod +x` to dirty working tree; `deploy.sh` called `checkout` before `reset --hard`; runner UID permission barrier | Set Git index mode `100755` via `git update-index --chmod=+x`, atomic `fetch -> reset --hard -> clean -fd` in runner, and `1001:100` (`deployer:users`) directory permissions. |
 | **Session 211 Faculty Attendance & Admission Filters** | Minified React error #479 from `startTransition` inside `setState` updater; 401 Unauthorized on calendar load and proxy token refresh header omission; missing inline topic logging; single-branch admission restriction | Pure deterministic state in `FacultyAttendanceContext.js`, edge proxy `x-staff-auth` header injection, dual inline/modal topic logging, and multi-branch filter support in admission workspace. |
+| **Session 212 Comprehensive Audit & Production Review** | Stray `/api/admin/staff-requests` proxy bypass, direct `parentNode.innerHTML` DOM mutation in `AdmissionModal.js`, unscoped role avatar in `MobileTopbar.js`, and undocumented non-teaching role shifting & modular edit modals | Removed proxy bypass, implemented pure React state fallback in `AdmissionModal.js`, path-scoped role context in `MobileTopbar.js`, updated full documentation suite. |
 
 ---
 
@@ -210,3 +215,4 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 - [Chronological Forensics of Resolved Incidents](../history/resolved-incidents.md#1-session-205-forensic-resolution-of-cookies-remain-but-app-shows-home-screen)
 
 > 💡 **Next Steps**: Review the complete incident post-mortems in [Resolved Incidents History](../history/resolved-incidents.md).
+

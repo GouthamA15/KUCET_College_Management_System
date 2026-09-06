@@ -197,9 +197,22 @@ const stampUrl = await InstitutionAssetService.getAssetDataUrl('institution/seal
 
 ---
 
-## 7. Cross-References
+## 7. Approval Date Preservation & Records View Architecture
+
+### 1. Historical Approval Date Preservation
+When a student downloads an approved certificate (`/api/student/requests/download/[request_id]`), the generated certificate date reflects the exact timestamp when the administrative staff approved the request (`certRequest.updated_at`), rather than today's download date. If `updated_at` is unavailable, it gracefully defaults to the current verified clock time (`getNow()`).
+
+### 2. Modernized Certificate Records View (`CertificateRecordsView.js`)
+- Renders responsive records table with student names, roll numbers, certificate types, purpose tags, and status badges.
+- Features duplicate proof detection flag badges (`is_flagged`) for suspicious student document submissions.
+- Integrates sorting by approval date and direct navigation to `CertificateReviewModal` for fast administrative actions.
+
+---
+
+## 8. Cross-References
 
 - Student Requests Workflow: [requests.md](./requests.md)
 - Admissions System: [admissions.md](./admissions.md)
 - System Storage Architecture: [storage.md](../architecture/storage.md)
 - Database Schema Documentation: [schema.md](../database/schema.md)
+

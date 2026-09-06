@@ -295,6 +295,12 @@ The `refreshAccessToken()` for `userType === 'staff'` now performs 4-table JOINs
 - Single-HOD-per-branch invariant enforced via `staffAcademicAffiliations.is_hod`.
 - Admin promotes/demotes from the Staff Management Console.
 
+### Edge Proxy Route Protection Invariant (`src/proxy.js`)
+All administrative API endpoints under `/api/admin/*` are strictly guarded at the Edge proxy layer requiring valid `adminPayload`. Public onboarding submissions are strictly segregated to `/api/public/staff-registration/*`, ensuring zero route protection bypasses in the middleware pipeline.
+
+### Eager Registration Prefetching (`LoginPanel.js`)
+To eliminate initial compilation latency when prospective students or staff click onboarding links, `LoginPanel.js` eagerly prefetches `/staff-registration` and `/admission` routes on mount via `router.prefetch()`.
+
 ---
 
 ## Cross-References

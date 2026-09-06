@@ -1,5 +1,5 @@
 'use client';
-import React, { useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
@@ -85,6 +85,12 @@ export const EditableField = React.memo(function EditableField({
 });
 
 export function MediaSection({ detail, isEditing, onFieldChange }) {
+    const [failedPfp, setFailedPfp] = useState(null);
+    const [failedSig, setFailedSig] = useState(null);
+
+    const imgError = Boolean(detail.pfp) && failedPfp === detail.pfp;
+    const sigError = Boolean(detail.signature) && failedSig === detail.signature;
+
     const handleFileChange = (e, name) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -93,6 +99,9 @@ export function MediaSection({ detail, isEditing, onFieldChange }) {
             alert('File size exceeds 1MB limit.');
             return;
         }
+
+        if (name === 'pfp') setFailedPfp(null);
+        if (name === 'signature') setFailedSig(null);
 
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -122,12 +131,22 @@ export function MediaSection({ detail, isEditing, onFieldChange }) {
                     )}
                 </div>
                 <div className="w-full bg-gray-50 border border-gray-200 rounded-md flex items-center justify-center overflow-hidden" style={{ aspectRatio: '3 / 4' }}>
-                    {detail.pfp ? (
+                    {detail.pfp && !imgError ? (
                         <div className="w-full h-full relative">
-                            <Image src={getAssetUrl(detail.pfp)} alt="Student Photo" fill sizes="180px" className="object-cover" unoptimized onError={(e) => { e.target.style.display = 'none'; if (e.target.parentNode) e.target.parentNode.innerHTML = '<div class="flex items-center justify-center w-full h-full text-[10px] font-bold text-gray-400 uppercase">Image Unavailable</div>'; }} />
+                            <Image 
+                                src={getAssetUrl(detail.pfp)} 
+                                alt="Student Photo" 
+                                fill 
+                                sizes="180px" 
+                                className="object-cover" 
+                                unoptimized 
+                                onError={() => setFailedPfp(detail.pfp)} 
+                            />
                         </div>
                     ) : (
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">No Record Found</span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
+                            {imgError ? 'Image Unavailable' : 'No Record Found'}
+                        </span>
                     )}
                 </div>
             </div>
@@ -151,12 +170,22 @@ export function MediaSection({ detail, isEditing, onFieldChange }) {
                     )}
                 </div>
                 <div className="w-full h-24 bg-gray-50 border border-gray-200 rounded-md flex items-center justify-center overflow-hidden">
-                    {detail.signature ? (
+                    {detail.signature && !sigError ? (
                         <div className="w-full h-full relative p-2">
-                            <Image src={getAssetUrl(detail.signature)} alt="Signature" fill sizes="240px" className="object-contain" unoptimized />
+                            <Image 
+                                src={getAssetUrl(detail.signature)} 
+                                alt="Signature" 
+                                fill 
+                                sizes="240px" 
+                                className="object-contain" 
+                                unoptimized 
+                                onError={() => setFailedSig(detail.signature)}
+                            />
                         </div>
                     ) : (
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">No Record Found</span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
+                            {sigError ? 'Image Unavailable' : 'No Record Found'}
+                        </span>
                     )}
                 </div>
             </div>

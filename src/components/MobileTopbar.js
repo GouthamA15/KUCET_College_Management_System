@@ -30,9 +30,12 @@ export default function MobileTopbar({ onMenuClick, title }) {
   const studentCtx = useContext(StudentContext);
   const staffCtx = useContext(StaffContext);
 
-  const studentData = studentCtx?.studentData?.student;
-  const staffData = staffCtx?.staffData;
-  const user = studentData || staffData;
+  const isStaff = pathname?.startsWith('/staff');
+  const isStudent = pathname?.startsWith('/student');
+
+  const studentData = isStudent ? studentCtx?.studentData?.student : null;
+  const staffData = isStaff ? staffCtx?.staffData : null;
+  const user = isStaff ? staffData : isStudent ? studentData : null;
 
   const resolvedTitle = useMemo(() => {
     if (title) return title;
@@ -42,12 +45,11 @@ export default function MobileTopbar({ onMenuClick, title }) {
   const isProfilePage = pathname ? (pathname === '/student/profile' || pathname.endsWith('/profile')) : false;
 
   const handleProfileClick = () => {
-    let route = '/student/profile';
-    if (staffData) {
-      // Use role to find profile page (e.g. /staff/faculty/profile)
-      route = `/staff/${staffData.role || 'faculty'}/profile`;
+    if (isStaff && staffData) {
+      router.push(`/staff/${staffData.role || 'faculty'}/profile`);
+    } else if (isStudent) {
+      router.push('/student/profile');
     }
-    router.push(route);
   };
 
   return (
@@ -66,14 +68,15 @@ export default function MobileTopbar({ onMenuClick, title }) {
           </svg>
         </button>
 
-        {/* Center: Branding & Role Portal Title */}
-        <div className="flex-1 flex items-center justify-center gap-2.5">
-          <div className="flex shrink-0 items-center justify-center bg-blue-50 p-1.5 rounded-lg border border-blue-100">
-            <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-              src={getAsset('/assets/ku-college-logo.png')} 
-              alt="KUCET Logo" 
-              width={28} height={28}
-              className="h-7 w-auto object-contain"
+        {/* Center: Brand and Page Title */}
+        <div className="flex items-center gap-3">
+          <div className="relative w-8 h-8 shrink-0">
+            <Image
+              src="/assets/ku-college-logo.png"
+              alt="Kakatiya University Logo"
+              width={32}
+              height={32}
+              className="object-contain"
               priority
             />
           </div>
@@ -92,16 +95,19 @@ export default function MobileTopbar({ onMenuClick, title }) {
           {user && (
             <button 
               onClick={handleProfileClick}
-              className={`w-9 h-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-bold text-[13px] shadow-sm overflow-hidden border border-slate-200 transition-all duration-300 active:scale-95 ${
+              className={`w-9 h-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-bold text-[13px] shadow-sm overflow-hidden border border-slate-200 transition-all duration-300 active:scale-95 relative ${
                 isProfilePage ? 'opacity-0 scale-50 pointer-events-none' : 'opacity-100 scale-100'
               }`}
               title="View Profile"
             >
               {user?.pfp ? (
-                <img 
+                <Image 
+                  unoptimized
                   src={getAsset(user.pfp)} 
                   alt="Profile" 
-                  className="w-full h-full object-cover"
+                  fill
+                  sizes="36px"
+                  className="object-cover"
                 />
               ) : (
                 <DefaultAvatarSVG />

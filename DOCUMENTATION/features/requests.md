@@ -215,9 +215,29 @@ export const studentRequestImages = mysqlTable('student_request_images', {
 
 ---
 
-## 8. Cross-References
+## 9. Isolated Edit & Review Modals Architecture (`src/components/ui/edit-modals/`)
+
+To guarantee component modularity, prevent cross-panel state contamination, and optimize client bundle re-rendering performance, all administrative review and modal interfaces are isolated into dedicated UI modules under `src/components/ui/edit-modals/`:
+
+### 1. `AdmissionModal.js` (`/components/ui/edit-modals/AdmissionModal.js`)
+- Consolidates applicant review, draft editing, document inspection, and admission decision actions (Verify / Reject / Restore / Save Draft).
+- Features stateful image error fallbacks (`imgError`, `sigError`) avoiding direct DOM tree mutations.
+- Multi-section layout: Primary Identity Record, Entrance Examination Details, Academic Background, Reservation/Quota, Address & Contacts, and Document Verification.
+
+### 2. `CertificateReviewModal.js` (`/components/ui/edit-modals/CertificateReviewModal.js`)
+- Dedicated portal modal for document verification and certificate approvals.
+- Integrates `CertificateActionPanel` with async approval submission, automated rejection reason dialog triggers, and reactive list refresh across the records office.
+
+### 3. `StudentUpdateReviewModal.js` (`/components/ui/edit-modals/StudentUpdateReviewModal.js`)
+- Slide-over drawer modal rendering side-by-side comparisons of current student database records versus requested modifications (e.g. Current vs Requested PFP, Signature, and field data diffs).
+- Direct document preview modal portal with high-resolution image zoom.
+
+---
+
+## 10. Cross-References
 
 - Digital Certificate Engine: [certificates.md](./certificates.md)
 - Admission System & Draft Staging: [admissions.md](./admissions.md)
 - System Storage Architecture: [storage.md](../architecture/storage.md)
 - User Authentication: [authentication.md](../authentication/authentication.md)
+

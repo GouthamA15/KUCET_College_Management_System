@@ -159,7 +159,28 @@ Given that over 80% of student and faculty interactions occur on smartphones, KU
 ### Drawer & Navigation Features
 - **Dynamic Slide-Over Drawer**: Uses Tailwind CSS transforms and touch-swipe gestures to reveal role-specific navigation links without screen reloads.
 - **Focus Trapping & Accessibility**: Prevents background scrolling when drawers are open (`overflow-hidden` on `body`) and handles `Escape` key close events.
+- **Mobile Topbar Profile Badge (`MobileTopbar.js`)**: Displays authenticated user avatar with path-scoped role context isolation. Clicking the avatar routes directly to the active role's profile view (`/student/profile` or `/staff/[role]/profile`), smoothly auto-hiding when already on profile views.
 - **Active Session Bar**: Persistent mobile status bar alerting students of active attendance sessions nearby.
+
+---
+
+## 🎯 Student Dashboard Priority Actions Engine (`DashboardActionCenter.js`)
+
+The student dashboard features a high-priority, real-time Action Center that dynamically surfaces mission-critical institutional items:
+
+1. **Active Attendance Verification**: Real-time 4-digit PIN verification inputs with 50m Haversine GPS geofence checks and device fingerprint lock (`kucet_device_uuid`).
+2. **Current Period & Class Alert**: Displays real-time subject name, room number, faculty name, and period time ranges, synchronized instantly via `BroadcastChannel('kucet_sse_sync')`.
+3. **Scholarship Action Pipeline**: Dynamic government scholarship alerts for hard-copy submission deadlines, Mee-Seva biometric thumb verification, and ePASS application windows with client-side dismissal state persistence.
+4. **Certificate & Update Request Status**: Instant status tracking pills (Pending, Approved, Rejected) with direct links to request history.
+
+---
+
+## 🧩 Isolated Edit & Review Modals (`src/components/ui/edit-modals/`)
+
+Administrative edit and review modals are modularized into standalone portal components under `src/components/ui/edit-modals/`:
+- **`AdmissionModal.js`**: Draft applicant editing, verification, quota review, and non-destructive image loading fallbacks.
+- **`CertificateReviewModal.js`**: Document validation, one-click authorization, and rejection dialog triggers.
+- **`StudentUpdateReviewModal.js`**: Side-by-side diff comparison between current registry records and requested modifications with proof document previews.
 
 ---
 
@@ -200,3 +221,4 @@ export async function queueOfflineAttendance(attendanceRecord) {
 ---
 
 > 💡 **Next Steps**: View API endpoint validation and server logic in [Backend Architecture](./backend.md) or explore database entity relationships in [Database Architecture](./database.md).
+
