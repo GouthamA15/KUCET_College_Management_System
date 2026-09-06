@@ -1,15 +1,24 @@
 'use client';
 
-import { useState, _useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { validateRollNo } from '@/lib/rollNumber'; // Import validateRollNo
 import { getDashboardPathByRole } from '@/lib/path-utils';
 import { invalidateAssetCache } from '@/lib/assets';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPanel({ activePanel, onClose, _onStudentLogin, variant = 'modal', dismissable = true }) {
   const MAX_ROLL = 10;
   const MIN_ROLL = 10;
+  const router = useRouter();
+  
+  useEffect(() => {
+    // Eagerly prefetch registration routes to prevent compilation delay upon click
+    router.prefetch('/staff-registration');
+    router.prefetch('/admission');
+  }, [router]);
+
   const [studentForm, setStudentForm] = useState({ rollNumber: '', dob: '' });
   const [staffForm, setStaffForm] = useState({ email: '', password: '' });
   const [adminForm, setAdminForm] = useState({ email: '', password: '' });
@@ -614,6 +623,7 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                   <span className="text-gray-600">New User? </span>
                   <Link 
                     href="/admission" 
+                    prefetch={true}
                     className="font-semibold text-[#0b3578] hover:text-[#1a4a8f] hover:underline transition-colors duration-200 cursor-pointer"
                   >
                     Register for Admission &rarr;
@@ -751,6 +761,7 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                       <span className="text-gray-600">New Staff Member?</span>
                       <Link
                         href="/staff-registration"
+                        prefetch={true}
                         className="font-bold text-[#0b3578] hover:text-blue-800 hover:underline"
                       >
                         Register Yourself &rarr;
