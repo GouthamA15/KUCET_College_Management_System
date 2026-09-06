@@ -619,12 +619,12 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                   </form>
                 )}
 
-                <div className={isModal ? 'mt-6 text-center text-sm' : 'mt-4 text-center text-xs'}>
+                <div className={isModal ? 'mt-6 text-center text-sm relative z-20' : 'mt-4 text-center text-xs relative z-20'}>
                   <span className="text-gray-600">New User? </span>
                   <Link 
                     href="/admission" 
                     prefetch={true}
-                    className="font-semibold text-[#0b3578] hover:text-[#1a4a8f] hover:underline transition-colors duration-200 cursor-pointer"
+                    className="font-semibold text-[#0b3578] hover:text-[#1a4a8f] hover:underline transition-colors duration-200 cursor-pointer relative z-50 inline-block py-2 -my-2 px-1 -mx-1"
                   >
                     Register for Admission &rarr;
                   </Link>
@@ -757,12 +757,12 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                   )}
 
                   {activePanel !== 'admin' && (
-                    <div className="mt-4 pt-3 border-t border-gray-200 flex items-center justify-between text-xs">
+                    <div className="mt-4 pt-3 border-t border-gray-200 flex items-center justify-between text-xs relative z-20">
                       <span className="text-gray-600">New Staff Member?</span>
                       <Link
                         href="/staff-registration"
                         prefetch={true}
-                        className="font-bold text-[#0b3578] hover:text-blue-800 hover:underline"
+                        className="font-bold text-[#0b3578] hover:text-blue-800 hover:underline relative z-50 inline-block py-2 -my-2 px-1 -mx-1"
                       >
                         Register Yourself &rarr;
                       </Link>

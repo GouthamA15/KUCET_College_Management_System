@@ -336,14 +336,11 @@ export default function StaffRegistrationPage() {
                   Kakatiya University College of Engineering and Technology
                 </h2>
                 <p className="text-[11px] sm:text-sm text-gray-600 font-medium mt-1 sm:mt-2">Warangal, Telangana - 506009</p>
-                <p className="hidden sm:block text-[11px] sm:text-xs text-gray-500 mt-0.5 lg:mt-1">(Approved by AICTE, New Delhi & Affiliated to Kakatiya University)</p>
               </div>
               <div className="w-14 h-14 sm:w-20 sm:h-20 lg:w-24 lg:h-24 shrink-0 flex items-center justify-center">
                 <Image src="/assets/Naac_A+.png" alt="NAAC Logo" width={96} height={96} className="w-full h-full object-contain" priority />
               </div>
             </div>
-            
-            <p className="block sm:hidden text-[10px] text-gray-500 mt-2 text-center leading-tight">(Approved by AICTE, New Delhi & Affiliated to Kakatiya University)</p>
             
             <div className="mt-5 sm:mt-8 text-center">
               <h1 className="text-[13px] sm:text-lg lg:text-2xl font-black text-gray-900 uppercase tracking-tight sm:tracking-wide whitespace-nowrap overflow-hidden text-ellipsis px-2">
