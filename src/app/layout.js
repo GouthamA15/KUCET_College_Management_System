@@ -38,7 +38,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} antialiased bg-institutional min-h-screen`}>
+      <body className={`${inter.className} antialiased bg-institutional min-h-screen`} suppressHydrationWarning>
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:font-medium focus:rounded-lg focus:shadow-lg focus:outline-none"

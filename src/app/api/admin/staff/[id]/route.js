@@ -87,11 +87,12 @@ export async function PUT(req, context) {
       employee_id: z.string().trim().min(1).max(50).optional(),
       is_active: z.boolean().default(true).optional(),
       is_hod: z.boolean().optional(),
-      branches: z.array(z.string()).optional()
+      branches: z.array(z.string()).optional(),
+      roles: z.array(z.string()).optional()
     });
 
     const validatedData = updateSchema.parse(json);
-    const { name, email, employee_id, is_hod, branches, is_active } = validatedData;
+    const { name, email, employee_id, is_hod, branches, is_active, roles } = validatedData;
 
     const staffBefore = await db.query.staffAccounts.findFirst({
       where: eq(staffAccounts.id, idNum)
@@ -111,6 +112,48 @@ export async function PUT(req, context) {
       
       if (Object.keys(updatePayload).length > 0) {
         await tx.update(staffAccounts).set(updatePayload).where(eq(staffAccounts.id, idNum));
+      }
+
+      // 1.5 Handle Role Shifting (Teaching vs Non-Teaching)
+      if (roles !== undefined) {
+         const currentRolesData = await tx.select({ role_code: staffRoles.role_code })
+            .from(staffAccountRoles)
+            .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
+            .where(eq(staffAccountRoles.staff_account_id, idNum));
+            
+         const currentRoles = currentRolesData.map(r => r.role_code.toLowerCase());
+         const isTeaching = currentRoles.includes('faculty');
+         
+         const newRoles = roles.map(r => {
+            const lower = r.toLowerCase();
+            if (lower === 'admission') return 'admission_staff';
+            if (lower === 'scholarship') return 'scholarship_staff';
+            return lower;
+         });
+         
+         if (isTeaching && !newRoles.includes('faculty')) {
+            throw new Error('Teaching roles (faculty) cannot be shifted to non-teaching roles.');
+         }
+         if (!isTeaching && newRoles.includes('faculty')) {
+            throw new Error('Non-teaching roles cannot be shifted to teaching roles.');
+         }
+
+         const allRolesDef = await tx.select().from(staffRoles);
+         const newRoleIds = allRolesDef.filter(r => newRoles.includes(r.role_code.toLowerCase())).map(r => r.id);
+         const hodRoleDef = allRolesDef.find(r => r.role_code.toLowerCase() === 'hod');
+         const hodRoleId = hodRoleDef ? hodRoleDef.id : null;
+         
+         // Clear old roles except HOD
+         if (hodRoleId) {
+            await tx.delete(staffAccountRoles).where(and(eq(staffAccountRoles.staff_account_id, idNum), ne(staffAccountRoles.role_id, hodRoleId)));
+         } else {
+            await tx.delete(staffAccountRoles).where(eq(staffAccountRoles.staff_account_id, idNum));
+         }
+
+         // Insert new roles
+         for (const rId of newRoleIds) {
+            await tx.insert(staffAccountRoles).values({ staff_account_id: idNum, role_id: rId });
+         }
       }
 
       // 2. Handle Branch and HOD Updates (for Faculty)

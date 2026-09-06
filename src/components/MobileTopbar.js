@@ -39,7 +39,7 @@ export default function MobileTopbar({ onMenuClick, title }) {
     return getPortalTitle(pathname);
   }, [title, pathname]);
 
-  const isProfilePage = pathname === '/student/profile' || pathname.endsWith('/profile');
+  const isProfilePage = pathname ? (pathname === '/student/profile' || pathname.endsWith('/profile')) : false;
 
   const handleProfileClick = () => {
     let route = '/student/profile';
