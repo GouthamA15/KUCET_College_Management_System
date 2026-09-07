@@ -104,12 +104,12 @@ export class ChessEngineService {
     const match = await MatchService.getMatchById(matchId);
     if (!match) throw { status: 404, message: 'Match not found.' };
 
-    if (match.status === 'COMPLETED' || match.status === 'ABANDONED') {
+    if (match.status === 'COMPLETED' || match.status === 'ABANDONED' || match.status === 'CANCELLED') {
       throw { status: 400, message: 'This match has already concluded.' };
     }
 
     if (match.status === 'SCHEDULED') {
-      throw { status: 400, message: 'Match has not been published yet.' };
+      throw { status: 400, message: 'Match is currently scheduled. An administrator must start the match before moves can be played.' };
     }
 
     let game = match.gameState;
@@ -193,9 +193,9 @@ export class ChessEngineService {
       .where(eq(chessGames.id, game.id));
 
     // 3. If first move, update match status to IN_PROGRESS
-    if (match.status === 'PUBLISHED') {
+    if (['PUBLISHED', 'READY', 'STARTED'].includes(match.status)) {
       await eventDb.update(eventMatches)
-        .set({ status: 'IN_PROGRESS', started_at: now, updated_at: now })
+        .set({ status: 'IN_PROGRESS', started_at: match.started_at || now, updated_at: now })
         .where(eq(eventMatches.id, match.id));
     }
 

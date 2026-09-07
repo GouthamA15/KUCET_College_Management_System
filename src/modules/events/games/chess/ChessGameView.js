@@ -405,14 +405,14 @@ export default function ChessGameView({ matchId, currentUser = null }) {
                   </p>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleAction('ACCEPT_DRAW')}
+                      onClick={() => handleAction('accept_draw')}
                       disabled={isSubmitting}
                       className="px-3 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium cursor-pointer"
                     >
                       Accept Draw
                     </button>
                     <button
-                      onClick={() => handleAction('DECLINE_DRAW')}
+                      onClick={() => handleAction('decline_draw')}
                       disabled={isSubmitting}
                       className="px-3 py-1.5 rounded-md bg-white border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50 cursor-pointer"
                     >
@@ -464,7 +464,7 @@ export default function ChessGameView({ matchId, currentUser = null }) {
               </button>
 
               <button
-                onClick={() => handleAction('OFFER_DRAW')}
+                onClick={() => handleAction('offer_draw')}
                 disabled={isSubmitting || hasDrawOffer}
                 className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
               >
@@ -491,7 +491,7 @@ export default function ChessGameView({ matchId, currentUser = null }) {
                 Cancel
               </button>
               <button
-                onClick={() => handleAction('RESIGN')}
+                onClick={() => handleAction('resign')}
                 className="px-3.5 py-1.5 rounded-md bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium cursor-pointer"
               >
                 Yes, Resign

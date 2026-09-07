@@ -10,7 +10,10 @@ import {
   Search,
   RefreshCw,
   Check,
-  X
+  X,
+  Trophy,
+  Play,
+  RotateCw
 } from 'lucide-react';
 import Link from 'next/link';
 import { notifyEventConfigChanged } from '@/hooks/useEventsStatus';
@@ -27,11 +30,16 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
   const [statusFilter, setStatusFilter] = useState('ALL');
 
   // Match creation form state
-  const [roundName, setRoundName] = useState('Round 1');
+  const [roundName, setRoundName] = useState('Final');
   const [playerWhiteId, setPlayerWhiteId] = useState('');
   const [playerBlackId, setPlayerBlackId] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Result recording modal state (Arbiter reporting)
+  const [recordingMatch, setRecordingMatch] = useState(null);
+  const [resultWinnerSide, setResultWinnerSide] = useState('white');
+  const [resultReason, setResultReason] = useState('checkmate');
 
   // Verification modal state
   const [verifyingMatch, setVerifyingMatch] = useState(null);
@@ -142,7 +150,47 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
     }
   };
 
-  // Create Match
+  // Automated Tournament Start / Fixture Generation
+  const handleGenerateFixtures = async () => {
+    if (acceptedParticipants.length < 2 || actionLoading) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch('/api/events/matches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_key: eventKey,
+          action: 'generate_fixtures'
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to generate tournament fixtures');
+
+      await loadData();
+      setActiveTab('matches');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Open Create Match modal with smart pre-population
+  const openCreateModal = () => {
+    if (acceptedParticipants.length === 2) {
+      setPlayerWhiteId(String(acceptedParticipants[0].id));
+      setPlayerBlackId(String(acceptedParticipants[1].id));
+      setRoundName('Final');
+    } else {
+      setPlayerWhiteId('');
+      setPlayerBlackId('');
+      setRoundName(acceptedParticipants.length <= 4 ? 'Semifinals' : 'Round 1');
+    }
+    setScheduledAt('');
+    setShowCreateModal(true);
+  };
+
+  // Manual Create Match
   const handleCreateMatch = async (e) => {
     e.preventDefault();
     if (!playerWhiteId || !playerBlackId) {
@@ -170,10 +218,11 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to create match');
 
-      setMatches((prev) => [data, ...prev]);
+      await loadData();
       setShowCreateModal(false);
       setPlayerWhiteId('');
       setPlayerBlackId('');
+      setActiveTab('matches');
     } catch (err) {
       alert(err.message);
     } finally {
@@ -181,17 +230,17 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
     }
   };
 
-  // Publish Match
-  const handlePublishMatch = async (matchId) => {
+  // Start / Publish Match (SCHEDULED -> READY)
+  const handleStartMatch = async (matchId) => {
     setActionLoading(true);
     try {
       const res = await fetch(`/api/events/matches/${matchId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'publish' })
+        body: JSON.stringify({ action: 'start' })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to publish match');
+      if (!res.ok) throw new Error(data.error || 'Failed to start match');
 
       setMatches((prev) =>
         prev.map((m) => (m.id === data.id ? data : m))
@@ -203,7 +252,67 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
     }
   };
 
-  // Verify Match Result
+  // Cancel Match
+  const handleCancelMatch = async (matchId) => {
+    if (!confirm('Are you sure you want to cancel this match?')) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/events/matches/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'cancel',
+          cancellation_reason: 'Cancelled by tournament arbiter'
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to cancel match');
+
+      await loadData();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Arbiter Submit Match Result
+  const handleSubmitMatchResult = async (e) => {
+    e?.preventDefault();
+    if (!recordingMatch) return;
+
+    setActionLoading(true);
+    try {
+      const winnerId = resultWinnerSide === 'white'
+        ? recordingMatch.player_white_id
+        : resultWinnerSide === 'black'
+        ? recordingMatch.player_black_id
+        : null;
+
+      const res = await fetch(`/api/events/matches/${recordingMatch.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'record_result',
+          winner_side: resultWinnerSide,
+          winner_id: winnerId,
+          result_reason: resultReason
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to record match result');
+
+      await loadData();
+      setRecordingMatch(null);
+      setActiveTab('verify');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Verify Match Result (Result Auditing)
   const handleVerifyMatch = async () => {
     if (!verifyingMatch) return;
     setActionLoading(true);
@@ -219,9 +328,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to verify match');
 
-      setMatches((prev) =>
-        prev.map((m) => (m.id === data.id ? data : m))
-      );
+      await loadData();
       setVerifyingMatch(null);
       setVerificationNotes('');
     } catch (err) {
@@ -242,35 +349,61 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
     return matchesStatus && matchesQuery;
   });
 
+  const rules = typeof config?.rules_json === 'string' ? JSON.parse(config?.rules_json || '{}') : (config?.rules_json || {});
+  const isTournamentCompleted = rules.tournament_status === 'COMPLETED';
+  const champion = rules.champion;
+
+  const completedMatches = matches.filter((m) => m.status === 'COMPLETED');
+  const activeMatches = matches.filter((m) => ['SCHEDULED', 'READY', 'PUBLISHED', 'STARTED', 'IN_PROGRESS'].includes(m.status));
+
+  // Determine if next round can be generated (when all current round matches are completed & verified)
+  const canGenerateNextRound = !isTournamentCompleted && matches.length > 0 && activeMatches.length === 0 && completedMatches.length > 0 && completedMatches.every(m => m.is_verified);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[350px] p-8">
         <RefreshCw className="w-8 h-8 text-[#0b3578] animate-spin mb-3" />
-        <p className="text-xs font-semibold text-slate-500">Loading Event Control Console...</p>
+        <p className="text-xs font-semibold text-gray-500">Loading Event Control Console...</p>
       </div>
     );
   }
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
-      {/* Page Header */}
+      {/* Page Header — standard KUCET layout */}
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-gray-200 pb-4">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-800">
-            Chess Championship Administration
-          </h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Contender approvals, single-elimination bracket pairings, and arbiter result verifications.
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-xl sm:text-2xl font-semibold text-gray-800">
+              Chess Championship Administration
+            </h1>
+            <span
+              className={`px-2.5 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wide border ${
+                config?.is_enabled
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : 'bg-gray-100 text-gray-600 border-gray-200'
+              }`}
+            >
+              {config?.is_enabled ? 'Event Active' : 'Event Inactive'}
+            </span>
+            {isTournamentCompleted && (
+              <span className="px-2.5 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wide bg-amber-50 text-amber-800 border border-amber-200">
+                Concluded
+              </span>
+            )}
+          </div>
+          <p className="text-xs sm:text-sm text-gray-600 mt-1">
+            Contender approvals, tournament fixture pairings, and arbiter result verifications.
           </p>
         </div>
 
         {/* Master Controls */}
-        <div className="flex flex-wrap items-center gap-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           <button
             onClick={handleToggleEvent}
             disabled={savingToggle}
             className={`
-              px-3.5 py-2 rounded-md text-xs font-semibold transition-colors shadow-sm cursor-pointer
+              px-3.5 py-2 rounded-md text-xs font-medium transition-colors shadow-xs cursor-pointer
               ${
                 config?.is_enabled
                   ? 'bg-red-600 hover:bg-red-700 text-white'
@@ -283,14 +416,15 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
 
           <button
             onClick={handleToggleRegistration}
-            disabled={savingToggle}
+            disabled={savingToggle || isTournamentCompleted}
             className={`
-              px-3.5 py-2 rounded-md text-xs font-semibold transition-colors shadow-sm cursor-pointer border
+              px-3.5 py-2 rounded-md text-xs font-medium transition-colors shadow-xs cursor-pointer border
               ${
                 config?.registration_open
                   ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                   : 'bg-blue-50 border-blue-200 text-[#0b3578] hover:bg-blue-100'
               }
+              ${isTournamentCompleted ? 'opacity-50 cursor-not-allowed' : ''}
             `}
           >
             {config?.registration_open ? 'Close Registrations' : 'Open Registrations'}
@@ -298,9 +432,37 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
         </div>
       </header>
 
+      {/* Official Champion / Tournament Completed Banner */}
+      {isTournamentCompleted && champion && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-900 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-md bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shrink-0">
+              <Trophy className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-200/80 px-2 py-0.5 rounded text-amber-900">
+                  Tournament Concluded
+                </span>
+                <span className="text-xs font-semibold text-amber-800">
+                  Official Champion Declared
+                </span>
+              </div>
+              <p className="text-base font-bold text-gray-900 mt-0.5">
+                {champion.name} <span className="font-mono text-xs font-normal text-gray-600">({champion.userId})</span> — <span className="text-xs font-medium text-gray-700">{champion.department || 'Kakatiya University'}</span>
+              </p>
+            </div>
+          </div>
+          <div className="text-right text-xs text-amber-800 shrink-0">
+            <p className="font-semibold capitalize">Winner via {champion.resultReason?.replace('_', ' ')}</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">Audited & Verified Result</p>
+          </div>
+        </div>
+      )}
+
       {/* Metrics Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white rounded-sm border border-gray-300 p-4 shadow-sm">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-xs">
           <div className="flex items-center text-[#0b3578] mb-1">
             <Users className="w-4 h-4 mr-1.5" />
             <span className="text-xs font-semibold text-gray-600">Total Registered</span>
@@ -308,7 +470,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
           <p className="text-2xl font-bold text-gray-900">{participants.length}</p>
         </div>
 
-        <div className="bg-white rounded-sm border border-gray-300 p-4 shadow-sm">
+        <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-xs">
           <div className="flex items-center text-emerald-600 mb-1">
             <CheckCircle className="w-4 h-4 mr-1.5" />
             <span className="text-xs font-semibold text-gray-600">Accepted Players</span>
@@ -316,7 +478,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
           <p className="text-2xl font-bold text-gray-900">{acceptedParticipants.length}</p>
         </div>
 
-        <div className="bg-white rounded-sm border border-gray-300 p-4 shadow-sm">
+        <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-xs">
           <div className="flex items-center text-amber-600 mb-1">
             <Swords className="w-4 h-4 mr-1.5" />
             <span className="text-xs font-semibold text-gray-600">Total Fixtures</span>
@@ -324,7 +486,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
           <p className="text-2xl font-bold text-gray-900">{matches.length}</p>
         </div>
 
-        <div className="bg-white rounded-sm border border-gray-300 p-4 shadow-sm">
+        <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-xs">
           <div className="flex items-center text-[#0b3578] mb-1">
             <ShieldCheck className="w-4 h-4 mr-1.5" />
             <span className="text-xs font-semibold text-gray-600">Verified Results</span>
@@ -335,13 +497,13 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
         </div>
       </div>
 
-      {/* Tabs Navigation */}
-      <div className="flex bg-white rounded-md p-1 border border-gray-300 shadow-sm w-full sm:w-auto overflow-x-auto">
+      {/* Tabs Navigation — standard KUCET styling */}
+      <div className="flex bg-white rounded-lg p-1 border border-gray-200 shadow-xs w-full sm:w-auto overflow-x-auto">
         <button
           onClick={() => setActiveTab('participants')}
           className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === 'participants'
-              ? 'bg-blue-50 text-[#0b3578] font-semibold shadow-sm'
+              ? 'bg-blue-50 text-[#0b3578] font-semibold shadow-xs'
               : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
           }`}
         >
@@ -352,7 +514,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
           onClick={() => setActiveTab('matches')}
           className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === 'matches'
-              ? 'bg-blue-50 text-[#0b3578] font-semibold shadow-sm'
+              ? 'bg-blue-50 text-[#0b3578] font-semibold shadow-xs'
               : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
           }`}
         >
@@ -363,18 +525,18 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
           onClick={() => setActiveTab('verify')}
           className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === 'verify'
-              ? 'bg-blue-50 text-[#0b3578] font-semibold shadow-sm'
+              ? 'bg-blue-50 text-[#0b3578] font-semibold shadow-xs'
               : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
           }`}
         >
-          Result Auditing ({matches.filter((m) => m.status === 'COMPLETED').length})
+          Result Auditing ({completedMatches.length})
         </button>
       </div>
 
       {/* Tab 1: Participants List */}
       {activeTab === 'participants' && (
         <div className="space-y-4">
-          <div className="bg-white rounded-sm border border-gray-300 p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="relative flex-1 w-full">
               <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
               <input
@@ -394,7 +556,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                   className={`
                     px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer
                     ${statusFilter === st
-                      ? 'bg-[#0b3578] text-white font-semibold shadow-sm'
+                      ? 'bg-[#0b3578] text-white font-semibold shadow-xs'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }
                   `}
@@ -405,7 +567,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
             </div>
           </div>
 
-          <div className="bg-white rounded-sm border border-gray-300 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-gray-50 border-b border-gray-200 text-gray-700 uppercase font-semibold tracking-wider">
@@ -460,7 +622,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                             <button
                               onClick={() => handleParticipantStatus(p.id, 'ACCEPTED')}
                               disabled={actionLoading}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors cursor-pointer shadow-sm"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors cursor-pointer shadow-xs"
                             >
                               <Check className="w-3 h-3" /> Accept
                             </button>
@@ -488,30 +650,83 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
       {/* Tab 2: Match Fixtures */}
       {activeTab === 'matches' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-800">
-              Tournament Fixtures
-            </h3>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[#0b3578] text-white text-xs font-medium hover:bg-[#0a2d66] transition-colors shadow-sm cursor-pointer"
-            >
-              <Plus className="w-4 h-4" /> Create Match Fixture
-            </button>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-800">
+                Tournament Fixtures & Match Schedule
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {acceptedParticipants.length} accepted contender(s) eligible for tournament pairings.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Start Tournament / Generate Initial Fixture */}
+              {acceptedParticipants.length >= 2 && matches.length === 0 && !isTournamentCompleted && (
+                <button
+                  onClick={handleGenerateFixtures}
+                  disabled={actionLoading}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs font-medium transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                >
+                  <Swords className="w-4 h-4" />
+                  <span>Start Tournament ({acceptedParticipants.length === 2 ? 'Generate Final Fixture' : 'Generate Fixtures'})</span>
+                </button>
+              )}
+
+              {/* Generate Next Round Fixtures (Multi-round advancement) */}
+              {canGenerateNextRound && (
+                <button
+                  onClick={handleGenerateFixtures}
+                  disabled={actionLoading}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                >
+                  <RotateCw className="w-3.5 h-3.5" />
+                  <span>Generate Next Round Fixtures</span>
+                </button>
+              )}
+
+              {/* Manual Create Match Fixture */}
+              {!isTournamentCompleted && (
+                <button
+                  onClick={openCreateModal}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-white border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50 transition-colors shadow-xs cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" /> Create Match Fixture
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {matches.length === 0 ? (
-              <div className="col-span-2 py-12 text-center text-gray-400 bg-white rounded-sm border border-gray-300">
-                <Swords className="w-8 h-8 mx-auto text-gray-300 mb-2" />
-                <p className="text-sm font-semibold">No matches scheduled yet.</p>
-                <p className="text-xs text-gray-500 mt-0.5">Click &ldquo;Create Match Fixture&rdquo; to pair two accepted participants.</p>
+              <div className="col-span-2 py-12 text-center bg-white rounded-lg border border-gray-200 p-6 space-y-3 shadow-xs">
+                <Swords className="w-10 h-10 mx-auto text-gray-300" />
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-800">No matches scheduled yet</h3>
+                  <p className="text-xs text-gray-500 mt-1 max-w-md mx-auto">
+                    {acceptedParticipants.length >= 2
+                      ? `${acceptedParticipants.length} accepted contenders ready (${acceptedParticipants[0]?.display_name} and ${acceptedParticipants[1]?.display_name}). Click "Start Tournament" to create the official fixture.`
+                      : `Waiting for at least 2 accepted contenders to start the tournament. Currently accepted: ${acceptedParticipants.length}.`}
+                  </p>
+                </div>
+                {acceptedParticipants.length >= 2 && !isTournamentCompleted && (
+                  <div className="pt-2">
+                    <button
+                      onClick={handleGenerateFixtures}
+                      disabled={actionLoading}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs font-medium transition-colors shadow-xs cursor-pointer"
+                    >
+                      <Play className="w-3.5 h-3.5" />
+                      <span>Start Tournament — Generate Fixture ({acceptedParticipants[0]?.display_name} vs {acceptedParticipants[1]?.display_name})</span>
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               matches.map((m) => (
                 <div
                   key={m.id}
-                  className="bg-white rounded-sm border border-gray-300 p-5 shadow-sm space-y-4"
+                  className="bg-white rounded-lg border border-gray-200 p-5 shadow-xs space-y-4"
                 >
                   <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                     <span className="text-xs font-semibold uppercase text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
@@ -520,12 +735,14 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                     <span
                       className={`
                         px-2 py-0.5 rounded text-[10px] font-semibold uppercase
-                        ${m.status === 'PUBLISHED'
+                        ${m.status === 'PUBLISHED' || m.status === 'READY' || m.status === 'STARTED'
                           ? 'bg-blue-50 text-blue-700 border border-blue-200'
                           : m.status === 'IN_PROGRESS'
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 animate-pulse'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : m.status === 'COMPLETED'
                           ? 'bg-gray-100 text-gray-700 border border-gray-200'
+                          : m.status === 'CANCELLED'
+                          ? 'bg-red-50 text-red-700 border border-red-200'
                           : 'bg-amber-50 text-amber-700 border border-amber-200'
                         }
                       `}
@@ -535,44 +752,105 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                   </div>
 
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between p-2 rounded-sm bg-gray-50 border border-gray-100">
+                    <div className="flex items-center justify-between p-2.5 rounded-md bg-gray-50 border border-gray-100">
                       <div className="flex items-center gap-2">
                         <span className="w-3 h-3 rounded-full bg-white border border-gray-400" />
-                        <span className="text-xs font-semibold text-gray-800">
-                          {m.player_white_name}
-                        </span>
+                        <div>
+                          <span className="text-xs font-semibold text-gray-800">
+                            {m.player_white_name}
+                          </span>
+                          <span className="text-[11px] font-mono text-gray-500 ml-1.5">
+                            ({m.player_white_user_id})
+                          </span>
+                        </div>
                       </div>
                       <span className="text-[10px] font-medium text-gray-400 uppercase">White</span>
                     </div>
 
-                    <div className="flex items-center justify-between p-2 rounded-sm bg-gray-50 border border-gray-100">
+                    <div className="flex items-center justify-between p-2.5 rounded-md bg-gray-50 border border-gray-100">
                       <div className="flex items-center gap-2">
                         <span className="w-3 h-3 rounded-full bg-gray-900 border border-gray-700" />
-                        <span className="text-xs font-semibold text-gray-800">
-                          {m.player_black_name}
-                        </span>
+                        <div>
+                          <span className="text-xs font-semibold text-gray-800">
+                            {m.player_black_name}
+                          </span>
+                          <span className="text-[11px] font-mono text-gray-500 ml-1.5">
+                            ({m.player_black_user_id})
+                          </span>
+                        </div>
                       </div>
                       <span className="text-[10px] font-medium text-gray-400 uppercase">Black</span>
                     </div>
                   </div>
 
-                  <div className="pt-2 flex items-center justify-between border-t border-gray-100 text-xs">
-                    <span className="font-mono text-gray-400">#{m.match_code}</span>
+                  {m.status === 'COMPLETED' && (
+                    <div className="p-2.5 rounded-md bg-amber-50/60 border border-amber-200 text-xs">
+                      <span className="font-semibold text-gray-800">Outcome: </span>
+                      <span className="capitalize text-amber-900 font-medium">
+                        {m.winner_side === 'draw'
+                          ? 'Match Drawn'
+                          : `${m.winner_side} (${m.winner_side === 'white' ? m.player_white_name : m.player_black_name}) Wins via ${m.result_reason?.replace('_', ' ')}`}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 text-xs">
+                    <span className="font-mono text-gray-400 text-[11px]">#{m.match_code}</span>
 
                     <div className="flex items-center gap-2">
+                      {/* Start Match button */}
                       {m.status === 'SCHEDULED' && (
                         <button
-                          onClick={() => handlePublishMatch(m.id)}
+                          onClick={() => handleStartMatch(m.id)}
                           disabled={actionLoading}
-                          className="px-3 py-1 rounded-md bg-blue-50 text-[#0b3578] hover:bg-blue-100 font-medium transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 font-medium transition-colors cursor-pointer shadow-xs"
                         >
-                          Publish to Arena
+                          <Play className="w-3 h-3" /> Start Match
+                        </button>
+                      )}
+
+                      {/* Record Result button (for arbiter) */}
+                      {['READY', 'STARTED', 'IN_PROGRESS'].includes(m.status) && (
+                        <button
+                          onClick={() => {
+                            setRecordingMatch(m);
+                            setResultWinnerSide('white');
+                            setResultReason('checkmate');
+                          }}
+                          disabled={actionLoading}
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded-md bg-[#0b3578] text-white hover:bg-[#0a2d66] font-medium transition-colors cursor-pointer shadow-xs"
+                        >
+                          <Trophy className="w-3 h-3" /> Record Result
+                        </button>
+                      )}
+
+                      {/* Audit Result button */}
+                      {m.status === 'COMPLETED' && !m.is_verified && (
+                        <button
+                          onClick={() => {
+                            setVerifyingMatch(m);
+                            setActiveTab('verify');
+                          }}
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded-md bg-amber-600 text-white hover:bg-amber-700 font-medium transition-colors cursor-pointer shadow-xs"
+                        >
+                          Verify Result
+                        </button>
+                      )}
+
+                      {/* Cancel match button */}
+                      {['SCHEDULED', 'READY', 'STARTED'].includes(m.status) && (
+                        <button
+                          onClick={() => handleCancelMatch(m.id)}
+                          disabled={actionLoading}
+                          className="px-2 py-1 rounded-md bg-white border border-gray-200 text-red-600 hover:bg-red-50 text-[11px] font-medium transition-colors cursor-pointer"
+                        >
+                          Cancel
                         </button>
                       )}
 
                       <Link
                         href={`/events/chess/match/${m.id}`}
-                        className="px-3 py-1 rounded-md bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium transition-colors shadow-sm"
+                        className="px-3 py-1 rounded-md bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium transition-colors shadow-xs"
                       >
                         Enter Arena
                       </Link>
@@ -588,7 +866,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
       {/* Tab 3: Verification */}
       {activeTab === 'verify' && (
         <div className="space-y-4">
-          <div className="bg-white rounded-sm border border-gray-300 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-gray-50 border-b border-gray-200 text-gray-700 uppercase font-semibold tracking-wider">
@@ -637,13 +915,17 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                             </span>
                           </td>
                           <td className="py-3 px-4 text-right">
-                            {!m.is_verified && (
+                            {!m.is_verified ? (
                               <button
                                 onClick={() => setVerifyingMatch(m)}
-                                className="px-3 py-1 rounded-md bg-[#0b3578] text-white hover:bg-[#0a2d66] font-medium transition-colors cursor-pointer shadow-sm"
+                                className="px-3 py-1 rounded-md bg-[#0b3578] text-white hover:bg-[#0a2d66] font-medium transition-colors cursor-pointer shadow-xs"
                               >
                                 Verify Result
                               </button>
+                            ) : (
+                              <span className="text-[11px] text-emerald-700 font-medium inline-flex items-center gap-1">
+                                <CheckCircle className="w-3.5 h-3.5" /> Sealed
+                              </span>
                             )}
                           </td>
                         </tr>
@@ -659,7 +941,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
       {/* Match Creation Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-sm border border-gray-300 p-6 max-w-md w-full shadow-xl space-y-4">
+          <div className="bg-white rounded-lg border border-gray-300 p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-gray-200 pb-3">
               <h3 className="text-base font-semibold text-gray-800">Create Match Pairing</h3>
               <button onClick={() => setShowCreateModal(false)} className="p-1 rounded text-gray-400 hover:text-gray-600 cursor-pointer">
@@ -675,7 +957,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                   required
                   value={roundName}
                   onChange={(e) => setRoundName(e.target.value)}
-                  placeholder="e.g. Round 1, Quarterfinals, Semifinals"
+                  placeholder="e.g. Final, Semifinals, Round 1"
                   className="w-full px-3 py-1.5 rounded-md border border-gray-300 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578]"
                 />
               </div>
@@ -735,9 +1017,119 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="px-4 py-2 rounded-md bg-[#0b3578] hover:bg-[#0a2d66] text-white font-medium transition-colors shadow-sm cursor-pointer"
+                  className="px-4 py-2 rounded-md bg-[#0b3578] hover:bg-[#0a2d66] text-white font-medium transition-colors shadow-xs cursor-pointer"
                 >
                   Create Match
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Record Match Outcome Modal (Arbiter reporting) */}
+      {recordingMatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-lg border border-gray-300 p-6 max-w-md w-full shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+              <h3 className="text-base font-semibold text-gray-800">Record Match Result</h3>
+              <button onClick={() => setRecordingMatch(null)} className="p-1 rounded text-gray-400 hover:text-gray-600 cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitMatchResult} className="space-y-4 text-xs">
+              <div className="p-3 bg-gray-50 rounded-md border border-gray-200 space-y-1">
+                <p className="font-semibold text-gray-800">
+                  {recordingMatch.player_white_name} (White) vs {recordingMatch.player_black_name} (Black)
+                </p>
+                <p className="text-[11px] text-gray-500 font-mono">
+                  Round: {recordingMatch.round_name} • Match #{recordingMatch.match_code}
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-gray-700 mb-1.5">Match Winner</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setResultWinnerSide('white')}
+                    className={`p-2.5 rounded-md border text-center font-medium transition-colors cursor-pointer ${
+                      resultWinnerSide === 'white'
+                        ? 'bg-blue-50 border-[#0b3578] text-[#0b3578] font-semibold'
+                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    White Wins
+                    <span className="block text-[10px] text-gray-500 font-normal truncate mt-0.5">
+                      {recordingMatch.player_white_name}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setResultWinnerSide('black')}
+                    className={`p-2.5 rounded-md border text-center font-medium transition-colors cursor-pointer ${
+                      resultWinnerSide === 'black'
+                        ? 'bg-blue-50 border-[#0b3578] text-[#0b3578] font-semibold'
+                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    Black Wins
+                    <span className="block text-[10px] text-gray-500 font-normal truncate mt-0.5">
+                      {recordingMatch.player_black_name}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setResultWinnerSide('draw')}
+                    className={`p-2.5 rounded-md border text-center font-medium transition-colors cursor-pointer ${
+                      resultWinnerSide === 'draw'
+                        ? 'bg-blue-50 border-[#0b3578] text-[#0b3578] font-semibold'
+                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    Draw
+                    <span className="block text-[10px] text-gray-500 font-normal mt-0.5">
+                      Tie (½ - ½)
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-gray-700 mb-1">Outcome Reason</label>
+                <select
+                  value={resultReason}
+                  onChange={(e) => setResultReason(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-md border border-gray-300 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578]"
+                >
+                  <option value="checkmate">Checkmate</option>
+                  <option value="resignation">Resignation</option>
+                  <option value="timeout">Time Forfeit / Flag Fell</option>
+                  <option value="stalemate">Stalemate (Draw)</option>
+                  <option value="draw_agreement">Mutual Draw Agreement</option>
+                  <option value="threefold_repetition">Threefold Repetition (Draw)</option>
+                  <option value="insufficient_material">Insufficient Material (Draw)</option>
+                  <option value="admin_decision">Arbiter Decision / Rule Enforcement</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setRecordingMatch(null)}
+                  className="px-4 py-2 rounded-md bg-white border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  className="px-4 py-2 rounded-md bg-[#0b3578] hover:bg-[#0a2d66] text-white font-medium transition-colors shadow-xs cursor-pointer"
+                >
+                  Submit Match Result
                 </button>
               </div>
             </form>
@@ -748,7 +1140,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
       {/* Verification Dialog Modal */}
       {verifyingMatch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-sm border border-gray-300 p-6 max-w-md w-full shadow-xl space-y-4">
+          <div className="bg-white rounded-lg border border-gray-300 p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-gray-200 pb-3">
               <h3 className="text-base font-semibold text-gray-800">Verify Official Result</h3>
               <button onClick={() => setVerifyingMatch(null)} className="p-1 rounded text-gray-400 hover:text-gray-600 cursor-pointer">
@@ -788,7 +1180,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                 type="button"
                 disabled={actionLoading}
                 onClick={handleVerifyMatch}
-                className="px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors shadow-sm cursor-pointer"
+                className="px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors shadow-xs cursor-pointer"
               >
                 Seal & Verify Result
               </button>

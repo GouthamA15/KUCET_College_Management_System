@@ -116,7 +116,11 @@ export class EventConfigService {
     if (configData.event_name !== undefined) updatePayload.event_name = configData.event_name;
     if (configData.description !== undefined) updatePayload.description = configData.description;
     if (configData.registration_open !== undefined) updatePayload.registration_open = Boolean(configData.registration_open);
-    if (configData.rules_json !== undefined) updatePayload.rules_json = configData.rules_json;
+    if (configData.rules_json !== undefined) {
+      const existingRules = typeof existing?.rules_json === 'string' ? JSON.parse(existing.rules_json || '{}') : (existing?.rules_json || {});
+      const newRules = typeof configData.rules_json === 'string' ? JSON.parse(configData.rules_json || '{}') : (configData.rules_json || {});
+      updatePayload.rules_json = { ...existingRules, ...newRules };
+    }
     if (configData.is_enabled !== undefined) updatePayload.is_enabled = Boolean(configData.is_enabled);
     updatePayload.updated_at = new Date();
 

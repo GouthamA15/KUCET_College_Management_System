@@ -4,7 +4,6 @@ import { EventConfigService } from './EventConfigService';
 import { db } from '@/db';
 import { students } from '@/db/schema';
 import { validateRollNo } from '@/lib/rollNumber';
-import logger from '@/lib/logger';
 
 export class ParticipantService {
   /**
@@ -81,6 +80,10 @@ export class ParticipantService {
     if (!config.registration_open) {
       throw { status: 400, message: 'Registration for this event is currently closed.' };
     }
+    const rules = typeof config.rules_json === 'string' ? JSON.parse(config.rules_json || '{}') : (config.rules_json || {});
+    if (rules.tournament_status === 'COMPLETED') {
+      throw { status: 400, message: 'Registration is closed because the tournament has concluded.' };
+    }
 
     // Determine if input is authUser or legacy data object
     let participantData;
@@ -95,7 +98,6 @@ export class ParticipantService {
     const { userId, userType = 'student', displayName, email, department, notes } = participantData;
 
     // Rules validation
-    const rules = config.rules_json || {};
     if (userType === 'student' && rules.allow_students === false) {
       throw { status: 403, message: 'This event is restricted from student participation.' };
     }

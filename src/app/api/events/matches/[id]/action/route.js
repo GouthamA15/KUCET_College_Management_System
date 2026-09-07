@@ -3,7 +3,7 @@ import { ChessEngineService } from '@/modules/events/services/ChessEngineService
 import { z } from 'zod';
 
 const actionSchema = z.object({
-  action: z.enum(['resign', 'offer_draw', 'accept_draw', 'decline_draw']),
+  action: z.string().min(1, 'Action is required'),
 });
 
 export const POST = wrapHandler({
@@ -15,21 +15,22 @@ export const POST = wrapHandler({
     if (!matchId) return apiError('Match ID is required', 400);
 
     const userId = user.roll_no || user.id || user.staffId;
+    const normalizedAction = String(data.action || '').trim().toLowerCase().replace(/-/g, '_');
 
-    if (data.action === 'resign') {
+    if (normalizedAction === 'resign') {
       const result = await ChessEngineService.resign(matchId, String(userId));
       return apiResponse(result);
-    } else if (data.action === 'offer_draw') {
+    } else if (normalizedAction === 'offer_draw') {
       const result = await ChessEngineService.offerDraw(matchId, String(userId));
       return apiResponse(result);
-    } else if (data.action === 'accept_draw') {
+    } else if (normalizedAction === 'accept_draw') {
       const result = await ChessEngineService.respondToDraw(matchId, String(userId), true);
       return apiResponse(result);
-    } else if (data.action === 'decline_draw') {
+    } else if (normalizedAction === 'decline_draw') {
       const result = await ChessEngineService.respondToDraw(matchId, String(userId), false);
       return apiResponse(result);
     }
 
-    return apiError('Unsupported action', 400);
+    return apiError(`Unsupported action: ${data.action}`, 400);
   }
 });

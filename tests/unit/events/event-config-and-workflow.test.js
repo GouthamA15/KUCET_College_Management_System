@@ -170,12 +170,20 @@ describe('College Event Workflow & Administration Test Suite', () => {
   });
 
   describe('4. Match Fixture Creation & Result Verification', () => {
-    it('should create match fixture and assign White and Black players', async () => {
-      eventDb.query.eventParticipants.findFirst
-        .mockResolvedValueOnce({ id: 10, display_name: 'Player One', user_id: '2026-001' })
-        .mockResolvedValueOnce({ id: 20, display_name: 'Player Two', user_id: '2026-002' });
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
 
-      vi.spyOn(MatchService, 'getMatchById').mockResolvedValueOnce({
+    it('should create match fixture and assign White and Black players', async () => {
+      // Players must have ACCEPTED status — required by createMatch guard
+      eventDb.query.eventParticipants.findFirst
+        .mockResolvedValueOnce({ id: 10, display_name: 'Player One', user_id: '2026-001', status: 'ACCEPTED' })
+        .mockResolvedValueOnce({ id: 20, display_name: 'Player Two', user_id: '2026-002', status: 'ACCEPTED' });
+
+      // No existing duplicate fixture
+      eventDb.query.eventMatches.findFirst.mockResolvedValueOnce(null);
+
+      vi.spyOn(MatchService, 'getMatchById').mockResolvedValue({
         id: 42,
         event_key: 'chess',
         match_code: 'CHESS-M-001',
@@ -207,33 +215,35 @@ describe('College Event Workflow & Administration Test Suite', () => {
       });
     });
 
-    it('should publish a scheduled match making it accessible to players', async () => {
-      eventDb.query.eventMatches.findFirst.mockResolvedValueOnce({
+    it('should start a scheduled match making it accessible to players (SCHEDULED → READY)', async () => {
+      eventDb.query.eventMatches.findFirst.mockResolvedValue({
         id: 42,
         event_key: 'chess',
         status: 'SCHEDULED',
         match_code: 'CHESS-001'
       });
 
-      vi.spyOn(MatchService, 'getMatchById').mockResolvedValueOnce({
+      vi.spyOn(MatchService, 'getMatchById').mockResolvedValue({
         id: 42,
-        status: 'PUBLISHED'
+        status: 'READY'
       });
 
-      const published = await MatchService.publishMatch(42, 'admin@kucet.ac.in');
-      expect(published.status).toBe('PUBLISHED');
+      const started = await MatchService.publishMatch(42, 'admin@kucet.ac.in');
+      expect(started.status).toBe('READY');
       expect(eventDb.update).toHaveBeenCalled();
     });
 
     it('should allow admin to verify and finalize completed match result', async () => {
-      eventDb.query.eventMatches.findFirst.mockResolvedValueOnce({
+      eventDb.query.eventMatches.findFirst.mockResolvedValue({
         id: 42,
         event_key: 'chess',
         status: 'COMPLETED',
-        match_code: 'CHESS-001'
+        round_name: 'Round 1', // non-final round — no champion path
+        match_code: 'CHESS-001',
+        winner_id: null
       });
 
-      vi.spyOn(MatchService, 'getMatchById').mockResolvedValueOnce({
+      vi.spyOn(MatchService, 'getMatchById').mockResolvedValue({
         id: 42,
         status: 'COMPLETED',
         is_verified: true,
@@ -249,4 +259,5 @@ describe('College Event Workflow & Administration Test Suite', () => {
       expect(eventDb.update).toHaveBeenCalled();
     });
   });
+
 });

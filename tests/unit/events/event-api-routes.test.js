@@ -245,4 +245,174 @@ describe('Event System API Routes Test Suite', () => {
       expect(data.status).toBe('SCHEDULED');
     });
   });
+
+  describe('PATCH /api/events/matches/[id]', () => {
+    it('should allow admin to start a match', async () => {
+      const { PATCH: patchMatch } = await import('@/app/api/events/matches/[id]/route');
+
+      cookies.mockResolvedValue({
+        get: vi.fn((name) => (name === 'admin_auth' ? { value: 'admin-token' } : undefined)),
+      });
+      headers.mockResolvedValue({ get: vi.fn(() => null) });
+      verifyJwt.mockResolvedValue({ id: 1, email: 'admin@kucet.ac.in', role: 'admin' });
+
+      vi.spyOn(MatchService, 'startMatch').mockResolvedValue({
+        id: 99,
+        status: 'READY'
+      });
+
+      const req = makeMockRequest('http://localhost/api/events/matches/99', 'PATCH', {
+        action: 'start'
+      });
+
+      const res = await patchMatch(req, { params: Promise.resolve({ id: '99' }) });
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.status).toBe('READY');
+    });
+
+    it('should allow admin to record match result', async () => {
+      const { PATCH: patchMatch } = await import('@/app/api/events/matches/[id]/route');
+
+      cookies.mockResolvedValue({
+        get: vi.fn((name) => (name === 'admin_auth' ? { value: 'admin-token' } : undefined)),
+      });
+      headers.mockResolvedValue({ get: vi.fn(() => null) });
+      verifyJwt.mockResolvedValue({ id: 1, email: 'admin@kucet.ac.in', role: 'admin' });
+
+      vi.spyOn(MatchService, 'getMatchById').mockResolvedValue({
+        id: 99,
+        player_white_user_id: '2026-CSE-001',
+        player_black_user_id: '2026-CSE-002',
+        status: 'READY',
+        is_verified: false
+      });
+
+      vi.spyOn(MatchService, 'recordMatchResult').mockResolvedValue({
+        id: 99,
+        status: 'COMPLETED',
+        winner_side: 'white',
+        result_reason: 'checkmate'
+      });
+
+      const req = makeMockRequest('http://localhost/api/events/matches/99', 'PATCH', {
+        action: 'record_result',
+        winner_side: 'white',
+        result_reason: 'checkmate'
+      });
+
+      const res = await patchMatch(req, { params: Promise.resolve({ id: '99' }) });
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.status).toBe('COMPLETED');
+    });
+
+    it('should allow participant student to record match result', async () => {
+      const { PATCH: patchMatch } = await import('@/app/api/events/matches/[id]/route');
+
+      cookies.mockResolvedValue({
+        get: vi.fn((name) => (name === 'student_auth' ? { value: 'student-token' } : undefined)),
+      });
+      headers.mockResolvedValue({ get: vi.fn(() => null) });
+      verifyJwt.mockResolvedValue({ id: 10, roll_no: '2026-CSE-001', role: 'student' });
+
+      vi.spyOn(MatchService, 'getMatchById').mockResolvedValue({
+        id: 99,
+        player_white_user_id: '2026-CSE-001',
+        player_black_user_id: '2026-CSE-002',
+        status: 'IN_PROGRESS',
+        is_verified: false
+      });
+
+      vi.spyOn(MatchService, 'recordMatchResult').mockResolvedValue({
+        id: 99,
+        status: 'COMPLETED',
+        winner_side: 'black',
+        result_reason: 'resignation'
+      });
+
+      const req = makeMockRequest('http://localhost/api/events/matches/99', 'PATCH', {
+        action: 'record_result',
+        winner_side: 'black',
+        result_reason: 'resignation'
+      });
+
+      const res = await patchMatch(req, { params: Promise.resolve({ id: '99' }) });
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.status).toBe('COMPLETED');
+    });
+
+    it('should reject non-participant student attempting to record result with 403', async () => {
+      const { PATCH: patchMatch } = await import('@/app/api/events/matches/[id]/route');
+
+      cookies.mockResolvedValue({
+        get: vi.fn((name) => (name === 'student_auth' ? { value: 'student-token' } : undefined)),
+      });
+      headers.mockResolvedValue({ get: vi.fn(() => null) });
+      verifyJwt.mockResolvedValue({ id: 999, roll_no: '2026-ECE-999', role: 'student' });
+
+      vi.spyOn(MatchService, 'getMatchById').mockResolvedValue({
+        id: 99,
+        player_white_user_id: '2026-CSE-001',
+        player_black_user_id: '2026-CSE-002',
+        status: 'IN_PROGRESS',
+        is_verified: false
+      });
+
+      const req = makeMockRequest('http://localhost/api/events/matches/99', 'PATCH', {
+        action: 'record_result',
+        winner_side: 'white',
+        result_reason: 'checkmate'
+      });
+
+      const res = await patchMatch(req, { params: Promise.resolve({ id: '99' }) });
+      expect(res.status).toBe(403);
+    });
+
+    it('should reject non-admin attempting to verify result with 403', async () => {
+      const { PATCH: patchMatch } = await import('@/app/api/events/matches/[id]/route');
+
+      cookies.mockResolvedValue({
+        get: vi.fn((name) => (name === 'student_auth' ? { value: 'student-token' } : undefined)),
+      });
+      headers.mockResolvedValue({ get: vi.fn(() => null) });
+      verifyJwt.mockResolvedValue({ id: 10, roll_no: '2026-CSE-001', role: 'student' });
+
+      const req = makeMockRequest('http://localhost/api/events/matches/99', 'PATCH', {
+        action: 'verify',
+        verification_notes: 'Illegally verifying own match'
+      });
+
+      const res = await patchMatch(req, { params: Promise.resolve({ id: '99' }) });
+      expect(res.status).toBe(403);
+    });
+
+    it('should reject recording result on a verified and sealed match with 400', async () => {
+      const { PATCH: patchMatch } = await import('@/app/api/events/matches/[id]/route');
+
+      cookies.mockResolvedValue({
+        get: vi.fn((name) => (name === 'admin_auth' ? { value: 'admin-token' } : undefined)),
+      });
+      headers.mockResolvedValue({ get: vi.fn(() => null) });
+      verifyJwt.mockResolvedValue({ id: 1, email: 'admin@kucet.ac.in', role: 'admin' });
+
+      vi.spyOn(MatchService, 'getMatchById').mockResolvedValue({
+        id: 99,
+        status: 'COMPLETED',
+        is_verified: true
+      });
+
+      const req = makeMockRequest('http://localhost/api/events/matches/99', 'PATCH', {
+        action: 'record_result',
+        winner_side: 'black',
+        result_reason: 'resignation'
+      });
+
+      const res = await patchMatch(req, { params: Promise.resolve({ id: '99' }) });
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.error).toMatch(/verified and sealed/i);
+    });
+  });
 });
