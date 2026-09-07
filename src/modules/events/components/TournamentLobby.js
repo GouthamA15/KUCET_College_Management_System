@@ -77,7 +77,7 @@ export default function TournamentLobby({ eventKey = 'chess', currentUser = null
     }
   };
 
-  const activeMatches = matches.filter((m) => m.status === 'IN_PROGRESS' || m.status === 'PUBLISHED');
+  const activeMatches = matches.filter((m) => m.status === 'IN_PROGRESS' || m.status === 'PUBLISHED' || m.status === 'SCHEDULED');
   const completedMatches = matches.filter((m) => m.status === 'COMPLETED');
 
   const tabs = [
