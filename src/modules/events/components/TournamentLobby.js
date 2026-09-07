@@ -24,6 +24,9 @@ export default function TournamentLobby({ eventKey = 'chess', currentUser = null
   const [loading, setLoading] = useState(true);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
 
+  const [registering, setRegistering] = useState(false);
+  const [registerError, setRegisterError] = useState(null);
+
   const loadLobby = useCallback(async () => {
     try {
       const [cfgRes, matchRes, partRes] = await Promise.all([
@@ -55,6 +58,26 @@ export default function TournamentLobby({ eventKey = 'chess', currentUser = null
 
   const currentUserId = String(currentUser?.roll_no || currentUser?.id || currentUser?.staffId || '');
   const userRegistration = participants.find((p) => String(p.user_id) === currentUserId);
+
+  const handleOneClickRegister = async () => {
+    if (!currentUser) return;
+    setRegistering(true);
+    setRegisterError(null);
+    try {
+      const res = await fetch('/api/events/participants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event_key: eventKey })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to complete registration');
+      await loadLobby();
+    } catch (err) {
+      setRegisterError(err.message || 'Registration failed');
+    } finally {
+      setRegistering(false);
+    }
+  };
 
   const activeMatches = matches.filter((m) => m.status === 'IN_PROGRESS' || m.status === 'PUBLISHED');
   const completedMatches = matches.filter((m) => m.status === 'COMPLETED');
@@ -95,23 +118,59 @@ export default function TournamentLobby({ eventKey = 'chess', currentUser = null
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {config?.registration_open && !userRegistration && (
-            <button
-              onClick={() => setShowRegisterModal(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs font-medium transition-colors shadow-xs cursor-pointer"
+          {!currentUser ? (
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs font-medium transition-colors shadow-xs"
             >
-              <PlusCircle className="w-4 h-4" /> Register For Tournament
-            </button>
-          )}
-
-          {userRegistration && (
+              <Users className="w-4 h-4" /> Student Login to Register
+            </Link>
+          ) : config?.registration_open && !userRegistration ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleOneClickRegister}
+                disabled={registering}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs font-medium transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {registering ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Registering...</span>
+                  </>
+                ) : (
+                  <>
+                    <PlusCircle className="w-4 h-4" />
+                    <span>1-Click Register</span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setShowRegisterModal(true)}
+                className="px-2.5 py-2 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
+                title="Add optional notes / rating"
+              >
+                Options
+              </button>
+            </div>
+          ) : userRegistration ? (
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-medium">
               <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Status: {userRegistration.status}</span>
+              <span>Registered ({userRegistration.status})</span>
             </div>
+          ) : (
+            <span className="text-xs text-slate-500 font-medium px-3 py-1.5 bg-slate-100 rounded-lg">
+              Registration Closed
+            </span>
           )}
         </div>
       </header>
+
+      {registerError && (
+        <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 shrink-0 text-rose-600" />
+          <span>{registerError}</span>
+        </div>
+      )}
 
       {/* Top 3 Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

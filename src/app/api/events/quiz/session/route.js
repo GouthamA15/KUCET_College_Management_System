@@ -1,17 +1,16 @@
-import { wrapHandler, apiResponse, apiError } from '@/lib/api-utils';
+import { wrapHandler, apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { QuizService } from '@/modules/events/services/QuizService';
 import { EventConfigService } from '@/modules/events/services/EventConfigService';
+import { ParticipantService } from '@/modules/events/services/ParticipantService';
 import { z } from 'zod';
 
 const startSessionSchema = z.object({
-  user_id: z.string().min(1, 'User ID / Roll Number is required'),
-  display_name: z.string().min(1, 'Name is required'),
-  user_type: z.enum(['student', 'staff']).default('student'),
-  department: z.string().optional().nullable(),
-  email: z.string().email().optional().nullable(),
+  event_key: z.string().default('quiz'),
+  session_code: z.string().optional(),
 });
 
 export const POST = wrapHandler({
+  auth: ['student', 'staff', 'admin'],
   schema: startSessionSchema,
   handler: async (req, { data, user }) => {
     // Check if quiz is enabled
@@ -20,43 +19,66 @@ export const POST = wrapHandler({
       return apiError('Technical Quiz event is currently disabled by administration.', 403);
     }
 
-    const userId = data.user_id || user?.roll_no || user?.id || user?.staffId;
-    const displayName = data.display_name || user?.name || user?.email;
-    const userType = data.user_type || (user?.roll_no ? 'student' : 'student');
-    const department = data.department || user?.branch || user?.department;
-    const email = data.email || user?.email;
+    try {
+      // 1. Authoritatively resolve user details from primary college database
+      const authoritativeUser = await ParticipantService.resolveAuthoritativeUser(user);
 
-    const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || null;
-    const userAgent = req.headers.get('user-agent') || null;
+      // 2. Ensure participant is registered in experiment_college_db
+      await ParticipantService.registerParticipant('quiz', authoritativeUser);
 
-    const sessionData = await QuizService.startOrResumeSession({
-      userId,
-      userType,
-      displayName,
-      department,
-      email,
-      ipAddress,
-      userAgent,
-      eventKey: 'quiz',
-    });
+      const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || null;
+      const userAgent = req.headers.get('user-agent') || null;
 
-    return apiResponse(sessionData);
+      // 3. Start or resume candidate sitting
+      const sessionData = await QuizService.startOrResumeSession({
+        userId: authoritativeUser.userId,
+        userType: authoritativeUser.userType,
+        displayName: authoritativeUser.displayName,
+        department: authoritativeUser.department,
+        email: authoritativeUser.email,
+        ipAddress,
+        userAgent,
+        eventKey: 'quiz',
+        sessionCode: data?.session_code
+      });
+
+      return apiResponse(sessionData);
+    } catch (err) {
+      if (err.status) {
+        return apiError(err.message, err.status);
+      }
+      return apiError(err.message || 'Failed to start assessment session.', 500);
+    }
   },
 });
 
 export const GET = wrapHandler(async (req) => {
   const { searchParams } = new URL(req.url);
-  const userId = searchParams.get('user_id');
+  let userId = searchParams.get('user_id');
+  const sessionCode = searchParams.get('session_code');
 
   if (!userId) {
-    return apiError('User ID is required', 400);
+    try {
+      const authUser = await getAuthUser();
+      if (authUser) {
+        userId = authUser.roll_no || authUser.id || authUser.staffId;
+      }
+    } catch (_e) {
+      // unauthenticated
+    }
+  }
+
+  if (!userId && !sessionCode) {
+    return apiError('Authenticated student session or session code is required', 400);
   }
 
   const result = await QuizService.startOrResumeSession({
-    userId,
+    userId: userId || 'Candidate',
     displayName: 'Candidate',
     eventKey: 'quiz',
+    sessionCode
   });
 
   return apiResponse(result);
 });
+

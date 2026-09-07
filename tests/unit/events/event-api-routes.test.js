@@ -119,7 +119,7 @@ describe('Event System API Routes Test Suite', () => {
   });
 
   describe('GET & POST /api/events/participants', () => {
-    it('should list participants on GET', async () => {
+    it('should list participants on GET when no user_id is requested', async () => {
       vi.spyOn(ParticipantService, 'getParticipants').mockResolvedValue({
         items: [{ id: 1, display_name: 'Alice', status: 'ACCEPTED' }],
         total: 1
@@ -132,7 +132,29 @@ describe('Event System API Routes Test Suite', () => {
       expect(data.items.length).toBe(1);
     });
 
-    it('should register participant on POST when authenticated', async () => {
+    it('should return individual participant registration status when user_id=me is queried', async () => {
+      cookies.mockResolvedValue({
+        get: vi.fn((name) => (name === 'student_auth' ? { value: 'student-token' } : undefined)),
+      });
+      headers.mockResolvedValue({ get: vi.fn(() => null) });
+      verifyJwt.mockResolvedValue({ id: 10, roll_no: '24567T0901', role: 'student' });
+
+      vi.spyOn(ParticipantService, 'getParticipantByUser').mockResolvedValue({
+        id: 100,
+        user_id: '24567T0901',
+        display_name: 'Alice',
+        status: 'ACCEPTED',
+      });
+
+      const req = makeMockRequest('http://localhost/api/events/participants?event_key=chess&user_id=me');
+      const res = await getParticipants(req);
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.isRegistered).toBe(true);
+      expect(data.status).toBe('ACCEPTED');
+    });
+
+    it('should register participant on POST with zero student data entry when authenticated', async () => {
       cookies.mockResolvedValue({
         get: vi.fn((name) => {
           if (name === 'student_auth') return { value: 'student-token' };
@@ -144,7 +166,7 @@ describe('Event System API Routes Test Suite', () => {
       });
       verifyJwt.mockResolvedValue({
         id: 10,
-        roll_no: '2026-CSE-001',
+        roll_no: '24567T0901',
         name: 'Alice',
         role: 'student'
       });
@@ -156,21 +178,19 @@ describe('Event System API Routes Test Suite', () => {
 
       vi.spyOn(ParticipantService, 'registerParticipant').mockResolvedValue({
         id: 100,
-        user_id: '2026-CSE-001',
+        user_id: '24567T0901',
         display_name: 'Alice',
-        status: 'REGISTERED'
+        status: 'ACCEPTED'
       });
 
       const req = makeMockRequest('http://localhost/api/events/participants', 'POST', {
-        event_key: 'chess',
-        display_name: 'Alice',
-        department: 'CSE'
+        event_key: 'chess'
       });
 
       const res = await postParticipants(req);
       expect(res.status).toBe(201);
       const data = await res.json();
-      expect(data.status).toBe('REGISTERED');
+      expect(data.status).toBe('ACCEPTED');
     });
   });
 

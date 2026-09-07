@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Trophy, X, ShieldAlert } from 'lucide-react';
+import { Trophy, X, ShieldAlert, ShieldCheck, UserCheck, Loader2 } from 'lucide-react';
 
 export default function ParticipantRegistrationModal({
   isOpen,
@@ -10,13 +10,15 @@ export default function ParticipantRegistrationModal({
   eventKey = 'chess',
   currentUser = null
 }) {
-  const [displayName, setDisplayName] = useState(currentUser?.name || currentUser?.email || '');
-  const [department, setDepartment] = useState(currentUser?.branch || currentUser?.department || 'CSE');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   if (!isOpen) return null;
+
+  const candidateName = currentUser?.name || currentUser?.full_name || 'KUCET Candidate';
+  const candidateId = currentUser?.roll_no || currentUser?.id || currentUser?.staffId || 'Verified Account';
+  const candidateDept = currentUser?.branch || currentUser?.department || 'KUCET Engineering';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,19 +31,17 @@ export default function ParticipantRegistrationModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           event_key: eventKey,
-          display_name: displayName,
-          department,
-          notes
+          notes: notes.trim() || undefined
         })
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to register');
+      if (!res.ok) throw new Error(data.error || 'Failed to complete registration');
 
       if (typeof onSuccess === 'function') onSuccess(data);
       onClose();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -54,7 +54,7 @@ export default function ParticipantRegistrationModal({
           <div className="flex items-center gap-2 text-[#0b3578]">
             <Trophy className="w-5 h-5 text-amber-600" />
             <h3 className="text-base font-semibold text-gray-800">
-              Register for Chess Tournament
+              Tournament Entry Confirmation
             </h3>
           </div>
           <button
@@ -71,41 +71,42 @@ export default function ParticipantRegistrationModal({
           </div>
         )}
 
+        {/* Read-Only Verified Candidate Identity Card */}
+        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+              Candidate Identity
+            </span>
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+              <ShieldCheck className="w-3 h-3" /> Authoritative KUCET Record
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <span className="text-[11px] text-slate-500 block">Candidate Name</span>
+              <span className="font-semibold text-slate-800">{candidateName}</span>
+            </div>
+            <div>
+              <span className="text-[11px] text-slate-500 block">Roll No / ID</span>
+              <span className="font-mono font-semibold text-slate-800">{candidateId}</span>
+            </div>
+            <div className="col-span-2">
+              <span className="text-[11px] text-slate-500 block">Department / Discipline</span>
+              <span className="font-semibold text-slate-800">{candidateDept}</span>
+            </div>
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           <div>
             <label className="block font-semibold text-gray-700 mb-1">
-              Full Name / Display Name <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              required
-              className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0b3578]"
-            />
-          </div>
-
-          <div>
-            <label className="block font-semibold text-gray-700 mb-1">
-              Department / Branch <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-              required
-              className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0b3578]"
-            />
-          </div>
-
-          <div>
-            <label className="block font-semibold text-gray-700 mb-1">
-              Experience / Rating / Notes (Optional)
+              FIDE Rating / Notes (Optional)
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. FIDE 1450 / Intermediate chess player"
+              placeholder="e.g. Intermediate player / FIDE ID 14205"
               rows={2}
               className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0b3578]"
             />
@@ -122,9 +123,19 @@ export default function ParticipantRegistrationModal({
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 rounded-lg bg-[#0b3578] hover:bg-[#0a2d66] text-white font-medium transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0b3578] hover:bg-[#0a2d66] text-white font-medium transition-colors shadow-xs cursor-pointer disabled:opacity-50"
             >
-              {loading ? 'Submitting...' : 'Submit Entry'}
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Registering...</span>
+                </>
+              ) : (
+                <>
+                  <UserCheck className="w-4 h-4" />
+                  <span>Confirm Tournament Entry</span>
+                </>
+              )}
             </button>
           </div>
         </form>

@@ -7,6 +7,7 @@ import { POST as postSubmit } from '@/app/api/events/quiz/submit/route';
 import { GET as getLeaderboard } from '@/app/api/events/quiz/leaderboard/route';
 import { QuizService } from '@/modules/events/services/QuizService';
 import { EventConfigService } from '@/modules/events/services/EventConfigService';
+import { ParticipantService } from '@/modules/events/services/ParticipantService';
 import { verifyJwt } from '@/lib/auth';
 import { cookies, headers } from 'next/headers';
 
@@ -133,14 +134,19 @@ describe('Technical Quiz API Routes Test Suite', () => {
 
   describe('POST /api/events/quiz/session', () => {
     it('should block session creation if quiz is disabled', async () => {
+      cookies.mockResolvedValue({
+        get: vi.fn((name) => (name === 'student_auth' ? { value: 'student-token' } : undefined)),
+      });
+      headers.mockResolvedValue({ get: vi.fn(() => null) });
+      verifyJwt.mockResolvedValue({ id: 1, roll_no: '24567T0901', role: 'student' });
+
       vi.spyOn(EventConfigService, 'getEventConfig').mockResolvedValue({
         event_key: 'quiz',
         is_enabled: false,
       });
 
       const req = makeMockRequest('http://localhost/api/events/quiz/session', 'POST', {
-        user_id: '0123-22-733-001',
-        display_name: 'Rahul',
+        event_key: 'quiz',
       });
 
       const res = await postSession(req);
@@ -148,9 +154,29 @@ describe('Technical Quiz API Routes Test Suite', () => {
     });
 
     it('should start or resume session when quiz is enabled', async () => {
+      cookies.mockResolvedValue({
+        get: vi.fn((name) => (name === 'student_auth' ? { value: 'student-token' } : undefined)),
+      });
+      headers.mockResolvedValue({ get: vi.fn(() => null) });
+      verifyJwt.mockResolvedValue({ id: 1, roll_no: '24567T0901', role: 'student', name: 'Rahul' });
+
       vi.spyOn(EventConfigService, 'getEventConfig').mockResolvedValue({
         event_key: 'quiz',
         is_enabled: true,
+      });
+
+      vi.spyOn(ParticipantService, 'resolveAuthoritativeUser').mockResolvedValue({
+        userId: '24567T0901',
+        displayName: 'Rahul',
+        department: 'CSE',
+        userType: 'STUDENT',
+        email: 'rahul@kucet.ac.in',
+      });
+
+      vi.spyOn(ParticipantService, 'registerParticipant').mockResolvedValue({
+        id: 1,
+        user_id: '24567T0901',
+        status: 'ACCEPTED',
       });
 
       vi.spyOn(QuizService, 'startOrResumeSession').mockResolvedValue({
@@ -161,9 +187,7 @@ describe('Technical Quiz API Routes Test Suite', () => {
       });
 
       const req = makeMockRequest('http://localhost/api/events/quiz/session', 'POST', {
-        user_id: '0123-22-733-001',
-        display_name: 'Rahul',
-        department: 'CSE',
+        event_key: 'quiz',
       });
 
       const res = await postSession(req);
