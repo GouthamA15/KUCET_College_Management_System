@@ -1,4 +1,4 @@
-import { wrapHandler, apiResponse, apiError } from '@/lib/api-utils';
+import { wrapHandler, apiResponse } from '@/lib/api-utils';
 import { EventConfigService } from '@/modules/events/services/EventConfigService';
 import { z } from 'zod';
 
@@ -20,9 +20,22 @@ const updateConfigSchema = z.object({
 
 export const GET = wrapHandler(async (req) => {
   const { searchParams } = new URL(req.url);
-  const eventKey = searchParams.get('event_key') || 'chess';
-  const config = await EventConfigService.getEventConfig(eventKey);
-  return apiResponse(config);
+  const eventKey = searchParams.get('event_key');
+
+  if (eventKey) {
+    const config = await EventConfigService.getEventConfig(eventKey);
+    return apiResponse(config);
+  }
+
+  const allConfigs = await EventConfigService.getAllEventConfigs();
+  const hasActiveEvents = allConfigs.some(c => Boolean(c.is_enabled));
+  const activeCount = allConfigs.filter(c => Boolean(c.is_enabled)).length;
+
+  return apiResponse({
+    hasActiveEvents,
+    activeCount,
+    configs: allConfigs,
+  });
 });
 
 export const PUT = wrapHandler({

@@ -64,9 +64,50 @@ describe('College Event Workflow & Administration Test Suite', () => {
       const isEnabled = await EventConfigService.isEventEnabled('chess');
       expect(isEnabled).toBe(false);
     });
+
+    it('should check if ANY event is active across the system', async () => {
+      if (!eventDb.query.eventConfigs.findMany) {
+        eventDb.query.eventConfigs.findMany = vi.fn();
+      }
+
+      // Case A: One event enabled
+      eventDb.query.eventConfigs.findMany.mockResolvedValueOnce([
+        { event_key: 'chess', is_enabled: 0 },
+        { event_key: 'quiz', is_enabled: 1 }
+      ]);
+      const hasActive = await EventConfigService.hasAnyActiveEvents();
+      expect(hasActive).toBe(true);
+
+      // Case B: All events disabled by admin
+      eventDb.query.eventConfigs.findMany.mockResolvedValueOnce([
+        { event_key: 'chess', is_enabled: 0 },
+        { event_key: 'quiz', is_enabled: 0 }
+      ]);
+      const allDisabled = await EventConfigService.hasAnyActiveEvents();
+      expect(allDisabled).toBe(false);
+    });
   });
 
-  describe('2. Participant Registration & Approval', () => {
+  describe('2. Dynamic Menu Configuration & Filtering', () => {
+    it('should filter out MY EVENT when no active events exist', async () => {
+      const { filterDynamicMenuItems } = await import('@/lib/menu-config');
+      const studentMenu = [
+        { label: 'HOME', route: '/student' },
+        { label: 'MY EVENT', route: '/events' },
+        { label: 'FEES', route: '/student/finances' }
+      ];
+
+      const filteredWhenDisabled = filterDynamicMenuItems(studentMenu, { hasActiveEvents: false });
+      expect(filteredWhenDisabled.some(item => item.route === '/events')).toBe(false);
+      expect(filteredWhenDisabled.length).toBe(2);
+
+      const filteredWhenEnabled = filterDynamicMenuItems(studentMenu, { hasActiveEvents: true });
+      expect(filteredWhenEnabled.some(item => item.route === '/events')).toBe(true);
+      expect(filteredWhenEnabled.length).toBe(3);
+    });
+  });
+
+  describe('3. Participant Registration & Approval', () => {
     it('should allow student registration when event is enabled and registration open', async () => {
       vi.spyOn(EventConfigService, 'getEventConfig').mockResolvedValue({
         is_enabled: true,
@@ -128,7 +169,7 @@ describe('College Event Workflow & Administration Test Suite', () => {
     });
   });
 
-  describe('3. Match Fixture Creation & Result Verification', () => {
+  describe('4. Match Fixture Creation & Result Verification', () => {
     it('should create match fixture and assign White and Black players', async () => {
       eventDb.query.eventParticipants.findFirst
         .mockResolvedValueOnce({ id: 10, display_name: 'Player One', user_id: '2026-001' })

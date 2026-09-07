@@ -11,16 +11,14 @@ import {
   Edit2,
   RotateCcw,
   Search,
-  AlertCircle,
   Save,
   RefreshCw,
   X,
   Settings,
-  Users,
-  Clock,
-  ArrowLeft
+  Users
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { notifyEventConfigChanged } from '@/hooks/useEventsStatus';
 
 export default function QuizAdminControl({ initialConfig }) {
   const [config, setConfig] = useState(initialConfig || {});
@@ -167,6 +165,7 @@ export default function QuizAdminControl({ initialConfig }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to update config');
       setConfig(data);
+      notifyEventConfigChanged();
       toast.success(newState ? 'Technical Quiz is now Live' : 'Technical Quiz is now Inactive', { id: toastId });
     } catch (err) {
       toast.error(err.message, { id: toastId });
@@ -194,9 +193,10 @@ export default function QuizAdminControl({ initialConfig }) {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update settings');
+      if (!res.ok) throw new Error(data.error || 'Failed to save settings');
       setConfig(data);
-      toast.success('Quiz settings updated successfully', { id: toastId });
+      notifyEventConfigChanged();
+      toast.success('Configuration saved successfully', { id: toastId });
     } catch (err) {
       toast.error(err.message, { id: toastId });
     } finally {

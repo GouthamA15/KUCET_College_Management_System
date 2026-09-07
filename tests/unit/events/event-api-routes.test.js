@@ -43,7 +43,7 @@ describe('Event System API Routes Test Suite', () => {
   });
 
   describe('GET & PUT /api/events/config', () => {
-    it('should return event configuration on GET', async () => {
+    it('should return event configuration on GET with event_key', async () => {
       vi.spyOn(EventConfigService, 'getEventConfig').mockResolvedValue({
         event_key: 'chess',
         event_name: 'KUCET Chess Championship',
@@ -55,6 +55,34 @@ describe('Event System API Routes Test Suite', () => {
       expect(res.status).toBe(200);
       const data = await res.json();
       expect(data.is_enabled).toBe(true);
+    });
+
+    it('should return summary of active events when no event_key is provided', async () => {
+      vi.spyOn(EventConfigService, 'getAllEventConfigs').mockResolvedValue([
+        { event_key: 'chess', is_enabled: true },
+        { event_key: 'quiz', is_enabled: false }
+      ]);
+
+      const req = makeMockRequest('http://localhost/api/events/config');
+      const res = await getConfig(req);
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.hasActiveEvents).toBe(true);
+      expect(data.activeCount).toBe(1);
+    });
+
+    it('should report hasActiveEvents: false when all events are disabled by admin', async () => {
+      vi.spyOn(EventConfigService, 'getAllEventConfigs').mockResolvedValue([
+        { event_key: 'chess', is_enabled: false },
+        { event_key: 'quiz', is_enabled: false }
+      ]);
+
+      const req = makeMockRequest('http://localhost/api/events/config');
+      const res = await getConfig(req);
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.hasActiveEvents).toBe(false);
+      expect(data.activeCount).toBe(0);
     });
 
     it('should allow admin to update toggle on PUT', async () => {

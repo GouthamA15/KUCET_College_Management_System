@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Trophy,
   Users,
   Swords,
   CheckCircle,
@@ -14,6 +13,7 @@ import {
   X
 } from 'lucide-react';
 import Link from 'next/link';
+import { notifyEventConfigChanged } from '@/hooks/useEventsStatus';
 
 export default function AdminEventControl({ eventKey = 'chess' }) {
   const [config, setConfig] = useState(null);
@@ -86,6 +86,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to update toggle');
       setConfig(data);
+      notifyEventConfigChanged();
     } catch (err) {
       alert(err.message);
     } finally {
@@ -111,6 +112,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to update registration');
       setConfig(data);
+      notifyEventConfigChanged();
     } catch (err) {
       alert(err.message);
     } finally {

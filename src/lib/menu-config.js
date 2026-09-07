@@ -116,3 +116,18 @@ export const NAV_MENU_CONFIG = {
   ]
 };
 
+/**
+ * Filters dynamic menu items based on runtime availability (e.g., active campus tournaments).
+ * When all events are disabled by administration, 'MY EVENT' is removed from the navigation.
+ */
+export function filterDynamicMenuItems(menuItems = [], { hasActiveEvents = false } = {}) {
+  if (!menuItems || !Array.isArray(menuItems)) return [];
+
+  return menuItems.filter((item) => {
+    if ((item.route === '/events' || item.label === 'MY EVENT') && !hasActiveEvents) {
+      return false;
+    }
+    return true;
+  });
+}
+

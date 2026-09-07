@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { Trophy, ArrowRight, ShieldCheck, HelpCircle, BookOpen, Layers } from 'lucide-react';
+import { ArrowRight, ShieldCheck, BookOpen, Layers } from 'lucide-react';
 import { EventConfigService } from '@/modules/events/services/EventConfigService';
 
 export const dynamic = 'force-dynamic';
@@ -54,12 +54,21 @@ export default async function EventsCatalogPage() {
         </header>
 
         {/* Notice Banner */}
-        <div className="bg-blue-50 border border-blue-200 text-[#0b3578] px-4 py-3 rounded-lg text-sm font-medium flex items-start gap-2 shadow-xs">
-          <BookOpen className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>
-            Select an active event below to view event details, rules, registration status, or enter the competition arena. Ensure you have your Roll Number / Hall Ticket ready for participation.
-          </span>
-        </div>
+        {!isChessEnabled && !isQuizEnabled ? (
+          <div className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 rounded-lg text-sm font-medium flex items-start gap-2 shadow-xs">
+            <BookOpen className="w-4 h-4 shrink-0 mt-0.5 text-amber-700" />
+            <span>
+              All collegiate tournaments and assessment events are currently closed or undergoing administrative scheduling. Please check back when new events are activated by the administration.
+            </span>
+          </div>
+        ) : (
+          <div className="bg-blue-50 border border-blue-200 text-[#0b3578] px-4 py-3 rounded-lg text-sm font-medium flex items-start gap-2 shadow-xs">
+            <BookOpen className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>
+              Select an active event below to view event details, rules, registration status, or enter the competition arena. Ensure you have your Roll Number / Hall Ticket ready for participation.
+            </span>
+          </div>
+        )}
 
         {/* Events Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -48,6 +48,33 @@ export class EventConfigService {
   }
 
   /**
+   * Retrieves all registered event configurations from the experiment database.
+   */
+  static async getAllEventConfigs() {
+    try {
+      await initExperimentDb();
+      const configs = await eventDb.query.eventConfigs.findMany();
+      return configs || [];
+    } catch (err) {
+      logger.error(err, '[EVENT_CONFIG_ERROR] Failed to fetch all event configurations');
+      return [];
+    }
+  }
+
+  /**
+   * Checks if at least one tournament/event is currently enabled by administration.
+   */
+  static async hasAnyActiveEvents() {
+    try {
+      const allConfigs = await this.getAllEventConfigs();
+      return allConfigs.some(c => Boolean(c.is_enabled));
+    } catch (err) {
+      logger.error(err, '[EVENT_CONFIG_ERROR] Failed to verify active events status');
+      return false;
+    }
+  }
+
+  /**
    * Admin Toggle: Enables or disables the specified event.
    */
   static async toggleEvent(eventKey = 'chess', isEnabled, updatedBy = 'ADMIN') {

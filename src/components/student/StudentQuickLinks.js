@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useEventsStatus } from '@/hooks/useEventsStatus';
 
 const QUICK_LINKS = [
   {
@@ -119,6 +120,15 @@ const QUICK_LINKS = [
 ];
 
 export default function StudentQuickLinks() {
+  const { hasActiveEvents } = useEventsStatus();
+
+  const activeQuickLinks = QUICK_LINKS.filter((link) => {
+    if (link.route === '/events' && !hasActiveEvents) {
+      return false;
+    }
+    return true;
+  });
+
   return (
     <section className="rounded-sm border border-slate-200 bg-white overflow-hidden shadow-xs">
       <div className="bg-[#0b3578]/5 px-4 py-2.5 lg:py-3 border-b border-slate-200 flex items-center justify-start">
@@ -133,7 +143,7 @@ export default function StudentQuickLinks() {
       <div className="p-3 sm:p-4">
         {/* Layout Requirement: Desktop: 4 columns, Tablet: 3 columns, Mobile: 2 columns */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">
-          {QUICK_LINKS.map((link) => (
+          {activeQuickLinks.map((link) => (
             <Link
               key={link.route}
               href={link.route}
