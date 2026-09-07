@@ -88,11 +88,11 @@ export function AdminProvider({ children }) {
   const fetchFacultyInterests = useCallback(async () => {
     setIsLoadingFaculty(true);
     try {
-      const res = { ok: false };
+      const res = await fetch('/api/staff/faculty/interests');
       if (res.ok) {
         const json = await res.json();
         setFacultyInterests(json.data || []);
-        return json.data;
+        return json.data || [];
       }
     } catch (e) {
       console.error('Failed to fetch faculty interests', e);

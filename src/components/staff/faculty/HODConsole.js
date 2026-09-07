@@ -22,6 +22,12 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
   const [editingSlot, setEditingSlot] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const formRef = useRef(null);
+
+  useEffect(() => {
+    if (staffData?.is_hod && !hodBranchData && !isLoadingHOD && refreshHOD) {
+      refreshHOD();
+    }
+  }, [staffData?.is_hod, hodBranchData, isLoadingHOD, refreshHOD]);
   
   // Local state for the selected subject in the modal to drive faculty highlighting
   const [modalSelectedSubject, setModalSelectedSubject] = useState('');

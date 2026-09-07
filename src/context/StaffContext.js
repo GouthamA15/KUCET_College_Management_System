@@ -10,6 +10,7 @@ export function StaffProvider({ children }) {
   const lastFetchTimeRef = useRef(0);
   const activePromiseRef = useRef(null);
   const isInitializingRef = useRef(false);
+  const lastStaffIdRef = useRef(null);
 
   const [staffData, setStaffData] = useState(null);
   const [collegeInfo, setCollegeInfo] = useState(cachedCollegeInfo);
@@ -55,14 +56,41 @@ export function StaffProvider({ children }) {
       const res = await fetch('/api/staff/me');
       if (res.ok) {
         const data = await res.json();
-        setStaffData(data.data);
-        return data.data;
+        const prevId = lastStaffIdRef.current;
+        const newStaff = data.data;
+
+        // If authenticated staff ID changed, purge previous user's child states
+        if (prevId && newStaff && prevId !== newStaff.id) {
+          setFacultyAssignments([]);
+          setFacultyInterests([]);
+          setPendingProfileRequests([]);
+          setPendingCertificateRequests([]);
+          setAdmissionDrafts([]);
+          setStudentHistory({ records: [], myCount: 0, allCount: 0 });
+          setHodBranchData(null);
+          setHasFetchedFaculty(false);
+          setHasFetchedHOD(false);
+        }
+        lastStaffIdRef.current = newStaff?.id || null;
+
+        setStaffData(newStaff);
+        return newStaff;
       } else {
         try {
           const data = await res.json();
           setError(data.error || 'Failed to fetch staff data');
         } catch {
           setError('Failed to fetch staff data');
+        }
+        if (res.status === 401 || res.status === 403) {
+          setStaffData(null);
+          setFacultyAssignments([]);
+          setFacultyInterests([]);
+          setPendingProfileRequests([]);
+          setPendingCertificateRequests([]);
+          setAdmissionDrafts([]);
+          setStudentHistory({ records: [], myCount: 0, allCount: 0 });
+          setHodBranchData(null);
         }
       }
     } catch (_e) {
@@ -229,15 +257,20 @@ export function StaffProvider({ children }) {
 
     const promise = (async () => {
       try {
-        await fetchStaffData();
+        const staff = await fetchStaffData();
         await fetchCollegeInfo();
 
-        if (hasFetchedFaculty) {
-          fetchFacultyData();
-        }
-        
-        if (hasFetchedHOD) {
-          fetchHODData();
+        if (staff) {
+          if (staff.role === 'faculty') {
+            await fetchFacultyData();
+            if (staff.is_hod) {
+              await fetchHODData();
+            }
+          } else if (staff.role === 'admission') {
+            await refreshAllRequests('admission');
+          } else if (staff.role === 'scholarship') {
+            await refreshAllRequests('scholarship');
+          }
         }
 
         // Basic identity and config are loaded! Drop the global spinner immediately.
@@ -252,17 +285,12 @@ export function StaffProvider({ children }) {
 
     activePromiseRef.current = promise;
     return promise;
-  }, [fetchStaffData, fetchCollegeInfo, hasFetchedFaculty, fetchFacultyData, hasFetchedHOD, fetchHODData]);
-
-  const staffDataRef = useRef(staffData);
-  useEffect(() => {
-    staffDataRef.current = staffData;
-  }, [staffData]);
+  }, [fetchStaffData, fetchCollegeInfo, fetchFacultyData, fetchHODData, refreshAllRequests]);
 
   const handleResume = useCallback(async (event) => {
     const now = Date.now();
     const isBfcacheRestore = event?.type === 'pageshow' && event.persisted;
-    const currentStaff = staffDataRef.current;
+    const currentStaff = staffData;
 
     // Check if we should revalidate
     const throttleTime = 60000; // 60 seconds throttle
@@ -301,7 +329,7 @@ export function StaffProvider({ children }) {
       setAreRequestsBootstrapping(false);
       isInitializingRef.current = false;
     }
-  }, [refreshAllData]);
+  }, [refreshAllData, staffData]);
 
   // Stable ref to refreshAllData for initial mount
   const refreshAllDataRef = useRef(refreshAllData);
@@ -311,7 +339,7 @@ export function StaffProvider({ children }) {
 
   const hasInitializedRef = useRef(false);
   useEffect(() => {
-    if (hasInitializedRef.current || staffDataRef.current) return;
+    if (hasInitializedRef.current || staffData) return;
     hasInitializedRef.current = true;
 
     let isMounted = true;
@@ -367,7 +395,7 @@ export function StaffProvider({ children }) {
   const handleRealtimeUpdate = useCallback((data) => {
     if (!data || !data.type) return;
     const { type, payload } = data;
-    const currentStaff = staffDataRef.current;
+    const currentStaff = staffData;
 
     if (currentStaff?.is_hod && (!payload?.branch || payload?.branch === currentStaff.branch)) {
       if ([
@@ -400,7 +428,7 @@ export function StaffProvider({ children }) {
     if (['STAFF_UPDATED', 'staff:updated'].includes(type) && payload?.id === currentStaff?.id) {
       setStaffData(prev => ({ ...prev, ...payload }));
     }
-  }, [fetchHODData, refreshAllRequests, fetchAdmissionDrafts]);
+  }, [staffData, fetchHODData, refreshAllRequests, fetchAdmissionDrafts]);
 
   return (
     <StaffContext.Provider value={{

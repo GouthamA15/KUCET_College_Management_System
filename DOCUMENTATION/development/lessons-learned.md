@@ -187,6 +187,18 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 - **The Pitfall:** (1) Adding path-based bypasses (such as `!pathname.includes('...')`) in the Edge proxy/middleware creates security holes allowing unauthenticated requests to reach backend handlers even if inner wrappers exist. (2) Mutating `e.target.parentNode.innerHTML` inside an `onError` handler on Next.js `<Image />` destroys React's internal DOM Fiber nodes, triggering `NotFoundError: Failed to execute 'removeChild' on 'Node'` upon component re-render or tab switching.
 - **The Inviolable Guardrail:** All `/api/admin/*` routes must be uniformly gated by Super Admin credentials in Edge proxy without exceptions. Image error handling MUST use pure React state (`const [imgError, setImgError] = useState(false)`) with conditional fallback JSX rendering, never direct DOM destruction.
 
+### Rule 20: Avoid Infinite Re-render Fetch Loops on Genuine Zero-Length Collections
+- **The Pitfall:** Writing `useEffect` triggers with conditions like `if (!records || records.length === 0) fetchRecords();` causes infinite network fetch loops when a user genuinely has 0 records (e.g. 0 pending certificate requests). Each fetch updates state to a new empty array reference `[]`, triggering re-render and re-executing the effect continuously.
+- **The Inviolable Guardrail:** Guard data-fetching effects with explicit initialization/fetch tracking refs (`hasFetchedRef = useRef(false)`) or nullable uninitialized sentinel values (`null` vs `[]`), ensuring network fetches occur at most once upon mount or dependency change.
+
+### Rule 21: Enforce Role-Based Context Eager Hydration & Account Switch State Invalidation
+- **The Pitfall:** In multi-role context providers (`StaffContext.js`), lazy fetching flags without proactive role-based hydration starve role dashboards of data on initial load. Furthermore, switching accounts without explicitly resetting role states leaks previous user data across sessions.
+- **The Inviolable Guardrail:** Multi-role contexts MUST watch the active `staff.id` and `staff.role` to purge stale states upon user change. Initial data loading (`refreshAllData()`) MUST eagerly branch on the authenticated role (`faculty` -> assignments & interests; `admission` -> requests, drafts, & history; `scholarship` -> certificate queue; `hod` -> branch data) so dashboards receive fully hydrated state immediately.
+
+### Rule 22: Multi-Signature Wrapper Resilience and NULL SQL Comparison Defense
+- **The Pitfall:** (1) Calling API wrapper middleware with mismatched parameter signatures (e.g., `wrapHandler({ role }, handler)` vs `wrapHandler({ handler, auth })`) causes runtime 500 crashes (`handler is not a function`). (2) SQL range comparisons on nullable columns (`end_date >= NOW()`) evaluate to `NULL` (falsy) for ongoing active assignments where `end_date IS NULL`, falsely dropping valid records.
+- **The Inviolable Guardrail:** API wrapper utilities MUST normalize polymorphic invocation arguments. In Drizzle/SQL queries, active temporal checks on nullable end dates MUST explicitly use `or(isNull(table.end_date), gte(table.end_date, nowStr))`.
+
 ---
 
 ## 9. Incident Summary Matrix
@@ -204,6 +216,7 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 | **Session 210 CI/CD & Worktree Mode Drift** | Non-executable file mode `100644` in Git index caused runtime `chmod +x` to dirty working tree; `deploy.sh` called `checkout` before `reset --hard`; runner UID permission barrier | Set Git index mode `100755` via `git update-index --chmod=+x`, atomic `fetch -> reset --hard -> clean -fd` in runner, and `1001:100` (`deployer:users`) directory permissions. |
 | **Session 211 Faculty Attendance & Admission Filters** | Minified React error #479 from `startTransition` inside `setState` updater; 401 Unauthorized on calendar load and proxy token refresh header omission; missing inline topic logging; single-branch admission restriction | Pure deterministic state in `FacultyAttendanceContext.js`, edge proxy `x-staff-auth` header injection, dual inline/modal topic logging, and multi-branch filter support in admission workspace. |
 | **Session 212 Comprehensive Audit & Production Review** | Stray `/api/admin/staff-requests` proxy bypass, direct `parentNode.innerHTML` DOM mutation in `AdmissionModal.js`, unscoped role avatar in `MobileTopbar.js`, and undocumented non-teaching role shifting & modular edit modals | Removed proxy bypass, implemented pure React state fallback in `AdmissionModal.js`, path-scoped role context in `MobileTopbar.js`, updated full documentation suite. |
+| **Session 213 Dashboard Loading & Context Hydration** | Multi-role context lazy sub-resource starvation, infinite fetch loop on 0 records in `CertificateDashboard`, `NULL` SQL end-date dropping active HODs, and `wrapHandler` signature mismatch | Eager role-based hydration and account-switch state purging in `StaffContext`, ref-guarded fetching in certificate queue, `or(isNull, gte)` SQL HOD check, polymorphic `wrapHandler` signature normalization. |
 
 ---
 

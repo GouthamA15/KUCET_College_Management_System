@@ -102,8 +102,30 @@ export async function logAudit(req, { userId, userType, action, targetId, target
  * @param {string|string[]} [options.auth] - Optional role(s) required (e.g., 'student', ['admin', 'staff'])
  * @param {Object} [options.audit] - Optional audit logging configuration
  */
-export function wrapHandler({ handler, schema, auth, audit }) {
+export function wrapHandler(optionsOrHandler, maybeHandler) {
+  let options = {};
+  let handler = null;
+
+  if (typeof optionsOrHandler === 'function') {
+    handler = optionsOrHandler;
+  } else if (typeof maybeHandler === 'function') {
+    options = optionsOrHandler || {};
+    handler = maybeHandler;
+  } else if (optionsOrHandler && typeof optionsOrHandler.handler === 'function') {
+    options = optionsOrHandler;
+    handler = optionsOrHandler.handler;
+  } else if (optionsOrHandler && typeof optionsOrHandler === 'object') {
+    options = optionsOrHandler;
+    handler = optionsOrHandler.handler;
+  }
+
+  const { schema, auth = options.role, audit } = options;
+
   return async (req, context) => {
+    if (typeof handler !== 'function') {
+      logger.error({ options }, '[API_WRAPPER_ERROR] wrapHandler handler is not a function');
+      return apiError('Internal Server Error: Handler configuration failed', 500);
+    }
     const start = Date.now();
     const traceId = crypto.randomUUID();
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
@@ -295,6 +317,9 @@ export async function getAuthUser(role = null) {
       } else if (expectedRole === 'hod') {
         if (actualRole === 'admin') {
           // Admin always has HOD bypass
+          payload.hod_department_code = payload.branch || 'CSE';
+          payload.is_hod = true;
+          payload.branch = payload.branch || 'CSE';
         } else if (actualRole === 'faculty' || actualRole === 'hod') {
           // Verify role_code: HOD in staffAccountRoles
           const { staffAccountRoles, staffRoles } = await import('@/db/schema');
@@ -327,6 +352,8 @@ export async function getAuthUser(role = null) {
           if (!hodAssignment) return null;
           // Inject their department scope for convenience
           payload.hod_department_code = hodAssignment.department_code;
+          payload.is_hod = true;
+          payload.branch = hodAssignment.department_code;
         } else {
           return null;
         }

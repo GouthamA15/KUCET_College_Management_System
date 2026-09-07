@@ -9,15 +9,25 @@ import ScholarshipWindowCard from '@/components/staff/scholarship/ScholarshipWin
 import toast from 'react-hot-toast';
 import { StaffDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
 import { smoothScrollToId } from '@/lib/scroll-utils';
+import { useRef } from 'react';
 export default function ScholarshipDashboardClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { staffData: staff, loading: isStaffLoading } = useStaff();
+  const { staffData: staff, loading: isStaffLoading, pendingCertificateRequests, refreshCertificateRequests } = useStaff();
 
   const [view, setView] = useState('dashboard');
 
   const firstName = staff?.name?.split(' ')[0] || 'Staff';
   const employeeId = staff?.employee_id || (staff?.role ? String(staff.role).toUpperCase() : 'SCHOLARSHIP');
+  const certificatePendingCount = Array.isArray(pendingCertificateRequests) ? pendingCertificateRequests.length : 0;
+
+  const fetchedRef = useRef(false);
+  useEffect(() => {
+    if (staff?.role === 'scholarship' && !fetchedRef.current) {
+      fetchedRef.current = true;
+      refreshCertificateRequests('scholarship');
+    }
+  }, [staff?.role, refreshCertificateRequests]);
 
   const actionCards = [
     {
@@ -45,7 +55,7 @@ export default function ScholarshipDashboardClient() {
       icon: '📑',
       tone: 'bg-emerald-50 text-emerald-700',
       path: '/staff/scholarship/dashboard?view=certificates',
-      badge: 0,
+      badge: certificatePendingCount,
     },
   ];
 

@@ -31,12 +31,14 @@ export default function CertificateDashboard({ staffType }) {
   const [appliedFilters, setAppliedFilters] = useState({ certificateType: [], status: [] });
   const filtersRef = useRef(null);
   const pathname = usePathname();
+  const hasFetchedRef = useRef(false);
 
   useEffect(() => {
-    if (!pendingCertificateRequests || pendingCertificateRequests.length === 0) {
+    if (!hasFetchedRef.current && staffType) {
+      hasFetchedRef.current = true;
       refreshCertificateRequests(staffType);
     }
-  }, [staffType, pendingCertificateRequests, refreshCertificateRequests]);
+  }, [staffType, refreshCertificateRequests]);
 
   const fetchRecords = useCallback(async () => {
     // We only fetch for history mode. Active mode uses Context data + client-side filtering.

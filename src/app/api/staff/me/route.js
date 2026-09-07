@@ -91,7 +91,7 @@ export const GET = wrapHandler({
         }
 
         const { facultyHodAssignments, staffAccountRoles, staffRoles } = await import('@/db/schema');
-        const { and, lte, gte } = await import('drizzle-orm');
+        const { and, lte, gte, isNull, or } = await import('drizzle-orm');
         const now = new Date();
         const nowStr = now.toISOString().split('T')[0];
 
@@ -114,7 +114,10 @@ export const GET = wrapHandler({
                   eq(facultyHodAssignments.staff_account_id, staff.id),
                   eq(facultyHodAssignments.is_active, true),
                   lte(facultyHodAssignments.start_date, nowStr),
-                  gte(facultyHodAssignments.end_date, nowStr)
+                  or(
+                    isNull(facultyHodAssignments.end_date),
+                    gte(facultyHodAssignments.end_date, nowStr)
+                  )
                 ))
                 .limit(1);
             if (hodRow.length > 0) {

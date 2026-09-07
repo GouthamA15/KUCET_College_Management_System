@@ -13,17 +13,20 @@ export default function AdmissionDashboardClient() {
     loading: isLoading, 
     pendingProfileRequests, 
     pendingCertificateRequests,
+    admissionDrafts,
     isLoadingRequests,
     studentHistory,
     refreshStudentHistory,
     refreshProfileRequests,
-    refreshCertificateRequests
+    refreshCertificateRequests,
+    refreshAdmissionDrafts
   } = useStaff();
 
   const firstName = staff?.name?.split(' ')[0] || 'Staff';
   const employeeLabel = staff?.employee_id || (staff?.role ? staff.role.toUpperCase() : 'ADMISSION');
   const profilePendingCount = Array.isArray(pendingProfileRequests) ? pendingProfileRequests.length : 0;
   const certificatePendingCount = Array.isArray(pendingCertificateRequests) ? pendingCertificateRequests.length : 0;
+  const admissionDraftsCount = Array.isArray(admissionDrafts) ? admissionDrafts.length : 0;
   const totalPending = profilePendingCount + certificatePendingCount;
 
   const fetchedRef = useRef(false);
@@ -33,8 +36,9 @@ export default function AdmissionDashboardClient() {
       refreshStudentHistory('my');
       refreshProfileRequests();
       refreshCertificateRequests('admission');
+      refreshAdmissionDrafts();
     }
-  }, [staff?.role, refreshStudentHistory, refreshProfileRequests, refreshCertificateRequests]);
+  }, [staff?.role, refreshStudentHistory, refreshProfileRequests, refreshCertificateRequests, refreshAdmissionDrafts]);
 
   const completedTodayCount = useMemo(() => {
     if (!studentHistory?.records) return 0;
@@ -65,7 +69,7 @@ export default function AdmissionDashboardClient() {
       icon: '📩',
       tone: 'bg-purple-50 text-purple-700',
       path: '/staff/admission/requests?tab=admissions',
-      badge: 0
+      badge: admissionDraftsCount
     },
     {
       key: 'finalize',

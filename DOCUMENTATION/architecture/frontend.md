@@ -140,6 +140,27 @@ export function StudentStatusManager({ student }) {
 
 ---
 
+## 🔄 Role-Based Context Hydration & Dashboard State Flow (`StaffContext.js`, `AdminContext.js`)
+
+To prevent dashboard variable starvation and stale cross-role data leaks across accounts, the state management layer enforces strict context hydration and lifecycle purging:
+
+### 1. Account-Switch State Invalidation
+`StaffContext` tracks `staff?.id` and `staff?.role` with a dedicated `useRef(staff?.id)`. Whenever the authenticated account changes (e.g. login/logout or account switch):
+- All sub-resources (`facultyAssignments`, `facultyInterests`, `pendingProfileRequests`, `pendingCertificateRequests`, `admissionDrafts`, `studentHistory`, `hodBranchData`) are immediately purged to initial states.
+- Lazy fetching tracking flags (`hasFetchedAssignments`, etc.) are reset.
+
+### 2. Proactive Role-Scoped Hydration
+During `refreshAllData()`, `StaffContext` evaluates the active `staff.role` and eagerly issues background queries for that role's primary data models:
+- **`faculty`**: Eagerly loads faculty subject allocations (`/api/staff/faculty/assignments`) and teaching interests (`/api/staff/faculty/interests`).
+- **`admission` / `admission_clerk`**: Eagerly queries student change requests (`/api/staff/admission/requests`), admission drafts (`/api/staff/admission/drafts`), and admission registration history.
+- **`scholarship` / `scholarship_clerk`**: Eagerly loads pending certificate applications (`/api/staff/certificates/pending?category=scholarship`).
+- **`hod`** (or active HOD designation): Eagerly fetches departmental branch metrics, faculty rosters, and timetables (`/api/staff/hod/branch-data`).
+
+### 3. Loop-Free Client Dashboard Mounting
+Client dashboard consumers (`FacultyDashboardClient`, `ScholarshipDashboardClient`, `AdmissionDashboardClient`, `HODConsole`, `CertificateDashboard`) implement ref-guarded and context-backed triggers on mount (`hasFetchedRef`), eliminating duplicate network requests while guaranteeing immediate variable resolution even if direct page routing bypasses the top-level layout refresh.
+
+---
+
 ## 📱 Universal Mobile Navigation & Drawer Architecture
 
 Given that over 80% of student and faculty interactions occur on smartphones, KUCET CMS provides a dedicated mobile navigation layout:

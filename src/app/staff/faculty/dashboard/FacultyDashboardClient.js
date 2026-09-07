@@ -9,13 +9,19 @@ import FacultyActivityBar from '@/components/staff/faculty/FacultyActivityBar';
 
 export default function FacultyDashboardClient() {
   const router = useRouter();
-  const { staffData: staff, loading, facultyAssignments } = useStaff();
+  const { staffData: staff, loading, facultyAssignments, hasFetchedFaculty, isLoadingFaculty, refreshFaculty } = useStaff();
 
   useEffect(() => {
     if (!loading && !staff) {
       router.push('/');
     }
   }, [staff, loading, router]);
+
+  useEffect(() => {
+    if (!loading && staff && !hasFetchedFaculty && !isLoadingFaculty && refreshFaculty) {
+      refreshFaculty();
+    }
+  }, [loading, staff, hasFetchedFaculty, isLoadingFaculty, refreshFaculty]);
 
   if (loading || !staff) {
     return <StaffDashboardSkeleton />;

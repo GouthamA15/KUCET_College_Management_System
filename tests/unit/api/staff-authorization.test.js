@@ -14,9 +14,6 @@ vi.mock('@/lib/auth', () => ({
 }));
 
 vi.mock('@/db', () => {
-  const selectMock = vi.fn().mockReturnThis();
-  const fromMock = vi.fn().mockReturnThis();
-  const innerJoinMock = vi.fn().mockReturnThis();
   const whereMock = vi.fn().mockResolvedValue([{ role_code: 'HOD' }]);
   
   return {
@@ -363,6 +360,36 @@ describe('Staff Identity & Authorization Architecture', () => {
       const json = await response.json();
       expect(json.error).toBe('Unauthorized');
       expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('supports wrapHandler(options, handler) signature with role alias', async () => {
+      cookies.mockResolvedValue({
+        get: vi.fn((name) => {
+          if (name === 'staff_auth') return { value: 'valid-token' };
+          return undefined;
+        }),
+      });
+      headers.mockResolvedValue({
+        get: vi.fn(() => null),
+      });
+      verifyJwt.mockResolvedValue({
+        id: 301,
+        staffId: 301,
+        email: 'faculty@kucet.ac.in',
+        role: 'faculty',
+      });
+
+      const handler = vi.fn().mockResolvedValue({ success: true, count: 10 });
+      const wrapped = wrapHandler({ role: ['faculty', 'staff'] }, handler);
+
+      const req = new Request('http://localhost:3000/api/intelligence/dashboard/faculty');
+      const response = await wrapped(req);
+
+      expect(response.status).toBe(200);
+      const json = await response.json();
+      expect(json.success).toBe(true);
+      expect(json.count).toBe(10);
+      expect(handler).toHaveBeenCalled();
     });
   });
 
