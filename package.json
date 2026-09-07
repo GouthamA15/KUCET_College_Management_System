@@ -30,6 +30,7 @@
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.37.0",
     "bcrypt": "^6.0.0",
+    "chess.js": "^1.4.0",
     "cloudinary": "^2.9.0",
     "docxtemplater": "^3.67.6",
     "dotenv": "^17.2.3",
