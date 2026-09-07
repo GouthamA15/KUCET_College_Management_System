@@ -16,6 +16,14 @@ const registerSchema = z.object({
 export const GET = wrapHandler(async (req) => {
   const { searchParams } = new URL(req.url);
   const eventKey = searchParams.get('event_key') || 'chess';
+  const userId = searchParams.get('user_id');
+
+  // Direct single-user registration status lookup
+  if (userId) {
+    const participant = await ParticipantService.getParticipantByUser(eventKey, userId);
+    return apiResponse({ participant, isRegistered: Boolean(participant) });
+  }
+
   const status = searchParams.get('status') || 'ALL';
   const search = searchParams.get('search') || '';
   const limit = parseInt(searchParams.get('limit') || '50', 10);
@@ -37,7 +45,7 @@ export const POST = wrapHandler({
   handler: async (req, { data, user }) => {
     const eventKey = data.event_key || 'chess';
 
-    // Verify event is enabled and open
+    // Verify event is enabled and registration is open
     const config = await EventConfigService.getEventConfig(eventKey);
     if (!config.is_enabled) {
       return apiError('Tournament event is currently disabled by administration.', 403);

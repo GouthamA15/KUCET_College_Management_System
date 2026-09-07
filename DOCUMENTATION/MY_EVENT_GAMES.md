@@ -1,9 +1,9 @@
 # College Event & Tournament System: Architecture & Games Blueprint
 
 **System Version:** Multi-Game Tournament Engine (Chess MVP & Technical Quiz)  
-**Git Branch:** `MY-EVENT-TECHNICAL-QUIZ`  
+**Git Branch:** `MY-EVENT`  
 **Experimental Database:** `experiment_college_db`  
-**Status:** Active, Tested & Fully Isolated  
+**Status:** Active, Tested & Synchronized with KUCET CMS Standards  
 
 ---
 
@@ -77,8 +77,8 @@ graph TD
 ## 3. Database Schema in `experiment_college_db`
 
 ### 3.1 Generic Event Tables
-- `event_configs`: Master event configuration, description, rules JSON, and `is_enabled` toggle.
-- `event_participants`: Tournament registrations with department, user_type, and seed number.
+- `event_configs`: Master event configuration, description, rules JSON, `is_enabled`, and `registration_open` toggles.
+- `event_participants`: Tournament registrations with department, user_type, and registration status (`REGISTERED`, `ACCEPTED`, `REJECTED`, `WITHDRAWN`).
 - `event_audit_logs`: Audit trail for all organizer actions.
 
 ### 3.2 Chess Tournament Tables
@@ -135,19 +135,45 @@ graph TD
 
 ---
 
-## 4. Technical Quiz Core Features & Invariants
+## 4. Student Registration Workflow & Visibility Architecture
 
-### 4.1 Security & Answer Sanitization Invariant
-- Student GET endpoints (`/api/events/quiz/questions` and `/api/events/quiz/session`) **strip `correct_option_index` and `explanation`** from all question objects before responding.
+### 4.1 How Student Registration Works
+1. **Admin Master Activation:** Super Admin navigates to `/admin/events` and toggles event activation (`is_enabled: true`) and registration status (`registration_open: true`).
+2. **Student Navigation & Discovery:**
+   - Logged-in students access the tournament hub via the **MY EVENT** link in the top navigation bar (`/events`) or the **MY EVENT / Tournaments** card on the student dashboard quick services.
+   - The `/events` catalog presents all active tournaments with institutional badges (`Open`, `Upcoming`, `Completed`).
+3. **Chess Championship Registration:**
+   - On `/events/chess`, candidate clicks **"Register as Participant"**.
+   - Roll number, name, and department are pre-filled from the active student session.
+   - The client invokes `POST /api/events/participants` with `{ event_key: 'chess', user_id, display_name, department }`.
+   - The system checks duplicate prevention and writes to `event_participants` with status `ACCEPTED`.
+   - The UI immediately verifies registration via `GET /api/events/participants?event_key=chess&user_id={id}` and updates the button to **"Registered (Slot Confirmed)"**.
+4. **Technical Quiz Candidate Sitting:**
+   - On `/events/quiz`, candidate enters Roll Number and Name in the verification card and clicks **"Verify & Start Assessment"**.
+   - `POST /api/events/quiz/session` verifies eligibility and opens a timed session (`quiz_sessions`) with server-locked start and expiration timestamps.
+   - Candidate is routed to `/events/quiz/play?session={code}` to complete the assessment.
+
+### 4.2 Participant Lifecycle States
+- `REGISTERED`: Participant submitted registration, awaiting fixture scheduling or organizer approval.
+- `ACCEPTED`: Participant is officially confirmed and paired into tournament fixtures.
+- `REJECTED`: Participant registration was rejected due to department cap or ineligibility.
+- `WITHDRAWN`: Participant withdrew before bracket generation.
+
+---
+
+## 5. Technical Quiz Invariants & Security Standards
+
+### 5.1 Answer Sanitization Invariant
+- Student GET endpoints (`/api/events/quiz/questions` and `/api/events/quiz/session`) **strip `correct_option_index` and `explanation`** from all question objects before transmitting to the client.
 - Answers are evaluated **strictly server-side** in `QuizService.submitQuiz()`.
 
-### 4.2 Server-Authoritative Timer & Autosave
+### 5.2 Server-Authoritative Timer & Autosave
 - When a candidate starts a quiz, `started_at` and `expires_at` (`started_at + duration_minutes`) are locked in `quiz_sessions`.
 - The client receives `remainingSeconds` and synchronizes the countdown timer.
 - Client actions (option selection, clearing, marking for review) are immediately persisted via `POST /api/events/quiz/save-answer`.
-- When time expires, client automatically invokes submission, or the server auto-finalizes if expired during request processing.
+- When time expires, the client automatically invokes submission, or the server auto-finalizes if expired during request processing.
 
-### 4.3 Deterministic Leaderboard Ranking & Tie-Breaking
+### 5.3 Deterministic Leaderboard Ranking
 - Ranking priority:
   1. **Score DESC** (Highest total marks awarded)
   2. **Time Taken ASC** (Lowest seconds spent)
@@ -155,24 +181,62 @@ graph TD
 
 ---
 
-## 5. API Endpoints Map
+## 6. How to Recreate `experiment_college_db`
+
+If the experimental database `experiment_college_db` is dropped or needs to be re-initialized from scratch:
+
+```bash
+# 1-Step Database Recreation & Question Bank Seeding
+npm run events:db:init
+```
+
+Alternatively, invoke the Node.js script directly:
+```bash
+node scripts/init-experiment-db.js
+```
+
+### What the Initialization Script Performs:
+1. Connects to the MySQL/TiDB database server using the connection string from `.env` (`DATABASE_URL` or `EXPERIMENT_DB_URL`).
+2. Executes `CREATE DATABASE IF NOT EXISTS \`experiment_college_db\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`.
+3. Creates generic event tables: `event_configs`, `event_participants`, `event_audit_logs`.
+4. Creates chess tables: `event_matches`, `chess_games`, `chess_moves`.
+5. Creates technical quiz tables: `quiz_questions`, `quiz_sessions`, `quiz_answers`.
+6. Seeds default event configurations for `chess` and `quiz` with `registration_open = TRUE`.
+7. Seeds 10 core computer science and engineering questions across Data Structures, Operating Systems, Computer Networks, Database Management Systems, and System Design into `quiz_questions`.
+
+---
+
+## 7. API Endpoints Map
 
 | Route | Method | Access | Description |
 | :--- | :--- | :--- | :--- |
-| `/api/events/quiz/config` | GET | Public | Returns quiz settings and enabled state |
-| `/api/events/quiz/config` | PUT | Super Admin | Updates quiz parameters and master toggle |
-| `/api/events/quiz/questions` | GET | Public / Admin | Returns questions (sanitized for students, full for admin) |
-| `/api/events/quiz/questions` | POST | Super Admin | Creates new question in question bank |
+| `/api/events/config` | GET / PUT | Public / Admin | Master event configuration and toggles |
+| `/api/events/participants` | GET / POST | Public / Student | Participant registration and single-user status lookup (`?user_id=...`) |
+| `/api/events/participants/[id]` | PUT / DELETE | Super Admin | Manage or reject participant registrations |
+| `/api/events/chess/matches` | GET / POST | Public / Admin | Chess match fixtures and pairing creation |
+| `/api/events/chess/matches/[id]` | GET / PUT | Public / Admin | Match state retrieval and arbiter result verification |
+| `/api/events/quiz/config` | GET / PUT | Public / Admin | Quiz settings and master activation toggle |
+| `/api/events/quiz/questions` | GET / POST | Public / Admin | Question bank (sanitized for students, full for admin) |
 | `/api/events/quiz/questions/[id]` | PUT / DELETE | Super Admin | Updates or deletes an existing question |
 | `/api/events/quiz/session` | POST | Public / Student | Starts or resumes an active quiz session |
 | `/api/events/quiz/save-answer` | POST | Public / Student | Real-time autosave of selected option |
 | `/api/events/quiz/submit` | POST | Public / Student | Server evaluation, scoring, and scorecard generation |
-| `/api/events/quiz/leaderboard` | GET | Public | Returns ranked tournament leaderboard |
+| `/api/events/quiz/leaderboard` | GET | Public | Ranked tournament leaderboard |
 | `/api/events/quiz/admin/sessions` | GET / POST | Super Admin | Lists all student sessions and resets attempts |
 
 ---
 
-## 6. Testing & Build Verification
+## 8. KUCET Institutional UI/UX Design Compliance
+
+The "MY EVENT" tournament module strictly adheres to the authentic KUCET College Management System visual standard:
+- **Palette:** Kakatiya Navy primary (`#002A5C` / `#0b3578`), slate background (`bg-slate-50`), crisp borders (`border-slate-200`).
+- **Typography:** Inter, uppercase tracking (`tracking-[0.18em]`) on section headers, standard table column styling.
+- **Components:** Standard Breadcrumb navigation, institutional metric cards, accessible forms with explicit labels, and standard dialog modals.
+- **Zero AI/Gaming SaaS Patterns:** Prohibits dark neon gradients, floating glassmorphic badges, and non-standard responsive layouts.
+
+---
+
+## 9. Testing & Build Verification
 
 Run unit test suites:
 ```bash
@@ -182,3 +246,4 @@ Run production build:
 ```bash
 npm run build
 ```
+

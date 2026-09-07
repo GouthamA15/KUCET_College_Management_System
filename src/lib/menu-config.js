@@ -10,6 +10,7 @@ export const NAV_MENU_CONFIG = {
     { label: 'ACADEMICS', route: '/student/academics' },
     { label: 'FEES', route: '/student/finances' },
     { label: 'TIME TABLE', route: '/student/timetable' },
+    { label: 'MY EVENT', route: '/events' },
     { label: 'REQUESTS', children: [
         { label: 'Certificates', route: '/student/requests/certificates' }
       ]
