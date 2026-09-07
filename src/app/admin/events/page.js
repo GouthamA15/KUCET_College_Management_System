@@ -2,98 +2,143 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Trophy, Swords, ArrowRight, Sparkles, Zap, Brain } from 'lucide-react';
+import { Trophy, FileQuestion, ArrowRight, ShieldCheck, Layers } from 'lucide-react';
 
 export default function AdminEventsPortalPage() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-          Campus Events & Tournaments
-        </h1>
-        <p className="text-xs text-slate-500 mt-1">
-          Manage collegiate esports, technical symposiums, mind sports, and inter-departmental tournaments.
-        </p>
+    <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
+      {/* Breadcrumb Navigation */}
+      <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+        <Link href="/admin" className="hover:text-slate-700 transition-colors">
+          Super Admin
+        </Link>
+        <span>/</span>
+        <span className="text-slate-800 font-semibold">Events Management</span>
       </div>
 
+      {/* Page Header */}
+      <header className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 border-b border-slate-200 pb-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-800">
+            Campus Events & Tournament Management
+          </h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Super Admin control console for collegiate competitions, technical assessments, and tournament arbitrations.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-[#0b3578] border border-blue-200">
+            <ShieldCheck className="w-3.5 h-3.5" /> Super Admin Access
+          </span>
+        </div>
+      </header>
+
+      {/* Grid of Admin Event Modules */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Chess Event Card */}
-        <div className="bg-gradient-to-br from-[#002A5C] to-[#0b3578] rounded-3xl p-6 text-white shadow-xl flex flex-col justify-between space-y-6">
+        {/* Technical Quiz Console Card */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between space-y-4">
           <div className="space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-amber-300">
-              <Trophy className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-full border border-amber-400/30">
-                Active Module
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-[#0b3578] border border-blue-200">
+                Technical Assessment
               </span>
-              <h2 className="text-xl font-black mt-2">
+              <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Configurable
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-lg bg-blue-50 text-[#0b3578] flex items-center justify-center">
+                <FileQuestion className="w-5 h-5" />
+              </div>
+              <h2 className="text-base font-semibold text-gray-800">
+                Technical Quiz Console
+              </h2>
+            </div>
+
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Question bank authoring, time limit and negative marking controls, candidate attempt resets, and real-time standings monitoring.
+            </p>
+          </div>
+
+          <div className="pt-2 border-t border-slate-100">
+            <Link
+              href="/admin/events/quiz"
+              className="inline-flex items-center justify-between w-full px-4 py-2.5 rounded-lg bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs font-medium transition-colors shadow-xs"
+            >
+              <span>Manage Technical Quiz</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+
+        {/* Chess Tournament Console Card */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between space-y-4">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                Mind Sports League
+              </span>
+              <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Configurable
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-800 flex items-center justify-center">
+                <Trophy className="w-5 h-5 text-amber-600" />
+              </div>
+              <h2 className="text-base font-semibold text-gray-800">
                 Chess Championship
               </h2>
-              <p className="text-xs text-blue-100/80 mt-1 leading-relaxed">
-                FIDE rapid rules, dynamic match fixtures, live interactive chessboard, and arbitrated result verification.
-              </p>
             </div>
+
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Contender roster approval, single-elimination bracket pairing, live interactive move auditor, and official score verification.
+            </p>
           </div>
 
-          <Link
-            href="/admin/events/chess"
-            className="inline-flex items-center justify-between w-full px-4 py-3 rounded-2xl bg-white text-slate-950 text-xs font-extrabold uppercase tracking-wider hover:bg-amber-300 transition-colors shadow-md cursor-pointer"
-          >
-            <span>Manage Chess Event</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
+          <div className="pt-2 border-t border-slate-100">
+            <Link
+              href="/admin/events/chess"
+              className="inline-flex items-center justify-between w-full px-4 py-2.5 rounded-lg bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs font-medium transition-colors shadow-xs"
+            >
+              <span>Manage Chess Event</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
 
-        {/* Technical Quiz Event Card */}
-        <div className="bg-gradient-to-br from-indigo-900 via-blue-900 to-slate-900 rounded-3xl p-6 text-white shadow-xl flex flex-col justify-between space-y-6">
+        {/* Modular Expansion Placeholder */}
+        <div className="bg-white rounded-xl border border-dashed border-slate-300 p-6 shadow-xs flex flex-col justify-between space-y-4 opacity-75">
           <div className="space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-cyan-300">
-              <Zap className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-300 bg-cyan-400/20 px-2 py-0.5 rounded-full border border-cyan-400/30">
-                Active Module
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                Expansion Slot
               </span>
-              <h2 className="text-xl font-black mt-2">
-                Technical Quiz
-              </h2>
-              <p className="text-xs text-blue-100/80 mt-1 leading-relaxed">
-                Question bank CRUD, timer & negative marking rules, live leaderboard calculation, and student session auditor.
-              </p>
+              <span className="text-xs font-medium text-slate-400">
+                Future Module
+              </span>
             </div>
+
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center">
+                <Layers className="w-5 h-5" />
+              </div>
+              <h2 className="text-base font-semibold text-slate-700">
+                Multiplayer Game Slot
+              </h2>
+            </div>
+
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Modular tournament slot reserved for upcoming college symposium games (Carrom, Coding Hackathons, Debate).
+            </p>
           </div>
 
-          <Link
-            href="/admin/events/quiz"
-            className="inline-flex items-center justify-between w-full px-4 py-3 rounded-2xl bg-white text-slate-950 text-xs font-extrabold uppercase tracking-wider hover:bg-cyan-300 transition-colors shadow-md cursor-pointer"
-          >
-            <span>Manage Technical Quiz</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-
-        {/* Future Game Scaffolding Placeholders */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col justify-between space-y-6 opacity-70">
-          <div className="space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
-              <Sparkles className="w-6 h-6" />
+          <div className="pt-2 border-t border-slate-100">
+            <div className="py-2 px-3 rounded-lg bg-slate-100 text-center text-xs font-medium text-slate-500">
+              Module Inactive
             </div>
-            <div>
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-                Coming Soon
-              </span>
-              <h2 className="text-xl font-bold text-slate-700 dark:text-slate-300 mt-2">
-                Future Tournament 3
-              </h2>
-              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                Modular slot reserved for upcoming competitive games and mind sports.
-              </p>
-            </div>
-          </div>
-
-          <div className="py-2.5 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-center text-xs font-bold text-slate-400">
-            Modular Slot Inactive
           </div>
         </div>
       </div>

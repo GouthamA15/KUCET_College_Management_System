@@ -2,7 +2,7 @@ import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
-import logger from '@/lib/logger';
+import logger from '../../../lib/logger';
 
 // Load environment variables if not already loaded
 const envPath = path.resolve(process.cwd(), '.env.local');

@@ -17,9 +17,9 @@ import {
   ArrowRight,
   Home,
   Check,
-  Zap,
   Info,
   Layers,
+  Award
 } from 'lucide-react';
 
 export default function QuizPlayerView({
@@ -173,7 +173,7 @@ export default function QuizPlayerView({
     }
   };
 
-  // Toggle Mark for Review
+  // Toggle mark for review
   const handleToggleReview = async () => {
     if (!currentQ || scorecard) return;
 
@@ -215,7 +215,9 @@ export default function QuizPlayerView({
   const reviewCount = Object.values(answers).filter((a) => a?.is_marked_for_review).length;
   const unansweredCount = questions.length - answeredCount;
 
-  // Render Completed Scorecard View
+  // ==========================================
+  // RENDER COMPLETED SCORECARD VIEW
+  // ==========================================
   if (scorecard) {
     const s = scorecard.session || session;
     const finalScore = parseFloat(s.score) || 0;
@@ -224,109 +226,124 @@ export default function QuizPlayerView({
     const isPassed = percentage >= 50;
 
     return (
-      <div className="max-w-4xl mx-auto py-8 px-4 space-y-8 animate-fade-in">
-        {/* Scorecard Hero Banner */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#002A5C] via-[#0b3578] to-[#1e498c] p-8 text-white shadow-2xl">
-          <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-6 translate-y-6">
-            <Trophy className="w-64 h-64" />
-          </div>
+      <div className="w-full max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6 text-sm">
+        {/* Breadcrumbs */}
+        <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+          <Link href="/" className="hover:text-slate-700 transition-colors">
+            KUCET CMS
+          </Link>
+          <span>/</span>
+          <Link href="/events" className="hover:text-slate-700 transition-colors">
+            Campus Events
+          </Link>
+          <span>/</span>
+          <Link href="/events/quiz" className="hover:text-slate-700 transition-colors">
+            Technical Quiz
+          </Link>
+          <span>/</span>
+          <span className="text-slate-800 font-semibold">Scorecard</span>
+        </div>
 
-          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="space-y-2 text-center md:text-left">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-bold uppercase tracking-wider border border-amber-400/30">
-                <Trophy className="w-3.5 h-3.5" /> Official Result Card
-              </div>
-              <h1 className="text-3xl font-black tracking-tight">
-                {isPassed ? 'Congratulations! 🎉' : 'Assessment Completed'}
+        {/* Scorecard Header Card */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+            <div>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-[#0b3578] border border-blue-200 mb-2">
+                <Award className="w-3.5 h-3.5" /> Official Assessment Scorecard
+              </span>
+              <h1 className="text-2xl font-semibold text-gray-800">
+                Technical Quiz Assessment Report
               </h1>
-              <p className="text-xs sm:text-sm text-blue-100/90 max-w-md">
-                Candidate: <span className="font-bold text-white">{s.display_name}</span> ({s.user_id})
+              <p className="text-xs text-gray-600 mt-1">
+                Candidate: <span className="font-semibold text-gray-800">{s.display_name}</span> • Roll No:{' '}
+                <span className="font-mono font-semibold text-gray-800">{s.user_id}</span>
                 {s.department ? ` • Dept: ${s.department}` : ''}
               </p>
             </div>
 
-            <div className="flex flex-col items-center justify-center p-6 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 text-center min-w-[200px]">
-              <span className="text-xs uppercase font-extrabold tracking-wider text-blue-200">
-                Final Score
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center min-w-[180px]">
+              <span className="text-xs text-slate-500 uppercase font-semibold block">Total Score</span>
+              <div className="text-3xl font-bold text-[#0b3578] mt-0.5">
+                {finalScore.toFixed(1)} <span className="text-sm font-normal text-slate-500">/ {maxScore.toFixed(1)}</span>
+              </div>
+              <span
+                className={`inline-block mt-1 text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
+                  isPassed
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-slate-100 text-slate-700 border-slate-200'
+                }`}
+              >
+                {percentage.toFixed(1)}% ({isPassed ? 'Qualified' : 'Completed'})
               </span>
-              <div className="text-4xl font-black text-amber-300 mt-1">
-                {finalScore.toFixed(1)} <span className="text-lg text-white/80">/ {maxScore.toFixed(1)}</span>
+            </div>
+          </div>
+
+          {/* Metric Tiles Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-5">
+            <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="flex items-center gap-2 text-emerald-700 mb-1">
+                <CheckCircle2 className="w-4 h-4" />
+                <span className="text-xs font-semibold">Correct</span>
               </div>
-              <div className="text-xs font-bold text-emerald-300 mt-1">
-                {percentage.toFixed(1)}% Accuracy
+              <p className="text-2xl font-bold text-slate-800">{s.total_correct || 0}</p>
+            </div>
+
+            <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="flex items-center gap-2 text-rose-700 mb-1">
+                <XCircle className="w-4 h-4" />
+                <span className="text-xs font-semibold">Incorrect</span>
               </div>
+              <p className="text-2xl font-bold text-slate-800">{s.total_incorrect || 0}</p>
             </div>
-          </div>
-        </div>
 
-        {/* Key Metrics Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
-              <CheckCircle2 className="w-6 h-6" />
+            <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="flex items-center gap-2 text-slate-600 mb-1">
+                <HelpCircle className="w-4 h-4" />
+                <span className="text-xs font-semibold">Unanswered</span>
+              </div>
+              <p className="text-2xl font-bold text-slate-800">{s.total_unanswered || 0}</p>
             </div>
-            <div>
-              <p className="text-xs text-slate-500 font-semibold">Correct</p>
-              <p className="text-xl font-bold text-slate-900 dark:text-white">{s.total_correct || 0}</p>
-            </div>
-          </div>
 
-          <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center">
-              <XCircle className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-500 font-semibold">Incorrect</p>
-              <p className="text-xl font-bold text-slate-900 dark:text-white">{s.total_incorrect || 0}</p>
-            </div>
-          </div>
-
-          <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 flex items-center justify-center">
-              <HelpCircle className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-500 font-semibold">Unanswered</p>
-              <p className="text-xl font-bold text-slate-900 dark:text-white">{s.total_unanswered || 0}</p>
-            </div>
-          </div>
-
-          <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center">
-              <Clock className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-500 font-semibold">Time Taken</p>
-              <p className="text-xl font-bold text-slate-900 dark:text-white">
+            <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="flex items-center gap-2 text-[#0b3578] mb-1">
+                <Clock className="w-4 h-4" />
+                <span className="text-xs font-semibold">Time Taken</span>
+              </div>
+              <p className="text-2xl font-bold text-slate-800 font-mono">
                 {Math.floor((s.time_taken_seconds || 0) / 60)}m {(s.time_taken_seconds || 0) % 60}s
               </p>
             </div>
           </div>
+
+          {/* Actions Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-5 mt-5 border-t border-slate-200">
+            <Link
+              href="/events"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-medium transition-colors"
+            >
+              <Home className="w-4 h-4" /> Return to Events Hub
+            </Link>
+
+            <Link
+              href="/events/quiz/leaderboard"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs font-medium transition-colors shadow-xs"
+            >
+              <Trophy className="w-4 h-4 text-amber-300" /> View Tournament Standings <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
 
-        {/* Navigation Buttons */}
-        <div className="flex flex-wrap gap-4 items-center justify-between pt-2">
-          <Link
-            href="/events"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold hover:bg-slate-300 dark:hover:bg-slate-700 transition"
-          >
-            <Home className="w-4 h-4" /> Return to Events Hub
-          </Link>
-
-          <Link
-            href="/events/quiz/leaderboard"
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 text-xs font-extrabold uppercase tracking-wider shadow-lg hover:from-amber-400 hover:to-amber-500 transition"
-          >
-            <Trophy className="w-4 h-4" /> View Live Tournament Leaderboard <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-
-        {/* Question Solutions Breakdown */}
+        {/* Detailed Solutions Breakdown */}
         {scorecard.breakdown && (
-          <div className="space-y-4 pt-4">
-            <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Layers className="w-5 h-5 text-blue-600" /> Solutions & Explanation Breakdown
-            </h2>
+          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
+            <div className="border-b border-slate-200 pb-3">
+              <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+                <Layers className="w-4 h-4 text-[#0b3578]" /> Solutions & Evaluation Breakdown
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Review verified correct answers, your submitted selections, and question rationales.
+              </p>
+            </div>
 
             <div className="space-y-4">
               {scorecard.breakdown.map((item, idx) => {
@@ -336,82 +353,73 @@ export default function QuizPlayerView({
                 return (
                   <div
                     key={item.question_id || idx}
-                    className={`
-                      p-6 rounded-2xl border transition-all
-                      ${
-                        isCorrect
-                          ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/60'
-                          : isSkipped
-                          ? 'bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800'
-                          : 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/60'
-                      }
-                    `}
+                    className="p-4 rounded-lg border border-slate-200 bg-slate-50/50 space-y-3"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-bold text-slate-500">Q{idx + 1}</span>
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                        <span className="text-xs font-bold text-slate-700">Question {idx + 1}</span>
+                        <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
                           {item.category}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div>
                         {isCorrect ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950 px-2.5 py-1 rounded-full">
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
                             <CheckCircle2 className="w-3.5 h-3.5" /> +{item.marks_awarded} Marks
                           </span>
                         ) : isSkipped ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 bg-slate-200 dark:bg-slate-800 px-2.5 py-1 rounded-full">
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full">
                             Unanswered (0.0)
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-950 px-2.5 py-1 rounded-full">
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full">
                             <XCircle className="w-3.5 h-3.5" /> {item.marks_awarded} Marks
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-white leading-relaxed">
+                    <p className="text-sm font-semibold text-gray-800 leading-relaxed">
                       {item.question_text}
                     </p>
 
                     {/* Options list */}
-                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                       {item.options?.map((opt, optIdx) => {
                         const isUserChoice = item.selected_option_index === optIdx;
                         const isCorrectOption = item.correct_option_index === optIdx;
 
-                        let optClass = 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
+                        let optClass = 'bg-white border-slate-200 text-slate-700';
                         if (isCorrectOption) {
-                          optClass = 'bg-emerald-100 dark:bg-emerald-950/80 border-emerald-500 text-emerald-900 dark:text-emerald-100 font-bold';
+                          optClass = 'bg-emerald-50 border-emerald-400 text-emerald-900 font-semibold';
                         } else if (isUserChoice && !isCorrectOption) {
-                          optClass = 'bg-rose-100 dark:bg-rose-950/80 border-rose-500 text-rose-900 dark:text-rose-100 line-through';
+                          optClass = 'bg-rose-50 border-rose-300 text-rose-900 line-through';
                         }
 
                         return (
                           <div
                             key={optIdx}
-                            className={`p-3 rounded-xl border text-xs flex items-center justify-between ${optClass}`}
+                            className={`p-2.5 rounded-lg border text-xs flex items-center justify-between ${optClass}`}
                           >
                             <div className="flex items-center gap-2">
-                              <span className="w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200">
+                              <span className="w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] bg-slate-100 text-slate-700 border border-slate-200">
                                 {String.fromCharCode(65 + optIdx)}
                               </span>
                               <span>{opt}</span>
                             </div>
-                            {isCorrectOption && <Check className="w-4 h-4 text-emerald-600" />}
-                            {isUserChoice && !isCorrectOption && <XCircle className="w-4 h-4 text-rose-600" />}
+                            {isCorrectOption && <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
+                            {isUserChoice && !isCorrectOption && <XCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />}
                           </div>
                         );
                       })}
                     </div>
 
                     {item.explanation && (
-                      <div className="mt-4 p-3 bg-blue-50/60 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-900/60 text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2">
-                        <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                      <div className="p-3 bg-blue-50/60 rounded-lg border border-blue-200 text-xs text-[#0b3578] flex items-start gap-2">
+                        <Info className="w-4 h-4 text-[#0b3578] shrink-0 mt-0.5" />
                         <div>
-                          <span className="font-bold">Explanation: </span>
+                          <span className="font-semibold">Explanation: </span>
                           <span>{item.explanation}</span>
                         </div>
                       </div>
@@ -426,7 +434,9 @@ export default function QuizPlayerView({
     );
   }
 
-  // Active Quiz Playing View
+  // ==========================================
+  // ACTIVE QUIZ PLAYING VIEW
+  // ==========================================
   const currentAnswer = currentQ ? answers[currentQ.id] : null;
   const isMarked = Boolean(currentAnswer?.is_marked_for_review);
   const selectedIndex = currentAnswer?.selected_option_index;
@@ -434,32 +444,29 @@ export default function QuizPlayerView({
   const isTimerCritical = remainingTime <= 120; // 2 minutes or less
 
   return (
-    <div className="max-w-7xl mx-auto py-4 px-3 sm:px-6 space-y-4">
+    <div className="w-full max-w-6xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-4 text-sm">
       {/* Top Header Bar */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950 text-blue-600 flex items-center justify-center">
-            <Zap className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-base font-black text-slate-900 dark:text-white leading-tight">
-              Technical Symposium Quiz
-            </h1>
-            <p className="text-xs text-slate-500">
-              Candidate: <span className="font-semibold text-slate-700 dark:text-slate-300">{session?.display_name}</span> ({session?.user_id})
-            </p>
-          </div>
+      <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-base font-semibold text-gray-800">
+            Technical Quiz Assessment Arena
+          </h1>
+          <p className="text-xs text-gray-600">
+            Candidate: <span className="font-semibold text-gray-800">{session?.display_name}</span> (
+            <span className="font-mono">{session?.user_id}</span>)
+            {session?.department ? ` • Dept: ${session?.department}` : ''}
+          </p>
         </div>
 
-        {/* Center: Save Status & Timer */}
-        <div className="flex items-center gap-3">
+        {/* Center/Right: Timer, Autosave, Submit */}
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
           {saveStatus === 'saving' && (
-            <span className="text-[11px] font-semibold text-amber-500 animate-pulse hidden sm:inline">
+            <span className="text-xs font-medium text-amber-600 animate-pulse hidden md:inline">
               Autosaving...
             </span>
           )}
           {saveStatus === 'saved' && (
-            <span className="text-[11px] font-semibold text-emerald-600 hidden sm:inline flex items-center gap-1">
+            <span className="text-xs font-medium text-emerald-600 hidden md:inline flex items-center gap-1">
               <Check className="w-3 h-3" /> Saved
             </span>
           )}
@@ -467,21 +474,21 @@ export default function QuizPlayerView({
           {/* Countdown Clock */}
           <div
             className={`
-              flex items-center gap-2 px-4 py-2 rounded-xl font-mono text-sm font-black transition-colors
+              flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-sm font-semibold transition-colors
               ${
                 isTimerCritical
-                  ? 'bg-rose-100 dark:bg-rose-950/80 text-rose-600 dark:text-rose-300 border border-rose-300 animate-pulse'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700'
+                  ? 'bg-rose-50 text-rose-700 border border-rose-300 animate-pulse'
+                  : 'bg-slate-50 text-slate-800 border border-slate-200'
               }
             `}
           >
-            <Clock className={`w-4 h-4 ${isTimerCritical ? 'text-rose-600' : 'text-blue-600'}`} />
+            <Clock className={`w-4 h-4 ${isTimerCritical ? 'text-rose-600' : 'text-[#0b3578]'}`} />
             <span>{formatTime(remainingTime)}</span>
           </div>
 
           <button
             onClick={() => setShowConfirmModal(true)}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold uppercase tracking-wider shadow-md transition flex items-center gap-1.5 cursor-pointer"
+            className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
           >
             <Send className="w-3.5 h-3.5" /> Submit Quiz
           </button>
@@ -491,35 +498,35 @@ export default function QuizPlayerView({
       {/* Main Arena Layout: Split View */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: Active Question Workspace (8 cols) */}
-        <div className="lg:col-span-8 bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-md space-y-6">
+        <div className="lg:col-span-8 bg-white rounded-xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-5">
           {currentQ ? (
             <>
               {/* Question Header Meta */}
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 flex-wrap gap-2">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200 flex-wrap gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-black px-3 py-1 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
+                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded bg-blue-50 text-[#0b3578] border border-blue-200">
                     Question {currentQuestionIndex + 1} of {questions.length}
                   </span>
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                  <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
                     {currentQ.category}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-                  <span className="text-emerald-600 dark:text-emerald-400">+{currentQ.marks} Marks</span>
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                  <span className="text-emerald-700">+{currentQ.marks} Marks</span>
                   {currentQ.negative_marks > 0 && (
-                    <span className="text-rose-500 dark:text-rose-400">(-{currentQ.negative_marks} Neg)</span>
+                    <span className="text-rose-600">(-{currentQ.negative_marks} Neg)</span>
                   )}
                 </div>
               </div>
 
               {/* Question Text */}
-              <div className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-relaxed font-sans">
+              <div className="text-base font-semibold text-gray-800 leading-relaxed font-sans">
                 {currentQ.question_text}
               </div>
 
               {/* Options Selection List */}
-              <div className="space-y-3 pt-2">
+              <div className="space-y-2.5 pt-1">
                 {currentQ.options?.map((optText, optIdx) => {
                   const isSelected = selectedIndex === optIdx;
 
@@ -529,41 +536,41 @@ export default function QuizPlayerView({
                       type="button"
                       onClick={() => handleSelectOption(optIdx)}
                       className={`
-                        w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center justify-between gap-4 cursor-pointer
+                        w-full text-left p-3.5 rounded-lg border transition-colors flex items-center justify-between gap-3 text-sm cursor-pointer
                         ${
                           isSelected
-                            ? 'bg-blue-50/80 dark:bg-blue-950/50 border-blue-600 text-slate-900 dark:text-white shadow-sm ring-1 ring-blue-600'
-                            : 'bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                            ? 'bg-blue-50/70 border-[#0b3578] text-[#0b3578] ring-1 ring-[#0b3578] font-medium'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                         }
                       `}
                     >
                       <div className="flex items-center gap-3">
                         <span
                           className={`
-                            w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs transition-colors
+                            w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs transition-colors
                             ${
                               isSelected
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                ? 'bg-[#0b3578] text-white'
+                                : 'bg-slate-100 text-slate-700 border border-slate-200'
                             }
                           `}
                         >
                           {String.fromCharCode(65 + optIdx)}
                         </span>
-                        <span className="text-sm font-medium leading-relaxed">{optText}</span>
+                        <span className="leading-relaxed">{optText}</span>
                       </div>
 
                       <div
                         className={`
-                          w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors
+                          w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-colors
                           ${
                             isSelected
-                              ? 'border-blue-600 bg-blue-600 text-white'
-                              : 'border-slate-300 dark:border-slate-600'
+                              ? 'border-[#0b3578] bg-[#0b3578]'
+                              : 'border-slate-300'
                           }
                         `}
                       >
-                        {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                        {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                       </div>
                     </button>
                   );
@@ -571,21 +578,21 @@ export default function QuizPlayerView({
               </div>
 
               {/* Question Action Controls */}
-              <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+              <div className="pt-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={handleToggleReview}
                     className={`
-                      px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer
+                      px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer border
                       ${
                         isMarked
-                          ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                          ? 'bg-amber-50 text-amber-800 border-amber-300'
+                          : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                       }
                     `}
                   >
-                    <Bookmark className={`w-3.5 h-3.5 ${isMarked ? 'fill-amber-500' : ''}`} />
+                    <Bookmark className={`w-3.5 h-3.5 ${isMarked ? 'fill-amber-600 text-amber-600' : ''}`} />
                     {isMarked ? 'Marked for Review' : 'Mark for Review'}
                   </button>
 
@@ -593,9 +600,9 @@ export default function QuizPlayerView({
                     <button
                       type="button"
                       onClick={handleClearAnswer}
-                      className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors flex items-center gap-1 cursor-pointer"
                     >
-                      <RotateCcw className="w-3.5 h-3.5" /> Clear Response
+                      <RotateCcw className="w-3.5 h-3.5" /> Clear
                     </button>
                   )}
                 </div>
@@ -605,7 +612,7 @@ export default function QuizPlayerView({
                     type="button"
                     disabled={currentQuestionIndex === 0}
                     onClick={() => handleJumpToQuestion(Math.max(0, currentQuestionIndex - 1))}
-                    className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1 cursor-pointer"
+                    className="px-3.5 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 text-xs font-medium hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1 cursor-pointer"
                   >
                     <ChevronLeft className="w-4 h-4" /> Previous
                   </button>
@@ -614,7 +621,7 @@ export default function QuizPlayerView({
                     type="button"
                     disabled={currentQuestionIndex === questions.length - 1}
                     onClick={() => handleJumpToQuestion(Math.min(questions.length - 1, currentQuestionIndex + 1))}
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1 cursor-pointer shadow-sm"
+                    className="px-3.5 py-1.5 rounded-lg bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1 cursor-pointer shadow-xs"
                   >
                     Next <ChevronRight className="w-4 h-4" />
                   </button>
@@ -622,62 +629,64 @@ export default function QuizPlayerView({
               </div>
             </>
           ) : (
-            <div className="text-center py-12 text-slate-400">No questions available.</div>
+            <div className="text-center py-12 text-slate-400">No questions available in this assessment.</div>
           )}
         </div>
 
         {/* Right Column: Question Palette / Navigator (4 cols) */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-md space-y-6">
-          <div>
-            <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+        <div className="lg:col-span-4 bg-white rounded-xl p-5 border border-slate-200 shadow-sm space-y-4">
+          <div className="border-b border-slate-200 pb-2">
+            <h2 className="text-sm font-semibold text-gray-800">
               Question Navigator
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">Click any number to jump directly.</p>
+            <p className="text-xs text-slate-500 mt-0.5">Click any question number to navigate directly.</p>
           </div>
 
           {/* Quick Metrics Summary */}
           <div className="grid grid-cols-3 gap-2 text-center text-xs">
-            <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900">
-              <span className="block font-black text-emerald-600 dark:text-emerald-400 text-base">
+            <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+              <span className="block font-bold text-emerald-700 text-sm">
                 {answeredCount}
               </span>
-              <span className="text-[10px] text-emerald-800 dark:text-emerald-300 font-bold">Answered</span>
+              <span className="text-[10px] text-emerald-800 font-medium">Answered</span>
             </div>
 
-            <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900">
-              <span className="block font-black text-amber-600 dark:text-amber-400 text-base">
+            <div className="p-2 rounded-lg bg-amber-50 border border-amber-200">
+              <span className="block font-bold text-amber-700 text-sm">
                 {reviewCount}
               </span>
-              <span className="text-[10px] text-amber-800 dark:text-amber-300 font-bold">Review</span>
+              <span className="text-[10px] text-amber-800 font-medium">Review</span>
             </div>
 
-            <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-              <span className="block font-black text-slate-600 dark:text-slate-300 text-base">
+            <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
+              <span className="block font-bold text-slate-700 text-sm">
                 {unansweredCount}
               </span>
-              <span className="text-[10px] text-slate-500 font-bold">Unanswered</span>
+              <span className="text-[10px] text-slate-600 font-medium">Unanswered</span>
             </div>
           </div>
 
-          {/* Grid Palette */}
-          <div className="grid grid-cols-5 gap-2.5 pt-2">
+          {/* Question Grid Buttons */}
+          <div className="grid grid-cols-5 gap-2 pt-2">
             {questions.map((q, idx) => {
               const ans = answers[q.id];
               const isAnswered = ans?.selected_option_index !== null && ans?.selected_option_index !== undefined;
               const isMarkedReview = Boolean(ans?.is_marked_for_review);
-              const isCurrent = idx === currentQuestionIndex;
+              const isCurrent = currentQuestionIndex === idx;
               const isVisited = visitedIndices.has(idx);
 
-              let btnClass = 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700';
+              let btnStyle = 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100';
 
-              if (isAnswered && isMarkedReview) {
-                btnClass = 'bg-purple-600 text-white border-purple-700 ring-2 ring-amber-400';
+              if (isMarkedReview) {
+                btnStyle = 'bg-amber-50 text-amber-800 border-amber-300 font-semibold';
               } else if (isAnswered) {
-                btnClass = 'bg-emerald-600 text-white border-emerald-700 shadow-sm';
-              } else if (isMarkedReview) {
-                btnClass = 'bg-amber-500 text-slate-950 font-black border-amber-600 shadow-sm';
+                btnStyle = 'bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold';
               } else if (isVisited) {
-                btnClass = 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-300 dark:border-rose-900';
+                btnStyle = 'bg-slate-100 text-slate-700 border-slate-300';
+              }
+
+              if (isCurrent) {
+                btnStyle = 'bg-[#0b3578] text-white border-[#0b3578] font-bold shadow-xs';
               }
 
               return (
@@ -685,95 +694,92 @@ export default function QuizPlayerView({
                   key={q.id || idx}
                   type="button"
                   onClick={() => handleJumpToQuestion(idx)}
-                  className={`
-                    h-11 rounded-xl text-xs font-black transition-all relative flex items-center justify-center cursor-pointer border
-                    ${btnClass}
-                    ${isCurrent ? 'ring-2 ring-offset-2 ring-blue-600 scale-105' : 'hover:scale-105'}
-                  `}
+                  className={`h-9 rounded-lg text-xs border transition-colors flex items-center justify-center cursor-pointer ${btnStyle}`}
                 >
                   {idx + 1}
-                  {isMarkedReview && (
-                    <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-300" />
-                  )}
                 </button>
               );
             })}
           </div>
 
-          {/* Legend */}
-          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2 text-[11px] text-slate-500">
-            <div className="flex items-center gap-2">
-              <span className="w-3.5 h-3.5 rounded-md bg-emerald-600 shrink-0" />
+          {/* Palette Legend */}
+          <div className="pt-3 border-t border-slate-200 grid grid-cols-2 gap-2 text-[11px] text-slate-600">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
               <span>Answered</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3.5 h-3.5 rounded-md bg-amber-500 shrink-0" />
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
               <span>Marked for Review</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3.5 h-3.5 rounded-md bg-rose-100 dark:bg-rose-950 border border-rose-300 shrink-0" />
-              <span>Visited (Unanswered)</span>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#0b3578] shrink-0" />
+              <span>Current Question</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3.5 h-3.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-300 shrink-0" />
-              <span>Not Visited</span>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-slate-300 shrink-0" />
+              <span>Not Answered</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Submit Confirmation Modal */}
+      {/* Final Submission Confirmation Modal */}
       {showConfirmModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-6 animate-scale-in">
-            <div className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center mx-auto">
-              <AlertCircle className="w-7 h-7" />
-            </div>
-
-            <div className="text-center space-y-2">
-              <h3 className="text-xl font-black text-slate-900 dark:text-white">
-                Submit Technical Quiz?
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-xl border border-slate-200 p-6 max-w-md w-full shadow-lg space-y-4">
+            <div className="flex items-center gap-2 text-[#0b3578]">
+              <AlertCircle className="w-5 h-5" />
+              <h3 className="text-base font-semibold text-gray-800">
+                Confirm Final Submission
               </h3>
-              <p className="text-xs text-slate-500">
-                You will not be able to change your answers once finalized.
-              </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
-              <div className="flex justify-between font-medium">
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Are you sure you want to submit your assessment? Once submitted, your answers will be evaluated and locked permanently.
+            </p>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2 text-xs">
+              <div className="flex justify-between">
                 <span className="text-slate-500">Total Questions:</span>
-                <span className="font-bold text-slate-900 dark:text-white">{questions.length}</span>
+                <span className="font-bold text-slate-800">{questions.length}</span>
               </div>
-              <div className="flex justify-between font-medium">
-                <span className="text-slate-500">Answered Questions:</span>
-                <span className="font-bold text-emerald-600">{answeredCount}</span>
+              <div className="flex justify-between">
+                <span className="text-emerald-700">Answered Questions:</span>
+                <span className="font-bold text-emerald-700">{answeredCount}</span>
               </div>
-              <div className="flex justify-between font-medium">
-                <span className="text-slate-500">Marked for Review:</span>
-                <span className="font-bold text-amber-600">{reviewCount}</span>
+              <div className="flex justify-between">
+                <span className="text-amber-700">Marked for Review:</span>
+                <span className="font-bold text-amber-700">{reviewCount}</span>
               </div>
-              <div className="flex justify-between font-medium">
+              <div className="flex justify-between">
                 <span className="text-slate-500">Unanswered Questions:</span>
-                <span className="font-bold text-rose-500">{unansweredCount}</span>
+                <span className="font-bold text-slate-800">{unansweredCount}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
-                disabled={isSubmitting}
                 onClick={() => setShowConfirmModal(false)}
-                className="w-1/2 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold transition cursor-pointer"
+                className="px-4 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 text-xs font-medium hover:bg-slate-50 transition-colors cursor-pointer"
               >
-                Continue Quiz
+                Back to Questions
               </button>
+
               <button
                 type="button"
                 disabled={isSubmitting}
                 onClick={handleSubmit}
-                className="w-1/2 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-wider shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
+                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
-                {isSubmitting ? 'Evaluating...' : 'Yes, Submit'}
+                {isSubmitting ? (
+                  'Submitting...'
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5" /> Confirm & Submit
+                  </>
+                )}
               </button>
             </div>
           </div>

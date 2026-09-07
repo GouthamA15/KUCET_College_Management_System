@@ -1,6 +1,6 @@
 import mysql from 'mysql2/promise';
 import { getExperimentDbConfig, getExperimentDb } from './connection';
-import logger from '@/lib/logger';
+import logger from '../../../lib/logger';
 
 let isInitialized = false;
 

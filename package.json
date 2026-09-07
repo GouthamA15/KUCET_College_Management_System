@@ -15,6 +15,7 @@
     "db:rotate-keys": "tsx src/db/rotate-keys.js",
     "db:archive": "tsx src/db/archive-verifications.js",
     "db:studio": "drizzle-kit studio",
+    "events:db:init": "tsx scripts/init-experiment-db.js",
     "test:unit": "vitest run",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
