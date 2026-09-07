@@ -7,6 +7,7 @@ import {
   boolean,
   datetime,
   timestamp,
+  decimal,
   uniqueIndex,
   index
 } from 'drizzle-orm/mysql-core';
@@ -164,4 +165,86 @@ export const eventAuditLogs = mysqlTable('event_audit_logs', {
   created_at: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
   eventAuditIdx: index('event_audit_key_idx').on(table.event_key, table.action),
+}));
+
+/**
+ * Quiz Questions Table
+ * Question bank for technical quiz events.
+ */
+export const quizQuestions = mysqlTable('quiz_questions', {
+  id: int('id').primaryKey().autoincrement(),
+  event_key: varchar('event_key', { length: 64 }).notNull().default('quiz'),
+  question_text: text('question_text').notNull(),
+  options_json: json('options_json').notNull(), // Array of strings: ["Option A", "Option B", "Option C", "Option D"]
+  correct_option_index: int('correct_option_index').notNull(), // 0, 1, 2, or 3
+  explanation: text('explanation'),
+  marks: decimal('marks', { precision: 5, scale: 2 }).notNull().default('1.00'),
+  negative_marks: decimal('negative_marks', { precision: 5, scale: 2 }).notNull().default('0.00'),
+  category: varchar('category', { length: 64 }).notNull().default('Computer Science'),
+  difficulty: varchar('difficulty', { length: 32 }).notNull().default('MEDIUM'), // 'EASY' | 'MEDIUM' | 'HARD'
+  question_order: int('question_order').notNull().default(0),
+  is_active: boolean('is_active').notNull().default(true),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  quizEventIdx: index('quiz_questions_event_idx').on(table.event_key, table.is_active),
+  quizCategoryIdx: index('quiz_questions_category_idx').on(table.category),
+}));
+
+/**
+ * Quiz Sessions Table
+ * Represents a student/participant's test sitting.
+ */
+export const quizSessions = mysqlTable('quiz_sessions', {
+  id: int('id').primaryKey().autoincrement(),
+  event_key: varchar('event_key', { length: 64 }).notNull().default('quiz'),
+  session_code: varchar('session_code', { length: 64 }).notNull(),
+  user_id: varchar('user_id', { length: 64 }).notNull(),
+  user_type: varchar('user_type', { length: 32 }).notNull().default('student'),
+  display_name: varchar('display_name', { length: 128 }).notNull(),
+  department: varchar('department', { length: 64 }),
+  email: varchar('email', { length: 128 }),
+  status: varchar('status', { length: 32 }).notNull().default('IN_PROGRESS'), // 'IN_PROGRESS' | 'SUBMITTED' | 'EXPIRED' | 'DISQUALIFIED'
+  total_questions: int('total_questions').notNull().default(0),
+  total_attempted: int('total_attempted').notNull().default(0),
+  total_correct: int('total_correct').notNull().default(0),
+  total_incorrect: int('total_incorrect').notNull().default(0),
+  total_unanswered: int('total_unanswered').notNull().default(0),
+  score: decimal('score', { precision: 6, scale: 2 }).notNull().default('0.00'),
+  max_possible_score: decimal('max_possible_score', { precision: 6, scale: 2 }).notNull().default('0.00'),
+  percentage: decimal('percentage', { precision: 5, scale: 2 }).notNull().default('0.00'),
+  started_at: datetime('started_at').notNull(),
+  expires_at: datetime('expires_at').notNull(),
+  submitted_at: datetime('submitted_at'),
+  time_taken_seconds: int('time_taken_seconds').notNull().default(0),
+  ip_address: varchar('ip_address', { length: 64 }),
+  user_agent: text('user_agent'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  sessionCodeIdx: uniqueIndex('quiz_session_code_idx').on(table.session_code),
+  sessionUserIdx: index('quiz_session_user_idx').on(table.event_key, table.user_id),
+  sessionStatusIdx: index('quiz_session_status_idx').on(table.event_key, table.status),
+  leaderboardIdx: index('quiz_leaderboard_idx').on(table.event_key, table.score, table.time_taken_seconds),
+}));
+
+/**
+ * Quiz Answers Table
+ * Stores candidate responses for each question in a session.
+ */
+export const quizAnswers = mysqlTable('quiz_answers', {
+  id: int('id').primaryKey().autoincrement(),
+  session_id: int('session_id').notNull(),
+  question_id: int('question_id').notNull(),
+  selected_option_index: int('selected_option_index'),
+  is_marked_for_review: boolean('is_marked_for_review').notNull().default(false),
+  is_correct: boolean('is_correct'),
+  marks_awarded: decimal('marks_awarded', { precision: 5, scale: 2 }).notNull().default('0.00'),
+  time_spent_seconds: int('time_spent_seconds').notNull().default(0),
+  answered_at: datetime('answered_at'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  sessionQuestionUniqueIdx: uniqueIndex('quiz_session_question_idx').on(table.session_id, table.question_id),
+  sessionAnswersIdx: index('quiz_session_answers_idx').on(table.session_id),
 }));

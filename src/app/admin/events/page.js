@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Trophy, Swords, ArrowRight, Sparkles } from 'lucide-react';
+import { Trophy, Swords, ArrowRight, Sparkles, Zap, Brain } from 'lucide-react';
 
 export default function AdminEventsPortalPage() {
   return (
@@ -12,7 +12,7 @@ export default function AdminEventsPortalPage() {
           Campus Events & Tournaments
         </h1>
         <p className="text-xs text-slate-500 mt-1">
-          Manage collegiate esports, mind sports, and inter-departmental tournaments.
+          Manage collegiate esports, technical symposiums, mind sports, and inter-departmental tournaments.
         </p>
       </div>
 
@@ -45,6 +45,34 @@ export default function AdminEventsPortalPage() {
           </Link>
         </div>
 
+        {/* Technical Quiz Event Card */}
+        <div className="bg-gradient-to-br from-indigo-900 via-blue-900 to-slate-900 rounded-3xl p-6 text-white shadow-xl flex flex-col justify-between space-y-6">
+          <div className="space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-cyan-300">
+              <Zap className="w-6 h-6" />
+            </div>
+            <div>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-300 bg-cyan-400/20 px-2 py-0.5 rounded-full border border-cyan-400/30">
+                Active Module
+              </span>
+              <h2 className="text-xl font-black mt-2">
+                Technical Quiz
+              </h2>
+              <p className="text-xs text-blue-100/80 mt-1 leading-relaxed">
+                Question bank CRUD, timer & negative marking rules, live leaderboard calculation, and student session auditor.
+              </p>
+            </div>
+          </div>
+
+          <Link
+            href="/admin/events/quiz"
+            className="inline-flex items-center justify-between w-full px-4 py-3 rounded-2xl bg-white text-slate-950 text-xs font-extrabold uppercase tracking-wider hover:bg-cyan-300 transition-colors shadow-md cursor-pointer"
+          >
+            <span>Manage Technical Quiz</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+
         {/* Future Game Scaffolding Placeholders */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col justify-between space-y-6 opacity-70">
           <div className="space-y-3">
@@ -56,7 +84,7 @@ export default function AdminEventsPortalPage() {
                 Coming Soon
               </span>
               <h2 className="text-xl font-bold text-slate-700 dark:text-slate-300 mt-2">
-                Future Tournament 2
+                Future Tournament 3
               </h2>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
                 Modular slot reserved for upcoming competitive games and mind sports.
