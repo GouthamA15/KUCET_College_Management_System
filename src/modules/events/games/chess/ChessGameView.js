@@ -1,10 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import ChessBoard from './ChessBoard';
-import { renderPiece, PIECE_VALUES } from './chess-utils';
-import { Trophy, ShieldAlert, Flag, Handshake, RefreshCw, Eye, CheckCircle2, RotateCw, ArrowLeft } from 'lucide-react';
+import { renderPiece, PIECE_VALUES, playChessSound } from './chess-utils';
+import { Trophy, ShieldAlert, Flag, Handshake, RefreshCw, Eye, CheckCircle2, RotateCw, ArrowLeft, GitBranch, X } from 'lucide-react';
 import Link from 'next/link';
+import { subscribeToRealtimeEvents } from '@/components/RealtimeListener';
+import { REALTIME_EVENTS } from '@/lib/events/realtime-events';
+import TournamentBracketTree from '../../components/TournamentBracketTree';
 
 export default function ChessGameView({ matchId, currentUser = null }) {
   const [matchData, setMatchData] = useState(null);
@@ -14,6 +17,11 @@ export default function ChessGameView({ matchId, currentUser = null }) {
   const [manualOrientation, setManualOrientation] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showResignModal, setShowResignModal] = useState(false);
+  const [showBracketModal, setShowBracketModal] = useState(false);
+  const [tournamentMatches, setTournamentMatches] = useState([]);
+  const [tournamentConfig, setTournamentConfig] = useState(null);
+
+  const prevFenRef = useRef(null);
 
   // Fetch latest game state
   const fetchGameState = useCallback(async () => {
@@ -23,6 +31,20 @@ export default function ChessGameView({ matchId, currentUser = null }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch match');
+
+      const nextFen = data?.game?.fen;
+      if (nextFen && prevFenRef.current && prevFenRef.current !== nextFen) {
+        if (data?.game?.is_checkmate || data?.match?.status === 'COMPLETED') {
+          playChessSound('victory');
+        } else if (data?.game?.is_check) {
+          playChessSound('check');
+        } else if (data?.game?.last_move_captured) {
+          playChessSound('capture');
+        } else {
+          playChessSound('move');
+        }
+      }
+      prevFenRef.current = nextFen;
 
       setMatchData(data);
       setLegalMoves(data.legalMoves || []);
@@ -34,13 +56,104 @@ export default function ChessGameView({ matchId, currentUser = null }) {
     }
   }, [matchId]);
 
-  // Polling loop (every 2.5s)
+  // Load tournament bracket matches on demand
+  const loadTournamentBracket = useCallback(async () => {
+    try {
+      const [mRes, cRes] = await Promise.all([
+        fetch('/api/events/matches?event_key=chess&limit=100'),
+        fetch('/api/events/config?event_key=chess')
+      ]);
+      const [mData, cData] = await Promise.all([mRes.json(), cRes.json()]);
+      setTournamentMatches(mData.items || []);
+      setTournamentConfig(cData);
+    } catch (e) {
+      console.error('Failed to load bracket data:', e);
+    }
+  }, []);
+
+  // Multi-tier Real-time Synchronizer:
+  // 1. Socket.IO (Direct low-latency push from server)
+  // 2. Supabase Realtime Broadcast channel (fallback in dev/hybrid)
+  // 3. Browser BroadcastChannel (cross-tab local zero-latency sync)
+  // 4. Background safety poll (every 5s instead of 2.5s)
   useEffect(() => {
+    // Initial fetch
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchGameState();
-    const interval = setInterval(fetchGameState, 2500);
-    return () => clearInterval(interval);
-  }, [fetchGameState]);
+
+    // 1. Socket.IO canonical event subscription
+    const unsubscribeSocket = subscribeToRealtimeEvents((event) => {
+      const eventType = event?.type;
+      const payload = event?.payload || {};
+
+      if (
+        (eventType === REALTIME_EVENTS.CHESS_MOVE_PLAYED ||
+         eventType === REALTIME_EVENTS.CHESS_GAME_OVER ||
+         eventType === REALTIME_EVENTS.CHESS_ACTION) &&
+        String(payload.matchId || payload.match_id) === String(matchId)
+      ) {
+        // Instant sync upon opponent move or action
+        fetchGameState();
+      }
+    });
+
+    // 2. Cross-tab BroadcastChannel for 0ms same-browser tabs (e.g. testing with 2 student sessions)
+    let localChannel = null;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        localChannel = new BroadcastChannel(`chess_match_${matchId}`);
+        localChannel.onmessage = (msg) => {
+          if (msg.data?.action === 'move_played' || msg.data?.action === 'action_taken') {
+            fetchGameState();
+          }
+        };
+      }
+    } catch (_e) {
+      // BroadcastChannel unavailable
+    }
+
+    // 3. Supabase Realtime client listener (if credentials exist)
+    let supabaseChannel = null;
+    const subUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const subKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (subUrl && subKey) {
+      import('@supabase/supabase-js')
+        .then(({ createClient }) => {
+          const supabase = createClient(subUrl, subKey);
+          supabaseChannel = supabase.channel('kucet-updates');
+          supabaseChannel
+            .on('broadcast', { event: REALTIME_EVENTS.CHESS_MOVE_PLAYED }, (event) => {
+              if (String(event?.payload?.matchId) === String(matchId)) {
+                fetchGameState();
+              }
+            })
+            .on('broadcast', { event: REALTIME_EVENTS.CHESS_GAME_OVER }, (event) => {
+              if (String(event?.payload?.matchId) === String(matchId)) {
+                fetchGameState();
+              }
+            })
+            .on('broadcast', { event: REALTIME_EVENTS.CHESS_ACTION }, (event) => {
+              if (String(event?.payload?.matchId) === String(matchId)) {
+                fetchGameState();
+              }
+            })
+            .subscribe();
+        })
+        .catch((_err) => {
+          // ignore Supabase load error
+        });
+    }
+
+    // 4. Background safety poll interval (fallback)
+    const interval = setInterval(fetchGameState, 5000);
+
+    return () => {
+      unsubscribeSocket();
+      clearInterval(interval);
+      if (localChannel) localChannel.close();
+      if (supabaseChannel) supabaseChannel.unsubscribe();
+    };
+  }, [fetchGameState, matchId]);
 
   const match = matchData?.match;
   const game = matchData?.game;
@@ -75,6 +188,17 @@ export default function ChessGameView({ matchId, currentUser = null }) {
 
       setMatchData(data);
       setLegalMoves(data.legalMoves || []);
+
+      // Notify other tabs immediately
+      try {
+        if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+          const bc = new BroadcastChannel(`chess_match_${matchId}`);
+          bc.postMessage({ action: 'move_played', from, to });
+          bc.close();
+        }
+      } catch (_e) {
+        // ignore
+      }
     } catch (err) {
       alert(err.message);
     } finally {
@@ -99,6 +223,17 @@ export default function ChessGameView({ matchId, currentUser = null }) {
       setMatchData(data);
       setLegalMoves(data.legalMoves || []);
       setShowResignModal(false);
+
+      // Notify other tabs immediately
+      try {
+        if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+          const bc = new BroadcastChannel(`chess_match_${matchId}`);
+          bc.postMessage({ action: 'action_taken', type: action });
+          bc.close();
+        }
+      } catch (_e) {
+        // ignore
+      }
     } catch (err) {
       alert(err.message);
     } finally {
@@ -177,15 +312,18 @@ export default function ChessGameView({ matchId, currentUser = null }) {
   const opponentOfferedDraw = (isWhite && game?.draw_offer_side === 'b') || (isBlack && game?.draw_offer_side === 'w');
   const myDrawOfferPending = (isWhite && game?.draw_offer_side === 'w') || (isBlack && game?.draw_offer_side === 'b');
 
+  const isAdminUser = currentUser?.role === 'admin' || (typeof document !== 'undefined' && (document.cookie || '').includes('admin_logged_in=true'));
+  const backHref = isAdminUser ? '/admin/events/chess' : '/events/chess';
+
   return (
     <div className="w-full max-w-6xl mx-auto space-y-5 text-sm">
       {/* Top Header Bar */}
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-200 pb-3">
         <div className="flex items-center gap-3">
           <Link
-            href="/events/chess"
+            href={backHref}
             className="p-1.5 rounded-md bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 transition-colors"
-            title="Back to Tournament Hub"
+            title={isAdminUser ? "Back to Admin Chess Control" : "Back to Tournament Hub"}
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
@@ -204,8 +342,19 @@ export default function ChessGameView({ matchId, currentUser = null }) {
           </div>
         </div>
 
-        {/* Status Badges */}
+        {/* Status Badges & Bracket Modal Trigger */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              loadTournamentBracket();
+              setShowBracketModal(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 shadow-xs cursor-pointer transition-colors"
+          >
+            <GitBranch className="w-3.5 h-3.5 text-[#0b3578]" />
+            <span>Bracket Tree</span>
+          </button>
+
           {isSpectator && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
               <Eye className="w-3.5 h-3.5" /> Spectator Mode
@@ -496,6 +645,38 @@ export default function ChessGameView({ matchId, currentUser = null }) {
               >
                 Yes, Resign
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tournament Tree Bracket Modal */}
+      {showBracketModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-xs p-3 sm:p-6 overflow-y-auto">
+          <div className="bg-white rounded-md max-w-5xl w-full border border-gray-300 shadow-2xl space-y-4 p-4 sm:p-6 my-auto max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-gray-200 pb-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <GitBranch className="w-5 h-5 text-[#0b3578]" />
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 leading-none">Tournament Tree Visualizer</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Live knockout tree progression and match outcomes</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowBracketModal(false)}
+                className="p-1 rounded-md text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto pr-1 flex-1">
+              <TournamentBracketTree
+                matches={tournamentMatches.length > 0 ? tournamentMatches : [match]}
+                config={tournamentConfig}
+                currentUserId={currentUserId}
+                isAdmin={false}
+              />
             </div>
           </div>
         </div>

@@ -13,16 +13,18 @@ import {
   X,
   Trophy,
   Play,
-  RotateCw
+  RotateCw,
+  ArrowLeft
 } from 'lucide-react';
 import Link from 'next/link';
 import { notifyEventConfigChanged } from '@/hooks/useEventsStatus';
+import TournamentBracketTree from './TournamentBracketTree';
 
 export default function AdminEventControl({ eventKey = 'chess' }) {
   const [config, setConfig] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [matches, setMatches] = useState([]);
-  const [activeTab, setActiveTab] = useState('participants'); // 'participants' | 'matches' | 'verify'
+  const [activeTab, setActiveTab] = useState('participants'); // 'participants' | 'matches' | 'verify' | 'bracket'
   const [loading, setLoading] = useState(true);
   const [savingToggle, setSavingToggle] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -373,6 +375,15 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
       {/* Page Header — standard KUCET layout */}
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-gray-200 pb-4">
         <div>
+          <div className="flex items-center gap-2 mb-2">
+            <Link
+              href="/admin/events"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-[#0b3578] transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Campus Events</span>
+            </Link>
+          </div>
           <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="text-xl sm:text-2xl font-semibold text-gray-800">
               Chess Championship Administration
@@ -530,6 +541,17 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
           }`}
         >
           Result Auditing ({completedMatches.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('bracket')}
+          className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
+            activeTab === 'bracket'
+              ? 'bg-blue-50 text-[#0b3578] font-semibold shadow-xs'
+              : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+          }`}
+        >
+          Bracket Tree Visualizer
         </button>
       </div>
 
@@ -935,6 +957,17 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
               </table>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Tab 4: Bracket Tree Visualizer */}
+      {activeTab === 'bracket' && (
+        <div className="space-y-4">
+          <TournamentBracketTree
+            matches={matches}
+            config={config}
+            isAdmin={true}
+          />
         </div>
       )}
 

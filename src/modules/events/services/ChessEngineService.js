@@ -3,6 +3,10 @@ import { eventDb, eventMatches, chessGames, chessMoves, initExperimentDb } from 
 import { eq, asc } from 'drizzle-orm';
 import { MatchService } from './MatchService';
 import { EventConfigService } from './EventConfigService';
+import { broadcastUpdate } from '@/lib/sse';
+
+// In-memory anti-spam move rate limiter: max 1 move per 350ms per participant
+const moveRateLimitMap = new Map();
 
 /**
  * Helper to compute pieces captured by each player from current FEN.
@@ -130,6 +134,17 @@ export class ChessEngineService {
       throw { status: 400, message: `It is ${activeTurn === 'w' ? 'White' : 'Black'}'s turn to move.` };
     }
 
+    // Anti-spam rate-limiting guard (max 1 move per 300ms per user in production)
+    if (process.env.NODE_ENV !== 'test') {
+      const rateLimitKey = `${matchId}:${userId}`;
+      const lastMoveTime = moveRateLimitMap.get(rateLimitKey) || 0;
+      const nowTime = Date.now();
+      if (nowTime - lastMoveTime < 300) {
+        throw { status: 429, message: 'Please wait a moment between moves.' };
+      }
+      moveRateLimitMap.set(rateLimitKey, nowTime);
+    }
+
     // Attempt the move in chess engine
     let moveResult;
     try {
@@ -230,6 +245,31 @@ export class ChessEngineService {
       });
     }
 
+    // 5. Broadcast real-time move event (Socket.IO + Supabase Realtime)
+    broadcastUpdate('CHESS_MOVE_PLAYED', {
+      matchId: Number(matchId),
+      move: {
+        san: moveResult.san,
+        from: moveResult.from,
+        to: moveResult.to,
+        promotion: moveResult.promotion || null
+      },
+      turn: chess.turn(),
+      fen: newFen,
+      isCheck,
+      isCheckmate,
+      isStalemate,
+      isDraw,
+      moveCount: newMoveCount
+    }, { room: `match:${matchId}` });
+
+    if (isCheckmate || isStalemate || isDraw) {
+      broadcastUpdate('CHESS_GAME_OVER', {
+        matchId: Number(matchId),
+        resultReason: isCheckmate ? 'checkmate' : isStalemate ? 'stalemate' : 'draw'
+      }, { room: `match:${matchId}` });
+    }
+
     return await this.getGameState(matchId);
   }
 
@@ -262,6 +302,12 @@ export class ChessEngineService {
       resultReason: 'resignation'
     });
 
+    broadcastUpdate('CHESS_GAME_OVER', {
+      matchId: Number(matchId),
+      winnerSide,
+      resultReason: 'resignation'
+    }, { room: `match:${matchId}` });
+
     return await this.getGameState(matchId);
   }
 
@@ -290,6 +336,12 @@ export class ChessEngineService {
     await eventDb.update(chessGames)
       .set({ draw_offer_side: side, updated_at: new Date() })
       .where(eq(chessGames.match_id, match.id));
+
+    broadcastUpdate('CHESS_ACTION', {
+      matchId: Number(matchId),
+      action: 'draw_offered',
+      side
+    }, { room: `match:${matchId}` });
 
     return await this.getGameState(matchId);
   }
@@ -330,10 +382,21 @@ export class ChessEngineService {
         winnerSide: 'draw',
         resultReason: 'draw_agreement'
       });
+
+      broadcastUpdate('CHESS_GAME_OVER', {
+        matchId: Number(matchId),
+        winnerSide: 'draw',
+        resultReason: 'draw_agreement'
+      }, { room: `match:${matchId}` });
     } else {
       await eventDb.update(chessGames)
         .set({ draw_offer_side: null, updated_at: new Date() })
         .where(eq(chessGames.match_id, match.id));
+
+      broadcastUpdate('CHESS_ACTION', {
+        matchId: Number(matchId),
+        action: 'draw_declined'
+      }, { room: `match:${matchId}` });
     }
 
     return await this.getGameState(matchId);

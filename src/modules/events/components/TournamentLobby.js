@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import ParticipantRegistrationModal from './ParticipantRegistrationModal';
+import TournamentBracketTree from './TournamentBracketTree';
 
 export default function TournamentLobby({ eventKey = 'chess', currentUser = null }) {
   const [config, setConfig] = useState(null);
@@ -89,6 +90,7 @@ export default function TournamentLobby({ eventKey = 'chess', currentUser = null
 
   const tabs = [
     { id: 'matches', label: 'Active Fixtures & Live Arena', count: activeMatches.length },
+    { id: 'bracket', label: 'Tournament Tree Bracket', count: matches.length },
     { id: 'completed', label: 'Completed Matches', count: completedMatches.length },
     { id: 'roster', label: 'Contenders Roster', count: participants.length },
     { id: 'rules', label: 'Tournament Rules' },
@@ -403,6 +405,16 @@ export default function TournamentLobby({ eventKey = 'chess', currentUser = null
             </div>
           )}
         </div>
+      )}
+
+      {/* Tab Content: Tournament Tree Bracket */}
+      {activeTab === 'bracket' && (
+        <TournamentBracketTree
+          matches={matches}
+          config={config}
+          currentUserId={currentUserId}
+          isAdmin={false}
+        />
       )}
 
       {/* Tab Content 2: Completed Matches */}

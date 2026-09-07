@@ -143,3 +143,58 @@ export const PIECE_VALUES = {
   q: 9,
   k: 0
 };
+
+/**
+ * Synthesizes crisp chess game audio using the browser's native Web Audio API.
+ * Requires 0 external audio files and incurs 0ms network latency.
+ */
+export function playChessSound(type = 'move') {
+  if (typeof window === 'undefined') return;
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    const now = ctx.currentTime;
+    if (type === 'capture') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.exponentialRampToValueAtTime(140, now + 0.12);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } else if (type === 'check') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, now); // D5
+      osc.frequency.setValueAtTime(880, now + 0.08); // A5
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+      osc.start(now);
+      osc.stop(now + 0.25);
+    } else if (type === 'victory') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.setValueAtTime(554.37, now + 0.1);
+      osc.frequency.setValueAtTime(659.25, now + 0.2);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+      osc.start(now);
+      osc.stop(now + 0.4);
+    } else { // default 'move'
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(260, now);
+      osc.frequency.exponentialRampToValueAtTime(160, now + 0.07);
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.07);
+      osc.start(now);
+      osc.stop(now + 0.07);
+    }
+  } catch (_e) {
+    // Autoplay or audio context permission blocked by browser
+  }
+}

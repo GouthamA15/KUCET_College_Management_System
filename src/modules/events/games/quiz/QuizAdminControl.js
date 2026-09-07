@@ -14,8 +14,10 @@ import {
   RefreshCw,
   X,
   Settings,
-  Users
+  Users,
+  ArrowLeft
 } from 'lucide-react';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { notifyEventConfigChanged } from '@/hooks/useEventsStatus';
 
@@ -367,6 +369,15 @@ export default function QuizAdminControl({ initialConfig }) {
       {/* Page Header */}
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-gray-200 pb-4">
         <div>
+          <div className="flex items-center gap-2 mb-2">
+            <Link
+              href="/admin/events"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-[#0b3578] transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Campus Events</span>
+            </Link>
+          </div>
           <h1 className="text-2xl font-semibold text-gray-800">
             Technical Quiz Administration
           </h1>
