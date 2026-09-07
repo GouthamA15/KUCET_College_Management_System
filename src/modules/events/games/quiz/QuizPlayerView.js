@@ -226,29 +226,12 @@ export default function QuizPlayerView({
     const isPassed = percentage >= 50;
 
     return (
-      <div className="w-full max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6 text-sm">
-        {/* Breadcrumbs */}
-        <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-          <Link href="/" className="hover:text-slate-700 transition-colors">
-            KUCET CMS
-          </Link>
-          <span>/</span>
-          <Link href="/events" className="hover:text-slate-700 transition-colors">
-            Campus Events
-          </Link>
-          <span>/</span>
-          <Link href="/events/quiz" className="hover:text-slate-700 transition-colors">
-            Technical Quiz
-          </Link>
-          <span>/</span>
-          <span className="text-slate-800 font-semibold">Scorecard</span>
-        </div>
-
+      <div className="space-y-6 text-sm">
         {/* Scorecard Header Card */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+        <div className="bg-white rounded-sm border border-gray-300 p-6 shadow-sm">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-gray-200 pb-5">
             <div>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-[#0b3578] border border-blue-200 mb-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-semibold bg-blue-50 text-[#0b3578] border border-blue-200 mb-2">
                 <Award className="w-3.5 h-3.5" /> Official Assessment Scorecard
               </span>
               <h1 className="text-2xl font-semibold text-gray-800">
@@ -261,16 +244,16 @@ export default function QuizPlayerView({
               </p>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center min-w-[180px]">
-              <span className="text-xs text-slate-500 uppercase font-semibold block">Total Score</span>
+            <div className="bg-gray-50 border border-gray-200 rounded-sm p-4 text-center min-w-[180px]">
+              <span className="text-xs text-gray-500 uppercase font-semibold block">Total Score</span>
               <div className="text-3xl font-bold text-[#0b3578] mt-0.5">
-                {finalScore.toFixed(1)} <span className="text-sm font-normal text-slate-500">/ {maxScore.toFixed(1)}</span>
+                {finalScore.toFixed(1)} <span className="text-sm font-normal text-gray-500">/ {maxScore.toFixed(1)}</span>
               </div>
               <span
-                className={`inline-block mt-1 text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
+                className={`inline-block mt-1 text-xs font-semibold px-2.5 py-0.5 rounded border ${
                   isPassed
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-slate-100 text-slate-700 border-slate-200'
+                    : 'bg-gray-100 text-gray-700 border-gray-200'
                 }`}
               >
                 {percentage.toFixed(1)}% ({isPassed ? 'Qualified' : 'Completed'})
@@ -280,53 +263,53 @@ export default function QuizPlayerView({
 
           {/* Metric Tiles Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-5">
-            <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
+            <div className="p-4 rounded-sm bg-gray-50 border border-gray-200">
               <div className="flex items-center gap-2 text-emerald-700 mb-1">
                 <CheckCircle2 className="w-4 h-4" />
                 <span className="text-xs font-semibold">Correct</span>
               </div>
-              <p className="text-2xl font-bold text-slate-800">{s.total_correct || 0}</p>
+              <p className="text-2xl font-bold text-gray-800">{s.total_correct || 0}</p>
             </div>
 
-            <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
-              <div className="flex items-center gap-2 text-rose-700 mb-1">
+            <div className="p-4 rounded-sm bg-gray-50 border border-gray-200">
+              <div className="flex items-center gap-2 text-red-700 mb-1">
                 <XCircle className="w-4 h-4" />
                 <span className="text-xs font-semibold">Incorrect</span>
               </div>
-              <p className="text-2xl font-bold text-slate-800">{s.total_incorrect || 0}</p>
+              <p className="text-2xl font-bold text-gray-800">{s.total_incorrect || 0}</p>
             </div>
 
-            <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
-              <div className="flex items-center gap-2 text-slate-600 mb-1">
+            <div className="p-4 rounded-sm bg-gray-50 border border-gray-200">
+              <div className="flex items-center gap-2 text-gray-600 mb-1">
                 <HelpCircle className="w-4 h-4" />
                 <span className="text-xs font-semibold">Unanswered</span>
               </div>
-              <p className="text-2xl font-bold text-slate-800">{s.total_unanswered || 0}</p>
+              <p className="text-2xl font-bold text-gray-800">{s.total_unanswered || 0}</p>
             </div>
 
-            <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
+            <div className="p-4 rounded-sm bg-gray-50 border border-gray-200">
               <div className="flex items-center gap-2 text-[#0b3578] mb-1">
                 <Clock className="w-4 h-4" />
                 <span className="text-xs font-semibold">Time Taken</span>
               </div>
-              <p className="text-2xl font-bold text-slate-800 font-mono">
+              <p className="text-2xl font-bold text-gray-800 font-mono">
                 {Math.floor((s.time_taken_seconds || 0) / 60)}m {(s.time_taken_seconds || 0) % 60}s
               </p>
             </div>
           </div>
 
           {/* Actions Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-5 mt-5 border-t border-slate-200">
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-5 mt-5 border-t border-gray-200">
             <Link
               href="/events"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-medium transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 text-xs font-medium transition-colors shadow-sm"
             >
               <Home className="w-4 h-4" /> Return to Events Hub
             </Link>
 
             <Link
               href="/events/quiz/leaderboard"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs font-medium transition-colors shadow-xs"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs font-medium transition-colors shadow-sm"
             >
               <Trophy className="w-4 h-4 text-amber-300" /> View Tournament Standings <ArrowRight className="w-4 h-4" />
             </Link>
@@ -335,12 +318,12 @@ export default function QuizPlayerView({
 
         {/* Detailed Solutions Breakdown */}
         {scorecard.breakdown && (
-          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
-            <div className="border-b border-slate-200 pb-3">
+          <div className="bg-white rounded-sm border border-gray-300 p-6 shadow-sm space-y-4">
+            <div className="border-b border-gray-200 pb-3">
               <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2">
                 <Layers className="w-4 h-4 text-[#0b3578]" /> Solutions & Evaluation Breakdown
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-gray-600 mt-0.5">
                 Review verified correct answers, your submitted selections, and question rationales.
               </p>
             </div>
@@ -353,27 +336,27 @@ export default function QuizPlayerView({
                 return (
                   <div
                     key={item.question_id || idx}
-                    className="p-4 rounded-lg border border-slate-200 bg-slate-50/50 space-y-3"
+                    className="p-4 rounded-sm border border-gray-200 bg-gray-50/50 space-y-3"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-bold text-slate-700">Question {idx + 1}</span>
-                        <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                        <span className="text-xs font-bold text-gray-700">Question {idx + 1}</span>
+                        <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200">
                           {item.category}
                         </span>
                       </div>
 
                       <div>
                         {isCorrect ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded">
                             <CheckCircle2 className="w-3.5 h-3.5" /> +{item.marks_awarded} Marks
                           </span>
                         ) : isSkipped ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full">
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200 px-2.5 py-0.5 rounded">
                             Unanswered (0.0)
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full">
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 px-2.5 py-0.5 rounded">
                             <XCircle className="w-3.5 h-3.5" /> {item.marks_awarded} Marks
                           </span>
                         )}
@@ -390,33 +373,33 @@ export default function QuizPlayerView({
                         const isUserChoice = item.selected_option_index === optIdx;
                         const isCorrectOption = item.correct_option_index === optIdx;
 
-                        let optClass = 'bg-white border-slate-200 text-slate-700';
+                        let optClass = 'bg-white border-gray-200 text-gray-700';
                         if (isCorrectOption) {
                           optClass = 'bg-emerald-50 border-emerald-400 text-emerald-900 font-semibold';
                         } else if (isUserChoice && !isCorrectOption) {
-                          optClass = 'bg-rose-50 border-rose-300 text-rose-900 line-through';
+                          optClass = 'bg-red-50 border-red-300 text-red-900 line-through';
                         }
 
                         return (
                           <div
                             key={optIdx}
-                            className={`p-2.5 rounded-lg border text-xs flex items-center justify-between ${optClass}`}
+                            className={`p-2.5 rounded-md border text-xs flex items-center justify-between ${optClass}`}
                           >
                             <div className="flex items-center gap-2">
-                              <span className="w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] bg-slate-100 text-slate-700 border border-slate-200">
+                              <span className="w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] bg-gray-100 text-gray-700 border border-gray-200">
                                 {String.fromCharCode(65 + optIdx)}
                               </span>
                               <span>{opt}</span>
                             </div>
                             {isCorrectOption && <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
-                            {isUserChoice && !isCorrectOption && <XCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />}
+                            {isUserChoice && !isCorrectOption && <XCircle className="w-3.5 h-3.5 text-red-600 shrink-0" />}
                           </div>
                         );
                       })}
                     </div>
 
                     {item.explanation && (
-                      <div className="p-3 bg-blue-50/60 rounded-lg border border-blue-200 text-xs text-[#0b3578] flex items-start gap-2">
+                      <div className="p-3 bg-blue-50/60 rounded-md border border-blue-200 text-xs text-[#0b3578] flex items-start gap-2">
                         <Info className="w-4 h-4 text-[#0b3578] shrink-0 mt-0.5" />
                         <div>
                           <span className="font-semibold">Explanation: </span>
@@ -444,9 +427,9 @@ export default function QuizPlayerView({
   const isTimerCritical = remainingTime <= 120; // 2 minutes or less
 
   return (
-    <div className="w-full max-w-6xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-4 text-sm">
+    <div className="space-y-4 text-sm">
       {/* Top Header Bar */}
-      <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div className="bg-white rounded-sm p-4 border border-gray-300 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-base font-semibold text-gray-800">
             Technical Quiz Assessment Arena
@@ -474,21 +457,21 @@ export default function QuizPlayerView({
           {/* Countdown Clock */}
           <div
             className={`
-              flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-sm font-semibold transition-colors
+              flex items-center gap-1.5 px-3 py-1.5 rounded-md font-mono text-sm font-semibold transition-colors
               ${
                 isTimerCritical
-                  ? 'bg-rose-50 text-rose-700 border border-rose-300 animate-pulse'
-                  : 'bg-slate-50 text-slate-800 border border-slate-200'
+                  ? 'bg-red-50 text-red-700 border border-red-300 animate-pulse'
+                  : 'bg-gray-50 text-gray-800 border border-gray-200'
               }
             `}
           >
-            <Clock className={`w-4 h-4 ${isTimerCritical ? 'text-rose-600' : 'text-[#0b3578]'}`} />
+            <Clock className={`w-4 h-4 ${isTimerCritical ? 'text-red-600' : 'text-[#0b3578]'}`} />
             <span>{formatTime(remainingTime)}</span>
           </div>
 
           <button
             onClick={() => setShowConfirmModal(true)}
-            className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
+            className="px-3.5 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
           >
             <Send className="w-3.5 h-3.5" /> Submit Quiz
           </button>
@@ -498,24 +481,24 @@ export default function QuizPlayerView({
       {/* Main Arena Layout: Split View */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: Active Question Workspace (8 cols) */}
-        <div className="lg:col-span-8 bg-white rounded-xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-5">
+        <div className="lg:col-span-8 bg-white rounded-sm p-5 sm:p-6 border border-gray-300 shadow-sm space-y-5">
           {currentQ ? (
             <>
               {/* Question Header Meta */}
-              <div className="flex items-center justify-between pb-3 border-b border-slate-200 flex-wrap gap-2">
+              <div className="flex items-center justify-between pb-3 border-b border-gray-200 flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold px-2.5 py-0.5 rounded bg-blue-50 text-[#0b3578] border border-blue-200">
                     Question {currentQuestionIndex + 1} of {questions.length}
                   </span>
-                  <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                  <span className="text-xs font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200">
                     {currentQ.category}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
                   <span className="text-emerald-700">+{currentQ.marks} Marks</span>
                   {currentQ.negative_marks > 0 && (
-                    <span className="text-rose-600">(-{currentQ.negative_marks} Neg)</span>
+                    <span className="text-red-600">(-{currentQ.negative_marks} Neg)</span>
                   )}
                 </div>
               </div>
@@ -536,11 +519,11 @@ export default function QuizPlayerView({
                       type="button"
                       onClick={() => handleSelectOption(optIdx)}
                       className={`
-                        w-full text-left p-3.5 rounded-lg border transition-colors flex items-center justify-between gap-3 text-sm cursor-pointer
+                        w-full text-left p-3.5 rounded-md border transition-colors flex items-center justify-between gap-3 text-sm cursor-pointer
                         ${
                           isSelected
                             ? 'bg-blue-50/70 border-[#0b3578] text-[#0b3578] ring-1 ring-[#0b3578] font-medium'
-                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                            : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50'
                         }
                       `}
                     >
@@ -551,7 +534,7 @@ export default function QuizPlayerView({
                             ${
                               isSelected
                                 ? 'bg-[#0b3578] text-white'
-                                : 'bg-slate-100 text-slate-700 border border-slate-200'
+                                : 'bg-gray-100 text-gray-700 border border-gray-200'
                             }
                           `}
                         >
@@ -566,7 +549,7 @@ export default function QuizPlayerView({
                           ${
                             isSelected
                               ? 'border-[#0b3578] bg-[#0b3578]'
-                              : 'border-slate-300'
+                              : 'border-gray-300'
                           }
                         `}
                       >
@@ -578,17 +561,17 @@ export default function QuizPlayerView({
               </div>
 
               {/* Question Action Controls */}
-              <div className="pt-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+              <div className="pt-4 border-t border-gray-200 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={handleToggleReview}
                     className={`
-                      px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer border
+                      px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer border
                       ${
                         isMarked
                           ? 'bg-amber-50 text-amber-800 border-amber-300'
-                          : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                       }
                     `}
                   >
@@ -600,7 +583,7 @@ export default function QuizPlayerView({
                     <button
                       type="button"
                       onClick={handleClearAnswer}
-                      className="px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors flex items-center gap-1 cursor-pointer"
                     >
                       <RotateCcw className="w-3.5 h-3.5" /> Clear
                     </button>
@@ -612,7 +595,7 @@ export default function QuizPlayerView({
                     type="button"
                     disabled={currentQuestionIndex === 0}
                     onClick={() => handleJumpToQuestion(Math.max(0, currentQuestionIndex - 1))}
-                    className="px-3.5 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 text-xs font-medium hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1 cursor-pointer"
+                    className="px-3.5 py-1.5 rounded-md bg-white border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1 cursor-pointer"
                   >
                     <ChevronLeft className="w-4 h-4" /> Previous
                   </button>
@@ -621,7 +604,7 @@ export default function QuizPlayerView({
                     type="button"
                     disabled={currentQuestionIndex === questions.length - 1}
                     onClick={() => handleJumpToQuestion(Math.min(questions.length - 1, currentQuestionIndex + 1))}
-                    className="px-3.5 py-1.5 rounded-lg bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1 cursor-pointer shadow-xs"
+                    className="px-3.5 py-1.5 rounded-md bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1 cursor-pointer shadow-sm"
                   >
                     Next <ChevronRight className="w-4 h-4" />
                   </button>
@@ -629,40 +612,40 @@ export default function QuizPlayerView({
               </div>
             </>
           ) : (
-            <div className="text-center py-12 text-slate-400">No questions available in this assessment.</div>
+            <div className="text-center py-12 text-gray-400">No questions available in this assessment.</div>
           )}
         </div>
 
         {/* Right Column: Question Palette / Navigator (4 cols) */}
-        <div className="lg:col-span-4 bg-white rounded-xl p-5 border border-slate-200 shadow-sm space-y-4">
-          <div className="border-b border-slate-200 pb-2">
+        <div className="lg:col-span-4 bg-white rounded-sm p-5 border border-gray-300 shadow-sm space-y-4">
+          <div className="border-b border-gray-200 pb-2">
             <h2 className="text-sm font-semibold text-gray-800">
               Question Navigator
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">Click any question number to navigate directly.</p>
+            <p className="text-xs text-gray-500 mt-0.5">Click any question number to navigate directly.</p>
           </div>
 
           {/* Quick Metrics Summary */}
           <div className="grid grid-cols-3 gap-2 text-center text-xs">
-            <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+            <div className="p-2 rounded-sm bg-emerald-50 border border-emerald-200">
               <span className="block font-bold text-emerald-700 text-sm">
                 {answeredCount}
               </span>
               <span className="text-[10px] text-emerald-800 font-medium">Answered</span>
             </div>
 
-            <div className="p-2 rounded-lg bg-amber-50 border border-amber-200">
+            <div className="p-2 rounded-sm bg-amber-50 border border-amber-200">
               <span className="block font-bold text-amber-700 text-sm">
                 {reviewCount}
               </span>
               <span className="text-[10px] text-amber-800 font-medium">Review</span>
             </div>
 
-            <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
-              <span className="block font-bold text-slate-700 text-sm">
+            <div className="p-2 rounded-sm bg-gray-50 border border-gray-200">
+              <span className="block font-bold text-gray-700 text-sm">
                 {unansweredCount}
               </span>
-              <span className="text-[10px] text-slate-600 font-medium">Unanswered</span>
+              <span className="text-[10px] text-gray-600 font-medium">Unanswered</span>
             </div>
           </div>
 
@@ -675,18 +658,18 @@ export default function QuizPlayerView({
               const isCurrent = currentQuestionIndex === idx;
               const isVisited = visitedIndices.has(idx);
 
-              let btnStyle = 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100';
+              let btnStyle = 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100';
 
               if (isMarkedReview) {
                 btnStyle = 'bg-amber-50 text-amber-800 border-amber-300 font-semibold';
               } else if (isAnswered) {
                 btnStyle = 'bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold';
               } else if (isVisited) {
-                btnStyle = 'bg-slate-100 text-slate-700 border-slate-300';
+                btnStyle = 'bg-gray-100 text-gray-700 border-gray-300';
               }
 
               if (isCurrent) {
-                btnStyle = 'bg-[#0b3578] text-white border-[#0b3578] font-bold shadow-xs';
+                btnStyle = 'bg-[#0b3578] text-white border-[#0b3578] font-bold shadow-sm';
               }
 
               return (
@@ -694,7 +677,7 @@ export default function QuizPlayerView({
                   key={q.id || idx}
                   type="button"
                   onClick={() => handleJumpToQuestion(idx)}
-                  className={`h-9 rounded-lg text-xs border transition-colors flex items-center justify-center cursor-pointer ${btnStyle}`}
+                  className={`h-9 rounded-md text-xs border transition-colors flex items-center justify-center cursor-pointer ${btnStyle}`}
                 >
                   {idx + 1}
                 </button>
@@ -703,7 +686,7 @@ export default function QuizPlayerView({
           </div>
 
           {/* Palette Legend */}
-          <div className="pt-3 border-t border-slate-200 grid grid-cols-2 gap-2 text-[11px] text-slate-600">
+          <div className="pt-3 border-t border-gray-200 grid grid-cols-2 gap-2 text-[11px] text-gray-600">
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
               <span>Answered</span>
@@ -717,7 +700,7 @@ export default function QuizPlayerView({
               <span>Current Question</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-slate-300 shrink-0" />
+              <span className="w-2.5 h-2.5 rounded-full bg-gray-300 shrink-0" />
               <span>Not Answered</span>
             </div>
           </div>
@@ -726,8 +709,8 @@ export default function QuizPlayerView({
 
       {/* Final Submission Confirmation Modal */}
       {showConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-xl border border-slate-200 p-6 max-w-md w-full shadow-lg space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-sm border border-gray-300 p-6 max-w-md w-full shadow-lg space-y-4">
             <div className="flex items-center gap-2 text-[#0b3578]">
               <AlertCircle className="w-5 h-5" />
               <h3 className="text-base font-semibold text-gray-800">
@@ -735,14 +718,14 @@ export default function QuizPlayerView({
               </h3>
             </div>
 
-            <p className="text-xs text-slate-600 leading-relaxed">
+            <p className="text-xs text-gray-600 leading-relaxed">
               Are you sure you want to submit your assessment? Once submitted, your answers will be evaluated and locked permanently.
             </p>
 
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2 text-xs">
+            <div className="bg-gray-50 border border-gray-200 rounded-sm p-3 space-y-2 text-xs">
               <div className="flex justify-between">
-                <span className="text-slate-500">Total Questions:</span>
-                <span className="font-bold text-slate-800">{questions.length}</span>
+                <span className="text-gray-500">Total Questions:</span>
+                <span className="font-bold text-gray-800">{questions.length}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-emerald-700">Answered Questions:</span>
@@ -753,8 +736,8 @@ export default function QuizPlayerView({
                 <span className="font-bold text-amber-700">{reviewCount}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Unanswered Questions:</span>
-                <span className="font-bold text-slate-800">{unansweredCount}</span>
+                <span className="text-gray-500">Unanswered Questions:</span>
+                <span className="font-bold text-gray-800">{unansweredCount}</span>
               </div>
             </div>
 
@@ -762,7 +745,7 @@ export default function QuizPlayerView({
               <button
                 type="button"
                 onClick={() => setShowConfirmModal(false)}
-                className="px-4 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 text-xs font-medium hover:bg-slate-50 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-md bg-white border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50 transition-colors cursor-pointer"
               >
                 Back to Questions
               </button>
@@ -771,7 +754,7 @@ export default function QuizPlayerView({
                 type="button"
                 disabled={isSubmitting}
                 onClick={handleSubmit}
-                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 {isSubmitting ? (
                   'Submitting...'

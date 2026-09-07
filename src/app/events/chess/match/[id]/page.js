@@ -19,10 +19,8 @@ export default async function ChessMatchArenaPage({ params }) {
   const isAdmin = currentUser?.role === 'admin';
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-6">
-      <EventGuard eventKey="chess" isAdmin={isAdmin}>
-        <ChessGameView matchId={matchId} currentUser={currentUser} />
-      </EventGuard>
-    </div>
+    <EventGuard eventKey="chess" isAdmin={isAdmin}>
+      <ChessGameView matchId={matchId} currentUser={currentUser} />
+    </EventGuard>
   );
 }

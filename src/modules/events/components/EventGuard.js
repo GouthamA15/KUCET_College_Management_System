@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ShieldAlert, ArrowLeft, RefreshCw, Calendar } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Calendar } from 'lucide-react';
 import Link from 'next/link';
 
 export default function EventGuard({
@@ -40,7 +40,7 @@ export default function EventGuard({
     return (
       <div className="flex flex-col items-center justify-center min-h-[350px] p-8">
         <RefreshCw className="w-8 h-8 text-[#0b3578] animate-spin mb-3" />
-        <p className="text-xs font-semibold text-slate-500">Checking Event Availability...</p>
+        <p className="text-xs font-semibold text-gray-500">Checking Event Availability...</p>
       </div>
     );
   }
@@ -53,7 +53,7 @@ export default function EventGuard({
   if (fallback) return <>{fallback}</>;
 
   return (
-    <div className="w-full max-w-xl mx-auto my-12 p-8 bg-white border border-slate-200 rounded-xl shadow-sm text-center space-y-4">
+    <div className="w-full max-w-xl mx-auto my-12 p-8 bg-white border border-gray-300 rounded-sm shadow-sm text-center space-y-4">
       <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto text-amber-600">
         <Calendar className="w-6 h-6" />
       </div>
@@ -61,14 +61,14 @@ export default function EventGuard({
         <h2 className="text-lg font-semibold text-gray-800">
           Event Currently Inactive
         </h2>
-        <p className="text-xs text-slate-600 mt-1.5 leading-relaxed max-w-md mx-auto">
+        <p className="text-xs text-gray-600 mt-1.5 leading-relaxed max-w-md mx-auto">
           This collegiate tournament module is currently inactive or scheduled for a future session. Please check back later or contact the student affairs council for official schedules.
         </p>
       </div>
       <div className="pt-2">
         <Link
           href="/events"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs font-medium transition-colors shadow-xs"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs font-medium transition-colors shadow-sm"
         >
           <ArrowLeft className="w-4 h-4" /> View All Campus Events
         </Link>

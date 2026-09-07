@@ -253,21 +253,8 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
-      {/* Breadcrumb Navigation */}
-      <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-        <Link href="/admin" className="hover:text-slate-700 transition-colors">
-          Super Admin
-        </Link>
-        <span>/</span>
-        <Link href="/admin/events" className="hover:text-slate-700 transition-colors">
-          Events Management
-        </Link>
-        <span>/</span>
-        <span className="text-slate-800 font-semibold">Chess Championship Console</span>
-      </div>
-
       {/* Page Header */}
-      <header className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 border-b border-slate-200 pb-4">
+      <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-gray-200 pb-4">
         <div>
           <h1 className="text-2xl font-semibold text-gray-800">
             Chess Championship Administration
@@ -283,10 +270,10 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
             onClick={handleToggleEvent}
             disabled={savingToggle}
             className={`
-              px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer
+              px-3.5 py-2 rounded-md text-xs font-semibold transition-colors shadow-sm cursor-pointer
               ${
                 config?.is_enabled
-                  ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                  ? 'bg-red-600 hover:bg-red-700 text-white'
                   : 'bg-emerald-600 hover:bg-emerald-700 text-white'
               }
             `}
@@ -298,10 +285,10 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
             onClick={handleToggleRegistration}
             disabled={savingToggle}
             className={`
-              px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer border
+              px-3.5 py-2 rounded-md text-xs font-semibold transition-colors shadow-sm cursor-pointer border
               ${
                 config?.registration_open
-                  ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                  ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                   : 'bg-blue-50 border-blue-200 text-[#0b3578] hover:bg-blue-100'
               }
             `}
@@ -313,49 +300,49 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
+        <div className="bg-white rounded-sm border border-gray-300 p-4 shadow-sm">
           <div className="flex items-center text-[#0b3578] mb-1">
             <Users className="w-4 h-4 mr-1.5" />
-            <span className="text-xs font-semibold text-slate-600">Total Registered</span>
+            <span className="text-xs font-semibold text-gray-600">Total Registered</span>
           </div>
-          <p className="text-2xl font-bold text-slate-900">{participants.length}</p>
+          <p className="text-2xl font-bold text-gray-900">{participants.length}</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
+        <div className="bg-white rounded-sm border border-gray-300 p-4 shadow-sm">
           <div className="flex items-center text-emerald-600 mb-1">
             <CheckCircle className="w-4 h-4 mr-1.5" />
-            <span className="text-xs font-semibold text-slate-600">Accepted Players</span>
+            <span className="text-xs font-semibold text-gray-600">Accepted Players</span>
           </div>
-          <p className="text-2xl font-bold text-slate-900">{acceptedParticipants.length}</p>
+          <p className="text-2xl font-bold text-gray-900">{acceptedParticipants.length}</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
+        <div className="bg-white rounded-sm border border-gray-300 p-4 shadow-sm">
           <div className="flex items-center text-amber-600 mb-1">
             <Swords className="w-4 h-4 mr-1.5" />
-            <span className="text-xs font-semibold text-slate-600">Total Fixtures</span>
+            <span className="text-xs font-semibold text-gray-600">Total Fixtures</span>
           </div>
-          <p className="text-2xl font-bold text-slate-900">{matches.length}</p>
+          <p className="text-2xl font-bold text-gray-900">{matches.length}</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
+        <div className="bg-white rounded-sm border border-gray-300 p-4 shadow-sm">
           <div className="flex items-center text-[#0b3578] mb-1">
             <ShieldCheck className="w-4 h-4 mr-1.5" />
-            <span className="text-xs font-semibold text-slate-600">Verified Results</span>
+            <span className="text-xs font-semibold text-gray-600">Verified Results</span>
           </div>
-          <p className="text-2xl font-bold text-slate-900">
+          <p className="text-2xl font-bold text-gray-900">
             {matches.filter((m) => m.is_verified).length}
           </p>
         </div>
       </div>
 
       {/* Tabs Navigation */}
-      <div className="flex bg-white rounded-lg p-1 border border-slate-200 shadow-xs w-full sm:w-auto overflow-x-auto">
+      <div className="flex bg-white rounded-md p-1 border border-gray-300 shadow-sm w-full sm:w-auto overflow-x-auto">
         <button
           onClick={() => setActiveTab('participants')}
           className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === 'participants'
-              ? 'bg-blue-50 text-[#0b3578] font-semibold shadow-xs'
-              : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+              ? 'bg-blue-50 text-[#0b3578] font-semibold shadow-sm'
+              : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
           }`}
         >
           Participants & Approvals ({participants.length})
@@ -365,8 +352,8 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
           onClick={() => setActiveTab('matches')}
           className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === 'matches'
-              ? 'bg-blue-50 text-[#0b3578] font-semibold shadow-xs'
-              : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+              ? 'bg-blue-50 text-[#0b3578] font-semibold shadow-sm'
+              : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
           }`}
         >
           Match Fixtures ({matches.length})
@@ -376,8 +363,8 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
           onClick={() => setActiveTab('verify')}
           className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === 'verify'
-              ? 'bg-blue-50 text-[#0b3578] font-semibold shadow-xs'
-              : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+              ? 'bg-blue-50 text-[#0b3578] font-semibold shadow-sm'
+              : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
           }`}
         >
           Result Auditing ({matches.filter((m) => m.status === 'COMPLETED').length})
@@ -387,15 +374,15 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
       {/* Tab 1: Participants List */}
       {activeTab === 'participants' && (
         <div className="space-y-4">
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="bg-white rounded-sm border border-gray-300 p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="relative flex-1 w-full">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search participant by name, roll number, or department..."
-                className="w-full pl-9 pr-3.5 py-1.5 text-xs rounded-lg border border-slate-300 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0b3578]"
+                className="w-full pl-9 pr-3.5 py-1.5 text-xs rounded-md border border-gray-300 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578]"
               />
             </div>
 
@@ -405,10 +392,10 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                   key={st}
                   onClick={() => setStatusFilter(st)}
                   className={`
-                    px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer
+                    px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer
                     ${statusFilter === st
-                      ? 'bg-[#0b3578] text-white font-semibold'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      ? 'bg-[#0b3578] text-white font-semibold shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }
                   `}
                 >
@@ -418,10 +405,10 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-sm border border-gray-300 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 uppercase font-semibold tracking-wider">
+                <thead className="bg-gray-50 border-b border-gray-200 text-gray-700 uppercase font-semibold tracking-wider">
                   <tr>
                     <th className="py-3 px-4">Participant</th>
                     <th className="py-3 px-4">Roll Number / ID</th>
@@ -431,26 +418,26 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
+                <tbody className="divide-y divide-gray-100 text-gray-700">
                   {filteredParticipants.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-400">
+                      <td colSpan={6} className="py-8 text-center text-gray-400">
                         No participants found matching current filter.
                       </td>
                     </tr>
                   ) : (
                     filteredParticipants.map((p) => (
-                      <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                      <tr key={p.id} className="hover:bg-gray-50/80 transition-colors">
                         <td className="py-3 px-4 font-semibold text-gray-800">
                           {p.display_name}
                         </td>
-                        <td className="py-3 px-4 font-mono text-slate-600">
+                        <td className="py-3 px-4 font-mono text-gray-600">
                           {p.user_id}
                         </td>
-                        <td className="py-3 px-4 text-slate-600">
+                        <td className="py-3 px-4 text-gray-600">
                           {p.department || '—'}
                         </td>
-                        <td className="py-3 px-4 uppercase text-[11px] font-semibold text-slate-500">
+                        <td className="py-3 px-4 uppercase text-[11px] font-semibold text-gray-500">
                           {p.user_type}
                         </td>
                         <td className="py-3 px-4 text-center">
@@ -460,7 +447,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                               ${p.status === 'ACCEPTED'
                                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                 : p.status === 'REJECTED'
-                                ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                ? 'bg-red-50 text-red-700 border border-red-200'
                                 : 'bg-amber-50 text-amber-800 border border-amber-200'
                               }
                             `}
@@ -473,7 +460,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                             <button
                               onClick={() => handleParticipantStatus(p.id, 'ACCEPTED')}
                               disabled={actionLoading}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors cursor-pointer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors cursor-pointer shadow-sm"
                             >
                               <Check className="w-3 h-3" /> Accept
                             </button>
@@ -482,7 +469,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                             <button
                               onClick={() => handleParticipantStatus(p.id, 'REJECTED')}
                               disabled={actionLoading}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-rose-50 text-rose-700 border border-rose-200 font-medium hover:bg-rose-100 transition-colors cursor-pointer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-50 text-red-700 border border-red-200 font-medium hover:bg-red-100 transition-colors cursor-pointer"
                             >
                               <X className="w-3 h-3" /> Reject
                             </button>
@@ -507,7 +494,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
             </h3>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#0b3578] text-white text-xs font-medium hover:bg-[#0a2d66] transition-colors shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[#0b3578] text-white text-xs font-medium hover:bg-[#0a2d66] transition-colors shadow-sm cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Create Match Fixture
             </button>
@@ -515,18 +502,18 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {matches.length === 0 ? (
-              <div className="col-span-2 py-12 text-center text-slate-400 bg-white rounded-xl border border-slate-200">
-                <Swords className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+              <div className="col-span-2 py-12 text-center text-gray-400 bg-white rounded-sm border border-gray-300">
+                <Swords className="w-8 h-8 mx-auto text-gray-300 mb-2" />
                 <p className="text-sm font-semibold">No matches scheduled yet.</p>
-                <p className="text-xs text-slate-500 mt-0.5">Click &ldquo;Create Match Fixture&rdquo; to pair two accepted participants.</p>
+                <p className="text-xs text-gray-500 mt-0.5">Click &ldquo;Create Match Fixture&rdquo; to pair two accepted participants.</p>
               </div>
             ) : (
               matches.map((m) => (
                 <div
                   key={m.id}
-                  className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4"
+                  className="bg-white rounded-sm border border-gray-300 p-5 shadow-sm space-y-4"
                 >
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                     <span className="text-xs font-semibold uppercase text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                       {m.round_name}
                     </span>
@@ -538,7 +525,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                           : m.status === 'IN_PROGRESS'
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 animate-pulse'
                           : m.status === 'COMPLETED'
-                          ? 'bg-slate-100 text-slate-700 border border-slate-200'
+                          ? 'bg-gray-100 text-gray-700 border border-gray-200'
                           : 'bg-amber-50 text-amber-700 border border-amber-200'
                         }
                       `}
@@ -548,36 +535,36 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                   </div>
 
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
+                    <div className="flex items-center justify-between p-2 rounded-sm bg-gray-50 border border-gray-100">
                       <div className="flex items-center gap-2">
-                        <span className="w-3 h-3 rounded-full bg-white border border-slate-400" />
+                        <span className="w-3 h-3 rounded-full bg-white border border-gray-400" />
                         <span className="text-xs font-semibold text-gray-800">
                           {m.player_white_name}
                         </span>
                       </div>
-                      <span className="text-[10px] font-medium text-slate-400 uppercase">White</span>
+                      <span className="text-[10px] font-medium text-gray-400 uppercase">White</span>
                     </div>
 
-                    <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
+                    <div className="flex items-center justify-between p-2 rounded-sm bg-gray-50 border border-gray-100">
                       <div className="flex items-center gap-2">
-                        <span className="w-3 h-3 rounded-full bg-slate-900 border border-slate-700" />
+                        <span className="w-3 h-3 rounded-full bg-gray-900 border border-gray-700" />
                         <span className="text-xs font-semibold text-gray-800">
                           {m.player_black_name}
                         </span>
                       </div>
-                      <span className="text-[10px] font-medium text-slate-400 uppercase">Black</span>
+                      <span className="text-[10px] font-medium text-gray-400 uppercase">Black</span>
                     </div>
                   </div>
 
-                  <div className="pt-2 flex items-center justify-between border-t border-slate-100 text-xs">
-                    <span className="font-mono text-slate-400">#{m.match_code}</span>
+                  <div className="pt-2 flex items-center justify-between border-t border-gray-100 text-xs">
+                    <span className="font-mono text-gray-400">#{m.match_code}</span>
 
                     <div className="flex items-center gap-2">
                       {m.status === 'SCHEDULED' && (
                         <button
                           onClick={() => handlePublishMatch(m.id)}
                           disabled={actionLoading}
-                          className="px-3 py-1 rounded-lg bg-blue-50 text-[#0b3578] hover:bg-blue-100 font-medium transition-colors cursor-pointer"
+                          className="px-3 py-1 rounded-md bg-blue-50 text-[#0b3578] hover:bg-blue-100 font-medium transition-colors cursor-pointer"
                         >
                           Publish to Arena
                         </button>
@@ -585,7 +572,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
 
                       <Link
                         href={`/events/chess/match/${m.id}`}
-                        className="px-3 py-1 rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-medium transition-colors"
+                        className="px-3 py-1 rounded-md bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium transition-colors shadow-sm"
                       >
                         Enter Arena
                       </Link>
@@ -601,10 +588,10 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
       {/* Tab 3: Verification */}
       {activeTab === 'verify' && (
         <div className="space-y-4">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-sm border border-gray-300 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 uppercase font-semibold tracking-wider">
+                <thead className="bg-gray-50 border-b border-gray-200 text-gray-700 uppercase font-semibold tracking-wider">
                   <tr>
                     <th className="py-3 px-4">Match</th>
                     <th className="py-3 px-4">Round</th>
@@ -614,10 +601,10 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
+                <tbody className="divide-y divide-gray-100 text-gray-700">
                   {matches.filter((m) => m.status === 'COMPLETED').length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-400">
+                      <td colSpan={6} className="py-8 text-center text-gray-400">
                         No completed matches awaiting verification.
                       </td>
                     </tr>
@@ -625,15 +612,15 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                     matches
                       .filter((m) => m.status === 'COMPLETED')
                       .map((m) => (
-                        <tr key={m.id} className="hover:bg-slate-50/80 transition-colors">
+                        <tr key={m.id} className="hover:bg-gray-50/80 transition-colors">
                           <td className="py-3 px-4 font-semibold text-gray-800">
                             {m.player_white_name} vs {m.player_black_name}
                           </td>
-                          <td className="py-3 px-4 text-slate-600">{m.round_name}</td>
+                          <td className="py-3 px-4 text-gray-600">{m.round_name}</td>
                           <td className="py-3 px-4 font-semibold text-[#0b3578] capitalize">
                             {m.winner_side === 'draw' ? 'Draw' : `${m.winner_side} (${m.winner_side === 'white' ? m.player_white_name : m.player_black_name})`}
                           </td>
-                          <td className="py-3 px-4 text-slate-600 capitalize">
+                          <td className="py-3 px-4 text-gray-600 capitalize">
                             {m.result_reason?.replace('_', ' ') || 'Normal'}
                           </td>
                           <td className="py-3 px-4 text-center">
@@ -653,7 +640,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                             {!m.is_verified && (
                               <button
                                 onClick={() => setVerifyingMatch(m)}
-                                className="px-3 py-1 rounded bg-[#0b3578] text-white hover:bg-[#0a2d66] font-medium transition-colors cursor-pointer"
+                                className="px-3 py-1 rounded-md bg-[#0b3578] text-white hover:bg-[#0a2d66] font-medium transition-colors cursor-pointer shadow-sm"
                               >
                                 Verify Result
                               </button>
@@ -671,11 +658,11 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
 
       {/* Match Creation Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-xl border border-slate-200 p-6 max-w-md w-full shadow-xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-sm border border-gray-300 p-6 max-w-md w-full shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-200 pb-3">
               <h3 className="text-base font-semibold text-gray-800">Create Match Pairing</h3>
-              <button onClick={() => setShowCreateModal(false)} className="p-1 rounded text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowCreateModal(false)} className="p-1 rounded text-gray-400 hover:text-gray-600 cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -689,7 +676,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                   value={roundName}
                   onChange={(e) => setRoundName(e.target.value)}
                   placeholder="e.g. Round 1, Quarterfinals, Semifinals"
-                  className="w-full px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0b3578]"
+                  className="w-full px-3 py-1.5 rounded-md border border-gray-300 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578]"
                 />
               </div>
 
@@ -699,7 +686,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                   required
                   value={playerWhiteId}
                   onChange={(e) => setPlayerWhiteId(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0b3578]"
+                  className="w-full px-3 py-1.5 rounded-md border border-gray-300 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578]"
                 >
                   <option value="">Select accepted player...</option>
                   {acceptedParticipants.map((p) => (
@@ -716,7 +703,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                   required
                   value={playerBlackId}
                   onChange={(e) => setPlayerBlackId(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0b3578]"
+                  className="w-full px-3 py-1.5 rounded-md border border-gray-300 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578]"
                 >
                   <option value="">Select accepted player...</option>
                   {acceptedParticipants.map((p) => (
@@ -733,22 +720,22 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                   type="datetime-local"
                   value={scheduledAt}
                   onChange={(e) => setScheduledAt(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0b3578]"
+                  className="w-full px-3 py-1.5 rounded-md border border-gray-300 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578]"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 font-medium hover:bg-slate-50 transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-md bg-white border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="px-4 py-2 rounded-lg bg-[#0b3578] hover:bg-[#0a2d66] text-white font-medium transition-colors shadow-xs cursor-pointer"
+                  className="px-4 py-2 rounded-md bg-[#0b3578] hover:bg-[#0a2d66] text-white font-medium transition-colors shadow-sm cursor-pointer"
                 >
                   Create Match
                 </button>
@@ -760,20 +747,20 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
 
       {/* Verification Dialog Modal */}
       {verifyingMatch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-xl border border-slate-200 p-6 max-w-md w-full shadow-xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-sm border border-gray-300 p-6 max-w-md w-full shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-200 pb-3">
               <h3 className="text-base font-semibold text-gray-800">Verify Official Result</h3>
-              <button onClick={() => setVerifyingMatch(null)} className="p-1 rounded text-slate-400 hover:text-slate-600">
+              <button onClick={() => setVerifyingMatch(null)} className="p-1 rounded text-gray-400 hover:text-gray-600 cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="space-y-2 text-xs">
-              <p className="text-slate-600">
+              <p className="text-gray-600">
                 Match: <strong className="text-gray-800">{verifyingMatch.player_white_name} vs {verifyingMatch.player_black_name}</strong>
               </p>
-              <p className="text-slate-600">
+              <p className="text-gray-600">
                 Reported Winner: <strong className="text-[#0b3578] capitalize">{verifyingMatch.winner_side}</strong> via <strong className="capitalize">{verifyingMatch.result_reason?.replace('_', ' ')}</strong>
               </p>
             </div>
@@ -785,15 +772,15 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                 value={verificationNotes}
                 onChange={(e) => setVerificationNotes(e.target.value)}
                 placeholder="e.g. Fair play verified, confirmed by both players."
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0b3578]"
+                className="w-full px-3 py-2 rounded-md border border-gray-300 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578]"
               />
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 text-xs">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-200 text-xs">
               <button
                 type="button"
                 onClick={() => setVerifyingMatch(null)}
-                className="px-4 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 font-medium hover:bg-slate-50 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-md bg-white border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -801,7 +788,7 @@ export default function AdminEventControl({ eventKey = 'chess' }) {
                 type="button"
                 disabled={actionLoading}
                 onClick={handleVerifyMatch}
-                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors shadow-xs cursor-pointer"
+                className="px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors shadow-sm cursor-pointer"
               >
                 Seal & Verify Result
               </button>

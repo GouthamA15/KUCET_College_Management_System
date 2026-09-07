@@ -2,16 +2,15 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Trophy,
   Swords,
   Users,
-  BookOpen,
   ExternalLink,
   CheckCircle,
   RefreshCw,
   PlusCircle,
   ArrowRight,
-  ShieldCheck
+  ShieldCheck,
+  ArrowLeft
 } from 'lucide-react';
 import Link from 'next/link';
 import ParticipantRegistrationModal from './ParticipantRegistrationModal';
@@ -23,7 +22,6 @@ export default function TournamentLobby({ eventKey = 'chess', currentUser = null
   const [activeTab, setActiveTab] = useState('matches'); // 'matches' | 'completed' | 'roster' | 'rules'
   const [loading, setLoading] = useState(true);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
-
   const [registering, setRegistering] = useState(false);
   const [registerError, setRegisterError] = useState(null);
 
@@ -82,150 +80,167 @@ export default function TournamentLobby({ eventKey = 'chess', currentUser = null
   const activeMatches = matches.filter((m) => m.status === 'IN_PROGRESS' || m.status === 'PUBLISHED');
   const completedMatches = matches.filter((m) => m.status === 'COMPLETED');
 
+  const tabs = [
+    { id: 'matches', label: 'Active Fixtures & Live Arena', count: activeMatches.length },
+    { id: 'completed', label: 'Completed Matches', count: completedMatches.length },
+    { id: 'roster', label: 'Contenders Roster', count: participants.length },
+    { id: 'rules', label: 'Tournament Rules' },
+  ];
+
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[350px] p-8">
-        <RefreshCw className="w-8 h-8 text-[#0b3578] animate-spin mb-3" />
-        <p className="text-xs font-semibold text-slate-500">Loading Chess Tournament Hub...</p>
+      <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
+        <header className="mb-4">
+          <div className="h-8 bg-gray-200 animate-pulse w-64 rounded mb-2"></div>
+          <div className="h-4 bg-gray-100 animate-pulse w-96 rounded"></div>
+        </header>
+        <div className="flex gap-2 mb-3">
+          <div className="h-9 w-28 bg-gray-200 animate-pulse rounded"></div>
+          <div className="h-9 w-28 bg-gray-200 animate-pulse rounded"></div>
+        </div>
+        <div className="h-64 bg-white border border-gray-200 rounded p-6 animate-pulse"></div>
       </div>
     );
   }
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
-      {/* Breadcrumb Navigation */}
-      <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-        <Link href="/" className="hover:text-slate-700 transition-colors">
-          KUCET CMS
-        </Link>
-        <span>/</span>
-        <Link href="/events" className="hover:text-slate-700 transition-colors">
-          Campus Events
-        </Link>
-        <span>/</span>
-        <span className="text-slate-800 font-semibold">Chess Championship</span>
-      </div>
-
-      {/* Page Header */}
-      <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 border-b border-slate-200 pb-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-800">
-            {config?.event_name || 'KUCET Chess Championship'}
-          </h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Official rapid tournament brackets with FIDE regulations, live interactive clock, and verified arbiter scoring.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {!currentUser ? (
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs font-medium transition-colors shadow-xs"
-            >
-              <Users className="w-4 h-4" /> Student Login to Register
-            </Link>
-          ) : config?.registration_open && !userRegistration ? (
+      {/* Page Header — standard KUCET format */}
+      <header className="mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={handleOneClickRegister}
-                disabled={registering}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs font-medium transition-colors shadow-xs cursor-pointer disabled:opacity-50"
-              >
-                {registering ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Registering...</span>
-                  </>
-                ) : (
-                  <>
-                    <PlusCircle className="w-4 h-4" />
-                    <span>1-Click Register</span>
-                  </>
-                )}
-              </button>
-              <button
-                onClick={() => setShowRegisterModal(true)}
-                className="px-2.5 py-2 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
-                title="Add optional notes / rating"
-              >
-                Options
-              </button>
+              <h1 className="text-2xl font-semibold text-gray-800">
+                {config?.event_name || 'KUCET Chess Championship'}
+              </h1>
             </div>
-          ) : userRegistration ? (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-medium">
-              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Registered ({userRegistration.status})</span>
-            </div>
-          ) : (
-            <span className="text-xs text-slate-500 font-medium px-3 py-1.5 bg-slate-100 rounded-lg">
-              Registration Closed
-            </span>
-          )}
+            <p className="text-sm text-gray-600 mt-1">
+              Official rapid tournament brackets with FIDE regulations, live interactive clock, and verified arbiter scoring.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <Link
+              href="/events"
+              className="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 text-xs sm:text-sm font-medium transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" /> All Events
+            </Link>
+
+            {!currentUser ? (
+              <Link
+                href="/"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs sm:text-sm font-medium transition-colors shadow-xs"
+              >
+                <Users className="w-4 h-4" /> Student Login
+              </Link>
+            ) : config?.registration_open && !userRegistration ? (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleOneClickRegister}
+                  disabled={registering}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs sm:text-sm font-medium transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                >
+                  {registering ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Registering...</span>
+                    </>
+                  ) : (
+                    <>
+                      <PlusCircle className="w-3.5 h-3.5" />
+                      <span>1-Click Register</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowRegisterModal(true)}
+                  className="px-3 py-2 rounded-md bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs sm:text-sm font-medium transition-colors cursor-pointer"
+                  title="Add optional notes / rating"
+                >
+                  Options
+                </button>
+              </div>
+            ) : userRegistration ? (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Enrolled ({userRegistration.status})</span>
+              </div>
+            ) : (
+              <span className="text-xs text-gray-500 font-medium px-3 py-1.5 bg-gray-100 rounded-md border border-gray-200">
+                Registration Closed
+              </span>
+            )}
+          </div>
         </div>
       </header>
 
       {registerError && (
-        <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+        <div className="p-3 rounded-md bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 shrink-0 text-rose-600" />
           <span>{registerError}</span>
         </div>
       )}
 
-      {/* Top 3 Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-          <div className="flex items-center text-[#0b3578] mb-1">
-            <Swords className="w-4 h-4 mr-1.5" />
-            <span className="text-xs font-semibold text-slate-600">Active Fixtures</span>
+      {/* Top 3 Stats Grid — matching KUCET metric summary style */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-white border border-gray-200 rounded-sm p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Active Fixtures</span>
+            <Swords className="w-4 h-4 text-[#0b3578]" />
           </div>
-          <p className="text-2xl font-bold text-slate-900">{activeMatches.length}</p>
+          <p className="text-2xl font-bold text-gray-900 mt-2">{activeMatches.length}</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-          <div className="flex items-center text-emerald-600 mb-1">
-            <CheckCircle className="w-4 h-4 mr-1.5" />
-            <span className="text-xs font-semibold text-slate-600">Completed Games</span>
+        <div className="bg-white border border-gray-200 rounded-sm p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Completed Matches</span>
+            <CheckCircle className="w-4 h-4 text-emerald-600" />
           </div>
-          <p className="text-2xl font-bold text-slate-900">{completedMatches.length}</p>
+          <p className="text-2xl font-bold text-gray-900 mt-2">{completedMatches.length}</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-          <div className="flex items-center text-amber-600 mb-1">
-            <Users className="w-4 h-4 mr-1.5" />
-            <span className="text-xs font-semibold text-slate-600">Registered Contenders</span>
+        <div className="bg-white border border-gray-200 rounded-sm p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Registered Contenders</span>
+            <Users className="w-4 h-4 text-amber-600" />
           </div>
-          <p className="text-2xl font-bold text-slate-900">{participants.length}</p>
+          <p className="text-2xl font-bold text-gray-900 mt-2">{participants.length}</p>
         </div>
       </div>
 
-      {/* Lobby Navigation Tabs */}
-      <div className="flex bg-white rounded-lg p-1 border border-slate-200 shadow-xs w-full sm:w-auto overflow-x-auto">
-        {[
-          { id: 'matches', label: 'Active Fixtures & Live Arena', icon: Swords, count: activeMatches.length },
-          { id: 'completed', label: 'Completed Matches', icon: CheckCircle, count: completedMatches.length },
-          { id: 'roster', label: 'Contenders Roster', icon: Users, count: participants.length },
-          { id: 'rules', label: 'Tournament Rules', icon: BookOpen },
-        ].map(({ id, label, icon: Icon, count }) => (
+      {/* Tabs — standard KUCET tabs pattern */}
+      <div className="md:hidden flex flex-wrap items-center gap-2 pb-1">
+        {tabs.map(({ id, label }) => (
           <button
             key={id}
+            type="button"
             onClick={() => setActiveTab(id)}
-            className={`
-              inline-flex items-center gap-2 px-4 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer whitespace-nowrap
-              ${activeTab === id
-                ? 'bg-blue-50 text-[#0b3578] font-semibold shadow-xs'
-                : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
-              }
-            `}
+            className={`px-3 py-2 rounded-md text-xs sm:text-sm transition-colors cursor-pointer ${
+              activeTab === id ? 'bg-[#0b3578] text-white' : 'bg-white border text-gray-700 hover:bg-gray-50'
+            }`}
           >
-            <Icon className="w-3.5 h-3.5" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="hidden md:flex items-center gap-2 mb-4">
+        {tabs.map(({ id, label, count }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setActiveTab(id)}
+            className={`px-3 py-2 rounded-md text-sm whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1.5 ${
+              activeTab === id ? 'bg-[#0b3578] text-white' : 'bg-white border text-gray-700 hover:bg-gray-50'
+            }`}
+          >
             <span>{label}</span>
             {count !== undefined && (
               <span
-                className={`
-                  px-1.5 py-0.2 rounded-full text-[10px] font-semibold
-                  ${activeTab === id ? 'bg-blue-100 text-[#0b3578]' : 'bg-slate-100 text-slate-600'}
-                `}
+                className={`text-xs px-1.5 py-0.2 rounded-full font-semibold ${
+                  activeTab === id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                }`}
               >
                 {count}
               </span>
@@ -238,12 +253,12 @@ export default function TournamentLobby({ eventKey = 'chess', currentUser = null
       {activeTab === 'matches' && (
         <div className="space-y-4">
           {activeMatches.length === 0 ? (
-            <div className="p-12 text-center bg-white rounded-xl border border-slate-200">
-              <Swords className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+            <div className="p-12 text-center bg-white rounded-sm border border-gray-300 shadow-sm">
+              <Swords className="w-8 h-8 mx-auto text-gray-300 mb-2" />
               <h3 className="text-sm font-semibold text-gray-800">
                 No Live Fixtures in Progress
               </h3>
-              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
                 Next round pairings are currently being organized by tournament arbiters. Check back shortly.
               </p>
             </div>
@@ -252,15 +267,15 @@ export default function TournamentLobby({ eventKey = 'chess', currentUser = null
               {activeMatches.map((m) => (
                 <div
                   key={m.id}
-                  className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4"
+                  className="bg-white rounded-sm border border-gray-300 p-4 sm:p-5 shadow-sm space-y-4"
                 >
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <span className="text-xs font-semibold uppercase text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                  <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
+                    <span className="text-[11px] font-semibold uppercase text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                       {m.round_name}
                     </span>
                     <span
                       className={`
-                        px-2 py-0.5 rounded text-[10px] font-semibold uppercase
+                        px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide
                         ${m.status === 'IN_PROGRESS'
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : 'bg-blue-50 text-blue-700 border border-blue-200'
@@ -272,35 +287,35 @@ export default function TournamentLobby({ eventKey = 'chess', currentUser = null
                   </div>
 
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                    <div className="flex items-center justify-between p-2.5 rounded bg-gray-50 border border-gray-100">
                       <div className="flex items-center gap-2">
-                        <span className="w-3 h-3 rounded-full bg-white border border-slate-400" />
+                        <span className="w-3 h-3 rounded-full bg-white border border-gray-400" />
                         <span className="text-xs font-semibold text-gray-800">
                           {m.player_white_name}
                         </span>
                       </div>
-                      <span className="text-[10px] text-slate-400 font-medium">White</span>
+                      <span className="text-[10px] text-gray-400 font-medium uppercase">White</span>
                     </div>
 
-                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                    <div className="flex items-center justify-between p-2.5 rounded bg-gray-50 border border-gray-100">
                       <div className="flex items-center gap-2">
                         <span className="w-3 h-3 rounded-full bg-slate-900 border border-slate-700" />
                         <span className="text-xs font-semibold text-gray-800">
                           {m.player_black_name}
                         </span>
                       </div>
-                      <span className="text-[10px] text-slate-400 font-medium">Black</span>
+                      <span className="text-[10px] text-gray-400 font-medium uppercase">Black</span>
                     </div>
                   </div>
 
-                  <div className="pt-2 flex items-center justify-between border-t border-slate-100">
-                    <span className="text-[11px] font-mono text-slate-400">
+                  <div className="pt-2.5 flex items-center justify-between border-t border-gray-100">
+                    <span className="text-[11px] font-mono text-gray-400">
                       #{m.match_code}
                     </span>
 
                     <Link
                       href={`/events/chess/match/${m.id}`}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs font-medium transition-colors shadow-xs cursor-pointer"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-[#0b3578] hover:bg-[#0a2d66] text-white text-xs font-medium transition-colors shadow-xs cursor-pointer"
                     >
                       Enter Arena <ArrowRight className="w-3.5 h-3.5" />
                     </Link>
@@ -314,21 +329,21 @@ export default function TournamentLobby({ eventKey = 'chess', currentUser = null
 
       {/* Tab Content 2: Completed Matches */}
       {activeTab === 'completed' && (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-          <div className="divide-y divide-slate-100">
+        <div className="bg-white rounded-sm border border-gray-300 overflow-hidden shadow-sm">
+          <div className="divide-y divide-gray-100">
             {completedMatches.length === 0 ? (
-              <div className="py-12 text-center text-slate-400">
+              <div className="py-12 text-center text-gray-400">
                 <p className="text-xs font-semibold">No completed matches recorded yet.</p>
               </div>
             ) : (
               completedMatches.map((m) => (
-                <div key={m.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/80">
+                <div key={m.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50/80">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold text-amber-800 uppercase">
                         {m.round_name}
                       </span>
-                      <span className="text-xs font-mono text-slate-400">
+                      <span className="text-xs font-mono text-gray-400">
                         #{m.match_code}
                       </span>
                       {m.is_verified && (
@@ -340,16 +355,16 @@ export default function TournamentLobby({ eventKey = 'chess', currentUser = null
                     <p className="text-sm font-bold text-gray-800">
                       {m.player_white_name} vs {m.player_black_name}
                     </p>
-                    <p className="text-xs text-slate-500 capitalize">
+                    <p className="text-xs text-gray-500 capitalize">
                       Winner: {m.winner_side === 'draw' ? 'Draw' : `${m.winner_side} (${m.winner_side === 'white' ? m.player_white_name : m.player_black_name})`} via {m.result_reason?.replace('_', ' ')}
                     </p>
                   </div>
 
                   <Link
                     href={`/events/chess/match/${m.id}`}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-medium"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-medium"
                   >
-                    <ExternalLink className="w-3.5 h-3.5" /> View Game Replay
+                    <ExternalLink className="w-3.5 h-3.5" /> View Replay
                   </Link>
                 </div>
               ))
@@ -358,45 +373,45 @@ export default function TournamentLobby({ eventKey = 'chess', currentUser = null
         </div>
       )}
 
-      {/* Tab Content 3: Contenders Roster */}
+      {/* Tab Content 3: Contenders Roster — standard KUCET table */}
       {activeTab === 'roster' && (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+        <div className="bg-white rounded-sm border border-gray-300 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 uppercase font-semibold tracking-wider">
+            <table className="w-full min-w-0 table-auto text-left text-xs">
+              <thead className="bg-gray-100 border-b border-gray-200 text-gray-700 font-semibold uppercase tracking-wider">
                 <tr>
-                  <th className="py-3 px-4">Contender</th>
-                  <th className="py-3 px-4">Roll Number / ID</th>
-                  <th className="py-3 px-4">Department</th>
-                  <th className="py-3 px-4">Status</th>
+                  <th className="py-2.5 px-3 text-left">Contender</th>
+                  <th className="py-2.5 px-3 text-left">Roll Number / ID</th>
+                  <th className="py-2.5 px-3 text-left">Department</th>
+                  <th className="py-2.5 px-3 text-left">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
+              <tbody className="divide-y divide-gray-100 text-gray-700">
                 {participants.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="py-8 text-center text-slate-400">
+                    <td colSpan={4} className="py-8 text-center text-gray-400">
                       No contenders registered yet.
                     </td>
                   </tr>
                 ) : (
                   participants.map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3 px-4 font-semibold text-gray-800">
+                    <tr key={p.id} className="hover:bg-gray-50/80 transition-colors">
+                      <td className="py-2.5 px-3 font-semibold text-gray-800">
                         {p.display_name}
                       </td>
-                      <td className="py-3 px-4 font-mono text-slate-600">
+                      <td className="py-2.5 px-3 font-mono text-gray-600">
                         {p.user_id}
                       </td>
-                      <td className="py-3 px-4 text-slate-600">
+                      <td className="py-2.5 px-3 text-gray-600">
                         {p.department || '—'}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-2.5 px-3">
                         <span
                           className={`
                             px-2 py-0.5 rounded text-[10px] font-semibold uppercase
                             ${p.status === 'ACCEPTED'
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : 'bg-slate-100 text-slate-700 border border-slate-200'
+                              : 'bg-gray-100 text-gray-700 border border-gray-200'
                             }
                           `}
                         >
@@ -412,10 +427,10 @@ export default function TournamentLobby({ eventKey = 'chess', currentUser = null
         </div>
       )}
 
-      {/* Tab Content 4: Rules */}
+      {/* Tab Content 4: Rules — standard KUCET content container */}
       {activeTab === 'rules' && (
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs space-y-3 text-xs text-slate-700">
-          <h3 className="text-sm font-semibold text-gray-800 border-b border-slate-200 pb-2">
+        <div className="bg-white rounded-sm border border-gray-300 p-4 sm:p-6 shadow-sm space-y-3 text-xs text-gray-700">
+          <h3 className="text-sm font-semibold text-gray-800 border-b border-gray-200 pb-2">
             Official FIDE Rapid Rules & Tournament Code of Conduct
           </h3>
           <ul className="list-disc pl-5 space-y-2 leading-relaxed">
