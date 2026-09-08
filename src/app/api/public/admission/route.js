@@ -112,7 +112,7 @@ export async function POST(req) {
         const emailInStaff = await db.query.staffAccounts.findFirst({ where: eq(staffAccounts.email, email) });
         
         if (emailInDraft || emailInStudent || emailInStaff) {
-            return apiError('Please check your details and try again.', 409);
+            return apiError('There is already a form submitted with the details.', 409);
         }
     }
 
@@ -127,7 +127,7 @@ export async function POST(req) {
     const mobileInStudent = await db.query.students.findFirst({ where: eq(students.mobile_hash, mobileHash) });
     
     if (mobileInDraft || mobileInStudent) {
-        return apiError('Please check your details and try again.', 409);
+        return apiError('There is already a form submitted with the details.', 409);
     }
 
     // 3. Aadhaar Uniqueness Check (Exclude REJECTED drafts)
@@ -142,7 +142,7 @@ export async function POST(req) {
         const aadhaarInStudent = await db.query.studentPersonalDetails.findFirst({ where: eq(studentPersonalDetails.aadhaar_hash, aHash) });
         
         if (aadhaarInDraft || aadhaarInStudent) {
-            return apiError('Please check your details and try again.', 409);
+            return apiError('There is already a form submitted with the details.', 409);
         }
     }
 
