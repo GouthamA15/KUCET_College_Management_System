@@ -46,6 +46,12 @@ export const REALTIME_EVENTS = Object.freeze({
   NOTIFICATION_CREATED: 'notification:created',
   SECURITY_EVENT: 'security:event',
   SESSION_REVOKED: 'session:revoked',
+
+  // --- Mind Sports & Chess ---
+  CHESS_MOVE_PLAYED: 'chess:move:played',
+  CHESS_GAME_OVER: 'chess:game:over',
+  CHESS_ACTION: 'chess:action',
+  TOURNAMENT_UPDATED: 'tournament:updated',
 });
 
 /**
@@ -63,6 +69,7 @@ export const REALTIME_ROOMS = Object.freeze({
   userStudent: (studentId) => `user:student:${studentId}`,
   studentRoll: (rollNo) => `student:${rollNo}`,
   dept: (branchCode) => `dept:${branchCode?.toUpperCase()}`,
+  matchRoom: (matchId) => `match:${matchId}`,
 });
 
 /**

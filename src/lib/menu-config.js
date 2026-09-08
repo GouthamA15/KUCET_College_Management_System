@@ -10,6 +10,7 @@ export const NAV_MENU_CONFIG = {
     { label: 'ACADEMICS', route: '/student/academics' },
     { label: 'FEES', route: '/student/finances' },
     { label: 'TIME TABLE', route: '/student/timetable' },
+    { label: 'MY EVENT', route: '/events' },
     { label: 'REQUESTS', children: [
         { label: 'Certificates', route: '/student/requests/certificates' }
       ]
@@ -110,7 +111,23 @@ export const NAV_MENU_CONFIG = {
     },
     { label: 'AUDIT TRAILS', route: '/admin/audit-logs' },
     { label: 'ARCHIVE CENTER', route: '/admin/archive' },
-    { label: 'VERIFICATIONS', route: '/admin/verifications' }
+    { label: 'VERIFICATIONS', route: '/admin/verifications' },
+    { label: 'CAMPUS EVENTS', route: '/admin/events' }
   ]
 };
+
+/**
+ * Filters dynamic menu items based on runtime availability (e.g., active campus tournaments).
+ * When all events are disabled by administration, 'MY EVENT' is removed from the navigation.
+ */
+export function filterDynamicMenuItems(menuItems = [], { hasActiveEvents = false } = {}) {
+  if (!menuItems || !Array.isArray(menuItems)) return [];
+
+  return menuItems.filter((item) => {
+    if ((item.route === '/events' || item.label === 'MY EVENT') && !hasActiveEvents) {
+      return false;
+    }
+    return true;
+  });
+}
 

@@ -6,8 +6,9 @@ import { _useStaff, StaffContext } from '@/context/StaffContext';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import ChangePasswordModal from './ChangePasswordModal';
-import { NAV_MENU_CONFIG } from '@/lib/menu-config';
+import { NAV_MENU_CONFIG, filterDynamicMenuItems } from '@/lib/menu-config';
 import { logoutByRole } from '@/lib/logout';
+import { useEventsStatus } from '@/hooks/useEventsStatus';
 
 export default function Navbar({ activePanel, setActivePanel, role, studentProfileMode = false, onLogout, _staffMinimal = false, _activeTab, _setActiveTab, _isSubPage = false, sticky = true, minimalNav = false, brandLabel = 'LOGIN PORTAL' }) {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState({ /* empty */ });
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const { hasActiveEvents } = useEventsStatus();
 
   // Use useContext directly to avoid throwing when Provider is missing (e.g. guest home)
   const studentContext = useContext(StudentContext);
@@ -69,7 +71,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   }
 
   // Filter student menu if unverified
-  const menuItems = (effectiveRole === 'student' && !isStudentVerified)
+  const rawTargetMenu = (effectiveRole === 'student' && !isStudentVerified)
     ? [
         { label: 'HOME', route: '/student' },
         { label: 'PROFILE', route: '/student/profile' },
@@ -79,6 +81,9 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
         }
       ]
     : menuItemsRaw;
+
+  // Dynamically filter tournament / event items if disabled by admin
+  const menuItems = filterDynamicMenuItems(rawTargetMenu, { hasActiveEvents });
 
   const handleNavClick = (panel) => {
     if (pathname !== '/' && pathname !== '/admission') {
