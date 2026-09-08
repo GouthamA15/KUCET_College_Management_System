@@ -1,5 +1,5 @@
 import logger from '@/lib/logger';
-import { apiResponse, apiError } from "@/lib/api-utils";
+import { apiResponse, apiError, getAuthUser } from "@/lib/api-utils";
 import { v2 as cloudinary } from "cloudinary";
 import { sendInstitutionalEmail } from "@/lib/email";
 import { DEVELOPER_EMAILS } from "@/lib/developers";
@@ -14,12 +14,28 @@ cloudinary.config({
 /**
  * GET /api/public/system/storage-alert
  * Automated check for Cloudinary storage limits.
+ * Guarded by CRON_SECRET / INTERNAL_API_SECRET or Admin Session.
  */
 export async function GET(_request) {
+  const authHeader = _request.headers.get('authorization');
+  const cronSecret = process.env.CRON_SECRET || process.env.INTERNAL_API_SECRET;
+  const isAuthorizedCron = cronSecret && (
+    authHeader === `Bearer ${cronSecret}` ||
+    _request.headers.get('x-cron-secret') === cronSecret
+  );
+
+  if (!isAuthorizedCron) {
+    const user = await getAuthUser('admin');
+    if (!user) {
+      return apiError('Unauthorized: Storage alert requires admin authentication or valid cron secret.', 401);
+    }
+  }
+
   // Developer emails from shared config
   const developerEmails = DEVELOPER_EMAILS;
 
   const ALERT_THRESHOLD_GB = 20;
+
 
   try {
     // Fetch Cloudinary Usage

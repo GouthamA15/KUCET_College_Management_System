@@ -7,6 +7,8 @@ import { storage } from '@/lib/providers';
 import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 import crypto from 'crypto';
 
+import { isDeveloper } from '@/lib/developers';
+
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -36,12 +38,49 @@ export async function GET(req) {
       );
     }
 
+    const user = await getAuthUser().catch(() => null);
+    const isPrivileged = Boolean(
+      user && (
+        user.role === 'admin' ||
+        user.role === 'superadmin' ||
+        isDeveloper(user.email)
+      )
+    );
+
     const reports = await db.query.bugReports.findMany({
       where: conditions.length > 0 ? (and(...conditions)) : undefined,
       orderBy: [desc(bugReports.created_at)]
     });
 
-    return apiResponse(reports);
+    const sanitizedReports = reports.map(r => {
+      if (isPrivileged) return r;
+      let maskedReporter = 'Community Member';
+      if (r.submitted_by) {
+        if (r.submitted_by.includes('@')) {
+          const [prefix, domain] = r.submitted_by.split('@');
+          maskedReporter = `${prefix.slice(0, 2)}***@${domain}`;
+        } else if (r.submitted_by.length > 4) {
+          maskedReporter = `${r.submitted_by.slice(0, 4)}****`;
+        }
+      }
+      return {
+        id: r.id,
+        description: r.description,
+        screenshot_url: r.screenshot_url,
+        type: r.type,
+        status: r.status,
+        severity: r.severity,
+        submitted_by: maskedReporter,
+        user_type: r.user_type,
+        affected_page: r.affected_page,
+        fixed_by: r.fixed_by,
+        fixed_at: r.fixed_at,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+      };
+    });
+
+    return apiResponse(sanitizedReports);
   } catch (error) {
     logger.error(error, 'Error fetching bug reports');
     return apiError('Failed to fetch bug reports', 500);

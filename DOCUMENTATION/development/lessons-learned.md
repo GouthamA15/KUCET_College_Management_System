@@ -97,6 +97,14 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 - **The Pitfall:** Calling `startTransition(() => setOptimisticState(...))` or dispatching secondary state updates from inside a state updater callback (e.g., `setState(prev => { dispatchOtherState(); return next; })`) violates React 19 concurrent purity rules and triggers unrecoverable runtime crashes (`Minified React Error #479` / `dispatchOptimisticSetState`).
 - **The Inviolable Guardrail:** State updater functions passed to `setState((prev) => ...)` MUST remain 100% pure without side effects. Perform transitions or multi-state synchronizations outside updater functions or consolidate them into a single batch updater (`setBatchAttendanceStatus`). Also ensure Edge proxy (`src/proxy.js`) forwards refreshed JWT tokens via `x-staff-auth` headers so downstream routes never encounter expired tokens immediately post-refresh.
 
+### Rule 19: Hardware Fingerprinting Over Shared NAT IP in Physical Campus Attendance
+- **The Pitfall:** In university lecture halls and computer labs, dozens of students connect to the same departmental Wi-Fi access point, sharing an identical egress NAT IP and common mobile browser User-Agent strings (e.g. Chrome on Android 14 or Safari on iOS 17). Enforcing automated proxy lockouts based on `ip_address + ua_hash` collisions causes severe false-positive penalties where innocent students are locked out and marked `ABSENT`.
+- **The Inviolable Guardrail:** Attendance proxy detection MUST rely on unique client hardware identifiers and browser storage UUIDs (`device_hash` / `finalDeviceId`). Network signatures (`ip_address`, `ua_hash`) should be recorded for diagnostic and forensic audit telemetry (`[ATTENDANCE_NETWORK_TELEMETRY]`) without triggering destructive multi-student lockouts across separate physical devices.
+
+### Rule 20: Zero-Trust Authorization & Authoritative Identity Binding on Assessment Endpoints
+- **The Pitfall:** Online assessment and tournament endpoints (e.g. quiz session initialization, answer saving, exam submission) that accept candidate identifiers (`user_id`) in request bodies or query parameters without authoritative session verification allow IDOR attacks. Unauthenticated or malicious actors can view questions, overwrite candidate answers, or forcibly submit tests for competing students.
+- **The Inviolable Guardrail:** ALWAYS wrap interactive assessment endpoints with `auth` via `wrapHandler` and authoritatively bind candidate roll numbers/IDs from the verified session payload (`ParticipantService.resolveAuthoritativeUser(user)` or `authUser.roll_no`). Never accept client-supplied `user_id` overrides unless the authenticated caller possesses administrative privileges (`admin` or `superadmin`).
+
 ---
 
 ## 3. Database Migration Safety Lessons

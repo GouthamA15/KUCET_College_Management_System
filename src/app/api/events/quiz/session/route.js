@@ -1,4 +1,4 @@
-import { wrapHandler, apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
+import { wrapHandler, apiResponse, apiError } from '@/lib/api-utils';
 import { QuizService } from '@/modules/events/services/QuizService';
 import { EventConfigService } from '@/modules/events/services/EventConfigService';
 import { ParticipantService } from '@/modules/events/services/ParticipantService';
@@ -52,33 +52,37 @@ export const POST = wrapHandler({
   },
 });
 
-export const GET = wrapHandler(async (req) => {
-  const { searchParams } = new URL(req.url);
-  let userId = searchParams.get('user_id');
-  const sessionCode = searchParams.get('session_code');
+export const GET = wrapHandler({
+  auth: ['student', 'staff', 'admin'],
+  handler: async (req, { user }) => {
+    const { searchParams } = new URL(req.url);
+    const sessionCode = searchParams.get('session_code');
+    const requestedUserId = searchParams.get('user_id');
 
-  if (!userId) {
-    try {
-      const authUser = await getAuthUser();
-      if (authUser) {
-        userId = authUser.roll_no || authUser.id || authUser.staffId;
+    const authoritativeUser = await ParticipantService.resolveAuthoritativeUser(user);
+    let userId = authoritativeUser.userId;
+
+    if (requestedUserId && requestedUserId !== userId) {
+      if (user.role === 'admin' || user.role === 'superadmin') {
+        userId = requestedUserId;
+      } else {
+        return apiError('Forbidden: Cannot access another candidate\'s session', 403);
       }
-    } catch (_e) {
-      // unauthenticated
     }
-  }
 
-  if (!userId && !sessionCode) {
-    return apiError('Authenticated student session or session code is required', 400);
-  }
+    if (!userId && !sessionCode) {
+      return apiError('Authenticated student session or session code is required', 400);
+    }
 
-  const result = await QuizService.startOrResumeSession({
-    userId: userId || 'Candidate',
-    displayName: 'Candidate',
-    eventKey: 'quiz',
-    sessionCode
-  });
+    const result = await QuizService.startOrResumeSession({
+      userId,
+      displayName: authoritativeUser.displayName || 'Candidate',
+      eventKey: 'quiz',
+      sessionCode
+    });
 
-  return apiResponse(result);
+    return apiResponse(result);
+  },
 });
+
 

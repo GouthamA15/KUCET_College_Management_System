@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GET as getQuizConfig, PUT as putQuizConfig } from '@/app/api/events/quiz/config/route';
 import { GET as getQuestions, POST as postQuestions } from '@/app/api/events/quiz/questions/route';
-import { POST as postSession } from '@/app/api/events/quiz/session/route';
+import { GET as getSession, POST as postSession } from '@/app/api/events/quiz/session/route';
 import { POST as postSaveAnswer } from '@/app/api/events/quiz/save-answer/route';
 import { POST as postSubmit } from '@/app/api/events/quiz/submit/route';
 import { GET as getLeaderboard } from '@/app/api/events/quiz/leaderboard/route';
@@ -195,15 +195,88 @@ describe('Technical Quiz API Routes Test Suite', () => {
       const data = await res.json();
       expect(data.session.session_code).toBe('QUIZ-001');
     });
+    it('should reject unauthenticated GET /api/events/quiz/session with 401', async () => {
+      cookies.mockResolvedValue({ get: vi.fn(() => undefined) });
+      const req = makeMockRequest('http://localhost/api/events/quiz/session?session_code=QUIZ-001', 'GET');
+      const res = await getSession(req);
+      expect(res.status).toBe(401);
+    });
+
+    it('should reject IDOR on GET /api/events/quiz/session when student queries another user', async () => {
+      cookies.mockResolvedValue({
+        get: vi.fn((name) => (name === 'student_auth' ? { value: 'student-token' } : undefined)),
+      });
+      headers.mockResolvedValue({ get: vi.fn(() => null) });
+      verifyJwt.mockResolvedValue({ id: 1, roll_no: '24567T0901', role: 'student' });
+      vi.spyOn(ParticipantService, 'resolveAuthoritativeUser').mockResolvedValue({
+        userId: '24567T0901',
+        displayName: 'Rahul',
+        department: 'CSE',
+        userType: 'student',
+      });
+
+      const req = makeMockRequest('http://localhost/api/events/quiz/session?session_code=QUIZ-001&user_id=24567T0999', 'GET');
+      const res = await getSession(req);
+      expect(res.status).toBe(403);
+    });
   });
 
   describe('POST /api/events/quiz/save-answer', () => {
-    it('should autosave candidate answer successfully', async () => {
+    it('should reject unauthenticated POST /api/events/quiz/save-answer with 401', async () => {
+      cookies.mockResolvedValue({ get: vi.fn(() => undefined) });
+      const req = makeMockRequest('http://localhost/api/events/quiz/save-answer', 'POST', {
+        session_code: 'QUIZ-001',
+        user_id: '24567T0901',
+        question_id: 1,
+        selected_option_index: 2,
+      });
+      const res = await postSaveAnswer(req);
+      expect(res.status).toBe(401);
+    });
+
+    it('should reject IDOR attempt when candidate tries to save answer for another user', async () => {
+      cookies.mockResolvedValue({
+        get: vi.fn((name) => (name === 'student_auth' ? { value: 'student-token' } : undefined)),
+      });
+      headers.mockResolvedValue({ get: vi.fn(() => null) });
+      verifyJwt.mockResolvedValue({ id: 1, roll_no: '24567T0901', role: 'student' });
+      vi.spyOn(ParticipantService, 'resolveAuthoritativeUser').mockResolvedValue({
+        userId: '24567T0901',
+        displayName: 'Rahul',
+        department: 'CSE',
+        userType: 'student',
+      });
+
+      const req = makeMockRequest('http://localhost/api/events/quiz/save-answer', 'POST', {
+        session_code: 'QUIZ-001',
+        user_id: 'VICTIM_USER_ID',
+        question_id: 1,
+        selected_option_index: 2,
+        is_marked_for_review: false,
+      });
+
+      const res = await postSaveAnswer(req);
+      expect(res.status).toBe(403);
+    });
+
+    it('should autosave candidate answer successfully for authorized user', async () => {
+      cookies.mockResolvedValue({
+        get: vi.fn((name) => (name === 'student_auth' ? { value: 'student-token' } : undefined)),
+      });
+      headers.mockResolvedValue({ get: vi.fn(() => null) });
+      verifyJwt.mockResolvedValue({ id: 1, roll_no: '24567T0901', role: 'student' });
+      vi.spyOn(ParticipantService, 'resolveAuthoritativeUser').mockResolvedValue({
+        userId: '24567T0901',
+        displayName: 'Rahul',
+        department: 'CSE',
+        userType: 'student',
+      });
+
       vi.spyOn(QuizService, 'saveAnswer').mockResolvedValue({ success: true });
 
       const req = makeMockRequest('http://localhost/api/events/quiz/save-answer', 'POST', {
         session_code: 'QUIZ-001',
-        user_id: '0123-22-733-001',
+        user_id: '24567T0901',
         question_id: 1,
         selected_option_index: 2,
         is_marked_for_review: false,
@@ -217,7 +290,51 @@ describe('Technical Quiz API Routes Test Suite', () => {
   });
 
   describe('POST /api/events/quiz/submit', () => {
-    it('should evaluate and return final scorecard on quiz submission', async () => {
+    it('should reject unauthenticated POST /api/events/quiz/submit with 401', async () => {
+      cookies.mockResolvedValue({ get: vi.fn(() => undefined) });
+      const req = makeMockRequest('http://localhost/api/events/quiz/submit', 'POST', {
+        session_code: 'QUIZ-001',
+        user_id: '24567T0901',
+      });
+      const res = await postSubmit(req);
+      expect(res.status).toBe(401);
+    });
+
+    it('should reject IDOR attempt when submitting for another candidate', async () => {
+      cookies.mockResolvedValue({
+        get: vi.fn((name) => (name === 'student_auth' ? { value: 'student-token' } : undefined)),
+      });
+      headers.mockResolvedValue({ get: vi.fn(() => null) });
+      verifyJwt.mockResolvedValue({ id: 1, roll_no: '24567T0901', role: 'student' });
+      vi.spyOn(ParticipantService, 'resolveAuthoritativeUser').mockResolvedValue({
+        userId: '24567T0901',
+        displayName: 'Rahul',
+        department: 'CSE',
+        userType: 'student',
+      });
+
+      const req = makeMockRequest('http://localhost/api/events/quiz/submit', 'POST', {
+        session_code: 'QUIZ-001',
+        user_id: 'VICTIM_USER_ID',
+      });
+
+      const res = await postSubmit(req);
+      expect(res.status).toBe(403);
+    });
+
+    it('should evaluate and return final scorecard on quiz submission for authorized user', async () => {
+      cookies.mockResolvedValue({
+        get: vi.fn((name) => (name === 'student_auth' ? { value: 'student-token' } : undefined)),
+      });
+      headers.mockResolvedValue({ get: vi.fn(() => null) });
+      verifyJwt.mockResolvedValue({ id: 1, roll_no: '24567T0901', role: 'student' });
+      vi.spyOn(ParticipantService, 'resolveAuthoritativeUser').mockResolvedValue({
+        userId: '24567T0901',
+        displayName: 'Rahul',
+        department: 'CSE',
+        userType: 'student',
+      });
+
       vi.spyOn(QuizService, 'submitQuiz').mockResolvedValue({
         success: true,
         status: 'SUBMITTED',
@@ -229,7 +346,7 @@ describe('Technical Quiz API Routes Test Suite', () => {
 
       const req = makeMockRequest('http://localhost/api/events/quiz/submit', 'POST', {
         session_code: 'QUIZ-001',
-        user_id: '0123-22-733-001',
+        user_id: '24567T0901',
         submitted_answers: { 1: { selected_option_index: 2 } },
       });
 
