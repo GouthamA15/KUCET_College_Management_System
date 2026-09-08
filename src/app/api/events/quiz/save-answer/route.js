@@ -1,5 +1,6 @@
-import { wrapHandler, apiResponse } from '@/lib/api-utils';
+import { wrapHandler, apiResponse, apiError } from '@/lib/api-utils';
 import { QuizService } from '@/modules/events/services/QuizService';
+import { ParticipantService } from '@/modules/events/services/ParticipantService';
 import { z } from 'zod';
 
 const saveAnswerSchema = z.object({
@@ -12,11 +13,23 @@ const saveAnswerSchema = z.object({
 });
 
 export const POST = wrapHandler({
+  auth: ['student', 'staff', 'admin'],
   schema: saveAnswerSchema,
-  handler: async (req, { data }) => {
+  handler: async (req, { data, user }) => {
+    const authoritativeUser = await ParticipantService.resolveAuthoritativeUser(user);
+    let effectiveUserId = authoritativeUser.userId;
+
+    if (data.user_id && data.user_id !== effectiveUserId) {
+      if (user.role === 'admin' || user.role === 'superadmin') {
+        effectiveUserId = data.user_id;
+      } else {
+        return apiError('Forbidden: Cannot modify answers for another candidate', 403);
+      }
+    }
+
     const result = await QuizService.saveAnswer({
       sessionCode: data.session_code,
-      userId: data.user_id,
+      userId: effectiveUserId,
       questionId: data.question_id,
       selectedOptionIndex: data.selected_option_index,
       isMarkedForReview: data.is_marked_for_review,
@@ -27,3 +40,4 @@ export const POST = wrapHandler({
     return apiResponse(result);
   },
 });
+

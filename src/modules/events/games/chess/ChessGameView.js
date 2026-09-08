@@ -113,12 +113,14 @@ export default function ChessGameView({ matchId, currentUser = null }) {
     }
 
     // 3. Supabase Realtime client listener (if credentials exist)
+    let isMounted = true;
     let supabaseChannel = null;
     const subUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const subKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (subUrl && subKey) {
       import('@supabase/supabase-js')
         .then(({ createClient }) => {
+          if (!isMounted) return;
           const supabase = createClient(subUrl, subKey);
           supabaseChannel = supabase.channel('kucet-updates');
           supabaseChannel
@@ -148,6 +150,7 @@ export default function ChessGameView({ matchId, currentUser = null }) {
     const interval = setInterval(fetchGameState, 5000);
 
     return () => {
+      isMounted = false;
       unsubscribeSocket();
       clearInterval(interval);
       if (localChannel) localChannel.close();

@@ -143,6 +143,16 @@ export class ChessEngineService {
         throw { status: 429, message: 'Please wait a moment between moves.' };
       }
       moveRateLimitMap.set(rateLimitKey, nowTime);
+
+      // Self-prune expired rate-limit entries to prevent memory leaks in long-running processes
+      if (moveRateLimitMap.size > 500) {
+        const staleThreshold = nowTime - 10000;
+        for (const [key, ts] of moveRateLimitMap.entries()) {
+          if (ts < staleThreshold) {
+            moveRateLimitMap.delete(key);
+          }
+        }
+      }
     }
 
     // Attempt the move in chess engine

@@ -1,5 +1,6 @@
-import { wrapHandler, apiResponse } from '@/lib/api-utils';
+import { wrapHandler, apiResponse, apiError } from '@/lib/api-utils';
 import { QuizService } from '@/modules/events/services/QuizService';
+import { ParticipantService } from '@/modules/events/services/ParticipantService';
 import { z } from 'zod';
 
 const submitQuizSchema = z.object({
@@ -9,11 +10,23 @@ const submitQuizSchema = z.object({
 });
 
 export const POST = wrapHandler({
+  auth: ['student', 'staff', 'admin'],
   schema: submitQuizSchema,
-  handler: async (req, { data }) => {
+  handler: async (req, { data, user }) => {
+    const authoritativeUser = await ParticipantService.resolveAuthoritativeUser(user);
+    let effectiveUserId = authoritativeUser.userId;
+
+    if (data.user_id && data.user_id !== effectiveUserId) {
+      if (user.role === 'admin' || user.role === 'superadmin') {
+        effectiveUserId = data.user_id;
+      } else {
+        return apiError('Forbidden: Cannot submit assessment for another candidate', 403);
+      }
+    }
+
     const result = await QuizService.submitQuiz({
       sessionCode: data.session_code,
-      userId: data.user_id,
+      userId: effectiveUserId,
       submittedAnswers: data.submitted_answers,
       eventKey: 'quiz',
     });
@@ -21,3 +34,4 @@ export const POST = wrapHandler({
     return apiResponse(result);
   },
 });
+

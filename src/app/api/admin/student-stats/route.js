@@ -4,14 +4,27 @@ import { students as studentsTable } from '@/db/schema';
 import { getBranchFromRoll, branchCodes } from '@/lib/rollNumber';
 import { calculateStudentYearAndSemester, getCurrentCalendarSession } from '@/lib/academic-utils';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { eq } from 'drizzle-orm';
+
+let cachedStats = null;
+let lastCacheTime = 0;
+const STATS_CACHE_TTL = 60 * 1000; // 60 seconds
 
 export async function GET(_req) {
   const user = await getAuthUser('admin');
   if (!user) return apiError('Unauthorized', 401);
 
   try {
+    const nowTime = Date.now();
+    if (cachedStats && (nowTime - lastCacheTime < STATS_CACHE_TTL)) {
+      return apiResponse({ data: cachedStats });
+    }
+
     const session = await getCurrentCalendarSession();
-    const students = await db.select({ roll_no: studentsTable.roll_no }).from(studentsTable);
+    const students = await db
+      .select({ roll_no: studentsTable.roll_no })
+      .from(studentsTable)
+      .where(eq(studentsTable.student_status, 'ACTIVE'));
 
     const stats = { /* empty */ };
     const allBranchNames = Object.values(branchCodes);
@@ -36,9 +49,13 @@ export async function GET(_req) {
       }
     }
 
+    cachedStats = stats;
+    lastCacheTime = nowTime;
+
     return apiResponse({ data: stats });
   } catch (error) {
     logger.error('Error fetching student stats:', error);
     return apiError('Internal Server Error', 500);
   }
 }
+
