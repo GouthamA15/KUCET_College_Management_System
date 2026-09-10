@@ -1,10 +1,8 @@
-﻿-- Migration 0019: Timetable Instances and Branch Timetable Association
+-- Migration 0019: Timetable Instances and Branch Timetable Association
 CREATE TABLE IF NOT EXISTS `timetable_instances` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`branch` varchar(50) NOT NULL,
 	`semester` tinyint NOT NULL,
-	`year_level` tinyint NOT NULL,
-	`section` varchar(5) DEFAULT 'A',
 	`academic_year` varchar(9) NOT NULL,
 	`status` enum('DRAFT','PUBLISHED','ARCHIVED') NOT NULL DEFAULT 'DRAFT',
 	`created_by` int,

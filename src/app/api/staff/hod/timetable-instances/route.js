@@ -48,9 +48,6 @@ export const POST = wrapHandler({
       return apiError('Unauthorized for this program', 403);
     }
     
-    // Derive year_level from semester
-    const year_level = Math.ceil(semester / 2);
-    
     const existing = await db.select().from(timetableInstances).where(
       and(
         eq(timetableInstances.branch, branch),
@@ -64,7 +61,6 @@ export const POST = wrapHandler({
     const [result] = await db.insert(timetableInstances).values({
       branch,
       semester,
-      year_level,
       academic_year,
       status: 'DRAFT',
       created_by: user.id

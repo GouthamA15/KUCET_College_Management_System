@@ -46,7 +46,6 @@ export const POST = wrapHandler({
         and(
           eq(branchTimetable.branch, instance.branch),
           eq(branchTimetable.semester, instance.semester),
-          eq(branchTimetable.section, instance.section || 'A'),
           eq(branchTimetable.day_of_week, day_of_week),
           eq(branchTimetable.period_number, period_number),
           eq(branchTimetable.academic_year, instance.academic_year)
@@ -113,7 +112,7 @@ export const POST = wrapHandler({
       timetable_instance_id: instanceId,
       branch: instance.branch,
       semester: instance.semester,
-      section: instance.section || 'A',
+      section: 'A',
       day_of_week,
       period_number,
       subject_code,
@@ -127,7 +126,7 @@ export const POST = wrapHandler({
         timetable_instance_id: instanceId,
         branch: instance.branch,
         semester: instance.semester,
-        section: instance.section || 'A',
+        section: 'A',
         academic_year: instance.academic_year,
         subject_code,
         faculty_id: faculty_id || null,

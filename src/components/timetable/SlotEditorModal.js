@@ -12,7 +12,7 @@ const INSTITUTIONAL_ACTIVITIES = [
 
 export default function SlotEditorModal({
   instanceId,
-  instance, // { branch, year_level, semester, section, academic_year }
+  instance, // { branch, semester, academic_year, status }
   editingSlot, // { day, period, current: slot or null }
   onClose,
   onSaved,

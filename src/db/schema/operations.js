@@ -41,8 +41,6 @@ export const timetableInstances = mysqlTable('timetable_instances', {
   id: int('id').autoincrement().primaryKey().notNull(),
   branch: varchar('branch', { length: 50 }).notNull(),
   semester: tinyint('semester').notNull(),
-  year_level: tinyint('year_level').notNull(),
-  section: varchar('section', { length: 5 }).default('A'),
   academic_year: varchar('academic_year', { length: 9 }).notNull(),
   status: mysqlEnum('status', ['DRAFT', 'PUBLISHED', 'ARCHIVED']).default('DRAFT').notNull(),
   created_by: int('created_by'),

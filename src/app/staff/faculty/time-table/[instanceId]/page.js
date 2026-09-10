@@ -144,7 +144,7 @@ export default function TimetableInstancePage({ params }) {
             </span>
           </div>
           <p className="text-sm text-gray-600">
-            Year {instance.year_level} &bull; {instance.academic_year}
+            Year {Math.ceil(instance.semester / 2)} &bull; {instance.academic_year}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
