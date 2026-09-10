@@ -43,12 +43,12 @@ export default function FacultyTimetableOverview() {
     return () => { document.body.style.overflow = ''; };
   }, [isBottomSheetOpen, isMobileDevice]);
 
-  useEffect(() => {
+  const openCreateModal = () => {
     if (staffData?.branches?.length > 0 && !newProgram) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setNewProgram(staffData.branches[0]);
     }
-  }, [staffData, newProgram]);
+    setShowCreate(true);
+  };
 
   const fetchInstances = useCallback(async () => {
     if (!staffData?.is_hod) return;
@@ -210,7 +210,7 @@ export default function FacultyTimetableOverview() {
           <p className="text-sm text-gray-600 mt-1">Manage department schedules and publish class timetables.</p>
         </div>
         <button 
-          onClick={() => setShowCreate(true)}
+          onClick={openCreateModal}
           className="bg-[#0b3578] text-white px-4 py-2 rounded-md font-medium text-sm hover:bg-blue-900 transition-colors shrink-0 cursor-pointer"
         >
           + Create Timetable

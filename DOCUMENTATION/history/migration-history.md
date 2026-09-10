@@ -213,6 +213,9 @@ Prior to Session 210, rejecting a student admission draft executed an unrecovera
   - Authored official Drizzle migration `0019_timetable_instances.sql` generating `timetable_instances` table and associating `branch_timetable.timetable_instance_id`.
   - Registered migration entry in `drizzle/meta/_journal.json` (tag: `0019_timetable_instances`, when: `1788200000000`).
   - Hardened `src/db/migrate.js` with Check 5 auto-detection to baseline `timetable_instances` if already physically provisioned in high-availability database clusters.
+- **Clean Schema Realignment (Zero Section & Computed Year Level)**:
+  - Eliminated redundant `year_level` column in favor of dynamic derivation `Math.ceil(semester / 2)`.
+  - Omitted `section` column from `timetable_instances` to reflect KUCET's single-intake cohort reality and aligned unique key to `(branch, semester, academic_year)`.
 - **Remediation of Self-Conflict Bug in Slot Editing (`src/app/api/staff/hod/timetable-instances/[id]/entries/route.js`)**:
   - Fixed false-positive `400 Faculty Conflict: Instructor already assigned during this period.` by explicitly excluding the current editing slot (`ne(branchTimetable.id, existingSlotId)`).
   - Protected against duplicate entry crashes on `uq_timetable_slot` by adopting existing slots through compound key lookups across `(branch, semester, section, day_of_week, period_number, academic_year)`.
