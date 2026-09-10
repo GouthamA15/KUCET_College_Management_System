@@ -206,7 +206,31 @@ Prior to Session 210, rejecting a student admission draft executed an unrecovera
 
 ---
 
-## 10. Cross-References & Related Documentation
+## 10. Session 213 — Universal Timetable Migration, Conflict Remediation, Zero-Trust Input Hardening & Realtime Synchronization (September 10, 2026)
+
+### Key Engineering Milestones:
+- **Migration `0019_timetable_instances.sql` & Production Runner Baselining**:
+  - Authored official Drizzle migration `0019_timetable_instances.sql` generating `timetable_instances` table and associating `branch_timetable.timetable_instance_id`.
+  - Registered migration entry in `drizzle/meta/_journal.json` (tag: `0019_timetable_instances`, when: `1788200000000`).
+  - Hardened `src/db/migrate.js` with Check 5 auto-detection to baseline `timetable_instances` if already physically provisioned in high-availability database clusters.
+- **Remediation of Self-Conflict Bug in Slot Editing (`src/app/api/staff/hod/timetable-instances/[id]/entries/route.js`)**:
+  - Fixed false-positive `400 Faculty Conflict: Instructor already assigned during this period.` by explicitly excluding the current editing slot (`ne(branchTimetable.id, existingSlotId)`).
+  - Protected against duplicate entry crashes on `uq_timetable_slot` by adopting existing slots through compound key lookups across `(branch, semester, section, day_of_week, period_number, academic_year)`.
+  - Permitted faculty members holding both `FACULTY` and `HOD` credentials to be scheduled cleanly.
+- **Zero-Trust Input Validation via Zod (`src/app/api/staff/hod/timetable-instances/`)**:
+  - Protected `POST /api/staff/hod/timetable-instances` with strict Zod validation for branch, semester (1-8), and academic year format (`^\d{4}-\d{2}$`).
+  - Protected `PUT /api/staff/hod/timetable-instances/[id]` against data truncation and enum corruption using `z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED'])`.
+- **Super Admin Timetable Access (`FacultyService.getHodBranches`)**:
+  - Updated `FacultyService.getHodBranches(staffId, userRole)` so that Super Admin sessions (`role === 'admin'`) can inspect and govern timetables across all institutional departments and programs.
+- **Realtime Synchronization Delivery to Students (`src/app/student/timetable/page.js`)**:
+  - Restored `<RealtimeListener onUpdate={handleRealtimeUpdate} />` inside `StudentTimetablePage`, enabling instantaneous background timetable re-sync whenever HOD publishes updates.
+- **Character Encoding Remediation (`UniversalTimetable.js`)**:
+  - Cleaned corrupted UTF-8 sequences (`â€“`, `â€”`) and restored standard typography.
+- **Test Suite Verification**: **72/72 test files passed (585/585 unit tests passed)**, 0 ESLint errors, Next.js 16 production build verified.
+
+---
+
+## 11. Cross-References & Related Documentation
 
 - [System Architectural Decision Records (ADRs)](./architectural-decisions.md)
 - [Chronological Forensics of Resolved Incidents](./resolved-incidents.md)

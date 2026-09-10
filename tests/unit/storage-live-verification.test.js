@@ -62,7 +62,7 @@ describe('Live Verification: Storage Provider Operations', () => {
     // 5. Delete Images
     await provider.delete(uploadRes.path);
     await provider.delete(updateRes.path);
-  }, 30000);
+  }, 60000);
 
   it('should perform upload, URL generation, and delete in Local storage mode', async () => {
     process.env.STORAGE_TYPE = 'local';

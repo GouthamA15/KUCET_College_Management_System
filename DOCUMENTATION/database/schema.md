@@ -363,7 +363,8 @@ Handles marks entry, timetable scheduling, faculty assignments, student requests
 
 - **`student_marks`**: Exam marks (`student_id`, `subject_id`, `mid1_marks`, `mid2_marks`, `assignment_marks`, `external_marks`).
 - **`branch_config`**: Departmental configurations.
-- **`branch_timetable`**: Weekly class timetables (S1-S8, day of week, period slots, subject assignments).
+- **`timetable_instances`**: *(New in Session 213)* Departmental timetable lifecycle instances (`id`, `branch`, `semester`, `year_level`, `section`, `academic_year`, `status` enum `DRAFT`/`PUBLISHED`/`ARCHIVED`, `created_by`, `published_at`, `updated_by`). Unique constraint: `(branch, semester, academic_year)`.
+- **`branch_timetable`**: Weekly class timetables (S1-S8, day of week, period slots, subject assignments, `timetable_instance_id` referencing `timetable_instances.id`).
 - **`faculty_subject_assignments`**: Subject allocation for faculty (`staff_account_id`, `subject_code`, `subject_name`, `branch`, `course_semester`, `academic_term`, `academic_year`, `is_active`, `mid_max`).
 - **`faculty_subject_interests`**: Requested subjects by faculty (`staff_account_id`, `subject_code`, `subject_name`, `branch`, `department_code`, `semester`, `academic_year`, `status` enum `PENDING`/`APPROVED`/`REJECTED`, `reviewed_by`, `rejection_reason`).
 - **`faculty_hod_assignments`**: Tracks HOD appointments (`staff_account_id`, `department_code`, `academic_year`, `start_date`, `end_date`, `is_active`, `assigned_by`).

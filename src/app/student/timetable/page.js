@@ -175,6 +175,7 @@ export default function StudentTimetablePage() {
       )}
 
       {/* Timetable */}
+      <RealtimeListener onUpdate={handleRealtimeUpdate} />
       {!loading && !error && (
         <UniversalTimetable
           data={schedule}

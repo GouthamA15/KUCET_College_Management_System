@@ -12,7 +12,6 @@ import {
 import { eq, and } from 'drizzle-orm';
 import { apiResponse, apiError, wrapHandler } from '@/lib/api-utils';
 import { z } from 'zod';
-import logger from '@/lib/logger';
 
 const patchSchema = z.object({
   action: z.enum(['disable', 'enable'])

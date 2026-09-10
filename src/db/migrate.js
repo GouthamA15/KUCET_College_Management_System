@@ -138,6 +138,17 @@ async function runMigrations() {
           await baselineEntry(entry0018, 'admission_status_history table already exists');
         }
       }
+
+      // Check 5: 0019_timetable_instances detection
+      const entry0019 = entries.find(e => e.idx === 19);
+      if (entry0019 && !appliedTimestamps.has(entry0019.when)) {
+        const [tiCheck] = await connection.query(
+          'SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = "timetable_instances"'
+        );
+        if (tiCheck && tiCheck[0] && Number(tiCheck[0].count) > 0) {
+          await baselineEntry(entry0019, 'timetable_instances table already exists');
+        }
+      }
     }
 
     // 4. Run Drizzle ORM official migration runner

@@ -4,12 +4,11 @@ import {
   staffAccounts,
   staffAccountRoles,
   staffRoles,
-  facultyHodAssignments,
   collegeInfo as collegeInfoTable,
   staffAcademicAffiliations,
   academicDepartments
 } from '@/db/schema';
-import { eq, and, asc, desc, sql, inArray } from 'drizzle-orm';
+import { eq, and, asc, desc, inArray } from 'drizzle-orm';
 import { apiResponse, apiError, wrapHandler } from '@/lib/api-utils';
 import { getCollegeAcademicYear } from '@/lib/academic-utils';
 
@@ -178,10 +177,6 @@ export const DELETE = wrapHandler({
     const id = searchParams.get('id') ? parseInt(searchParams.get('id')) : null;
 
     if (!id) return apiError('Missing assignment ID', 400);
-
-    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1)).limit(1);
-    const collegeInfo = collegeRows[0] || null;
-    const currentAcademicYear = await getCollegeAcademicYear(collegeInfo);
 
     if (!user.hod_department_code) {
       return apiError('Unauthorized - Active HOD Assignment Required', 403);

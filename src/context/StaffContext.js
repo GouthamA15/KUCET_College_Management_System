@@ -365,7 +365,8 @@ export function StaffProvider({ children }) {
       isMounted = false;
       isInitializingRef.current = false;
     };
-  }, []); // Run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Intentional run once on mount to bootstrap staff profile
 
   // Keep a stable ref to handleResume so the event listener effect only runs once.
   const handleResumeRef = useRef(handleResume);

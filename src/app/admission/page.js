@@ -157,7 +157,7 @@ const AdmissionPage = () => {
             if (!submitted && hasData) {
                 try {
                     localStorage.setItem('admission_form_draft', JSON.stringify({ form, admissionYear, files }));
-                } catch (quotaError) {
+                } catch (_quotaError) {
                     // Browser storage quota exceeded due to large base64 images; persist text data reliably
                     try {
                         localStorage.setItem('admission_form_draft', JSON.stringify({ form, admissionYear, files: { pfp: null, signature: null } }));

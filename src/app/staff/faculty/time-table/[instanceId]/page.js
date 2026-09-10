@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { useStaff } from '@/context/StaffContext';
@@ -22,7 +22,8 @@ export default function TimetableInstancePage({ params }) {
   const [editingSlot, setEditingSlot] = useState(null);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    if (!staffData?.is_hod || !instanceId) return;
     setIsLoading(true);
     try {
       const res = await fetch(`/api/staff/hod/timetable-instances/${instanceId}`);
@@ -33,19 +34,19 @@ export default function TimetableInstancePage({ params }) {
         toast.error('Failed to load instance');
         router.push('/staff/faculty/time-table');
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Network error');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [staffData?.is_hod, instanceId, router]);
 
   useEffect(() => {
     if (staffData?.is_hod && instanceId) {
       const timer = setTimeout(() => fetchData(), 0);
       return () => clearTimeout(timer);
     }
-  }, [staffData, instanceId]);
+  }, [staffData?.is_hod, instanceId, fetchData]);
 
   const handleArchive = async () => {
     setIsPublishing(true);
@@ -63,7 +64,7 @@ export default function TimetableInstancePage({ params }) {
         const d = await res.json();
         toast.error(d.error || 'Failed to archive');
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Network error');
     } finally {
       setIsPublishing(false);
@@ -85,7 +86,7 @@ export default function TimetableInstancePage({ params }) {
         const d = await res.json();
         toast.error(d.error || 'Failed to reactivate');
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Network error');
     } finally {
       setIsPublishing(false);
@@ -107,7 +108,7 @@ export default function TimetableInstancePage({ params }) {
         const d = await res.json();
         toast.error(d.error || 'Failed to publish');
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Network error');
     } finally {
       setIsPublishing(false);

@@ -1,7 +1,7 @@
 import { wrapHandler, apiError, apiResponse } from '@/lib/api-utils';
 import { db } from '@/db';
 import { branchTimetable, timetableInstances, syllabusSubjects } from '@/db/schema';
-import { eq, and, sql, or, inArray } from 'drizzle-orm';
+import { eq, and, sql, or, inArray, ne } from 'drizzle-orm';
 import { z } from 'zod';
 
 const entrySchema = z.object({
@@ -35,6 +35,26 @@ export const POST = wrapHandler({
     
     const { day_of_week, period_number, subject_code, faculty_id, room_no } = parsed;
 
+    // Check existing slot in this instance or matching unique key
+    const existingSlot = await db.select().from(branchTimetable).where(
+      or(
+        and(
+          eq(branchTimetable.timetable_instance_id, instanceId),
+          eq(branchTimetable.day_of_week, day_of_week),
+          eq(branchTimetable.period_number, period_number)
+        ),
+        and(
+          eq(branchTimetable.branch, instance.branch),
+          eq(branchTimetable.semester, instance.semester),
+          eq(branchTimetable.section, instance.section || 'A'),
+          eq(branchTimetable.day_of_week, day_of_week),
+          eq(branchTimetable.period_number, period_number),
+          eq(branchTimetable.academic_year, instance.academic_year)
+        )
+      )
+    ).limit(1);
+    const existingSlotId = existingSlot[0]?.id || null;
+
     if (faculty_id) {
       const { staffAccounts, staffAccountRoles, staffRoles } = await import('@/db/schema');
       const [legit] = await db.select({ id: staffAccounts.id })
@@ -44,11 +64,31 @@ export const POST = wrapHandler({
         .where(and(
           eq(staffAccounts.id, faculty_id),
           eq(staffAccounts.account_status, 'ACTIVE'),
-          or(eq(staffRoles.role_code, 'FACULTY'), eq(staffRoles.role_code, 'faculty'))
+          or(
+            eq(staffRoles.role_code, 'FACULTY'),
+            eq(staffRoles.role_code, 'faculty'),
+            eq(staffRoles.role_code, 'HOD'),
+            eq(staffRoles.role_code, 'hod')
+          )
         )).limit(1);
 
       if (!legit) {
         return apiError('Invalid faculty selection. Must be an active faculty member.', 400);
+      }
+
+      const conflictWhere = [
+        eq(branchTimetable.faculty_id, faculty_id),
+        eq(branchTimetable.day_of_week, day_of_week),
+        eq(branchTimetable.period_number, period_number),
+        or(
+          eq(timetableInstances.status, 'PUBLISHED'),
+          eq(branchTimetable.timetable_instance_id, instanceId)
+        )
+      ];
+
+      // Exclude the slot currently being updated to prevent self-conflict
+      if (existingSlotId) {
+        conflictWhere.push(ne(branchTimetable.id, existingSlotId));
       }
 
       const conflictRows = await db.select({
@@ -60,15 +100,7 @@ export const POST = wrapHandler({
       .from(branchTimetable)
       .leftJoin(syllabusSubjects, eq(branchTimetable.subject_code, syllabusSubjects.subject_code))
       .leftJoin(timetableInstances, eq(branchTimetable.timetable_instance_id, timetableInstances.id))
-      .where(and(
-        eq(branchTimetable.faculty_id, faculty_id),
-        eq(branchTimetable.day_of_week, day_of_week),
-        eq(branchTimetable.period_number, period_number),
-        or(
-          eq(timetableInstances.status, 'PUBLISHED'),
-          eq(branchTimetable.timetable_instance_id, instanceId)
-        )
-      ))
+      .where(and(...conflictWhere))
       .limit(1);
 
       if (conflictRows.length > 0) {
@@ -81,7 +113,7 @@ export const POST = wrapHandler({
       timetable_instance_id: instanceId,
       branch: instance.branch,
       semester: instance.semester,
-      section: instance.section,
+      section: instance.section || 'A',
       day_of_week,
       period_number,
       subject_code,
@@ -90,19 +122,18 @@ export const POST = wrapHandler({
       room_no: room_no || null
     };
 
-    const existingSlot = await db.select().from(branchTimetable).where(and(
-      eq(branchTimetable.timetable_instance_id, instanceId),
-      eq(branchTimetable.day_of_week, day_of_week),
-      eq(branchTimetable.period_number, period_number)
-    )).limit(1);
-
-    if (existingSlot.length > 0) {
+    if (existingSlotId) {
       await db.update(branchTimetable).set({
+        timetable_instance_id: instanceId,
+        branch: instance.branch,
+        semester: instance.semester,
+        section: instance.section || 'A',
+        academic_year: instance.academic_year,
         subject_code,
         faculty_id: faculty_id || null,
         room_no: room_no || null,
         version: sql`version + 1`
-      }).where(eq(branchTimetable.id, existingSlot[0].id));
+      }).where(eq(branchTimetable.id, existingSlotId));
     } else {
       await db.insert(branchTimetable).values(slotData);
     }
