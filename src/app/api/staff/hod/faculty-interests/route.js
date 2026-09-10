@@ -6,11 +6,9 @@ import {
   collegeInfo as collegeInfoTable, 
   facultySubjectAssignments,
   staffAcademicAffiliations,
-  academicDepartments,
-  staffRoles,
-  staffAccountRoles
+  academicDepartments
 } from '@/db/schema';
-import { eq, and, desc, sql, or, inArray } from 'drizzle-orm';
+import { eq, and, desc, or, inArray } from 'drizzle-orm';
 import { apiResponse, apiError, wrapHandler } from '@/lib/api-utils';
 import { getCollegeAcademicYear } from '@/lib/academic-utils';
 import { z } from 'zod';

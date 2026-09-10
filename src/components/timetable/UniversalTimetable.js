@@ -35,10 +35,10 @@ function isSlotActiveNow(day, p) {
 /**
  * UniversalTimetable
  * Props:
- *   data        â€“ array of timetable slot objects
- *   isEditable  â€“ if true, clicking a cell calls onEditSlot; shows "Available" affordance
- *   onEditSlot  â€“ (day, period, existingSlot|null) => void
- *   subtitle    â€“ optional subtitle shown in the table header row
+ *   data        - array of timetable slot objects
+ *   isEditable  - if true, clicking a cell calls onEditSlot; shows "Available" affordance
+ *   onEditSlot  - (day, period, existingSlot|null) => void
+ *   subtitle    - optional subtitle shown in the table header row
  */
 export default function UniversalTimetable({ data = [], onEditSlot = null, isEditable = false, subtitle = '' }) {
   const [activeMobileDay, setActiveMobileDay] = useState('MON');
@@ -51,7 +51,7 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
   const getDisplayName = (slot) => {
     const act = INSTITUTIONAL_ACTIVITIES.find(a => a.code === slot.subject_code);
     if (act) return act.name;
-    return slot.display_name || slot.subject_name || slot.subject_code || 'â€”';
+    return slot.display_name || slot.subject_name || slot.subject_code || '—';
   };
 
   const isActivity = (slot) => slot && INSTITUTIONAL_ACTIVITIES.some(a => a.code === slot.subject_code);
@@ -176,7 +176,7 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
         </div>
       )}
 
-      {/* ðŸ“± MOBILE: Day selector + period list â€” below md */}
+      {/* Mobile: Day selector + period list - below md */}
       {shouldShowGrid && (
         <div className="md:hidden">
           {/* Compact scrollable day selector */}

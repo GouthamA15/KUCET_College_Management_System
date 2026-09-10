@@ -2,8 +2,12 @@ import { wrapHandler, apiError } from '@/lib/api-utils';
 import { db } from '@/db';
 import { timetableInstances, branchTimetable, syllabusSubjects, staffAccounts } from '@/db/schema';
 import { eq, and, sql, inArray } from 'drizzle-orm';
-
+import { z } from 'zod';
 import { FacultyService } from '@/services/FacultyService';
+
+const updateStatusSchema = z.object({
+  status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED'])
+});
 
 export const GET = wrapHandler({
   auth: 'hod',
@@ -11,7 +15,7 @@ export const GET = wrapHandler({
     const params = await context.params;
     if (!user || !user.is_hod) return apiError('Unauthorized', 403);
     
-    const hodBranches = await FacultyService.getHodBranches(user.id);
+    const hodBranches = await FacultyService.getHodBranches(user.id, user.role);
     if (hodBranches.length === 0) return apiError('Unauthorized', 403);
     
     const id = parseInt(params.id);
@@ -50,11 +54,12 @@ export const PUT = wrapHandler({
     const params = await context.params;
     if (!user || !user.is_hod) return apiError('Unauthorized', 403);
     
-    const hodBranches = await FacultyService.getHodBranches(user.id);
+    const hodBranches = await FacultyService.getHodBranches(user.id, user.role);
     if (hodBranches.length === 0) return apiError('Unauthorized', 403);
     
     const id = parseInt(params.id);
-    const { status } = await req.json();
+    const json = await req.json();
+    const { status } = updateStatusSchema.parse(json);
     
     // Validate HOD owns the instance
     const [instance] = await db.select().from(timetableInstances).where(and(
@@ -70,7 +75,9 @@ export const PUT = wrapHandler({
     try {
       const { broadcastUpdate } = await import('@/lib/sse');
       broadcastUpdate('TIMETABLE_CHANGED', { branch: instance.branch });
-    } catch (_e) {}
+    } catch (_e) {
+      // Ignore SSE broadcast error
+    }
       
     return { success: true };
   }

@@ -134,6 +134,13 @@
       "when": 1788100000000,
       "tag": "0018_admission_rejection_and_history",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1788200000000,
+      "tag": "0019_timetable_instances",
+      "breakpoints": true
     }
   ]
 }

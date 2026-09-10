@@ -46,7 +46,9 @@ export default function DashboardActionCenter({ student }) {
       } else {
         setActiveActivity(null);
       }
-    } catch { }
+    } catch (_err) {
+      // Ignore background network polling error
+    }
   }, []);
 
   const fetchTournamentMatch = useCallback(async () => {
@@ -85,7 +87,9 @@ export default function DashboardActionCenter({ student }) {
       if (res.ok) {
         setAttendanceSessions(json.data || []);
       }
-    } catch { }
+    } catch (_err) {
+      // Ignore background active session fetch error
+    }
   }, [academicPerformance]);
 
   useEffect(() => {
@@ -135,7 +139,9 @@ export default function DashboardActionCenter({ student }) {
         const created = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
         localStorage.setItem('kucet_device_uuid', created);
         setDeviceId(created);
-      } catch { }
+      } catch (_err) {
+        // Fallback if localStorage or crypto is disabled
+      }
     }, 0);
     return () => clearTimeout(timer);
   }, []);

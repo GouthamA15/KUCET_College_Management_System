@@ -3,14 +3,11 @@ import {
   staffAccounts, 
   staffAccountRoles, 
   staffRoles,
-  facultyHodAssignments,
-  collegeInfo as collegeInfoTable,
   staffAcademicAffiliations,
   academicDepartments
 } from '@/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { apiResponse, apiError, wrapHandler } from '@/lib/api-utils';
-import { getCollegeAcademicYear } from '@/lib/academic-utils';
 
 export const GET = wrapHandler({
   auth: 'hod',

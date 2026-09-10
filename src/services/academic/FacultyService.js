@@ -23,7 +23,13 @@ export class FacultyService {
   /**
    * Fetch branches available for a HOD based on their staff ID
    */
-  static async getHodBranches(staffId) {
+  static async getHodBranches(staffId, userRole = null) {
+    if (userRole === 'admin') {
+      const allDepts = await db.select({ dept_code: academicDepartments.department_code }).from(academicDepartments);
+      const allProgs = await db.select({ prog_code: academicPrograms.program_code }).from(academicPrograms);
+      return Array.from(new Set([...allDepts.map(d => d.dept_code), ...allProgs.map(p => p.prog_code)].filter(Boolean)));
+    }
+
     const affil = await db.select({ 
           dept_id: academicDepartments.id,
           dept_code: academicDepartments.department_code, 

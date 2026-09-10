@@ -1,15 +1,22 @@
-import { wrapHandler, apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { wrapHandler, apiError } from '@/lib/api-utils';
 import { db } from '@/db';
 import { timetableInstances } from '@/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { FacultyService } from '@/services/FacultyService';
+import { z } from 'zod';
+
+const createInstanceSchema = z.object({
+  branch: z.string().trim().min(1, 'Branch is required').max(50),
+  semester: z.number().int().min(1).max(8),
+  academic_year: z.string().regex(/^\d{4}-\d{2}$/, 'Academic year must be in format YYYY-YY')
+});
 
 export const GET = wrapHandler({
   auth: 'hod',
   handler: async (req, { user }) => {
     if (!user || !user.is_hod) return apiError('Unauthorized', 403);
     
-    const hodBranches = await FacultyService.getHodBranches(user.id);
+    const hodBranches = await FacultyService.getHodBranches(user.id, user.role);
     const systemYear = await FacultyService.getCurrentAcademicYear();
     
     // Allow HOD to see instances for any of their branches
@@ -29,11 +36,12 @@ export const POST = wrapHandler({
   auth: 'hod',
   handler: async (req, { user }) => {
     if (!user || !user.is_hod) return apiError('Unauthorized', 403);
-    const { branch, semester, academic_year } = await req.json();
     
-    if (!branch || !semester || !academic_year) return apiError('Missing required fields', 400);
+    const json = await req.json();
+    const parsed = createInstanceSchema.parse(json);
+    const { branch, semester, academic_year } = parsed;
     
-    const hodBranches = await FacultyService.getHodBranches(user.id);
+    const hodBranches = await FacultyService.getHodBranches(user.id, user.role);
     
     // Verify the requested branch belongs to the HOD
     if (!hodBranches.includes(branch)) {

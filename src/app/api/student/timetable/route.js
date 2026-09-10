@@ -1,4 +1,4 @@
-import { wrapHandler } from '@/lib/api-utils';
+import { wrapHandler, apiError } from '@/lib/api-utils';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import { calculateYearAndSemesterAsync } from '@/lib/academic-utils';
 import { FacultyService } from '@/services/FacultyService';
@@ -11,13 +11,13 @@ export const GET = wrapHandler({
   handler: async (req, { user }) => {
     const rollNo = user.roll_no;
     const academicSession = await calculateYearAndSemesterAsync(rollNo, user.academic_offset_years || 0);
-    const { semester, status: sessionStatus } = academicSession;
+    const { semester } = academicSession;
     const branch = getBranchFromRoll(rollNo);
     const systemYear = await FacultyService.getCurrentAcademicYear();
 
-    if (!semester || !branch) throw new Error('Resolution failed');
-
-    const yearLevel = Math.ceil(semester / 2);
+    if (!semester || !branch) {
+      return apiError('Unable to resolve academic session or branch from roll number', 400);
+    }
 
     const timetable = await db.select({
       day_of_week: branchTimetable.day_of_week,

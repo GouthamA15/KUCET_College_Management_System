@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Info, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
@@ -50,7 +50,7 @@ export default function FacultyTimetableOverview() {
     }
   }, [staffData, newProgram]);
 
-  const fetchInstances = async () => {
+  const fetchInstances = useCallback(async () => {
     if (!staffData?.is_hod) return;
     setIsLoading(true);
     try {
@@ -60,19 +60,19 @@ export default function FacultyTimetableOverview() {
         setInstances(json.data || []);
         if (json.systemYear) setNewAcademicYear(json.systemYear);
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Failed to fetch timetables');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [staffData?.is_hod]);
 
   useEffect(() => {
     if (staffData?.is_hod) {
       const timer = setTimeout(() => fetchInstances(), 0);
       return () => clearTimeout(timer);
     }
-  }, [staffData]);
+  }, [staffData?.is_hod, fetchInstances]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -95,7 +95,7 @@ export default function FacultyTimetableOverview() {
       } else {
         toast.error(data.error || 'Failed to create');
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Network error');
     } finally {
       setIsCreating(false);
