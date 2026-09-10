@@ -49,7 +49,8 @@ export function isDashboardRoute(pathname) {
     pathname === '/student' || pathname.startsWith('/student/') ||
     pathname === '/staff' || pathname.startsWith('/staff/') ||
     pathname === '/admin' || pathname.startsWith('/admin/') ||
-    pathname === '/faculty' || pathname.startsWith('/faculty/')
+    pathname === '/faculty' || pathname.startsWith('/faculty/') ||
+    pathname === '/events' || pathname.startsWith('/events/')
   );
 }
 
@@ -60,6 +61,7 @@ export function getPortalTitle(pathname) {
   if (!pathname) return 'Portal';
   
   if (pathname.startsWith('/student')) return 'Student Portal';
+  if (pathname.startsWith('/events')) return 'Campus Events';
   if (pathname.startsWith('/staff/admission')) return 'Admission Portal';
   if (pathname.startsWith('/staff/scholarship')) return 'Scholarship Portal';
   if (pathname.startsWith('/staff/faculty')) return 'Faculty Portal';

@@ -85,6 +85,15 @@ export function disconnectRealtimeSocket() {
   }
 }
 
+export function subscribeToRealtimeEvents(callback) {
+  if (typeof window === 'undefined') return () => {};
+  ensureSocketConnection();
+  eventSubscribers.add(callback);
+  return () => {
+    eventSubscribers.delete(callback);
+  };
+}
+
 function ensureSocketConnection() {
   if (typeof window === 'undefined' || (sharedSocket && sharedSocket.connected)) return;
 

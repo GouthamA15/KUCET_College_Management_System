@@ -195,62 +195,20 @@ export async function POST(request) {
       return apiError(`Proxy blocked: Student ${originalStudent.roll_no} attempted to proxy for you using their device/session. Both records have been flagged as ABSENT.`, 403);
     }
 
-    // 2. Check if this specific IP + User-Agent combination has already been used
-    const proxyLogs = await db.select({
-      student_id: attendanceSessionLogs.student_id,
-      roll_no: students.roll_no
-    })
-    .from(attendanceSessionLogs)
-    .innerJoin(students, eq(attendanceSessionLogs.student_id, students.id))
-    .where(and(
-      eq(attendanceSessionLogs.session_id, session.id),
-      eq(attendanceSessionLogs.ip_address, ipAddress),
-      eq(attendanceSessionLogs.ua_hash, uaHash),
-      eq(attendanceSessionLogs.status, 'SUCCESS')
-    ));
-
-    if (proxyLogs.length > 0 && proxyLogs[0].student_id !== user.student_id) {
-      const originalStudent = proxyLogs[0];
-
-      // PROXY DETECTED: Mark BOTH students as ABSENT
-      await db.transaction(async (tx) => {
-        // Original student
-        await tx.insert(studentAttendance)
-          .values({
-            assignment_id: session.assignment_id,
-            student_id: originalStudent.student_id,
-            date: session.attendance_date,
-            session: sessionNum,
-            status: 'ABSENT'
-          })
-          .onDuplicateKeyUpdate({ set: { status: 'ABSENT' } });
-
-        // Attempting student (user)
-        await tx.insert(studentAttendance)
-          .values({
-            assignment_id: session.assignment_id,
-            student_id: user.student_id,
-            date: session.attendance_date,
-            session: sessionNum,
-            status: 'ABSENT'
-          })
-          .onDuplicateKeyUpdate({ set: { status: 'ABSENT' } });
-      });
-
-      // Notify Faculty
-      try {
-        const { broadcastUpdate } = await import('@/lib/sse');
-        broadcastUpdate('PROXY_ATTEMPTED', { 
-          assignment_id: session.assignment_id,
-          session_number: sessionNum,
-          attempting_roll_no: user.roll_no,
-          original_roll_no: originalStudent.roll_no,
-          original_student_id: originalStudent.student_id
-        });
-      } catch (_sseErr) { /* empty */ }
-
-      return apiError(`Proxy blocked: This network signature has already been used by student ${originalStudent.roll_no} to verify their attendance. Both records have been flagged as ABSENT.`, 403);
+    // 2. Campus Wi-Fi & Device Telemetry:
+    // On university campus Wi-Fi networks, all students share the classroom router's egress NAT IP
+    // and standard mobile User-Agent strings. Hardware/device-level uniqueness is authoritatively
+    // enforced above via finalDeviceId (Check 1). We record network signatures for audit telemetry
+    // without falsely blocking legitimate students on the same Wi-Fi access point.
+    if (ipAddress && uaHash) {
+      logger.info({
+        session_id: session.id,
+        student_id: user.student_id,
+        ip_address: ipAddress,
+        device_hash: finalDeviceId
+      }, '[ATTENDANCE_NETWORK_TELEMETRY] Attendance verification network fingerprint recorded');
     }
+
 
     // 5. Record the log with all fingerprinting markers
     await db.insert(attendanceSessionLogs)

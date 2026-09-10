@@ -34,6 +34,7 @@ export default function DashboardActionCenter({ student }) {
   const [statusByAssignment, setStatusByAssignment] = useState({});
   const [deviceId, setDeviceId] = useState(null);
   const [activeActivity, setActiveActivity] = useState(null);
+  const [activeTournamentMatch, setActiveTournamentMatch] = useState(null);
 
   const fetchActivity = useCallback(async () => {
     try {
@@ -47,6 +48,28 @@ export default function DashboardActionCenter({ student }) {
       }
     } catch { }
   }, []);
+
+  const fetchTournamentMatch = useCallback(async () => {
+    const roll = student?.roll_no;
+    if (!roll) return;
+    try {
+      const res = await fetch('/api/events/matches?event_key=chess&limit=20');
+      if (!res.ok) return;
+      const data = await res.json();
+      const items = data.items || [];
+      const userRoll = String(roll).toLowerCase();
+      const active = items.find((m) => {
+        if (m.status === 'COMPLETED' || m.status === 'CANCELLED') return false;
+        return (
+          String(m.player_white_user_id || '').toLowerCase() === userRoll ||
+          String(m.player_black_user_id || '').toLowerCase() === userRoll
+        );
+      });
+      setActiveTournamentMatch(active || null);
+    } catch (_e) {
+      /* ignore */
+    }
+  }, [student?.roll_no]);
 
   const fetchAttendanceSessions = useCallback(async () => {
     try {
@@ -70,7 +93,9 @@ export default function DashboardActionCenter({ student }) {
     fetchActivity();
      
     fetchAttendanceSessions();
-  }, [fetchActivity, fetchAttendanceSessions]);
+
+    fetchTournamentMatch();
+  }, [fetchActivity, fetchAttendanceSessions, fetchTournamentMatch]);
 
   useEffect(() => {
     const channel = new BroadcastChannel('kucet_sse_sync');
@@ -264,6 +289,15 @@ export default function DashboardActionCenter({ student }) {
       },
       dismissible: false
     })) : []),
+    ...(activeTournamentMatch ? [{
+      id: 'active_tournament_match',
+      type: 'action',
+      icon: '♟️',
+      title: `Chess Tournament: Your ${activeTournamentMatch.round_name} Match is Ready!`,
+      desc: `Playing as ${String(activeTournamentMatch.player_white_user_id || '').toLowerCase() === String(student?.roll_no || '').toLowerCase() ? 'White (Moves First)' : 'Black'} vs ${String(activeTournamentMatch.player_white_user_id || '').toLowerCase() === String(student?.roll_no || '').toLowerCase() ? activeTournamentMatch.player_black_name : activeTournamentMatch.player_white_name} • Match #${activeTournamentMatch.match_code}`,
+      action: { label: 'Enter Arena', href: `/events/chess/match/${activeTournamentMatch.id}` },
+      dismissible: false
+    }] : []),
     ...(activeActivity ? [{
       id: 'class_active',
       type: 'info',

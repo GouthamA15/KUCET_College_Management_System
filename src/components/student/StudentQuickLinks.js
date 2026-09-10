@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useEventsStatus } from '@/hooks/useEventsStatus';
 
 const QUICK_LINKS = [
   {
@@ -104,9 +105,30 @@ const QUICK_LINKS = [
     badgeBorder: 'border-sky-100',
     mobileHide: true,
   },
+  {
+    title: 'MY EVENT / Tournaments',
+    description: 'Participate in campus chess, quiz & events',
+    route: '/events',
+    icon: (
+      <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+      </svg>
+    ),
+    badgeBg: 'bg-amber-50 group-hover:bg-amber-100',
+    badgeBorder: 'border-amber-100',
+  },
 ];
 
 export default function StudentQuickLinks() {
+  const { hasActiveEvents } = useEventsStatus();
+
+  const activeQuickLinks = QUICK_LINKS.filter((link) => {
+    if (link.route === '/events' && !hasActiveEvents) {
+      return false;
+    }
+    return true;
+  });
+
   return (
     <section className="rounded-sm border border-slate-200 bg-white overflow-hidden shadow-xs">
       <div className="bg-[#0b3578]/5 px-4 py-2.5 lg:py-3 border-b border-slate-200 flex items-center justify-start">
@@ -121,7 +143,7 @@ export default function StudentQuickLinks() {
       <div className="p-3 sm:p-4">
         {/* Layout Requirement: Desktop: 4 columns, Tablet: 3 columns, Mobile: 2 columns */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">
-          {QUICK_LINKS.map((link) => (
+          {activeQuickLinks.map((link) => (
             <Link
               key={link.route}
               href={link.route}

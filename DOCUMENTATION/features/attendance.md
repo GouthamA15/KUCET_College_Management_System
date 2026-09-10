@@ -126,8 +126,8 @@ export const attendanceSessionLogs = mysqlTable('attendance_session_logs', {
 ```
 
 ### Fraud Prevention Rules
-- **IP + User-Agent Locking**: If two attendance attempts within the same session share identical `ip_address` AND `ua_hash`, subsequent attempts are flagged and rejected as potential proxies.
-- **Hardware Hash Tracking**: Canvas fingerprinting and WebGL renderer identification produce a client `device_hash`. A single physical device cannot mark attendance for more than one student per session.
+- **Hardware Device Lock (`device_hash`)**: Browser storage UUID and device fingerprinting produce a unique client `device_hash`. A single physical device cannot mark attendance for more than one student per lecture session (`finalDeviceId` check). Attempts from the same device for multiple student roll numbers are strictly locked out with both records marked `ABSENT`.
+- **Campus Wi-Fi NAT & Network Telemetry**: In university classrooms, all students connect to the department access point sharing a single egress NAT IP and common mobile browser user-agents. While `ip_address` and `ua_hash` are logged for forensic audit telemetry (`[ATTENDANCE_NETWORK_TELEMETRY]`), they do not trigger false-positive proxy penalties across different physical devices.
 
 ---
 

@@ -3,11 +3,12 @@
 import React, { useContext, useEffect, useMemo, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { NAV_MENU_CONFIG } from '@/lib/menu-config';
+import { NAV_MENU_CONFIG, filterDynamicMenuItems } from '@/lib/menu-config';
 import { StaffContext } from '@/context/StaffContext';
 import { StudentContext } from '@/context/StudentContext';
 import { logoutByRole } from '@/lib/logout';
 import { getPortalTitle } from '@/lib/path-utils';
+import { useEventsStatus } from '@/hooks/useEventsStatus';
 
 function cn(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -85,6 +86,11 @@ const Icons = {
       <path d="M19.3 12a7.8 7.8 0 0 0-.1-1l2-1.4-2-3.4-2.3.9a7.5 7.5 0 0 0-1.7-1L15 3H9l-.2 3.1a7.5 7.5 0 0 0-1.7 1l-2.3-.9-2 3.4 2 1.4a7.8 7.8 0 0 0 0 2l-2 1.4 2 3.4 2.3-.9c.5.4 1.1.7 1.7 1L9 21h6l.2-3.1c.6-.3 1.2-.6 1.7-1l2.3.9 2-3.4-2-1.4c.1-.3.1-.7.1-1Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
     </SvgIcon>
   ),
+  events: (props) => (
+    <SvgIcon {...props}>
+      <path d="M8 21h8m-4-4v4M6 4h12v4a6 6 0 0 1-12 0V4Zm0 2H3a2 2 0 0 0 2 2h1m12-2h3a2 2 0 0 1-2 2h-1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </SvgIcon>
+  ),
   logout: (props) => (
     <SvgIcon {...props}>
       <path d="M10.4 7.2V6.6c0-1 .8-1.8 1.8-1.8h5c1 0 1.8.8 1.8 1.8v10.8c0 1-.8 1.8-1.8 1.8h-5c-1 0-1.8-.8-1.8-1.8v-.6" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -123,7 +129,7 @@ function normalizeRole({ roleProp, staffData }) {
   return effectiveRole;
 }
 
-function buildMenuItems({ effectiveRole, studentData, staffData }) {
+function buildMenuItems({ effectiveRole, studentData, staffData, hasActiveEvents = false }) {
   const menuItemsRaw = NAV_MENU_CONFIG[effectiveRole] || NAV_MENU_CONFIG['guest'] || [
     { label: 'ADMISSION', route: '/admission' },
     { label: 'STUDENT LOGIN', action: 'open-panel-student' },
@@ -172,7 +178,7 @@ function buildMenuItems({ effectiveRole, studentData, staffData }) {
     return enhancedMenu;
   }
 
-  return menuItemsRaw;
+  return filterDynamicMenuItems(menuItemsRaw, { hasActiveEvents });
 }
 
 function getDisplayLabel({ effectiveRole, label }) {
@@ -218,6 +224,7 @@ function pickIconKey(label) {
   if (upper.includes('ACADEMIC') || upper === 'ACADEMICS' || upper === 'ATTENDANCE' || upper === 'MATERIALS') return 'academics';
   if (upper === 'FINANCES') return 'finances';
   if (upper.includes('TIME TABLE') || upper.includes('TIMETABLE')) return 'timetable';
+  if (upper === 'MY EVENT' || upper.includes('EVENT') || upper.includes('TOURNAMENT')) return 'events';
   if (upper === 'REQUESTS' || upper === 'MARKS' || upper.includes('STATS') || upper.includes('DEPART')) return 'requests';
   if (upper === 'MENU' || upper === 'SETTINGS' || upper.includes('SECURITY')) return 'settings';
   return 'requests';
@@ -273,6 +280,7 @@ function SidebarInner({
   const staffData = staffContext?.staffData;
   const studentData = studentContext?.studentData;
   const isStaffLoading = staffContext?.loading;
+  const { hasActiveEvents } = useEventsStatus();
 
   const effectiveRole = useMemo(
     () => normalizeRole({ roleProp, staffData }),
@@ -281,8 +289,8 @@ function SidebarInner({
 
   const menu = useMemo(() => {
     if (effectiveRole === 'staff' && isStaffLoading) return [];
-    return buildMenuItems({ effectiveRole, studentData, staffData });
-  }, [effectiveRole, isStaffLoading, studentData, staffData]);
+    return buildMenuItems({ effectiveRole, studentData, staffData, hasActiveEvents });
+  }, [effectiveRole, isStaffLoading, studentData, staffData, hasActiveEvents]);
 
   const [isExpanded, setIsExpanded] = useState(true);
 

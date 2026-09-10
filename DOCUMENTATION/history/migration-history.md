@@ -184,7 +184,29 @@ Prior to Session 210, rejecting a student admission draft executed an unrecovera
 
 ---
 
-## 9. Cross-References & Related Documentation
+## 9. Session 212 — System-Wide Engineering Audit, Security Hardening & Campus Wi-Fi Realignment (September 09, 2026)
+
+### Key Engineering Milestones:
+- **P0 Technical Assessment Auth & IDOR Hardening (`src/app/api/events/quiz/`)**:
+  - Protected `GET /api/events/quiz/session`, `POST /api/events/quiz/save-answer`, and `POST /api/events/quiz/submit` with `auth: ['student', 'staff', 'admin']` in `wrapHandler`.
+  - Authoritatively bound candidate roll number/staff ID via `ParticipantService.resolveAuthoritativeUser(user)`; blocked candidate ID spoofing and unauthorized peer mutations with `403 Forbidden`.
+- **P0 Campus Wi-Fi Attendance Realignment (`src/app/api/student/attendance/verify/route.js`)**:
+  - Eliminated false-positive proxy penalties caused by egress NAT IP and User-Agent sharing among classroom peers on campus Wi-Fi access points.
+  - Retained strict hardware device lock (`device_hash` / `finalDeviceId` check) while converting network IP/UA collisions into diagnostic audit telemetry (`[ATTENDANCE_NETWORK_TELEMETRY]`).
+- **P1 Information Disclosure & Bug Tracker Sanitization (`src/app/api/bugs/route.js`)**:
+  - Added privilege-aware payload filtering: unauthenticated public viewers receive masked reporter identifiers (`2100****`, `fa***@kucet.ac.in`) and stripped `browser_info`, while authenticated admins/developers receive full operational metadata.
+- **P2 Storage Alert Endpoint Authorization (`src/app/api/public/system/storage-alert/route.js`)**:
+  - Enforced `CRON_SECRET` / `INTERNAL_API_SECRET` Bearer header validation or Super Admin session checks, preventing unauthenticated denial-of-service and transactional email exhaustion.
+- **P1 Memory Leak & Resource Lifecycle Guardrails**:
+  - Bounded in-memory `moveRateLimitMap` in `ChessEngineService.js` with self-pruning eviction (size > 500, 10s cutoff).
+  - Added `isMounted` cancellation flag to async Supabase client loader in `ChessGameView.js`, eliminating unmounted WebSocket subscription leaks.
+- **P2 Dashboard Query Optimization (`src/app/api/admin/student-stats/route.js`)**:
+  - Implemented 60-second in-memory process caching (`STATS_CACHE_TTL`) and filtered active students (`student_status = 'ACTIVE'`) to prevent full-table in-memory scanning on admin visits.
+- **Test Suite Verification**: **71/71 test files passed (577/577 unit tests passed)**, 0 ESLint errors, schema consistency verified (`drizzle-kit check`).
+
+---
+
+## 10. Cross-References & Related Documentation
 
 - [System Architectural Decision Records (ADRs)](./architectural-decisions.md)
 - [Chronological Forensics of Resolved Incidents](./resolved-incidents.md)
@@ -192,5 +214,6 @@ Prior to Session 210, rejecting a student admission draft executed an unrecovera
 - [Backend Architecture & Service Ecosystem](../architecture/backend.md)
 - [Production Deployment & DevOps Specification](../architecture/deployment.md)
 - [Head of Department (HOD) Console](../pages/hod-pages.md)
+
 
 
