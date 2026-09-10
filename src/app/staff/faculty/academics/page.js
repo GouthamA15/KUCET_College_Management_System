@@ -22,7 +22,7 @@ function SubjectCard({ asgn, onAction }) {
       <div className={`absolute left-0 top-0 bottom-0 w-[3px] z-10 ${isActive ? 'bg-[#0b3578]' : 'bg-gray-300'}`} />
 
       {/* Bubble decoration */}
-      <div className={`absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 rounded-bl-full -mr-4 -mt-4 sm:-mr-5 sm:-mt-5 transition-transform group-hover:scale-110 ${isActive ? 'bg-blue-50/70' : 'bg-gray-50'}`}></div>
+      <div className={`absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 rounded-bl-full -mr-4 -mt-4 sm:-mr-5 sm:-mt-5 transition-all duration-300 group-hover:scale-110 ${isActive ? 'bg-blue-50/70 group-hover:bg-blue-100' : 'bg-gray-50 group-hover:bg-gray-100'}`}></div>
 
       <div className="pl-4 pr-4 pt-3 pb-3 relative z-10">
         {/* Header row: code + status badge */}

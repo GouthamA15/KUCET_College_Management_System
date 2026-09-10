@@ -151,7 +151,7 @@ function buildMenuItems({ effectiveRole, studentData, staffData }) {
   if (effectiveRole === 'faculty' && staffData?.is_hod) {
     const enhancedMenu = [...menuItemsRaw];
     
-    // Find ACADEMICS to place STAFF MANAGEMENT right after it
+    // Find ACADEMICS to place ACADEMIC CALENDAR and STAFF MANAGEMENT right after it
     const academicsIdx = enhancedMenu.findIndex(i => i.label === 'ACADEMICS');
     let insertIdx = enhancedMenu.length;
     
@@ -162,8 +162,12 @@ function buildMenuItems({ effectiveRole, studentData, staffData }) {
       insertIdx = settingsIdx > -1 ? settingsIdx : enhancedMenu.length;
     }
 
+    // Insert backwards so they appear in order: ACADEMICS -> ACADEMIC CALENDAR -> STAFF MANAGEMENT
     enhancedMenu.splice(insertIdx, 0,
       { label: 'STAFF MANAGEMENT', route: '/staff/hod/staff-management' }
+    );
+    enhancedMenu.splice(insertIdx, 0,
+      { label: 'ACADEMIC CALENDAR', route: '/staff/academic-calendar' }
     );
     return enhancedMenu;
   }

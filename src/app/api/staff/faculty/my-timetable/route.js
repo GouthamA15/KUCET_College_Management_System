@@ -1,6 +1,6 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { branchTimetable, syllabusSubjects, semesters } from '@/db/schema';
+import { branchTimetable, timetableInstances, syllabusSubjects, semesters } from '@/db/schema';
 import { eq, and, desc, sql, like, or } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
@@ -29,9 +29,11 @@ export async function GET(_req) {
       subject_code: branchTimetable.subject_code
     })
     .from(branchTimetable)
+    .innerJoin(timetableInstances, eq(branchTimetable.timetable_instance_id, timetableInstances.id))
     .leftJoin(syllabusSubjects, eq(branchTimetable.subject_code, syllabusSubjects.subject_code))
     .where(and(
       eq(branchTimetable.faculty_id, facultyId),
+      eq(timetableInstances.status, 'PUBLISHED'),
       or(
         like(branchTimetable.academic_year, yearPattern),
         eq(branchTimetable.academic_year, '2025-26')
