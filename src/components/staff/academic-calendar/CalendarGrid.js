@@ -27,7 +27,7 @@ const Legend = () => (
     </div>
 );
 
-const CalendarGrid = ({ academicYear, semester }) => {
+const CalendarGrid = ({ academicYear, semester, isEditor = false }) => {
     const [todayString] = useState(getNowSync().toISOString().split('T')[0]);
     const [currentYear, setCurrentYear] = useState(() => getNowSync().getFullYear());
     const [currentMonth, setCurrentMonth] = useState(() => getNowSync().getMonth() + 1); // 1-12
@@ -109,6 +109,7 @@ const CalendarGrid = ({ academicYear, semester }) => {
     }, [fetchCalendarData]);
 
     const handleDayClick = (dayNum) => {
+        if (!isEditor) return;
         setSelectedDay({ day: dayNum, month: currentMonth, year: currentYear });
         setIsModalOpen(true);
     };
@@ -158,7 +159,7 @@ const CalendarGrid = ({ academicYear, semester }) => {
                 gridCells.push(
                     <div
                         key={`current-${dayNum}`}
-                        className={`border-b border-r p-2 flex flex-col h-24 md:h-32 group relative ${bg} ${isOutsideSemesterRange ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer group-hover:border-indigo-400'}`}
+                        className={`border-b border-r p-2 flex flex-col h-24 md:h-32 group relative ${bg} ${isOutsideSemesterRange ? 'opacity-60 cursor-not-allowed' : (isEditor ? 'cursor-pointer group-hover:border-indigo-400' : '')}`}
                         onClick={isOutsideSemesterRange ? undefined : () => handleDayClick(dayNum)}
                     >
                         <span className={`text-sm font-bold ${isToday && !isOutsideSemesterRange ? 'text-indigo-600' : text}`}>{dayNum}</span>
@@ -230,7 +231,7 @@ const CalendarGrid = ({ academicYear, semester }) => {
                              return (
                                 <div 
                                     key={`mobile-${dayNum}`} 
-                                    className={`flex items-center justify-between p-3 border-b ${bg} ${isOutsideSemesterRange ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${isToday && !isOutsideSemesterRange ? 'border-l-4 border-indigo-500' : ''}`} 
+                                    className={`flex items-center justify-between p-3 border-b ${bg} ${isOutsideSemesterRange ? 'opacity-60 cursor-not-allowed' : (isEditor ? 'cursor-pointer' : '')} ${isToday && !isOutsideSemesterRange ? 'border-l-4 border-indigo-500' : ''}`} 
                                     onClick={isOutsideSemesterRange ? undefined : () => handleDayClick(dayNum)}
                                 >
                                     <div className="flex items-center gap-3">

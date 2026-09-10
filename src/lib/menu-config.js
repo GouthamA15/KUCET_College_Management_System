@@ -90,7 +90,6 @@ export const NAV_MENU_CONFIG = {
     { label: 'PROFILE', route: '/staff/faculty/profile' },
     { label: 'ACADEMICS', route: '/staff/faculty/academics' },
     { label: 'TIME TABLE', route: '/staff/faculty/time-table' },
-    { label: 'MATERIALS', route: '/staff/faculty/materials' },
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/staff/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/staff/settings/security' }

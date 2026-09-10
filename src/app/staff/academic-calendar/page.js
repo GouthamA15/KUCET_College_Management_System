@@ -6,13 +6,32 @@ import { Info, X } from 'lucide-react';
 import CalendarGrid from '@/components/staff/academic-calendar/CalendarGrid';
 import AcademicYearSelect, { getCurrentFrontendAcademicYear } from '@/components/ui/AcademicYearSelect';
 
-export default function AcademicCalendarPage() {
+import { usePathname } from 'next/navigation';
+import { useStaff } from '@/context/StaffContext';
+
+export default function AcademicCalendarPageWrapper() {
+   const pathname = usePathname();
+   const isAdmin = pathname?.startsWith('/admin');
+
+   if (isAdmin) {
+       return <AcademicCalendarView isEditor={true} />;
+   } else {
+       return <StaffRoleWrapper />;
+   }
+}
+
+function StaffRoleWrapper() {
+   const { staffData } = useStaff();
+   return <AcademicCalendarView isEditor={!!staffData?.is_hod} />;
+}
+
+export function AcademicCalendarView({ isEditor = false }) {
     // Determine dynamic range for the dropdown
     const currentYearStr = getCurrentFrontendAcademicYear();
     const startYearNumber = parseInt(currentYearStr.substring(0, 4));
 
     // UI State
-    const [activeTab, setActiveTab] = useState('setup');
+    const [activeTab, setActiveTab] = useState(isEditor ? 'setup' : 'view');
     const [isMobileDevice, setIsMobileDevice] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
@@ -36,6 +55,13 @@ export default function AcademicCalendarPage() {
     const [bulkDayType, setBulkDayType] = useState('HOLIDAY');
     const [bulkHolidayName, setBulkHolidayName] = useState('');
     const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+
+    useEffect(() => {
+        if (!isEditor && activeTab !== 'view') {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setActiveTab('view');
+        }
+    }, [isEditor, activeTab]);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -161,9 +187,11 @@ export default function AcademicCalendarPage() {
         }
     };
 
-    const tabs = [
+    const tabs = isEditor ? [
         { id: 'setup', label: 'Semester Setup' },
         { id: 'bulk', label: 'Bulk Update' },
+        { id: 'view', label: 'Calendar Grid' },
+    ] : [
         { id: 'view', label: 'Calendar Grid' },
     ];
 
@@ -391,6 +419,7 @@ export default function AcademicCalendarPage() {
                 {activeTab === 'view' && (
                     <section className="border border-gray-300 rounded-md bg-white p-4 animate-fadeIn">
                         <CalendarGrid
+                            isEditor={isEditor}
                             academicYear={academicYear}
                             semester={semester}
                             key={`${academicYear}-${semester}`} 

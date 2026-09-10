@@ -37,8 +37,26 @@ export const branchConfig = mysqlTable('branch_config', {
   lookupIdx: index('idx_bc_lookup').on(table.branch, table.academic_year, table.semester),
 }));
 
+export const timetableInstances = mysqlTable('timetable_instances', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  branch: varchar('branch', { length: 50 }).notNull(),
+  semester: tinyint('semester').notNull(),
+  year_level: tinyint('year_level').notNull(),
+  section: varchar('section', { length: 5 }).default('A'),
+  academic_year: varchar('academic_year', { length: 9 }).notNull(),
+  status: mysqlEnum('status', ['DRAFT', 'PUBLISHED', 'ARCHIVED']).default('DRAFT').notNull(),
+  created_by: int('created_by'),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').onUpdateNow(),
+  published_at: timestamp('published_at'),
+  updated_by: int('updated_by')
+}, (table) => ({
+  uqInstance: uniqueIndex('uq_timetable_instance').on(table.branch, table.semester, table.academic_year)
+}));
+
 export const branchTimetable = mysqlTable('branch_timetable', {
   id: int('id').autoincrement().primaryKey().notNull(),
+  timetable_instance_id: int('timetable_instance_id'),
   branch: varchar('branch', { length: 50 }).notNull(),
   semester: tinyint('semester').notNull(),
   section: varchar('section', { length: 5 }).default('A'),
@@ -55,6 +73,7 @@ export const branchTimetable = mysqlTable('branch_timetable', {
   timetableLookupIdx: index('idx_timetable_lookup').on(table.branch, table.semester, table.academic_year),
   dayPeriodIdx: index('idx_bt_day_period').on(table.day_of_week, table.period_number),
   facultyIdx: index('idx_bt_faculty').on(table.faculty_id),
+  instanceIdIdx: index('idx_bt_instance').on(table.timetable_instance_id),
   uqTimetableSlot: uniqueIndex('uq_timetable_slot').on(table.branch, table.semester, table.section, table.day_of_week, table.period_number, table.academic_year),
 }));
 

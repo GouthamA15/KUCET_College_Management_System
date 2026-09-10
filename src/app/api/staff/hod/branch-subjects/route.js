@@ -1,8 +1,9 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { syllabusSubjects, syllabusStructure } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
+import { FacultyService } from '@/services/FacultyService';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,21 +15,22 @@ export async function GET(_req) {
       return apiError('Unauthorized', 401);
     }
 
-    if (!user.branch) {
-      logger.warn(`HOD ${user.email} accessed branch-subjects without an assigned branch.`);
+    const hodBranches = await FacultyService.getHodBranches(user.id);
+    if (hodBranches.length === 0) {
       return apiError('Branch not assigned to your profile. Please contact Admin.', 400);
     }
 
-    // Get all subjects associated with this branch across all semesters
+    // Get all subjects associated with these branches across all semesters
     const subjects = await db.select({
       subject_code: syllabusStructure.subject_code,
       subject_name: syllabusSubjects.subject_name,
       subject_type: syllabusSubjects.subject_type,
-      semester: syllabusStructure.semester
+      semester: syllabusStructure.semester,
+      branch: syllabusStructure.branch
     })
     .from(syllabusStructure)
     .innerJoin(syllabusSubjects, eq(syllabusStructure.subject_code, syllabusSubjects.subject_code))
-    .where(eq(syllabusStructure.branch, user.branch))
+    .where(inArray(syllabusStructure.branch, hodBranches))
     .orderBy(syllabusStructure.semester, syllabusSubjects.subject_name);
 
     return apiResponse({ data: subjects || [] });

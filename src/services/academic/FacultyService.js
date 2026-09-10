@@ -7,18 +7,46 @@ import {
   staffAccountRoles,
   staffAcademicAffiliations,
   academicDepartments,
+  academicPrograms,
   branchTimetable,
   studentMarks,
   syllabusSubjects,
   attendanceSessions,
   facultySubjectAssignments
 } from '@/db/schema';
-import { eq, and, desc, asc, sql, like, or } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, like, or, inArray } from 'drizzle-orm';
 
 /**
  * Service for Faculty and HOD-related business logic
  */
 export class FacultyService {
+  /**
+   * Fetch branches available for a HOD based on their staff ID
+   */
+  static async getHodBranches(staffId) {
+    const affil = await db.select({ 
+          dept_id: academicDepartments.id,
+          dept_code: academicDepartments.department_code, 
+          prog_code: academicPrograms.program_code 
+        })
+        .from(staffAcademicAffiliations)
+        .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
+        .leftJoin(academicPrograms, eq(staffAcademicAffiliations.program_id, academicPrograms.id))
+        .where(eq(staffAcademicAffiliations.staff_account_id, staffId));
+        
+    if (affil.length === 0) return [];
+
+    const deptIds = Array.from(new Set(affil.map(a => a.dept_id)));
+    const allPrograms = await db.select({ prog_code: academicPrograms.program_code })
+        .from(academicPrograms)
+        .where(inArray(academicPrograms.department_id, deptIds));
+
+    const allProgramCodes = allPrograms.map(p => p.prog_code);
+    const rawDepts = affil.map(a => a.dept_code);
+
+    return Array.from(new Set([...allProgramCodes, ...rawDepts].filter(Boolean)));
+  }
+
   /**
    * Fetch current academic year from system settings
    * @returns {Promise<string>} The current academic year
