@@ -89,7 +89,7 @@ export async function DELETE(req) {
       dbId = staff?.id;
     }
 
-    const success = await SecurityService.revokeSession(userType, dbId, sessionId);
+    const success = await SecurityService.revokeSession({ userType, userId: dbId, sessionId });
     if (!success) return apiError('Failed to revoke session', 500);
 
     return apiResponse({ success: true, message: 'Session revoked' });

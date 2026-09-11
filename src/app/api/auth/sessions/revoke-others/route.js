@@ -40,7 +40,7 @@ export async function POST(_req) {
 
     if (!currentTokenHash) return apiError('Current session not found', 400);
 
-    const success = await SecurityService.revokeOtherSessions(userType, dbId, currentTokenHash);
+    const success = await SecurityService.revokeOtherSessions({ userType, userId: dbId, currentTokenHash });
     if (!success) return apiError('Failed to revoke sessions', 500);
 
     return apiResponse({ success: true, message: 'All other sessions revoked' });

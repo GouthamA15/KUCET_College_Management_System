@@ -396,7 +396,7 @@ export class SecurityService {
     try {
       const upperType = userType ? userType.toUpperCase() : '';
       if (upperType === 'STUDENT') {
-        return false;
+        return null;
       }
       const { browser, operatingSystem } = deviceInfo;
 
@@ -406,16 +406,17 @@ export class SecurityService {
         .from(userSessions)
         .where(and(
           eq(userSessions.user_id, userId),
-          eq(userSessions.user_type, userType.toUpperCase()),
+          eq(userSessions.user_type, upperType),
           eq(userSessions.browser, browser),
           eq(userSessions.operating_system, operatingSystem)
         ))
+        .orderBy(desc(userSessions.last_seen_at))
         .limit(1);
 
       if (existingSessions.length === 0) {
         // New device detected (this will trigger email via logEvent)
         await this.logEvent({
-          userType,
+          userType: upperType,
           userId,
           eventType: 'NEW_DEVICE_LOGIN',
           ipAddress,
@@ -423,19 +424,19 @@ export class SecurityService {
         });
 
         await this.createNotification({
-          userType,
+          userType: upperType,
           userId,
-          title: '⚠ New Device Login',
+          title: '🚨 New Device Login',
           message: `A new login was detected from ${deviceInfo.deviceName || 'a new device'} using ${browser} on ${operatingSystem}.`,
           severity: 'WARNING'
         });
         
-        return true;
+        return null;
       }
-      return false;
+      return existingSessions[0];
     } catch (err) {
       logger.error(err, '[NEW_DEVICE_DETECTION_FAILED]');
-      return false;
+      return null;
     }
   }
 
@@ -451,8 +452,8 @@ export class SecurityService {
       const deviceInfo = parseUA(userAgent);
       const sessionTokenHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
 
-      // Detect if this is a new device for the user
-      await this.detectNewDevice(userId, userType, deviceInfo, ipAddress);
+      // Detect if this is a new device for the user and return existing session if any
+      const existingSession = await this.detectNewDevice(userId, upperType, deviceInfo, ipAddress);
 
       // Mark other sessions as not current
       await db
@@ -460,7 +461,7 @@ export class SecurityService {
         .set({ is_current: false })
         .where(and(
           eq(userSessions.user_id, userId),
-          eq(userSessions.user_type, userType.toUpperCase())
+          eq(userSessions.user_type, upperType)
         ));
 
       const createdAt = getNow();
@@ -474,26 +475,41 @@ export class SecurityService {
         expiresAtRaw: typeof expiresAt
       });
 
-      const [result] = await db.insert(userSessions).values({
-        user_id: userId,
-        user_type: userType.toUpperCase(),
-        session_token_hash: sessionTokenHash,
-        browser: deviceInfo.browser,
-        operating_system: deviceInfo.operatingSystem,
-        device_name: deviceInfo.deviceName,
-        ip_address: ipAddress,
-        location: 'Unknown',
-        is_current: true,
-        is_revoked: false,
-        last_seen_at: lastSeenAt,
-        created_at: createdAt,
-        expires_at: expiryDate,
-      });
+      if (existingSession) {
+        // Deduplicate: Update existing session instead of inserting a new one
+        await db.update(userSessions).set({
+          session_token_hash: sessionTokenHash,
+          ip_address: ipAddress,
+          is_current: true,
+          is_revoked: false,
+          last_seen_at: lastSeenAt,
+          expires_at: expiryDate,
+          created_at: createdAt // Reset creation time to reflect new login
+        }).where(eq(userSessions.id, existingSession.id));
+        
+        return existingSession.id;
+      } else {
+        const [result] = await db.insert(userSessions).values({
+          user_id: userId,
+          user_type: upperType,
+          session_token_hash: sessionTokenHash,
+          browser: deviceInfo.browser,
+          operating_system: deviceInfo.operatingSystem,
+          device_name: deviceInfo.deviceName,
+          ip_address: ipAddress,
+          location: 'Unknown',
+          is_current: true,
+          is_revoked: false,
+          last_seen_at: lastSeenAt,
+          created_at: createdAt,
+          expires_at: expiryDate,
+        });
 
-      return result.insertId;
+        return result.insertId;
+      }
     } catch (err) {
       logger.error(err, '[SESSION_REGISTRATION_FAILED]');
-      throw new Error('Failed to register user session');
+      return null;
     }
   }
 
