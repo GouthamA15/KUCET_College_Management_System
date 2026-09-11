@@ -55,7 +55,7 @@ export async function GET(request) {
       })
       .from(facultySubjectAssignments)
       .where(and(
-        eq(facultySubjectAssignments.branch, branch),
+        eq(facultySubjectAssignments.branch, branch.toUpperCase()),
         eq(facultySubjectAssignments.course_semester, semester),
         eq(facultySubjectAssignments.academic_year, resolvedAcademicYear)
       ));

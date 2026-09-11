@@ -149,6 +149,20 @@ async function runMigrations() {
           await baselineEntry(entry0019, 'timetable_instances table already exists');
         }
       }
+
+      // Check 6: 0020_subject_module_and_elective_groups detection
+      const entry0020 = entries.find(e => e.idx === 20);
+      if (entry0020 && !appliedTimestamps.has(entry0020.when)) {
+        const [fsaCheck] = await connection.query(
+          'SELECT COUNT(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = "faculty_subject_assignments" AND column_name = "staff_account_id"'
+        );
+        const [egCheck] = await connection.query(
+          'SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = "elective_groups"'
+        );
+        if (fsaCheck && fsaCheck[0] && Number(fsaCheck[0].count) > 0 && egCheck && egCheck[0] && Number(egCheck[0].count) > 0) {
+          await baselineEntry(entry0020, 'staff_account_id and elective_groups already exist');
+        }
+      }
     }
 
     // 4. Run Drizzle ORM official migration runner
