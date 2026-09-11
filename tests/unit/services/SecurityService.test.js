@@ -178,20 +178,22 @@ describe('SecurityService', () => {
               })
             })
           });
-          const isNew = await SecurityService.detectNewDevice(1, 'staff', { browser: 'Firefox', operatingSystem: 'Windows' });
-          expect(isNew).toBe(true);
+          const session = await SecurityService.detectNewDevice(1, 'staff', { browser: 'Firefox', operatingSystem: 'Windows' });
+          expect(session).toBeNull();
     });
 
-    it('should return false if matching session exists', async () => {
+    it('should return the existing session if matching session exists', async () => {
         db.select.mockReturnValueOnce({
             from: vi.fn().mockReturnValueOnce({
               where: vi.fn().mockReturnValueOnce({
-                limit: vi.fn().mockResolvedValueOnce([{ id: 1 }])
+                orderBy: vi.fn().mockReturnValueOnce({
+                  limit: vi.fn().mockResolvedValueOnce([{ id: 1 }])
+                })
               })
             })
           });
-          const isNew = await SecurityService.detectNewDevice(1, 'staff', { browser: 'Chrome', operatingSystem: 'Windows' });
-          expect(isNew).toBe(false);
+          const session = await SecurityService.detectNewDevice(1, 'staff', { browser: 'Chrome', operatingSystem: 'Windows' });
+          expect(session).toEqual({ id: 1 });
     });
   });
 
