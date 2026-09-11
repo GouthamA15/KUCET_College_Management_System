@@ -36,7 +36,7 @@ jobs:
       run: npm run lint
 
     - name: Verify Drizzle Schema Migration Consistency
-      run: npx drizzle-kit check
+      run: npm run db:check
       env:
         SKIP_ENV_VALIDATION: 'true'
 

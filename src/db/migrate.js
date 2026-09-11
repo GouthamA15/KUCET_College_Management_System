@@ -2,6 +2,7 @@ const { drizzle } = require('drizzle-orm/mysql2');
 const { migrate } = require('drizzle-orm/mysql2/migrator');
 const mysql = require('mysql2/promise');
 const path = require('path');
+const { BASELINE_RULES } = require('./baseline-rules.js');
 require('dotenv').config();
 require('dotenv').config({ path: '.env.local', override: true });
 require('dotenv').config({ path: '.env.production', override: false });
@@ -92,75 +93,21 @@ async function runMigrations() {
         }
       }
 
-      // Check 1: Historical 0000-0015 schema detection
-      const [colCheck] = await connection.query(
-        'SELECT COUNT(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = "attendance_sessions" AND column_name = "topic_covered"'
-      );
-      if (colCheck && colCheck[0] && Number(colCheck[0].count) > 0) {
-        const historicalEntries = entries.filter(e => e.idx < 16 && !appliedTimestamps.has(e.when));
-        if (historicalEntries.length > 0) {
-          console.info(`ℹ️ Existing historical schema detected. Baselining ${historicalEntries.length} historical migrations (0000-0015)...`);
-          for (const entry of historicalEntries) {
-            await baselineEntry(entry, 'historical schema exists');
+      // 3. Automated Multi-Environment Baseline Tracking
+      for (const rule of BASELINE_RULES) {
+        const targetEntries = rule.getEntries(entries).filter((e) => !appliedTimestamps.has(e.when));
+        if (targetEntries.length === 0) continue;
+
+        try {
+          const isSatisfied = await rule.isSatisfied(connection);
+          if (isSatisfied) {
+            console.info(`ℹ️ Baseline match for [${rule.description}]. Baselining ${targetEntries.length} migration(s)...`);
+            for (const entry of targetEntries) {
+              await baselineEntry(entry, rule.getReason(entry));
+            }
           }
-        }
-      }
-
-      // Check 2: 0016_reconcile_staff_and_hod_schema detection
-      const entry0016 = entries.find(e => e.idx === 16);
-      if (entry0016 && !appliedTimestamps.has(entry0016.when)) {
-        const [deptCheck] = await connection.query(
-          'SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = "academic_departments"'
-        );
-        if (deptCheck && deptCheck[0] && Number(deptCheck[0].count) > 0) {
-          await baselineEntry(entry0016, 'academic_departments table already exists');
-        }
-      }
-
-      // Check 3: 0017_add_staff_registration_address detection
-      const entry0017 = entries.find(e => e.idx === 17);
-      if (entry0017 && !appliedTimestamps.has(entry0017.when)) {
-        const [addrCheck] = await connection.query(
-          'SELECT COUNT(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = "staff_registration_requests" AND column_name = "address"'
-        );
-        if (addrCheck && addrCheck[0] && Number(addrCheck[0].count) > 0) {
-          await baselineEntry(entry0017, 'staff_registration_requests.address column already exists');
-        }
-      }
-
-      // Check 4: 0018_admission_rejection_and_history detection
-      const entry0018 = entries.find(e => e.idx === 18);
-      if (entry0018 && !appliedTimestamps.has(entry0018.when)) {
-        const [ashCheck] = await connection.query(
-          'SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = "admission_status_history"'
-        );
-        if (ashCheck && ashCheck[0] && Number(ashCheck[0].count) > 0) {
-          await baselineEntry(entry0018, 'admission_status_history table already exists');
-        }
-      }
-
-      // Check 5: 0019_timetable_instances detection
-      const entry0019 = entries.find(e => e.idx === 19);
-      if (entry0019 && !appliedTimestamps.has(entry0019.when)) {
-        const [tiCheck] = await connection.query(
-          'SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = "timetable_instances"'
-        );
-        if (tiCheck && tiCheck[0] && Number(tiCheck[0].count) > 0) {
-          await baselineEntry(entry0019, 'timetable_instances table already exists');
-        }
-      }
-
-      // Check 6: 0020_subject_module_and_elective_groups detection
-      const entry0020 = entries.find(e => e.idx === 20);
-      if (entry0020 && !appliedTimestamps.has(entry0020.when)) {
-        const [fsaCheck] = await connection.query(
-          'SELECT COUNT(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = "faculty_subject_assignments" AND column_name = "staff_account_id"'
-        );
-        const [egCheck] = await connection.query(
-          'SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = "elective_groups"'
-        );
-        if (fsaCheck && fsaCheck[0] && Number(fsaCheck[0].count) > 0 && egCheck && egCheck[0] && Number(egCheck[0].count) > 0) {
-          await baselineEntry(entry0020, 'staff_account_id and elective_groups already exist');
+        } catch (ruleError) {
+          console.warn(`⚠️ Baseline rule [${rule.description}] check skipped:`, ruleError.message);
         }
       }
     }

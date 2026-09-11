@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
+    "db:check": "node src/db/audit-migrations.mjs",
     "db:push": "drizzle-kit push",
     "db:migrate": "tsx src/db/migrate.js",
     "db:backup": "tsx src/db/backup.js",

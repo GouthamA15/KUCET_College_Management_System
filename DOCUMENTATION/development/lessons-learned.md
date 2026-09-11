@@ -10,11 +10,11 @@
 
 Over the course of 206 development sessions, the KUCET College Management System evolved from a standard web app into an enterprise-grade academic platform. Along the way, critical bugs, security traps, deployment failures, and storage refactorings produced invaluable architectural insights.
 
-This document synthesizes those key lessons into **12 Inviolable Rules** and defensive guardrails to prevent regressions.
+This document synthesizes those key lessons into **21 Inviolable Rules** and defensive guardrails to prevent regressions.
 
 ---
 
-## 2. Eighteen Inviolable Rules & Defensive Guardrails
+## 2. Twenty-One Inviolable Rules & Defensive Guardrails
 
 ### Rule 1: Never Store Roll Numbers as Filenames
 - **The Pitfall:** Saving images as `24KUEC001.jpg` leaks PII, enables malicious file enumeration, and causes stale browser caching when a student updates their picture.
@@ -104,6 +104,12 @@ This document synthesizes those key lessons into **12 Inviolable Rules** and def
 ### Rule 20: Zero-Trust Authorization & Authoritative Identity Binding on Assessment Endpoints
 - **The Pitfall:** Online assessment and tournament endpoints (e.g. quiz session initialization, answer saving, exam submission) that accept candidate identifiers (`user_id`) in request bodies or query parameters without authoritative session verification allow IDOR attacks. Unauthenticated or malicious actors can view questions, overwrite candidate answers, or forcibly submit tests for competing students.
 - **The Inviolable Guardrail:** ALWAYS wrap interactive assessment endpoints with `auth` via `wrapHandler` and authoritatively bind candidate roll numbers/IDs from the verified session payload (`ParticipantService.resolveAuthoritativeUser(user)` or `authUser.roll_no`). Never accept client-supplied `user_id` overrides unless the authenticated caller possesses administrative privileges (`admin` or `superadmin`).
+
+### Rule 21: Enforce Pre-Deployment Migration Audit and Automated Baseline Tracking
+- **The Pitfall:** Modifying schema definitions in `src/db/schema/*.js` without generating corresponding migration SQL and updating `_journal.json` causes severe production-only 500 crashes (such as missing column or table errors). In multi-environment setups (TiDB Cloud vs Hostinger VPS), running uncoordinated DDL scripts leads to "Table already exists" or "Duplicate column" collisions.
+- **The Inviolable Guardrail:**
+  1. **Pre-Deployment Audit in CI/CD:** Both `.github/workflows/ci.yml` and `.github/workflows/deploy.yml` must execute `npm run db:check` (`src/db/audit-migrations.mjs`) to verify `drizzle-kit check`, cross-reference `drizzle/meta/_journal.json` against `drizzle/*.sql`, and ensure every table in `src/db/schema/*.js` has a corresponding migration.
+  2. **Automated Baseline Tracking Registry:** Retain and maintain the declarative baseline rules registry (`src/db/baseline-rules.js`) within `src/db/migrate.js` so environments that already possess specific DDL structures baseline them idempotently into `__drizzle_migrations` before running Drizzle migrations.
 
 ---
 

@@ -107,14 +107,27 @@ sequenceDiagram
 | `0016` | `0016_reconcile_staff_and_hod_schema` | Academic departments, programs & HOD tables | `SAFE` |
 | `0017` | `0017_add_staff_registration_address` | Address field for staff registration requests | `SAFE` |
 | `0018` | `0018_admission_rejection_and_history` | Soft rejection metadata & `admission_status_history` | `SAFE` |
+| `0019` | `0019_timetable_instances` | Dynamic semester-aware timetable instances & schedules | `SAFE` |
+| `0020` | `0020_subject_module_and_elective_groups` | Faculty subject assignments, interests & elective groups | `SAFE` |
 
 ---
 
-## Automated CI Drift Verification
+## Pre-Deployment Schema & Migration Audit (`npm run db:check`)
 
-In GitHub Actions workflows (`.github/workflows/ci.yml`), schema integrity is verified prior to merging pull requests:
-1. Running `npx drizzle-kit check` to verify 0 schema drift between code and migrations.
-2. Running `npm run test:unit` across the entire test suite.
+To prevent schema commits without corresponding migration scripts or unjournaled migrations, both CI (`.github/workflows/ci.yml`) and production deployment (`.github/workflows/deploy.yml`) enforce `npm run db:check` (`src/db/audit-migrations.mjs`):
+1. **Drizzle Kit Check**: Executes `npx drizzle-kit check` to verify syntax and snapshot integrity.
+2. **Journal Verification**: Asserts that all entries in `drizzle/meta/_journal.json` exist as SQL files on disk in `drizzle/`, and flags any unjournaled `.sql` files.
+3. **Schema vs Migration Coverage**: Scans `src/db/schema/*.js` for all declared `mysqlTable` definitions and validates that every table is present in Drizzle snapshots or created in `drizzle/*.sql`.
+4. **Baseline Rules Validation**: Validates that multi-environment baseline rules in `src/db/baseline-rules.js` are properly configured.
+
+---
+
+## Automated Multi-Environment Baseline Tracking (`src/db/baseline-rules.js`)
+
+Multi-environment synchronization (local dev, TiDB Cloud, Hostinger VPS) relies on the declarative baseline registry in `src/db/baseline-rules.js`. Before Drizzle executes migrations:
+1. `src/db/migrate.js` queries `__drizzle_migrations` for already recorded timestamps.
+2. For unapplied entries, it evaluates the `isSatisfied(connection)` predicate of registered baseline rules.
+3. If an existing schema structure is detected (e.g. `academic_departments` table, `staff_account_id` in faculty assignments, or `elective_groups` table), the runner records the migration in `__drizzle_migrations` without re-running duplicate DDL, ensuring idempotent deployments across all environments.
 
 ---
 

@@ -32,6 +32,11 @@ jobs:
       - name: Run ESLint Verification
         run: npm run lint
 
+      - name: Verify Drizzle Schema Migration Consistency
+        run: npm run db:check
+        env:
+          SKIP_ENV_VALIDATION: 'true'
+
       - name: Run Unit Tests (Vitest)
         run: npm run test:unit
         env:
