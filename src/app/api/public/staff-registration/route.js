@@ -65,19 +65,18 @@ const handler = async (req, { data }) => {
     
     const deptId = deptResult[0].id;
 
-    // Verify all programs exist, are active, and belong to the department
+    // Verify all programs exist and are active
     for (const progCode of affil.program_codes) {
       const progResult = await db.select().from(academicPrograms)
         .where(and(
           eq(academicPrograms.program_code, progCode),
-          eq(academicPrograms.department_id, deptId),
           eq(academicPrograms.is_active, true)
         ))
         .limit(1)
         .execute();
         
       if (progResult.length === 0) {
-        return apiError(`Invalid program ${progCode} for department ${affil.department_code}.`, 400);
+        return apiError(`Program ${progCode} is invalid or inactive.`, 400);
       }
     }
   } else {

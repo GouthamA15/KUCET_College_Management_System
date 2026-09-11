@@ -10,6 +10,7 @@ export default function ManageFacultyModal({ faculty, onClose, onSaved }) {
   const [pendingAccountStatus, setPendingAccountStatus] = useState(faculty.account_status);
   const [subjectChanges, setSubjectChanges] = useState({}); // { assignmentId: boolean }
   const [requestChanges, setRequestChanges] = useState({}); // { interestId: boolean }
+  const [programChanges, setProgramChanges] = useState({}); // { programId: boolean }
   
   const [showConfirmClose, setShowConfirmClose] = useState(false);
 
@@ -39,6 +40,7 @@ export default function ManageFacultyModal({ faculty, onClose, onSaved }) {
     if (pendingAccountStatus !== data.account_status) return true;
     if (Object.keys(subjectChanges).length > 0) return true;
     if (Object.keys(requestChanges).length > 0) return true;
+    if (Object.keys(programChanges).length > 0) return true;
     return false;
   };
 
@@ -63,6 +65,10 @@ export default function ManageFacultyModal({ faculty, onClose, onSaved }) {
         })),
         requestedSubjects: Object.entries(requestChanges).map(([id, enabled]) => ({
           interestId: parseInt(id, 10),
+          enabled
+        })),
+        programChanges: Object.entries(programChanges).map(([id, enabled]) => ({
+          programId: parseInt(id, 10),
           enabled
         }))
       };
@@ -120,6 +126,50 @@ export default function ManageFacultyModal({ faculty, onClose, onSaved }) {
           {/* Body */}
           <div className="px-6 py-5 overflow-y-auto space-y-8 grow">
             
+            {/* Teaching Programs */}
+            <section>
+              <h4 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2 uppercase tracking-wide">
+                <BookOpen size={16} className="text-[#0b3578]" />
+                Teaching Programs
+              </h4>
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <div className="mb-4 pb-4 border-b border-gray-100">
+                  <p className="text-sm font-medium text-gray-900">Department</p>
+                  <p className="text-lg font-bold text-[#0b3578] mt-1">{faculty.department_code || 'Unknown'}</p>
+                </div>
+                
+                <p className="text-xs text-gray-500 mb-4 font-medium uppercase tracking-wide">Allocated Academic Programs</p>
+                
+                {data.allPrograms && data.allPrograms.length > 0 ? (
+                  <div className="flex flex-wrap gap-3">
+                    {data.allPrograms.map(prog => {
+                      const currentIsAllocated = data.allocatedProgramIds.includes(prog.id);
+                      const pendingIsAllocated = programChanges[prog.id] !== undefined ? programChanges[prog.id] : currentIsAllocated;
+                      
+                      return (
+                        <button
+                          key={prog.id}
+                          onClick={() => setProgramChanges(prev => ({ ...prev, [prog.id]: !pendingIsAllocated }))}
+                          className={`flex items-center px-4 py-2 rounded-md border text-sm font-bold transition-all duration-200 ${
+                            pendingIsAllocated 
+                              ? 'bg-[#0b3578] border-[#0b3578] text-white shadow-sm' 
+                              : 'bg-white border-slate-300 text-slate-500 hover:bg-slate-50 hover:border-slate-400'
+                          }`}
+                        >
+                          {prog.program_code}
+                          <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded-sm ${pendingIsAllocated ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                            {pendingIsAllocated ? 'ON' : 'OFF'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No programs available.</p>
+                )}
+              </div>
+            </section>
+
             {/* Account Access */}
             <section>
               <h4 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2 uppercase tracking-wide">

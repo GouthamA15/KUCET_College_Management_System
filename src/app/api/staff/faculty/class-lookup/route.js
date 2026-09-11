@@ -42,11 +42,11 @@ export async function GET(request) {
     .leftJoin(academicPrograms, eq(staffAcademicAffiliations.program_id, academicPrograms.id))
     .where(eq(staffAcademicAffiliations.staff_account_id, user.id));
     
-    const allowedPrograms = Array.from(new Set(affil.map(a => a.prog_code || a.dept_code).filter(Boolean)));
+    const allowedPrograms = Array.from(new Set(affil.map(a => a.prog_code).filter(Boolean)));
     const allowedBranchCodes = allowedPrograms.map(p => Object.keys(branchCodes).find(key => branchCodes[key] === p)).filter(Boolean);
 
     if (allowedBranchCodes.length === 0) {
-      return apiError('No programs assigned to your department', 403);
+      return apiError('No teaching programs assigned to your profile', 403);
     }
 
     // Determine active academic year

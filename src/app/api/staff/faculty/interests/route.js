@@ -63,17 +63,10 @@ export async function POST(request) {
       return apiError('No academic affiliations found for this staff member', 403);
     }
 
-    const deptIds = Array.from(new Set(affil.map(a => a.dept_id)));
-    const allPrograms = await db.select({ prog_code: academicPrograms.program_code })
-      .from(academicPrograms)
-      .where(inArray(academicPrograms.department_id, deptIds));
+    const allocatedProgramCodes = Array.from(new Set(affil.map(a => a.prog_code).filter(Boolean)));
 
-    const allProgramCodes = allPrograms.map(p => p.prog_code);
-    const rawDepts = affil.map(a => a.dept_code);
-    const allowedBranches = Array.from(new Set([...allProgramCodes, ...rawDepts].filter(Boolean)));
-
-    if (!allowedBranches.includes(branch)) {
-      return apiError(`Unauthorized: You can only request subjects for your affiliated departments/programs.`, 403);
+    if (!allocatedProgramCodes.includes(branch)) {
+      return apiError(`Invalid program. You can only request subjects for your allocated teaching programs: ${allocatedProgramCodes.join(', ')}`, 403);
     }
 
     const { facultySubjectAssignments } = await import('@/db/schema');

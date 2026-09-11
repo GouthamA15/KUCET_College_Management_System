@@ -95,11 +95,27 @@ export const GET = wrapHandler({
         eq(facultySubjectInterests.academic_year, currentAcademicYear)
       ));
 
+    const allPrograms = await db.select({
+      id: academicPrograms.id,
+      program_code: academicPrograms.program_code,
+      program_name: academicPrograms.program_name
+    }).from(academicPrograms);
+
+    const facultyAffiliations = await db.select({
+      program_id: staffAcademicAffiliations.program_id
+    })
+    .from(staffAcademicAffiliations)
+    .where(eq(staffAcademicAffiliations.staff_account_id, targetStaffId));
+
+    const allocatedProgramIds = facultyAffiliations.map(a => a.program_id).filter(id => id !== null);
+
     return apiResponse({
       data: {
         account_status: access.targetFaculty.account_status,
         assignments,
-        requests
+        requests,
+        allPrograms,
+        allocatedProgramIds
       }
     });
   }
@@ -113,6 +129,10 @@ const patchSchema = z.object({
   })).optional(),
   requestedSubjects: z.array(z.object({
     interestId: z.number().int().positive(),
+    enabled: z.boolean()
+  })).optional(),
+  programChanges: z.array(z.object({
+    programId: z.number().int().positive(),
     enabled: z.boolean()
   })).optional()
 });
@@ -251,6 +271,52 @@ export const PATCH = wrapHandler({
               ip_address: req.headers.get('x-forwarded-for') || '127.0.0.1'
             });
           }
+        }
+      }
+
+      // 4. Program Allocation Changes
+      if (data.programChanges && data.programChanges.length > 0) {
+        // Find the base organizational department_id for this faculty
+        const baseAffiliation = await tx.select({ department_id: staffAcademicAffiliations.department_id })
+          .from(staffAcademicAffiliations)
+          .where(eq(staffAcademicAffiliations.staff_account_id, targetStaffId))
+          .limit(1);
+        
+        if (baseAffiliation.length > 0) {
+          const deptId = baseAffiliation[0].department_id;
+
+          for (const change of data.programChanges) {
+            if (change.enabled) {
+              const existing = await tx.select().from(staffAcademicAffiliations).where(and(
+                eq(staffAcademicAffiliations.staff_account_id, targetStaffId),
+                eq(staffAcademicAffiliations.program_id, change.programId)
+              )).limit(1);
+
+              if (existing.length === 0) {
+                await tx.insert(staffAcademicAffiliations).values({
+                  staff_account_id: targetStaffId,
+                  department_id: deptId,
+                  program_id: change.programId
+                });
+              }
+            } else {
+              // Delete affiliation for this program
+              await tx.delete(staffAcademicAffiliations).where(and(
+                eq(staffAcademicAffiliations.staff_account_id, targetStaffId),
+                eq(staffAcademicAffiliations.program_id, change.programId)
+              ));
+            }
+          }
+
+          await tx.insert(auditLogs).values({
+            action: 'STAFF_PROGRAM_ALLOCATION_UPDATED',
+            user_id: user.id,
+            user_type: 'staff',
+            target_id: targetStaffId.toString(),
+            target_type: 'staff_academic_affiliations',
+            payload_after: { program_changes: data.programChanges },
+            ip_address: req.headers.get('x-forwarded-for') || '127.0.0.1'
+          });
         }
       }
     });

@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { useStaff } from '@/context/StaffContext';
 import AcademicYearSelect, { getCurrentFrontendAcademicYear } from '@/components/ui/AcademicYearSelect';
 import { formatDate } from '@/lib/date';
+import HodSelfProgramManager from './HodSelfProgramManager';
 
 export default function HodAccessManager() {
   const { staffData } = useStaff();
@@ -121,6 +122,7 @@ export default function HodAccessManager() {
                             <div><span className="text-green-600/80 uppercase text-[10px] tracking-wider block font-black">Valid Until</span>{activeAssignments[0].end_date ? formatDate(activeAssignments[0].end_date) : 'N/A'}</div>
                             </div>
                         </div>
+                        <HodSelfProgramManager />
                     </div>
                 ) : pendingRequests.length > 0 ? (
                     <div>

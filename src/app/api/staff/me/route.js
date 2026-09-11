@@ -70,21 +70,12 @@ export const GET = wrapHandler({
             .where(eq(staffAcademicAffiliations.staff_account_id, staff.id));
             
         if (affil.length > 0) {
-          const deptIds = Array.from(new Set(affil.map(a => a.dept_id)));
+          const allocatedProgramCodes = affil.map(a => a.prog_code).filter(Boolean);
           
-          // Fetch all programs under these departments
-          const { inArray } = await import('drizzle-orm');
-          const allPrograms = await db.select({ prog_code: academicPrograms.program_code })
-            .from(academicPrograms)
-            .where(inArray(academicPrograms.department_id, deptIds));
-
-          const allProgramCodes = allPrograms.map(p => p.prog_code);
-          
-          // Also include the raw dept_code as a branch if they want to select the parent department itself
           const rawDepts = affil.map(a => a.dept_code);
           const rawDeptNames = affil.map(a => a.dept_name);
 
-          branches = Array.from(new Set([...allProgramCodes, ...rawDepts].filter(Boolean)));
+          branches = Array.from(new Set(allocatedProgramCodes));
           departments = Array.from(new Set(rawDepts.filter(Boolean)));
           department_names = Array.from(new Set(rawDeptNames.filter(Boolean)));
           branch = branches.length > 0 ? branches[0] : null;

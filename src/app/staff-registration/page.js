@@ -311,9 +311,10 @@ export default function StaffRegistrationPage() {
     );
   }
 
-  const availablePrograms = formData.department ? PROGRAMS_MAP[formData.department] : [];
-  
-  // Submit disabled logic
+  const ALL_PROGRAMS = Object.values(PROGRAMS_MAP).flat();
+  const availablePrograms = formData.department ? ALL_PROGRAMS : [];
+    
+    // Submit disabled logic
   const isSubmitDisabled = 
     !formData.declaration || 
     isSubmitting ||
@@ -584,7 +585,7 @@ export default function StaffRegistrationPage() {
                   {errors.department && <p className="mt-1 text-xs text-red-500 flex items-center"><AlertCircle className="h-3 w-3 mr-1"/>{errors.department}</p>}
                 </div>
 
-                {formData.department === 'CSE' && (
+                {formData.department && (
                   <div className="p-5 bg-slate-50 border border-slate-200 rounded-lg animate-fadeIn">
                     <label className="block text-sm font-medium text-slate-800 mb-3">
                       Programs / Branches <span className="text-red-500">*</span>

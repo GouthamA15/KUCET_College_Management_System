@@ -42,15 +42,10 @@ export class FacultyService {
         
     if (affil.length === 0) return [];
 
-    const deptIds = Array.from(new Set(affil.map(a => a.dept_id)));
-    const allPrograms = await db.select({ prog_code: academicPrograms.program_code })
-        .from(academicPrograms)
-        .where(inArray(academicPrograms.department_id, deptIds));
+    const allProgramCodes = affil.map(a => a.prog_code).filter(Boolean);
+    const rawDepts = affil.map(a => a.dept_code).filter(Boolean);
 
-    const allProgramCodes = allPrograms.map(p => p.prog_code);
-    const rawDepts = affil.map(a => a.dept_code);
-
-    return Array.from(new Set([...allProgramCodes, ...rawDepts].filter(Boolean)));
+    return Array.from(new Set([...allProgramCodes, ...rawDepts]));
   }
 
   /**

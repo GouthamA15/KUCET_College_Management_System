@@ -16,11 +16,26 @@ async function getHodUserAndBranches(role = 'hod') {
   if (!user.hod_department_code) {
     return { error: 'Unauthorized - Active HOD Assignment Required', status: 403 };
   }
-  const programs = await db.select({ program_code: academicPrograms.program_code })
-    .from(academicPrograms)
-    .innerJoin(academicDepartments, eq(academicPrograms.department_id, academicDepartments.id))
-    .where(eq(academicDepartments.department_code, user.hod_department_code));
-  const authorizedBranches = Array.from(new Set([user.hod_department_code, ...programs.map(p => p.program_code)]));
+  
+  const { staffAcademicAffiliations } = await import('@/db/schema');
+  
+  const affil = await db.select({ 
+    prog_code: academicPrograms.program_code,
+    dept_code: academicDepartments.department_code
+  })
+  .from(staffAcademicAffiliations)
+  .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
+  .leftJoin(academicPrograms, eq(staffAcademicAffiliations.program_id, academicPrograms.id))
+  .where(eq(staffAcademicAffiliations.staff_account_id, user.id));
+
+  // The HOD's authorized branches are their explicitly allocated teaching programs.
+  const allocatedPrograms = affil.map(a => a.prog_code).filter(Boolean);
+  
+  // We also include their organizational department code as a fallback 
+  // just in case they need to manage base department subjects
+  const deptCodes = affil.map(a => a.dept_code).filter(Boolean);
+
+  const authorizedBranches = Array.from(new Set([...deptCodes, ...allocatedPrograms]));
   return { authorizedBranches };
 }
 

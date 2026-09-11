@@ -62,7 +62,7 @@ export const GET = wrapHandler({
 export const POST = wrapHandler({
   auth: 'hod',
   handler: async (request, { user }) => {
-    const { subject_code, subject_name, branch, semester, academic_year } = await request.json();
+    const { subject_code, subject_name, branch, semester, academic_year, faculty_id } = await request.json();
 
     if (!subject_code || !semester || !branch) {
       return apiError('Missing required fields', 400);
@@ -95,8 +95,7 @@ export const POST = wrapHandler({
       return apiError('Subject does not exist in the specified branch.', 400);
     }
 
-    // Force self-assignment for HOD
-    const target_faculty_id = user.id;
+    const target_faculty_id = faculty_id || user.id;
     const resolvedAcademicYear = academic_year || currentAcademicYear || '2025-26';
     const parsedSemester = parseInt(semester);
 
@@ -118,17 +117,10 @@ export const POST = wrapHandler({
       return apiError('No academic affiliations found for your account', 403);
     }
 
-    const deptIds = Array.from(new Set(affil.map(a => a.dept_id)));
-    const allPrograms = await db.select({ prog_code: academicPrograms.program_code })
-      .from(academicPrograms)
-      .where(inArray(academicPrograms.department_id, deptIds));
+    const allocatedProgramCodes = Array.from(new Set(affil.map(a => a.prog_code).filter(Boolean)));
 
-    const allProgramCodes = allPrograms.map(p => p.prog_code);
-    const rawDepts = affil.map(a => a.dept_code);
-    const allowedBranches = Array.from(new Set([...allProgramCodes, ...rawDepts].filter(Boolean)));
-
-    if (!allowedBranches.includes(branch)) {
-      return apiError(`Unauthorized: You can only self-assign subjects within your affiliated departments/programs.`, 403);
+    if (!allocatedProgramCodes.includes(branch)) {
+      return apiError(`Unauthorized: Cannot assign subjects outside of the faculty's allocated teaching programs: ${allocatedProgramCodes.join(', ')}`, 403);
     }
 
     // Duplicate Check
