@@ -198,26 +198,64 @@ export async function DELETE(request) {
       return apiError('Missing assignment_id', 400);
     }
 
+    // 1. Verify assignment existence
+    const assignments = await db.select({
+      id: facultySubjectAssignments.id,
+      branch: facultySubjectAssignments.branch,
+      faculty_id: facultySubjectAssignments.staff_account_id
+    })
+    .from(facultySubjectAssignments)
+    .where(eq(facultySubjectAssignments.id, assignment_id))
+    .limit(1);
+
+    if (assignments.length === 0) {
+      return apiError('Assignment not found', 404);
+    }
+
+    const targetAssignment = assignments[0];
+
+    // 2. Fetch active session if any
+    const activeSessions = await db.select({
+      id: attendanceSessions.id,
+      faculty_id: attendanceSessions.faculty_id
+    })
+    .from(attendanceSessions)
+    .where(and(
+      eq(attendanceSessions.assignment_id, assignment_id),
+      eq(attendanceSessions.is_active, true)
+    ))
+    .limit(1);
+
+    if (activeSessions.length === 0) {
+      return apiResponse({ message: 'No active session found' });
+    }
+
+    const activeSession = activeSessions[0];
+
+    // 3. Authorization check (Primary Faculty, Session Creator, Branch HOD, or Admin)
+    const isPrimary = targetAssignment.faculty_id === user.id;
+    const isCreator = activeSession.faculty_id === user.id;
+    const isHOD = user.is_hod && user.branch === targetAssignment.branch;
+    const isAdmin = user.role === 'admin';
+
+    if (!isPrimary && !isCreator && !isHOD && !isAdmin) {
+      return apiError('You are not authorized to end this session', 403);
+    }
+
     await db.update(attendanceSessions)
       .set({ is_active: false })
       .where(and(
         eq(attendanceSessions.assignment_id, assignment_id),
-        eq(attendanceSessions.faculty_id, user.id),
         eq(attendanceSessions.is_active, true)
       ));
 
     // --- REAL-TIME: Notify Students/HOD ---
     try {
-      const asgnRows = await db.select({ branch: facultySubjectAssignments.branch })
-        .from(facultySubjectAssignments)
-        .where(eq(facultySubjectAssignments.id, assignment_id))
-        .limit(1);
-        
       const { broadcastUpdate } = await import('@/lib/sse');
       broadcastUpdate('SESSION_ENDED', { 
         assignment_id, 
         faculty_id: user.id, 
-        branch: asgnRows[0]?.branch || user.branch 
+        branch: targetAssignment.branch || user.branch 
       });
     } catch (sseErr) {
       console.warn('[SSE] Broadcast failed:', sseErr);

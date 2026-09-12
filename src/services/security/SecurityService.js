@@ -145,7 +145,9 @@ export class SecurityService {
         ],
         action: {
           label: 'Visit Security Center',
-          url: `${getBaseUrl()}/${userType.toUpperCase()}/settings/security`
+          url: (userType || '').toLowerCase() === 'admin'
+            ? `${getBaseUrl()}/admin`
+            : `${getBaseUrl()}/${(userType || '').toLowerCase()}/settings/security`
         }
       });
     } catch (err) {

@@ -223,6 +223,24 @@ describe('SecurityService', () => {
       await SecurityService.sendSecurityEmail('EMAIL_CHANGED', 1, 'ADMIN', {}, '1.2.3.4');
       
       expect(sendInstitutionalEmail).toHaveBeenCalledTimes(3);
+      expect(sendInstitutionalEmail).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          action: { label: 'Visit Security Center', url: 'http://localhost/student/settings/security' }
+        })
+      );
+      expect(sendInstitutionalEmail).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          action: { label: 'Visit Security Center', url: 'http://localhost/staff/settings/security' }
+        })
+      );
+      expect(sendInstitutionalEmail).toHaveBeenNthCalledWith(
+        3,
+        expect.objectContaining({
+          action: { label: 'Visit Security Center', url: 'http://localhost/admin' }
+        })
+      );
     });
   });
 

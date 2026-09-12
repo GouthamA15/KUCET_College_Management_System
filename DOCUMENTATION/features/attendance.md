@@ -89,6 +89,7 @@ stateDiagram-v2
 1. **Dynamic Generation**: When faculty clicks "Start Session", the backend generates a random 4-digit PIN (`session_pin`) and a cryptographically secure 64-character token (`session_token`).
 2. **Short TTL Expiry**: Sessions auto-expire after a configured window (typically 5 to 10 minutes).
 3. **Session Re-keying**: Faculty can refresh the PIN at any time during an active lecture to invalidate previously shared PINs.
+4. **Session Termination Authorization (`DELETE /api/staff/faculty/attendance/session`)**: Active sessions can be terminated by the primary assigned faculty, the session creator (such as a designated substitute for the day), the Head of Department (HOD) for that branch, or a Super Admin. Unauthorized termination attempts are rejected with 403 Forbidden.
 
 ---
 
