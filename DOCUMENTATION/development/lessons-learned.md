@@ -213,6 +213,26 @@ This document synthesizes those key lessons into **21 Inviolable Rules** and def
 - **The Pitfall:** (1) Calling API wrapper middleware with mismatched parameter signatures (e.g., `wrapHandler({ role }, handler)` vs `wrapHandler({ handler, auth })`) causes runtime 500 crashes (`handler is not a function`). (2) SQL range comparisons on nullable columns (`end_date >= NOW()`) evaluate to `NULL` (falsy) for ongoing active assignments where `end_date IS NULL`, falsely dropping valid records.
 - **The Inviolable Guardrail:** API wrapper utilities MUST normalize polymorphic invocation arguments. In Drizzle/SQL queries, active temporal checks on nullable end dates MUST explicitly use `or(isNull(table.end_date), gte(table.end_date, nowStr))`.
 
+### Rule 23: Service Worker Fallbacks Must Never Use Same-URL `location.replace()` for Reconnection Restores
+- **The Pitfall:** When network connectivity is interrupted during deployments, Service Worker navigation interceptors return fallback HTML (`fallbackHtml`). Calling `window.location.replace('/')` when the browser is already at `/` is a no-op in modern Chromium/WebKit browsers and does NOT trigger a document reload. The page becomes permanently frozen on "Reconnecting..." even after backend recovery.
+- **The Inviolable Guardrail:** Health-polling recovery logic in Service Worker fallbacks MUST force `window.location.reload()` (or navigate to `/` only if currently on `/offline`), ensuring a true network document reload.
+
+### Rule 24: Decouple Container Image Builds from Atomic Swapping for Zero-Downtime Deployments
+- **The Pitfall:** Executing `docker compose up -d --build app` shuts down running containers before or during the image compile process, creating a 20-30 second downtime window that triggers client-side connection failures and offline screens.
+- **The Inviolable Guardrail:** ALWAYS run `docker compose build app realtime` first (while old containers remain 100% online and serving traffic), followed by `docker compose up -d --no-deps app realtime` for an instantaneous (1-2s) atomic container switch.
+
+### Rule 25: Enforce Docker Hostname Resolution for Multi-Container Inter-Service Networking
+- **The Pitfall:** Configuring secondary database or service hosts with loopback addresses (`127.0.0.1`) works on the host OS but fails inside Docker containers (`ECONNREFUSED 127.0.0.1:3306`), because `127.0.0.1` inside a container refers to the container itself.
+- **The Inviolable Guardrail:** Multi-container environment variables (`DB_HOST`, `EXPERIMENT_DB_HOST`, `REDIS_URL`) must reference internal Docker network service hostnames (`db`, `redis`), while host-level scripts explicitly override them with loopback (`127.0.0.1`) on the command line when running outside Docker.
+
+### Rule 26: Always Enforce Docker Container Log Rotation Limits (`max-size` & `max-file`)
+- **The Pitfall:** Docker's default `json-file` log driver captures all container stdout/stderr without size caps. High-throughput reverse proxies (like Nginx) or chatty Node services will silently accumulate tens of gigabytes in `/var/lib/docker/containers/*/*-json.log`, eventually causing catastrophic root disk exhaustion (`No space left on device`).
+- **The Inviolable Guardrail:** ALWAYS define explicit log driver options (`max-size: "20m"`, `max-file: "3"`) both in `docker-compose.yml` (via YAML anchors) and globally in `/etc/docker/daemon.json`, bounding maximum container log retention to < 60MB per service.
+
+### Rule 27: Bounded Wait Loops for Post-Reboot Network & Mesh Ingress Initialization
+- **The Pitfall:** Running post-boot recovery scripts via `@reboot` immediately executes before local DHCP negotiation, Wi-Fi/Ethernet link convergence, or mesh VPN connection completes. Probing `tailscale ip -4` once without retry immediately declares the network offline and prematurely aborts public ingress restoration.
+- **The Inviolable Guardrail:** Post-boot and recovery scripts MUST implement bounded retry loops (e.g. 30 seconds, 3-second polling interval) when waiting for network interfaces, Tailscale IP assignment, and reverse proxy availability before concluding that ingress configuration failed.
+
 ---
 
 ## 9. Incident Summary Matrix

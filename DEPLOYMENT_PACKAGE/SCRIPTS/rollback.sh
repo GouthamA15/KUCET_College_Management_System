@@ -102,6 +102,7 @@ CURRENT_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
 log "Current commit: $CURRENT_COMMIT"
 log "Rolling back to: $TARGET_COMMIT ..."
 
+git config core.fileMode false 2>/dev/null || true
 git reset --hard "$TARGET_COMMIT" 2>&1 || git checkout --force --detach "$TARGET_COMMIT" 2>&1 || {
   log "ERROR: git reset/checkout to $TARGET_COMMIT failed!"
   send_webhook "❌ KUCET CMS: Rollback FAILED — git checkout ${TARGET_COMMIT:0:8} failed."
@@ -142,12 +143,19 @@ fi
 # ---------------------------------------------------------------------------
 # Rebuild and start app and realtime containers at rollback commit
 # ---------------------------------------------------------------------------
-log "Building and starting app and realtime containers at rollback commit ..."
+log "Building app and realtime container images at rollback commit ..."
 docker compose \
   -p deployment_package \
   -f "$COMPOSE_FILE" \
   --env-file "$ENV_FILE" \
-  up -d --build --no-deps app realtime 2>&1
+  build app realtime 2>&1
+
+log "Performing atomic container switch (docker compose up -d) ..."
+docker compose \
+  -p deployment_package \
+  -f "$COMPOSE_FILE" \
+  --env-file "$ENV_FILE" \
+  up -d --no-deps app realtime 2>&1
 
 # ---------------------------------------------------------------------------
 # Wait for container health (up to 60 seconds, check every 5s)

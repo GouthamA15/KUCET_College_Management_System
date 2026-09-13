@@ -2,3 +2,6 @@
 
 # Prevent DOCUMENTATION directory from being merged into main branch
 DOCUMENTATION/** merge=ours
+
+# Enforce Unix LF line endings for all shell scripts
+*.sh text eol=lf

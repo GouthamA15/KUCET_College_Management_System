@@ -1,6 +1,6 @@
 // KUCET CMS - Production Service Worker
-// Version: v5 (Auto-Reconnection & Resilient Pre-Cache Release)
-const CACHE_VERSION = 'v5';
+// Version: v6 (True Reload Reconnection & Resilient Pre-Cache Release)
+const CACHE_VERSION = 'v6';
 const CACHE_NAME = `kucet-cms-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline';
 
@@ -129,11 +129,20 @@ self.addEventListener('fetch', (event) => {
     <button class="btn" onclick="checkNow()">Retry Now</button>
   </div>
   <script>
+    function doRestore() {
+      try {
+        if (window.location.pathname === '/offline') {
+          window.location.replace('/');
+          return;
+        }
+      } catch (_e) {}
+      window.location.reload();
+    }
     async function checkNow() {
       try {
         const res = await fetch('/api/health', { cache: 'no-store' });
         if (res.ok) {
-          window.location.replace('/');
+          doRestore();
           return;
         }
       } catch (e) {}
@@ -143,7 +152,7 @@ self.addEventListener('fetch', (event) => {
       try {
         const res = await fetch('/api/health', { cache: 'no-store' });
         if (res.ok) {
-          window.location.replace('/');
+          doRestore();
         }
       } catch (e) {}
     }, 3000);

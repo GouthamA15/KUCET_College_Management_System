@@ -10,6 +10,7 @@
 
 | Session | Date | Category | Affected Subsystem | Primary Root Cause Summary | Resolution Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Session 213** | Sep 13, 2026 | PWA / DevOps / Ingress | Production Uptime & Reconnection Loop | Service worker same-URL `location.replace('/')` no-op causing sticky reconnect loop on root URL after deploy restart; container network drift `EXPERIMENT_DB_HOST=127.0.0.1` inside Docker network throwing `ECONNREFUSED`; file ownership conflict between `root` and `deployer` in deploy scripts; separated container build from swap for zero-downtime deployments | **RESOLVED** |
 | **Session 211** | Sep 04, 2026 | React 19 State & Auth Proxy | Faculty Attendance & Admission Workspace | Minified React error #479 from `startTransition` inside `setState` updater in `FacultyAttendanceContext.js`; 401 Unauthorized errors on calendar load and proxy JWT refresh header omission; missing inline topic logging; multi-branch filter extension in admission workspace | **RESOLVED** |
 | **Session 210** | Sep 03, 2026 | CI/CD & Git Worktree | GitHub Actions Runner & Scripts | Non-executable file mode `100644` in Git index caused runtime `chmod +x` to create unstaged mode diffs (`100755`); `deploy.sh` attempted `git checkout` before `git reset --hard`; runner user `deployer` (UID 1001) hit `Permission denied` on files owned by `kucet-dev` (UID 1000) | **RESOLVED** |
 | **Session 209 (Part 2)** | Aug 31, 2026 | Performance & Lifecycle | Realtime, PWA, Proxy & Admin UI | `ServerResponse` MaxListeners warning from Next.js internal `httpxy` proxy during sequential multi-role silent auth refreshes; Socket.IO auth token expiry reconnection loops; uncleaned `setInterval` & `visibilitychange` in `PwaRegister.js`; duplicate `<RealtimeListener>` with unstable inline handlers in `PendingStaffRequests.js` | **RESOLVED** |
@@ -29,7 +30,42 @@
 
 ## Detailed Forensics & Technical Resolutions
 
-### 0. Session 211: Forensic Resolution of Faculty Attendance Error #479, Proxy Auth Header Forwarding, Inline Topic Tracking & Admission Multi-Branch Filter
+### 0. Session 213: Forensic Resolution of Sticky Reconnection Screen, Container Network Drift, and Zero-Downtime Deployment
+
+#### Incident Summary
+The production portal (`https://kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net/`) became trapped in an ongoing reconnecting loop showing:
+*"Reconnecting to Campus Portal — Network connectivity was briefly interrupted. The system is continuously monitoring the connection and will automatically return to the portal once restored. Checking campus server status..."*
+Despite the host server, Nginx reverse proxy, and backend database reporting healthy states, clients visiting or refreshing the page could not break out of the reconnection loop.
+
+#### Root Cause Analysis
+1. **Service Worker Same-URL Navigation No-Op (`public/sw.js`)**:
+   - During automated deployment (`deploy.sh`), `docker compose up -d --build` stopped and rebuilt `app` and `realtime` containers, creating a ~20-second window where incoming requests received connection failures.
+   - The service worker intercepted the navigation failure and rendered `fallbackHtml`.
+   - In `fallbackHtml`, polling `/api/health` successfully received HTTP 200 once containers started. Upon receiving 200, it executed `window.location.replace('/')`.
+   - In Chromium, WebKit, and Gecko, `location.replace('/')` when the current document pathname is already `'/'` is treated as a same-document navigation and does NOT trigger a page reload.
+   - The manual button handler `checkNow()` executed `if (res.ok) { window.location.replace('/'); return; }` and returned without calling `window.location.reload()`. Users were permanently trapped on the fallback card.
+2. **Container Network Drift (`EXPERIMENT_DB_HOST`)**:
+   - `.env.production` had `EXPERIMENT_DB_HOST=127.0.0.1`. Inside the container network, `127.0.0.1` refers to `kucet-cms-app` itself, causing `ECONNREFUSED 127.0.0.1:3306` whenever `Navbar`/`Sidebar` called `/api/events/config`. Inside Docker, MySQL is reachable at `db:3306`.
+3. **Deployment Downtime Window**:
+   - Running `docker compose up -d --build app realtime` rebuilt images after shutting down the old container, extending the downtime window to 25s.
+4. **Git Tree Ownership Conflict**:
+   - Files in `DEPLOYMENT_PACKAGE/SCRIPTS` had been modified or owned by `root:root`, preventing the GitHub Actions self-hosted runner user `deployer` (UID 1001) from updating scripts during `git reset --hard`.
+
+#### Resolution Steps
+1. **PWA Service Worker True Reload (`public/sw.js`)**:
+   - Added `doRestore()`: calls `window.location.reload()` unconditionally (or `location.replace('/')` only if currently rendering on `/offline`).
+   - Replaced `location.replace('/')` in `checkNow()` and background interval with `doRestore()`.
+   - Bumped `CACHE_VERSION` to `v6` to invalidate stale worker registrations and force immediate client updates.
+2. **Container Network Host Realignment**:
+   - Set `EXPERIMENT_DB_HOST=db` in server `.env.production`.
+   - Replaced redundant `/var/www/kucet-cms/DEPLOYMENT_PACKAGE/.env.production` and `/var/www/kucet-cms/.env` with symlinks to `/var/www/kucet-cms/.env.production`.
+3. **Zero-Downtime Container Rebuild Pattern**:
+   - Updated `deploy.sh` and `rollback.sh` to run `docker compose build app realtime` first (while running containers remain online), followed by atomic swap `docker compose up -d --no-deps app realtime`.
+4. **Permissions & File Mode Hardening**:
+   - Enforced `chown -R deployer:users /var/www/kucet-cms` and `chmod -R g+w`.
+   - Added `git config core.fileMode false` before git operations in deployment scripts.
+
+### 1. Session 211: Forensic Resolution of Faculty Attendance Error #479, Proxy Auth Header Forwarding, Inline Topic Tracking & Admission Multi-Branch Filter
 
 #### Incident Summary
 Faculty members encountered recurring issues when accessing live attendance routes (`/staff/faculty/attendance/[assignmentId]/take/gps`, `.../manual`, `.../qr`):

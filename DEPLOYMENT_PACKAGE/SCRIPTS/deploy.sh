@@ -110,6 +110,7 @@ log "Previous commit (rollback target): $PREV_COMMIT"
 # Pull latest code
 # ---------------------------------------------------------------------------
 log "Pulling latest code from origin/$BRANCH ..."
+git config core.fileMode false 2>/dev/null || true
 git fetch origin "$BRANCH" 2>&1
 git reset --hard "origin/$BRANCH" 2>&1
 git clean -fd 2>&1
@@ -165,14 +166,21 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Build and start app and realtime containers
+# Build images first (zero-downtime: existing containers remain online)
 # ---------------------------------------------------------------------------
-log "Building and starting app and realtime containers ..."
+log "Building app and realtime container images (containers remain online) ..."
 docker compose \
   -p deployment_package \
   -f "$COMPOSE_FILE" \
   --env-file "$ENV_FILE" \
-  up -d --build --no-deps app realtime 2>&1
+  build app realtime 2>&1
+
+log "Performing atomic container switch (docker compose up -d) ..."
+docker compose \
+  -p deployment_package \
+  -f "$COMPOSE_FILE" \
+  --env-file "$ENV_FILE" \
+  up -d --no-deps app realtime 2>&1
 
 log "App and realtime container build and start initiated."
 

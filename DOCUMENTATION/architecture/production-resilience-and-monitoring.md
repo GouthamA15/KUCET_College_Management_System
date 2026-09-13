@@ -170,3 +170,102 @@ Uptime Kuma runs in container `kucet-cms-monitor` on `127.0.0.1:3001`.
 | **Permanent Missing Chunk in Browser** | `PwaRegister.js` catches error, checks 20s throttle guard, and reloads window to fetch latest manifest. | None (handled client-side). | None. Tab auto-recovers. |
 | **Database Disk Full (> 90%)** | `health-check.sh` reports disk `WARN`. | Uptime Kuma / healthcheck disk warning. | Run `docker system prune -f` and check `/var/log/kucet/` log retention. |
 
+---
+
+## 8. Host Power Failure Safeguards & UPS Management
+
+Because the production host is an on-premises desktop workstation (`HP Pro Tower 280 G9 PCI Desktop PC`), unexpected campus-wide power disruptions present a unique reliability consideration:
+
+### 8.1 Hardware & BIOS Invariants
+1. **AC Power Recovery (After Power Loss):**
+   - In the HP UEFI/BIOS setup (`Advanced > Power Management Options > After Power Loss`), configure the setting to **`Power On`** (or `Previous State`).
+   - *Rationale:* When campus grid power is restored following an outage, the machine automatically powers on without requiring manual physical button depression.
+2. **Dedicated Online UPS Hardware:**
+   - The production tower and network switch/router must connect to an active True Online UPS (minimum 1000VA / 600W rating) providing at least 20-30 minutes of runtime during localized fluctuations or generator switchovers.
+
+### 8.2 Automated UPS Daemon & Graceful Shutdown (NUT Setup)
+When an APC or generic USB-monitored UPS is connected:
+```bash
+# 1. Install Network UPS Tools (NUT)
+sudo apt update && sudo apt install -y nut
+
+# 2. Configure /etc/nut/nut.conf
+MODE=standalone
+
+# 3. Configure /etc/nut/ups.conf
+[kucet-ups]
+    driver = usbhid-ups
+    port = auto
+    desc = "Campus Production Server UPS"
+
+# 4. Configure /etc/nut/upsmon.conf
+MONITOR kucet-ups@localhost 1 monuser secret master
+MINSUPPLIES 1
+SHUTDOWNCMD "/sbin/shutdown -h +0"
+NOTIFYCMD /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/ups-notify.sh
+NOTIFYFLAG ONBATT   SYSLOG+WALL+EXEC
+NOTIFYFLAG ONLINE   SYSLOG+WALL+EXEC
+NOTIFYFLAG LOWBATT  SYSLOG+WALL+EXEC
+```
+- When `ONBATT` triggers, `upsmon` dispatches an operational webhook warning.
+- If grid power is not restored and battery reaches `LOWBATT` (e.g. 15%), `upsmon` flushes MySQL caches, issues `docker compose stop`, and cleanly shuts down the host, preventing filesystem or InnoDB corruption.
+- Upon grid restoration, BIOS `Power On` boots the PC, and `@reboot boot-recovery.sh` automatically restores all containers, masks sleep targets, connects Tailscale, and verifies public HTTPS reachability.
+
+---
+
+## 9. Tailscale Funnel Stability & Institutional Ingress Migration Plan
+
+### 9.1 Operational Profile & Ingress Architecture
+The KUCET CMS currently ingresses public traffic via **Tailscale Funnel**:
+- `https://kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net` forwards public HTTPS via Tailscale relay DERP nodes to the host's loopback port `80` (handled by container `kucet-cms-proxy` Nginx).
+- **Advantages:** Zero public firewall open ports, automated LetsEncrypt TLS cert rotation, instant DDoS attenuation by Tailscale control plane, NAT traversal without public campus IP.
+
+### 9.2 Ingress Monitoring & Auto-Healing
+- `DEPLOYMENT_PACKAGE/SCRIPTS/monitor.sh` tests both local `/api/health` and the public endpoint `https://kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net/api/health` every 5 minutes.
+- If a relay drop or transient mapping failure occurs, `monitor.sh` automatically re-asserts `tailscale funnel --bg http://127.0.0.1:80` and dispatches a webhook if recovery requires multiple retries.
+
+### 9.3 Institutional Ingress Migration Criteria & Triggers
+Tailscale Funnel is optimized for institutional college operations (50–200 concurrent active users). However, direct institutional ingress should be evaluated when:
+1. **Concurrency Threshold:** Sustained traffic exceeds 200 concurrent requests/second (e.g., college-wide semester results announcement).
+2. **Large Binary Streaming:** Heavy video streaming or massive bulk PDF export traffic where Funnel relay bandwidth constraints cause queuing.
+3. **Custom Institutional Branding:** Requirement for an official university root domain (e.g. `https://cms.kucet.ac.in`).
+
+#### Direct Institutional Ingress Migration Roadmap:
+When migration triggers are met:
+1. Assign a static institutional IPv4/IPv6 address to the server or edge router.
+2. Configure edge router port forwarding: `80/tcp` and `443/tcp` -> host LAN IP.
+3. Bind Nginx directly to `80` and `443` on host network.
+4. Issue institutional domain TLS certificate via `certbot --nginx -d cms.kucet.ac.in`.
+5. Retain Tailscale Funnel as secondary out-of-band administrative failover.
+
+---
+
+## 10. Container Logging & Disk Exhaustion Safeguards
+
+Unbounded Docker container logs represent a common silent failure vector in Linux production environments.
+
+### 10.1 Multi-Layer Log Limits
+1. **Docker Compose Service Invariant:**
+   All services in [`DEPLOYMENT_PACKAGE/docker-compose.yml`](file:///D:/User/Desktop/CMS/DEPLOYMENT_PACKAGE/docker-compose.yml) inherit `x-logging: &default-logging`:
+   ```yaml
+   x-logging: &default-logging
+     driver: "json-file"
+     options:
+       max-size: "20m"
+       max-file: "3"
+   ```
+2. **Host Daemon Invariant (`/etc/docker/daemon.json`):**
+   The Docker daemon default logging configuration on the host enforces identical boundaries across all current and future ad-hoc containers:
+   ```json
+   {
+     "log-driver": "json-file",
+     "log-opts": {
+       "max-size": "20m",
+       "max-file": "3"
+     }
+   }
+   ```
+3. **Logrotate Integration:**
+   `/etc/logrotate.d/kucet-cms` rotates all files in `/var/log/kucet/*.log` daily with gzip compression, retaining a rolling 30-day window.
+
+

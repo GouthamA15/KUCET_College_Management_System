@@ -86,13 +86,24 @@ if ! $DOCKER_READY; then
 fi
 
 # ---------------------------------------------------------------------------
+# Resolve production environment file
+# ---------------------------------------------------------------------------
+if [[ -f "$KUCET_CMS_DIR/.env.production" ]]; then
+  ENV_FILE="$KUCET_CMS_DIR/.env.production"
+elif [[ -f "$KUCET_CMS_DIR/DEPLOYMENT_PACKAGE/.env.production" ]]; then
+  ENV_FILE="$KUCET_CMS_DIR/DEPLOYMENT_PACKAGE/.env.production"
+else
+  ENV_FILE="$KUCET_CMS_DIR/.env"
+fi
+
+# ---------------------------------------------------------------------------
 # STEP 3: Bring up all Docker containers with self-healing policies
 # ---------------------------------------------------------------------------
 log "STEP 3: Bringing up all Docker containers (docker compose up -d) ..."
 docker compose \
   -p deployment_package \
   -f "$COMPOSE_FILE" \
-  --env-file "$KUCET_CMS_DIR/.env.production" \
+  --env-file "$ENV_FILE" \
   up -d 2>&1 | tee -a "$LOG_FILE"
 
 log "  docker compose up -d completed."
@@ -138,10 +149,21 @@ if command -v tailscale >/dev/null 2>&1; then
     sleep 3
   fi
 
-  # Check Tailscale IP
-  TS_IP=$(tailscale ip -4 2>/dev/null || echo "")
+  # Wait for Tailscale IP assignment (up to 30s after boot/network initialization)
+  log "  Waiting for Tailscale IP assignment (max 30s) ..."
+  TS_WAITED=0
+  TS_IP=""
+  while [[ $TS_WAITED -lt 30 ]]; do
+    TS_IP=$(tailscale ip -4 2>/dev/null || echo "")
+    if [[ -n "$TS_IP" ]]; then
+      break
+    fi
+    sleep 3
+    TS_WAITED=$((TS_WAITED + 3))
+  done
+
   if [[ -n "$TS_IP" ]]; then
-    log "  [OK] Tailscale connected with IP: $TS_IP"
+    log "  [OK] Tailscale connected with IP: $TS_IP (after ${TS_WAITED}s)"
     TAILSCALE_OK=true
 
     # Ensure Funnel is actively proxying to local Nginx on port 80
@@ -169,7 +191,7 @@ if command -v tailscale >/dev/null 2>&1; then
       log "  [WARN] Public Funnel endpoint did not return 200 within ${FUNNEL_WAIT_MAX}s (returned $PUB_STATUS)."
     fi
   else
-    log "  [ERROR] Tailscale IP unavailable. Machine may be logged out of tailnet."
+    log "  [ERROR] Tailscale IP unavailable after 30s. Machine may be offline or logged out of tailnet."
   fi
 else
   log "  [WARN] tailscale CLI not found in PATH."

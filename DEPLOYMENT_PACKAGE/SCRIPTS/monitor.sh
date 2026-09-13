@@ -175,6 +175,25 @@ if command -v tailscale >/dev/null 2>&1; then
       sudo tailscale funnel --bg http://127.0.0.1:80 2>&1 | tee -a "$LOG_FILE" || true
     ALERTS_TRIGGERED=true
   fi
+
+  # Active reachability check against public HTTPS Funnel endpoint
+  PUB_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "$PUBLIC_HEALTH_ENDPOINT" 2>/dev/null || echo "000")
+  if [[ "$PUB_STATUS" != "200" ]]; then
+    log "  [WARN] Public Funnel endpoint returned HTTP $PUB_STATUS — re-asserting Funnel mapping ..."
+    tailscale funnel --bg http://127.0.0.1:80 2>&1 | tee -a "$LOG_FILE" || \
+      sudo tailscale funnel --bg http://127.0.0.1:80 2>&1 | tee -a "$LOG_FILE" || true
+    sleep 3
+    PUB_RETRY_STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "$PUBLIC_HEALTH_ENDPOINT" 2>/dev/null || echo "000")
+    if [[ "$PUB_RETRY_STATUS" != "200" ]]; then
+      log "  [ALERT] Public Funnel endpoint still returning HTTP $PUB_RETRY_STATUS after re-assertion."
+      send_webhook "⚠️ KUCET CMS Monitor: Public Funnel endpoint unreachable (HTTP $PUB_RETRY_STATUS) at $(date '+%Y-%m-%d %H:%M:%S')."
+      ALERTS_TRIGGERED=true
+    else
+      log "  [OK] Public Funnel restored successfully after re-assertion (HTTP 200)."
+    fi
+  else
+    log "  [OK] Public Funnel endpoint is responsive (HTTP 200)."
+  fi
 fi
 
 # ---

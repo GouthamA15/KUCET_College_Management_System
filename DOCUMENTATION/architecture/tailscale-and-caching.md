@@ -87,9 +87,10 @@ When `deploy.sh` executes:
 1. Pulls latest commit from Git repository.
 2. Executes pre-migration database snapshot (`nightly-backup.sh`).
 3. Runs Drizzle database migrations (`npm run db:migrate`).
-4. Rebuilds and replaces `kucet-cms-app` container (`docker compose up -d --build --no-deps app`).
-5. Validates Nginx configuration (`nginx -t`) and reloads proxy.
-6. Runs automated health verification (`health-check.sh`).
+4. Rebuilds images while existing containers remain online (`docker compose build app realtime`).
+5. Performs atomic container switch (`docker compose up -d --no-deps app realtime`).
+6. Validates Nginx configuration (`nginx -t`) and reloads proxy.
+7. Runs automated health verification (`health-check.sh`).
 
 ### 4.2 Dynamic Chunk Invalidation & Client Auto-Recovery
 When a new container build is deployed, old JavaScript chunk hashes are replaced with new ones. To prevent open browser tabs from crashing with `ChunkLoadError` or requiring manual hard refreshes:
@@ -109,17 +110,31 @@ When a new container build is deployed, old JavaScript chunk hashes are replaced
 ## 5. PWA / Service Worker Architecture
 
 ### 5.1 Service Worker Invariants (`public/sw.js`)
-- **Cache Versioning (`CACHE_VERSION = 'v4'`):** Bumping cache version triggers automated eviction of all obsolete cache stores on activation.
+- **Cache Versioning (`CACHE_VERSION = 'v6'`):** Bumping cache version triggers automated eviction of all obsolete cache stores on activation.
 - **API Cache Bypass:** All `/api/*` and non-GET requests bypass the service worker completely.
 - **Dynamic Chunk Bypass:** Requests matching `/_next/static/chunks/*` bypass SW caching, allowing native HTTP caching and unhindered client error detection.
 - **Media & Asset Caching:** Static assets (`.png`, `.webp`, `.woff2`, `.css`) utilize Stale-While-Revalidate caching.
-- **Smart Navigation Fallback:**
+- **Smart Navigation Fallback & True Document Reload:**
   - When `navigator.onLine === false`: Serves cached `/offline` page.
-  - When `navigator.onLine === true`: If a network error occurs during navigation, serves `/offline` with dynamic diagnostics identifying server/Tailscale reconnect states rather than claiming the user is offline.
+  - When network errors occur during deployments or restarts: Serves auto-reconnecting fallback that polls `/api/health`. Upon health restoration, executes `doRestore()` (`window.location.reload()`), preventing same-URL navigation no-op freezes.
 
 ---
 
-## 6. Troubleshooting & Operational Runbook
+## 6. Tailscale Funnel Operational Limits & Institutional Migration Criteria
+
+### 6.1 Funnel Capabilities & Safeguards
+Tailscale Funnel provides public HTTPS ingress (`https://kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net`) with built-in TLS termination and DDoS mitigation via Tailscale DERP relays.
+- **Active Ingress Probing:** `monitor.sh` checks the public HTTPS `/api/health` endpoint every 5 minutes. If a transient DERP disconnect or mapping lapse occurs, `monitor.sh` re-applies `tailscale funnel --bg http://127.0.0.1:80` and alerts via webhook if unreachable after retry.
+
+### 6.2 Institutional Migration Criteria
+When campus requirements exceed Funnel boundaries, migrate to direct institutional ingress:
+1. **Traffic Threshold:** Sustained concurrency exceeding 200 requests/sec.
+2. **Bandwidth:** High-volume video streaming or multi-gigabyte continuous data transfers.
+3. **Institutional FQDN:** Formal university custom domain requirement (`https://cms.kucet.ac.in`).
+
+---
+
+## 7. Troubleshooting & Operational Runbook
 
 | Scenario | Diagnostic Command | Remediation Action |
 | :--- | :--- | :--- |
