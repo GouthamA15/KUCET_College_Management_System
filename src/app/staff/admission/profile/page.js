@@ -42,9 +42,10 @@ export default function AdmissionStaffProfilePage() {
   const primaryId = staff?.employee_id || (staff?.role ? String(staff.role).toUpperCase() : 'ADMISSION');
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-fadeIn">
+    <div className="max-w-6xl mx-auto space-y-3 animate-fadeIn">
       <div className="flex items-start justify-center">
         <ProfileCardShell
+          compact
           left={
             <ProfileHeaderCard
               name={name}
@@ -53,17 +54,20 @@ export default function AdmissionStaffProfilePage() {
               editHref="/staff/settings/edit-profile"
               editTitle="Modify Records"
               fallback="initials"
+              compact
             />
           }
           right={
             <>
-              <ProfileStatusBar
-                title="Admissions Office"
-                lines={[
-                  { label: 'Designation', value: 'Admission Staff' },
-                  { label: 'Responsibilities', value: 'Requests • Finalize • Certificates' },
-                ]}
-              />
+              <div className="mb-2 rounded-2xl border border-[#dfeafc] bg-white/80 p-3 shadow-sm xl:p-4">
+                <ProfileStatusBar
+                  title="Admissions Office"
+                  lines={[
+                    { label: 'Designation', value: 'Admission Staff' },
+                    { label: 'Responsibilities', value: 'Requests • Finalize • Certificates' },
+                  ]}
+                />
+              </div>
               <ProfileTabs
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}

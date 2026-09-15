@@ -67,21 +67,20 @@ export default function ProfileHeaderCard({ student }) {
   const showLoaderOverlay = isImageLoadingActive;
 
   return (
-    <div className="flex flex-col items-center md:items-start select-none relative w-full overflow-hidden">
-      <div className="flex flex-col md:flex-row items-center md:items-start gap-6 relative">
-        {/* Avatar Circle Container */}
-        <div className="relative w-40 h-40">
+    <div className="flex flex-row items-center gap-3 select-none relative w-full overflow-visible xl:flex-col xl:items-start xl:gap-0 xl:overflow-hidden xl:rounded-[24px] xl:border xl:border-[#dfeafc] xl:bg-[linear-gradient(180deg,#ffffff_0%,#f6faff_100%)] xl:p-2.5 xl:sm:p-4 xl:shadow-[0_18px_42px_rgba(11,53,120,0.1)]">
+      <div className="flex flex-col items-center gap-2 relative w-auto shrink-0 xl:items-start xl:gap-3 xl:w-full">
+        <div className="relative w-28 h-28 sm:w-36 sm:h-36">
+          <div className="absolute inset-0 rounded-[24px] bg-gradient-to-br from-[#0b3578] via-[#103d8a] to-[#6e9ef5] opacity-55 blur-sm -top-0.5" />
           <div 
             onClick={() => {
               if (resolvedPhotoUrl && !showLoaderOverlay && !imageError) {
                 setShowFullViewModal(true);
               }
             }}
-              className={`w-full h-full rounded-full border-4 border-gray-300 overflow-hidden flex items-center justify-center bg-gray-100 relative ${
+            className={`relative w-full h-full rounded-[30px] border-4 border-white/80 overflow-hidden flex items-center justify-center bg-white shadow-[0_8px_18px_rgba(11,53,120,0.1)] ${
               resolvedPhotoUrl && !showLoaderOverlay && !imageError ? 'cursor-zoom-in' : ''
             }`}
           >
-            {/* Loading Spinner overlay */}
             {showLoaderOverlay && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 z-10">
                 <div className="animate-spin h-7 w-7 border-4 border-[#0b3578] border-t-transparent rounded-full"></div>
@@ -106,23 +105,26 @@ export default function ProfileHeaderCard({ student }) {
                 }}
               />
             ) : (
-              <DefaultAvatarSVG />
+              <div className="bg-gradient-to-br from-slate-100 via-blue-50 to-slate-100 w-full h-full flex items-center justify-center">
+                <DefaultAvatarSVG />
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      <div className="mt-6 text-center md:text-left w-full flex flex-col items-center md:items-start">
-        <div className="flex items-start gap-2 w-full">
-          <div className="text-3xl font-bold leading-tight break-words min-w-0 text-gray-800">{student?.name || '-'}</div>
-          <Link href="/student/settings/edit-profile" title="Edit Profile" className="flex-shrink-0 mt-1.5 inline-flex items-center justify-center border border-gray-300 rounded-md p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 hover:border-gray-400 transition-colors">
+      <div className="relative mt-0 text-left flex-1 min-w-0 flex flex-col items-start xl:mt-3 xl:text-left xl:w-full xl:flex-none xl:items-start xl:block">
+        <div className="flex items-center gap-2 flex-wrap justify-start pr-9 xl:justify-start xl:pr-0">
+          <div className="text-xl sm:text-3xl font-black leading-tight break-words min-w-0 text-slate-900 xl:text-3xl">{student?.name || '-'}</div>
+          <span className="inline-flex items-center rounded-full border border-[#0b3578]/20 bg-[#eaf1ff] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#0b3578] xl:inline-flex">Student</span>
+          <Link href="/student/settings/edit-profile" title="Edit Profile" className="absolute right-0 top-0 inline-flex items-center justify-center rounded-xl border border-[#0b3578]/20 bg-white p-2 text-[#0b3578] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#0b3578]/40 hover:bg-[#edf5ff] xl:static xl:inline-flex">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
           </Link>
         </div>
         {student?.roll_no && (
-          <div className="mt-1 text-lg font-semibold tracking-wide text-gray-500 font-mono">{student.roll_no}</div>
+          <div className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-sm font-semibold tracking-[0.2em] text-slate-600 font-mono xl:inline-flex">{student.roll_no}</div>
         )}
       </div>
 

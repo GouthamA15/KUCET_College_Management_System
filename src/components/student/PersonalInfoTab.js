@@ -95,21 +95,23 @@ export default function PersonalInfoTab({ student }) {
   const addressToDisplay = showContact ? currentAddress : permanentAddress;
 
   return (
-    <div className="space-y-6">
-      <ProfileInfoList items={items} />
-      
-      <div className="pt-4 border-t border-slate-100">
-        <div className="bg-slate-50 border border-slate-150 p-4 rounded-lg shadow-sm">
-          <div className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-            <span>Permanent Address</span>
-            {showContact && (
-              <span className="text-[10px] bg-indigo-50 border border-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                Showing Current Address
-              </span>
-            )}
-          </div>
-          {addressToDisplay || <div className="text-xs text-slate-400 font-semibold uppercase">No Record Found</div>}
+    <div className="space-y-3 sm:space-y-4">
+      <div className="border-b border-[#dfeafc] pb-2 sm:pb-3">
+        <div className="grid gap-2 md:grid-cols-2">
+          <ProfileInfoList items={items} />
         </div>
+      </div>
+
+      <div>
+        <div className="mb-1.5 sm:mb-2 flex flex-wrap items-center gap-2">
+          <div className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.18em] text-[#0b3578]">Address</div>
+          {showContact && (
+            <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-[0.12em] text-indigo-700">
+              Showing Current Address
+            </span>
+          )}
+        </div>
+        {addressToDisplay || <div className="text-xs text-slate-400 font-semibold uppercase">No Record Found</div>}
       </div>
     </div>
   );
