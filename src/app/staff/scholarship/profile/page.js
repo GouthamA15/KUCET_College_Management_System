@@ -45,6 +45,7 @@ export default function ScholarshipProfilePage() {
     <div className="max-w-6xl mx-auto space-y-8 animate-fadeIn">
       <div className="flex items-start justify-center">
         <ProfileCardShell
+          noGap
           left={
             <ProfileHeaderCard
               name={name}
@@ -64,11 +65,13 @@ export default function ScholarshipProfilePage() {
                   { label: 'Responsibilities', value: 'Verification • Requests • Sanction Workflow' },
                 ]}
               />
-              <ProfileTabs
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                personalPanel={<ProfileInfoList items={personalItems} />}
-              />
+              <div className="mt-3">
+                <ProfileTabs
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  personalPanel={<ProfileInfoList items={personalItems} />}
+                />
+              </div>
             </>
           }
         />
