@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import PersonalSchedule from '@/components/staff/faculty/PersonalSchedule';
 import { useStaff } from '@/context/StaffContext';
+import { TableSkeleton } from '@/components/ui/DashboardSkeleton';
 
 export default function FacultyTimetableOverview() {
   const router = useRouter();
@@ -218,9 +219,7 @@ export default function FacultyTimetableOverview() {
       </header>
 
       {isLoading ? (
-        <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-2 border-[#0b3578] border-t-transparent animate-spin rounded-full"></div>
-        </div>
+        <div className="mt-4"><TableSkeleton /></div>
       ) : instances.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-md p-10 text-center">
           <p className="text-slate-500 font-medium">There are no timetables published. Create a new one.</p>

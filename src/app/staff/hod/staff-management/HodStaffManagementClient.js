@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useStaff } from '@/context/StaffContext';
 import HodFacultyInterests from '@/components/staff/faculty/HodFacultyInterests';
 import ActiveFacultyList from '@/components/staff/faculty/ActiveFacultyList';
+import { GenericPageSkeleton } from '@/components/ui/DashboardSkeleton';
 import { Info, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
@@ -53,11 +54,7 @@ export default function HodStaffManagementClient() {
   }
 
   if (loading || !staffData) {
-    return (
-      <div className="flex justify-center items-center h-[50vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0b3578]"></div>
-      </div>
-    );
+    return <GenericPageSkeleton />;
   }
 
   const bottomSheet = (

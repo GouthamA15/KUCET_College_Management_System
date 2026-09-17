@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Check, X, Calendar, User, BookOpen } from 'lucide-react';
+import { TableSkeleton } from '@/components/ui/DashboardSkeleton';
 
 export default function HodFacultyInterests() {
   const [interests, setInterests] = useState([]);
@@ -65,11 +66,7 @@ export default function HodFacultyInterests() {
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center h-48 border border-gray-200 rounded-lg bg-gray-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0b3578]"></div>
-      </div>
-    );
+    return <TableSkeleton />;
   }
 
   const filteredInterests = filter === 'ALL' 

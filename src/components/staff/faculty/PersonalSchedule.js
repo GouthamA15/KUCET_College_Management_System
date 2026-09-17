@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import RealtimeListener from '@/components/RealtimeListener';
 import UniversalTimetable from '@/components/timetable/UniversalTimetable';
+import { TableSkeleton } from '@/components/ui/DashboardSkeleton';
 
 /**
  * PersonalSchedule — pure timetable data + render component.
@@ -43,12 +44,7 @@ export default function PersonalSchedule() {
     }
   };
 
-  if (loading) return (
-    <div className="border border-slate-200 bg-white px-6 py-10 flex items-center gap-3 text-slate-400">
-      <div className="w-5 h-5 border-2 border-[#0b3578] border-t-transparent rounded-full animate-spin flex-shrink-0" />
-      <span className="text-sm font-medium">Synchronising teaching schedule…</span>
-    </div>
-  );
+  if (loading) return <TableSkeleton />;
 
   if (error) return (
     <div className="border border-red-200 bg-red-50 px-6 py-8 text-center">

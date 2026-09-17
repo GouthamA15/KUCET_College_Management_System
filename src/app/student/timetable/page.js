@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useCallback, useState } from 'react';
-import { CalendarDays, Clock3, Info, RefreshCw, X } from 'lucide-react';
+import { Info, RefreshCw, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import RealtimeListener from '@/components/RealtimeListener';
 import UniversalTimetable from '@/components/timetable/UniversalTimetable';
@@ -105,58 +105,50 @@ export default function StudentTimetablePage() {
   ) : null;
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-5 text-sm pb-10">
+    <div className="w-full max-w-6xl mx-auto space-y-6 text-sm pb-10">
       <RealtimeListener onUpdate={handleRealtimeUpdate} />
       {bottomSheet}
 
-      <header className="relative overflow-hidden rounded-2xl border border-[#17488e] bg-[#0b3578] px-3.5 py-3.5 text-white shadow-[0_16px_36px_rgba(11,53,120,0.18)] sm:px-7 sm:py-6">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_88%_12%,rgba(255,255,255,0.2),transparent_28%),linear-gradient(135deg,#0b3578_0%,#174a9c_58%,#2667bd_100%)]" />
-        <div className="relative flex flex-col gap-3.5 sm:gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <CalendarDays size={15} className="text-blue-100 sm:h-[17px] sm:w-[17px]" />
-              <h1 className="text-xl font-bold tracking-tight sm:text-3xl">Time table</h1>
+      <header className="mb-4">
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold text-gray-800">Time table</h1>
+          
+          <div 
+            className="relative inline-flex items-center"
+            onMouseEnter={() => !isMobileDevice && setIsHovered(true)}
+            onMouseLeave={() => !isMobileDevice && setIsHovered(false)}
+          >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                if (isMobileDevice) {
+                  setIsBottomSheetOpen(true);
+                }
+              }}
+              className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-full hover:bg-slate-100 focus:outline-none flex items-center justify-center cursor-pointer"
+              aria-label="Help Information"
+            >
+              <Info size={20} className="shrink-0" />
+            </button>
 
-              <div
-                className="relative inline-flex items-center"
-                onMouseEnter={() => !isMobileDevice && setIsHovered(true)}
-                onMouseLeave={() => !isMobileDevice && setIsHovered(false)}
-              >
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (isMobileDevice) setIsBottomSheetOpen(true);
-                  }}
-                  className="rounded-full p-1 text-blue-100 transition-colors hover:bg-white/10 hover:text-white focus:outline-none sm:p-1.5"
-                  aria-label="Timetable information"
-                >
-                  <Info size={16} className="shrink-0 sm:h-[18px] sm:w-[18px]" />
-                </button>
-
-                {isHovered && !isMobileDevice && (
-                  <div className="absolute left-0 top-full z-50 mt-2 w-80 rounded-xl border border-slate-200 bg-white p-4 text-left text-slate-700 shadow-xl animate-slideDown">
-                    <h4 className="mb-2 text-sm font-bold text-[#0b2447]">About timetable</h4>
-                    <ul className="list-disc space-y-1 pl-4 text-xs leading-relaxed text-slate-600">
-                      <li><strong>Periods:</strong> 7 class periods, Monday through Saturday.</li>
-                      <li><strong>Breaks:</strong> Short break after Period 2 and lunch after Period 4.</li>
-                      <li>The current period is highlighted during live class hours.</li>
-                      <li>Your department manages updates automatically.</li>
-                    </ul>
-                  </div>
-                )}
+            {isHovered && !isMobileDevice && (
+              <div className="absolute left-0 top-full mt-2 w-80 bg-white border border-slate-200 rounded-lg shadow-xl p-4 z-50 text-left animate-slideDown">
+                <h4 className="text-sm font-bold text-[#0b2447] mb-2">About Timetable</h4>
+                <p className="text-xs text-slate-600 leading-relaxed mb-3">
+                  This module displays your weekly class schedule. Please note the following:
+                </p>
+                <ul className="text-xs text-slate-600 leading-relaxed list-disc pl-4 space-y-1">
+                  <li><strong>Periods:</strong> 7 class periods per day, Monday through Saturday.</li>
+                  <li><strong>Breaks:</strong> Short break after Period 2 and lunch after Period 4.</li>
+                  <li>The current period is highlighted during live class hours.</li>
+                  <li>Your department manages updates automatically.</li>
+                </ul>
               </div>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold sm:gap-2 sm:text-xs">
-            <div className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/10 px-2.5 py-1.5 backdrop-blur-sm sm:gap-2 sm:px-3 sm:py-2">
-              <Clock3 size={14} className="text-blue-100 sm:h-[15px] sm:w-[15px]" />
-              <span>{meta?.semester ? `Semester ${meta.semester}` : 'Current semester'}</span>
-            </div>
-            {subtitle && <span className="rounded-xl border border-white/15 bg-white/10 px-2.5 py-1.5 backdrop-blur-sm sm:px-3 sm:py-2">{subtitle.split(' · ')[0]}</span>}
+            )}
           </div>
         </div>
+        <p className="text-sm text-gray-600 mt-1">View your weekly class schedule and active periods.</p>
       </header>
 
       {/* Loading */}
