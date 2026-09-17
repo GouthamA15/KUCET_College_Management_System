@@ -70,20 +70,25 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
   const shouldShowGrid = isEditable || data.length > 0;
 
   return (
-    <div className="w-full border border-slate-200 bg-white rounded-sm overflow-hidden">
+    <div className="w-full overflow-hidden rounded-2xl border border-[#dce8f8] bg-white shadow-[0_14px_36px_rgba(11,53,120,0.08)]">
 
       {/* Compact subtitle bar — only when subtitle provided */}
       {subtitle && (
-        <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-          <span className="text-[11px] font-semibold text-slate-500">{subtitle}</span>
+        <div className="flex items-center justify-between border-b border-[#e6eef9] bg-[#f7faff] px-4 py-3 sm:px-5">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#0b3578]">Weekly view</p>
+            <span className="mt-0.5 block text-xs font-semibold text-slate-600">{subtitle}</span>
+          </div>
+          <span className="hidden rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700 sm:inline-flex">Auto-synced</span>
         </div>
       )}
 
       {/* Empty state */}
       {!shouldShowGrid && (
-        <div className="px-6 py-16 text-center">
-          <p className="text-sm font-semibold text-slate-700">No timetable published</p>
-          <p className="text-xs text-slate-400 mt-1">
+        <div className="px-6 py-20 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-2xl text-[#0b3578]">—</div>
+          <p className="text-sm font-bold text-slate-800">No timetable published</p>
+          <p className="mt-1 text-xs text-slate-500">
             Your timetable for this academic context has not been configured yet.
           </p>
         </div>
@@ -91,28 +96,28 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
 
       {/* 🖥️ DESKTOP TABLE — md and above */}
       {shouldShowGrid && (
-        <div className="hidden md:block overflow-x-auto pb-6">
-          <table className="w-full border-collapse text-center min-w-[900px] table-fixed">
+        <div className="hidden overflow-x-auto pb-5 md:block">
+          <table className="w-full min-w-[900px] table-fixed border-collapse text-center">
             <thead>
-              <tr className="border-b border-slate-200">
+              <tr className="border-b border-[#dce8f8]">
                 {/* Day column header */}
-                <th className="sticky left-0 z-30 bg-slate-200 border-r border-slate-300 w-16 px-3 py-3 text-[11px] font-bold text-slate-700 uppercase tracking-widest text-center shadow-[2px_0_4px_-1px_rgba(0,0,0,0.06)]">
+                <th className="sticky left-0 z-30 w-16 border-r border-[#dce8f8] bg-[#eaf2ff] px-3 py-4 text-center text-[10px] font-black uppercase tracking-[0.18em] text-[#0b3578] shadow-[2px_0_5px_-1px_rgba(11,53,120,0.08)]">
                   Day
                 </th>
                   {PERIODS.map(p => (
                     <Fragment key={p}>
-                      <th className="px-2 py-3 border-r border-slate-300 bg-slate-200 text-center w-[120px] max-w-[140px]">
-                        <div className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">Period {p}</div>
-                        <div className="text-[10px] font-medium text-slate-500 mt-1 tabular-nums">{PERIOD_TIMES[p]}</div>
+                      <th className="w-[120px] max-w-[140px] border-r border-[#dce8f8] bg-[#eaf2ff] px-2 py-4 text-center">
+                        <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#0b3578]">Period {p}</div>
+                        <div className="mt-1 text-[10px] font-medium tabular-nums text-slate-500">{PERIOD_TIMES[p]}</div>
                       </th>
                       {p === 2 && (
-                        <th className="px-1.5 py-3 border-r border-slate-300 bg-slate-200/80 w-[36px] min-w-[36px] select-none text-center align-middle">
-                          <div className="text-[10px] text-slate-500 font-bold tracking-widest whitespace-nowrap" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>SHORT BREAK</div>
+                        <th className="w-[36px] min-w-[36px] select-none border-r border-[#dce8f8] bg-amber-50 px-1.5 py-3 text-center align-middle">
+                          <div className="whitespace-nowrap text-[9px] font-black tracking-widest text-amber-700" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>SHORT BREAK</div>
                         </th>
                       )}
                       {p === 4 && (
-                        <th className="px-1.5 py-3 border-r border-slate-300 bg-slate-200/80 w-[36px] min-w-[36px] select-none text-center align-middle">
-                          <div className="text-[10px] text-slate-500 font-bold tracking-widest whitespace-nowrap" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>LUNCH BREAK</div>
+                        <th className="w-[36px] min-w-[36px] select-none border-r border-[#dce8f8] bg-emerald-50 px-1.5 py-3 text-center align-middle">
+                          <div className="whitespace-nowrap text-[9px] font-black tracking-widest text-emerald-700" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>LUNCH BREAK</div>
                         </th>
                       )}
                     </Fragment>
@@ -121,8 +126,8 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
             </thead>
             <tbody>
               {DAYS.map(day => (
-                <tr key={day} className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors group">
-                  <td className="sticky left-0 z-20 bg-white group-hover:bg-slate-50/60 border-r border-slate-200 text-center px-2 py-3 text-[11px] font-bold text-[#0b3578] uppercase tracking-wider shadow-[2px_0_4px_-1px_rgba(0,0,0,0.06)]">
+                <tr key={day} className="group border-b border-[#edf2f8] transition-colors hover:bg-blue-50/20">
+                  <td className="sticky left-0 z-20 border-r border-[#e3ebf6] bg-white px-2 py-3 text-center text-[11px] font-black uppercase tracking-wider text-[#0b3578] shadow-[2px_0_5px_-1px_rgba(11,53,120,0.08)] group-hover:bg-blue-50/30">
                     {day}
                   </td>
                   {PERIODS.map(p => {
@@ -135,15 +140,15 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
                         <td
                           onClick={() => isEditable && onEditSlot && onEditSlot(day, p, slot)}
                           className={[
-                            'px-2 py-3 border-r border-slate-200 align-middle h-[70px] transition-colors relative',
-                            isEditable ? 'cursor-pointer hover:bg-blue-50/40 group/cell' : '',
-                            active ? 'bg-blue-50/60 ring-1 ring-inset ring-blue-300/50' : '',
-                            !active && slot && act ? 'bg-amber-50/30' : '',
+                            'relative h-[78px] border-r border-[#edf2f8] px-2 py-3 align-middle transition-colors',
+                            isEditable ? 'group/cell cursor-pointer hover:bg-blue-50/60' : '',
+                            active ? 'bg-blue-50/80 ring-1 ring-inset ring-blue-300/60' : '',
+                            !active && slot && act ? 'bg-amber-50/50' : '',
                           ].join(' ')}
                         >
                           {slot ? (
                             <div className="flex flex-col justify-center items-center h-full text-center">
-                              <p className={`text-[12px] leading-[1.4] font-medium break-words whitespace-normal ${act ? 'text-amber-800' : 'text-slate-800'}`}>
+                              <p className={`max-w-[125px] break-words text-[12px] font-bold leading-[1.35] ${act ? 'text-amber-800' : 'text-slate-800'}`}>
                                 {getDisplayName(slot)}
                               </p>
                             </div>
@@ -155,16 +160,16 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
                                   <span className="text-[10px] text-slate-400 font-medium mt-1">Add class</span>
                                 </div>
                               ) : (
-                                <span className="text-[12px] text-slate-300 select-none">—</span>
+                                <span className="select-none text-[12px] text-slate-300">—</span>
                               )}
                             </div>
                           )}
                         </td>
                         {p === 2 && (
-                          <td className="border-r border-slate-300 bg-slate-100/50 text-center text-slate-300 w-[36px] select-none pointer-events-none"></td>
+                          <td className="w-[36px] select-none border-r border-[#e8dfc9] bg-amber-50/50 text-center text-slate-300 pointer-events-none"></td>
                         )}
                         {p === 4 && (
-                          <td className="border-r border-slate-300 bg-slate-100/50 text-center text-slate-300 w-[36px] select-none pointer-events-none"></td>
+                          <td className="w-[36px] select-none border-r border-[#d7eadf] bg-emerald-50/50 text-center text-slate-300 pointer-events-none"></td>
                         )}
                       </Fragment>
                     );
@@ -180,7 +185,7 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
       {shouldShowGrid && (
         <div className="md:hidden">
           {/* Compact scrollable day selector */}
-          <div className="sticky top-0 z-20 bg-white border-b border-slate-200 px-3 py-2">
+          <div className="sticky top-0 z-20 border-b border-[#e6eef9] bg-white px-3 py-3">
             <div className="flex gap-1 overflow-x-auto hide-scrollbar">
               {DAYS.map(day => (
                 <button
@@ -188,10 +193,10 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
                   onClick={() => setActiveMobileDay(day)}
                   aria-pressed={activeMobileDay === day}
                   className={[
-                    'flex-shrink-0 px-3 py-1.5 rounded text-[11px] font-bold transition-colors border',
+                    'flex-shrink-0 rounded-lg border px-3 py-2 text-[11px] font-bold transition-colors',
                     activeMobileDay === day
-                      ? 'bg-[#0b3578] text-white border-[#0b3578]'
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50',
+                      ? 'border-[#0b3578] bg-[#0b3578] text-white shadow-[0_5px_12px_rgba(11,53,120,0.18)]'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50',
                   ].join(' ')}
                 >
                   {day}
@@ -202,7 +207,7 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
 
           {/* Period list for selected day */}
           <div
-            className="px-3 py-3 space-y-2"
+            className="space-y-2.5 bg-[#fbfdff] px-3 py-4"
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEndHandler}
@@ -218,13 +223,13 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
                 <div key={p}>
                   {/* Break dividers */}
                   {p === 3 && (
-                    <div className="py-2 px-3 my-2 bg-amber-50/50 border border-amber-200/50 rounded flex justify-between items-center text-[10px] text-amber-700 font-bold tracking-wide shadow-sm">
+                    <div className="my-2 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-bold tracking-wide text-amber-700 shadow-sm">
                       <div className="flex items-center gap-1.5"><span className="text-[12px]">☕</span> Short Break</div>
                       <span>11:10—11:20</span>
                     </div>
                   )}
                   {p === 5 && (
-                    <div className="py-2 px-3 my-2 bg-emerald-50/50 border border-emerald-200/50 rounded flex justify-between items-center text-[10px] text-emerald-700 font-bold tracking-wide shadow-sm">
+                    <div className="my-2 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold tracking-wide text-emerald-700 shadow-sm">
                       <div className="flex items-center gap-1.5"><span className="text-[12px]">🍱</span> Lunch Break</div>
                       <span>01:00—02:00</span>
                     </div>
@@ -233,16 +238,16 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
                   <div
                     onClick={() => isEditable && onEditSlot && onEditSlot(activeMobileDay, p, slot)}
                     className={[
-                      'flex items-start gap-3 px-3 py-2.5 rounded border transition-colors relative',
+                      'relative flex items-start gap-3 rounded-xl border px-3 py-3 transition-colors',
                       isEditable ? 'cursor-pointer active:scale-[0.99]' : '',
-                      active ? 'bg-blue-50 border-blue-300' : slot ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-200 border-dashed',
+                      active ? 'border-blue-300 bg-blue-50 shadow-[0_5px_14px_rgba(37,99,235,0.12)]' : slot ? 'border-slate-200 bg-white shadow-[0_3px_10px_rgba(11,53,120,0.04)]' : 'border-dashed border-slate-200 bg-slate-50',
                     ].join(' ')}
                   >
                     {/* Period badge */}
                     <div className={[
                       'flex-shrink-0 w-12 text-center pt-0.5',
                     ].join(' ')}>
-                      <div className={`text-[9px] font-bold uppercase tracking-wider ${active ? 'text-blue-600' : 'text-slate-400'}`}>P{p}</div>
+                      <div className={`text-[9px] font-bold uppercase tracking-wider ${active ? 'text-blue-600' : 'text-slate-700'}`}>P{p}</div>
                       <div className={`text-[9px] font-medium tabular-nums leading-tight mt-0.5 ${active ? 'text-blue-500' : 'text-slate-400'}`}>
                         {PERIOD_TIMES[p].split(' to ')[0]}
                       </div>
@@ -250,7 +255,7 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
 
                     <div className="flex-1 min-w-0 flex flex-col justify-center items-center text-center">
                       {slot ? (
-                        <p className={`text-[13px] font-medium leading-[1.3] break-words whitespace-normal ${act ? 'text-amber-800' : 'text-slate-800'}`}>
+                        <p className={`break-words text-[13px] font-bold leading-[1.3] ${act ? 'text-amber-800' : 'text-slate-800'}`}>
                           {getDisplayName(slot)}
                         </p>
                       ) : isEditable ? (
@@ -272,14 +277,20 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
       )}
 
       {shouldShowGrid && data.length > 0 && (
-        <div className="mt-8 border-t border-slate-200 pt-6 px-4 pb-4">
-          <h4 className="text-sm font-semibold text-slate-800 mb-4 uppercase tracking-wider">Subject & Faculty</h4>
-          <div className="overflow-x-auto border border-slate-200 rounded-md">
+        <div className="mt-2 border-t border-[#e6eef9] bg-[#fbfdff] px-4 pb-5 pt-6 sm:px-5">
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#0b3578]">Course directory</p>
+              <h4 className="mt-1 text-sm font-bold text-slate-800">Subject & faculty</h4>
+            </div>
+            <span className="hidden text-[11px] font-medium text-slate-400 sm:block">Assigned teaching staff</span>
+          </div>
+          <div className="overflow-x-auto rounded-xl border border-[#dce8f8]">
             <table className="w-full text-left border-collapse text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="border-b border-[#dce8f8] bg-[#eaf2ff]">
                 <tr>
-                  <th className="px-4 py-2 font-semibold text-slate-700 border-r border-slate-200 w-1/2">Subject</th>
-                  <th className="px-4 py-2 font-semibold text-slate-700 w-1/2">Faculty</th>
+                  <th className="w-1/2 border-r border-[#dce8f8] px-4 py-2.5 text-xs font-bold text-[#0b3578]">Subject</th>
+                  <th className="w-1/2 px-4 py-2.5 text-xs font-bold text-[#0b3578]">Faculty</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
@@ -295,9 +306,9 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
                   }
                   return acc;
                 }, {})).filter(item => item.faculties.size > 0).map((item, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/50">
-                    <td className="px-4 py-2 font-medium text-slate-700 border-r border-slate-200 break-words">{item.subjectName}</td>
-                    <td className="px-4 py-2 text-slate-500 break-words">{Array.from(item.faculties).join(', ')}</td>
+                  <tr key={idx} className="border-b border-slate-100 last:border-0 hover:bg-blue-50/30">
+                    <td className="break-words border-r border-slate-100 px-4 py-2.5 font-semibold text-slate-700">{item.subjectName}</td>
+                    <td className="break-words px-4 py-2.5 text-slate-500">{Array.from(item.faculties).join(', ')}</td>
                   </tr>
                 ))}
               </tbody>

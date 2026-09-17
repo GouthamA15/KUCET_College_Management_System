@@ -95,7 +95,7 @@ export default function MobileTopbar({ onMenuClick, title }) {
           {user && (
             <button 
               onClick={handleProfileClick}
-              className={`w-9 h-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-bold text-[13px] shadow-sm overflow-hidden border border-slate-200 transition-all duration-300 active:scale-95 relative ${
+              className={`w-9 h-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-bold text-[13px] shadow-sm overflow-hidden border-1 border-[#0b3578] transition-all duration-300 active:scale-95 relative ${
                 isProfilePage ? 'opacity-0 scale-50 pointer-events-none' : 'opacity-100 scale-100'
               }`}
               title="View Profile"
