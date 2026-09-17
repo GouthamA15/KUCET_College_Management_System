@@ -62,6 +62,11 @@ export default function StudentProfileNew() {
             </div>
 
             <div className="space-y-4 sm:space-y-3">
+
+              <div className="order-1 sm:order-none rounded-2xl border border-[#cbd9ef] bg-[linear-gradient(180deg,#f8fbff_0%,#eef5ff_100%)] p-3 shadow-[0_10px_24px_rgba(11,53,120,0.08)] xl:rounded-2xl xl:border-slate-200 xl:bg-slate-50/80 xl:p-4 xl:shadow-sm xl:backdrop-blur-sm">
+                <ProfileStatusBar courseLabel={courseLabel} yearOfStudy={yearOfStudy} semesterLabel={semesterLabel} currentAcademicYearLabel={currentAcademicYearLabel} batchString={batchString} />
+              </div>
+
               <div className="order-2 sm:order-none">
                 <ProfileTabs
                   activeTab={activeTab}
@@ -70,9 +75,7 @@ export default function StudentProfileNew() {
                 />
               </div>
 
-              <div className="order-1 sm:order-none rounded-2xl border border-[#cbd9ef] bg-[linear-gradient(180deg,#f8fbff_0%,#eef5ff_100%)] p-3 shadow-[0_10px_24px_rgba(11,53,120,0.08)] xl:rounded-2xl xl:border-slate-200 xl:bg-slate-50/80 xl:p-4 xl:shadow-sm xl:backdrop-blur-sm">
-                <ProfileStatusBar courseLabel={courseLabel} yearOfStudy={yearOfStudy} semesterLabel={semesterLabel} currentAcademicYearLabel={currentAcademicYearLabel} batchString={batchString} />
-              </div>
+
             </div>
           </div>
         </div>
