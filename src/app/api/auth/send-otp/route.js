@@ -78,8 +78,7 @@ export async function POST(request) {
     // The raw OTP is sent to the user's email only; the DB holds just its hash.
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
 
-    const { getNow } = await import('@/lib/clock');
-    const now = getNow();
+    const now = new Date();
     const expiresAt = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes
 
     try {

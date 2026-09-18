@@ -1,5 +1,6 @@
 import React from 'react';
 import DuesSection from './DuesSection';
+import { formatDate } from '@/lib/date';
 
 const TuitionFeeStatus = ({ fees, academicYear, totalExpectedFee }) => {
   const totalClearedFee = fees.reduce((acc, fee) => acc + fee.amount, 0);
@@ -31,7 +32,7 @@ const TuitionFeeStatus = ({ fees, academicYear, totalExpectedFee }) => {
             <li key={fee.id} className="py-3 flex justify-between items-center">
               <div>
                 <p className="font-semibold">{`Year ${fee.year} - Challan No: ${fee.challan_no}`}</p>
-                <p className="text-sm text-gray-500">{`Date: ${new Date(fee.date).toLocaleDateString()}`}</p>
+                <p className="text-sm text-gray-500">{`Date: ${formatDate(fee.date)}`}</p>
               </div>
               <p className="font-semibold text-gray-800">{`₹ ${fee.amount.toLocaleString('en-IN')}`}</p>
             </li>

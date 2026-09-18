@@ -38,8 +38,7 @@ export async function GET(req, { params }) {
 
     if (!tokenData) return apiError('INVALID', 400);
     if (tokenData.used_at) return apiError('USED', 409);
-    const { getNow } = await import('@/lib/clock');
-    if (getNow() > new Date(tokenData.expires_at)) return apiError('EXPIRED', 410);
+    if (new Date() > new Date(tokenData.expires_at)) return apiError('EXPIRED', 410);
 
     return apiResponse({ status: 'VALID' });
   } catch (err) {
@@ -73,8 +72,7 @@ export async function POST(req, { params }) {
 
     if (!tokenData) return apiError('INVALID', 400);
     if (tokenData.used_at) return apiError('USED', 409);
-    const { getNow } = await import('@/lib/clock');
-    if (getNow() > new Date(tokenData.expires_at)) return apiError('EXPIRED', 410);
+    if (new Date() > new Date(tokenData.expires_at)) return apiError('EXPIRED', 410);
 
     // ─── FIX #10: bcrypt cost raised from 10 → 12 ───
     const SALT_ROUNDS = 12;
@@ -83,18 +81,22 @@ export async function POST(req, { params }) {
     await db.transaction(async (tx) => {
       // 1. Update the appropriate user table
       if (tokenData.user_type === 'student') {
-        await tx.update(students).set({ password_hash: hashedPassword }).where(eq(students.roll_no, tokenData.user_id));
+        await tx.update(students)
+          .set({ password_hash: hashedPassword })
+          .where(eq(students.roll_no, tokenData.user_id));
       } else if (tokenData.user_type === 'staff') {
-        await tx.update(staffAccounts).set({ password_hash: hashedPassword }).where(eq(staffAccounts.email, tokenData.user_id));
+        await tx.update(staffAccounts)
+          .set({ password_hash: hashedPassword })
+          .where(eq(staffAccounts.email, tokenData.user_id));
       } else if (tokenData.user_type === 'admin') {
-        await tx.update(principal).set({ password_hash: hashedPassword }).where(eq(principal.email, tokenData.user_id));
-      } else {
-        throw new Error('INVALID_USER_TYPE');
+        await tx.update(principal)
+          .set({ password_hash: hashedPassword })
+          .where(eq(principal.email, tokenData.user_id));
       }
 
       // 2. Mark token as used
       const [res] = await tx.update(passwordResetTokens)
-        .set({ used_at: getNow() })
+        .set({ used_at: new Date() })
         .where(and(eq(passwordResetTokens.token_hash, tokenHash), isNull(passwordResetTokens.used_at)));
       
       // Check for concurrent usage

@@ -82,21 +82,6 @@ export default function useFinancialRows(student, scholarshipArray = [], feePaym
     }
   });
 
-  const formatDateSlash = (val) => {
-    if (!val) return '';
-    try {
-      const dFmt = formatDate(val);
-      if (dFmt && typeof dFmt === 'string') return dFmt.replaceAll('-', '/');
-      const d = new Date(val);
-      const day = String(d.getDate()).padStart(2, '0');
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const year = d.getFullYear();
-      return `${day}/${month}/${year}`;
-    } catch {
-      return String(val);
-    }
-  };
-
   const rows = Array.from({ length: maxYears }, (_, i) => {
     const y = i + 1;
     const acad = computeAcademicYear(roll_no, y);
@@ -122,7 +107,7 @@ export default function useFinancialRows(student, scholarshipArray = [], feePaym
       student_paid: studentPaidRec.amount > 0 ? studentPaidRec.amount : '',
       pending_fee: pending,
       credit_balance: credit,
-      date: displayDate ? formatDateSlash(displayDate) : '',
+      date: displayDate ? formatDate(displayDate) : '',
     };
   });
 

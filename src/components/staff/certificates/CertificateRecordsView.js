@@ -1,24 +1,11 @@
 "use client";
 import { formatCertificateName } from '@/lib/certificate-utils';
+import { formatDate } from '@/lib/date';
 import { FileText, ArrowUpDown } from 'lucide-react';
 
 export default function CertificateRecordsView({ records = [], onViewDetails, loading = false }) {
 
-  const formatDateForDisplay = (val) => {
-    if (!val && val !== 0) return '-';
-    try {
-      const s = String(val);
-      const datePart = s.split('T')[0];
-      if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
-        const [y, m, d] = datePart.split('-');
-        return `${d}-${m}-${y}`;
-      }
-      if (/^\d{2}-\d{2}-\d{4}$/.test(s)) return s;
-      return s;
-    } catch {
-      return String(val);
-    }
-  };
+  const formatDateForDisplay = (val) => formatDate(val, '-');
 
   const statusClass = (s) => {
     const st = String(s || '').toUpperCase();

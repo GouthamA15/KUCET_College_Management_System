@@ -55,7 +55,7 @@ export default function PersonalInfoTab({ student }) {
     {
       key: 'dob',
       label: 'Date of Birth',
-      value: student.date_of_birth ? formatDate(student.date_of_birth).replaceAll('-', '/') : '-',
+      value: student.date_of_birth ? formatDate(student.date_of_birth) : '-',
     },
     { key: 'phone', label: 'Phone', value: student.mobile ?? '-' },
     { key: 'email', label: 'Email', value: student.email || '-' },

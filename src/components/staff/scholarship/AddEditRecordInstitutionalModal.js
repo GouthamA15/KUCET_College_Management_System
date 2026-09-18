@@ -21,10 +21,12 @@ import {
   Save
 } from 'lucide-react';
 import { getYearlyTotalFee } from '@/lib/financial-utils';
+import { formatDate } from '@/lib/date';
 
 export default function AddEditRecordInstitutionalModal({
   open,
   year,
+  yearOfStudy,
   student,
   summary,
   formState,
@@ -38,8 +40,9 @@ export default function AddEditRecordInstitutionalModal({
   onDeleteScholarship,
   onSelectProceeding,
   onCancelEdit,
-  toDmy,
+  toDmy: toDmyProp,
 }) {
+  const toDmy = toDmyProp || ((val) => formatDate(val, '-'));
   const [isDesktop, setIsDesktop] = useState(true);
 
   // 1. Core data derivation (needed for state and initial logic)

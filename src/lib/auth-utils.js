@@ -33,13 +33,12 @@ export function deleteCookie(response, name) {
  * Generates a refresh token, hashes it, stores it in the DB, and sets it in a cookie.
  */
 async function issueRefreshToken(response, userId, userType, rememberMe = false, ip = null, userAgent = null) {
-  const { getNow } = await import('./clock');
   const refreshToken = crypto.randomBytes(40).toString('hex');
   const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
   
   // Normal login: 14 days, Remember Me: 30 days
   const durationDays = rememberMe ? 30 : 14;
-  const now = getNow();
+  const now = new Date();
   const expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
 
   await db.insert(refreshTokens).values({
@@ -297,7 +296,6 @@ export async function issueAdminAuthCookie(response, admin, rememberMe = false, 
  */
 export async function refreshAccessToken(response, userType, cookies, ip = null, userAgent = null) {
   try {
-    const { getNow } = await import('./clock');
     const refreshToken = cookies.get(`${userType}_refresh_token`)?.value;
     if (!refreshToken) return null;
 
@@ -311,7 +309,7 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
       )
     });
 
-    const now = getNow();
+    const now = new Date();
     if (!tokenRecord || tokenRecord.revoked_at || new Date(tokenRecord.expires_at) < now) {
       return null;
     }

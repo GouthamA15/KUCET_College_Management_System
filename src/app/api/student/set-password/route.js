@@ -89,7 +89,7 @@ export async function POST(req) {
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    const now = (await import('@/lib/clock')).getNow();
+    const now = new Date();
     await db.update(students)
       .set({ 
         password_hash: hashedPassword, 

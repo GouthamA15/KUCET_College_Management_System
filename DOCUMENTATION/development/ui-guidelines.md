@@ -145,7 +145,25 @@ export function ReceiptCard({ transaction }) {
 
 ---
 
-## 7. Cross-References & Related Documentation
+## 7. Frontend Date Formatting Standard (DD-MM-YYYY)
+
+Every date displayed to any user anywhere in the frontend user interface must strictly follow the format:
+
+$$\text{DD-MM-YYYY}$$
+
+### Key Invariants:
+1. **Central Formatter (`@/lib/date`):**
+   Always use `formatDate(value)` or `formatDateTime(value)`. Never define local, ad-hoc, or inline date formatters.
+2. **Zero Timezone Offsets for Date-Only Strings:**
+   Date-only values (`YYYY-MM-DD` like `2026-09-18`) must never shift calendar days due to UTC timezone offsets. `formatDate` parses calendar dates directly to guarantee fidelity.
+3. **HTML5 `<input type="date">` Values:**
+   HTML5 date input values remain `YYYY-MM-DD` to comply with the browser specification (using `toMySQLDate(val)`), but accompanying read-only views, cards, and labels must display `DD-MM-YYYY`.
+4. **Date + Time Presentations:**
+   Where timestamps are required (audit logs, feeds, submissions), the date portion is strictly `DD-MM-YYYY` followed by time (e.g., `18-09-2026 • 02:30 PM`).
+
+---
+
+## 8. Cross-References & Related Documentation
 
 - [Engineering Coding Standards](./coding-standards.md)
 - [Project Architecture Conventions](./project-conventions.md)

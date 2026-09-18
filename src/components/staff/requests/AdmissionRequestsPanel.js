@@ -10,6 +10,7 @@ import {
     normalizeAdmissionWorkspace, 
     matchesAdmissionWorkspace 
 } from '@/lib/admission-workspace';
+import { formatDateTime } from '@/lib/date';
 
 const AdmissionRequestsPanel = ({ mode = 'DRAFT' }) => {
     const searchParams = useSearchParams();
@@ -65,10 +66,7 @@ const AdmissionRequestsPanel = ({ mode = 'DRAFT' }) => {
 
     const formatDate = (dateStr) => {
         if (!dateStr) return null;
-        const d = new Date(dateStr);
-        return isNaN(d.getTime()) ? null :
-               d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' • ' +
-               d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        return formatDateTime(dateStr) || null;
     };
 
     // Sync workspace from URL when search params change externally (e.g. browser back/forward)

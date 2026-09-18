@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
+import { formatDateTime } from '@/lib/date';
 
 export default function VerificationsClient() {
     const [stats, setStats] = useState(null);
@@ -157,9 +158,7 @@ export default function VerificationsClient() {
                                     {stats.recentVerifications.map((log) => (
                                         <tr key={log.id} className="hover:bg-slate-50 transition-colors">
                                             <td className="px-4 py-3 text-slate-400 tabular-nums">
-                                                {new Date(log.verification_date).toLocaleString('en-GB', { 
-                                                    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
-                                                })}
+                                                {formatDateTime(log.verification_date)}
                                             </td>
                                             <td className="px-4 py-3 font-bold text-blue-900">{log.cert_id}</td>
                                             <td className="px-4 py-3 text-slate-600 font-medium">{log.student_name}</td>
@@ -182,9 +181,7 @@ export default function VerificationsClient() {
                                             <span className="text-[11px] text-slate-600 font-medium">{log.student_name}</span>
                                         </div>
                                         <span className="text-[10px] text-slate-400 font-medium tabular-nums text-right">
-                                            {new Date(log.verification_date).toLocaleString('en-GB', { 
-                                                day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
-                                            })}
+                                            {formatDateTime(log.verification_date)}
                                         </span>
                                     </div>
                                     <div className="flex flex-col gap-1">

@@ -6,6 +6,7 @@ import { branchCodes } from '@/lib/rollNumber';
 import logger from '@/lib/logger';
 import { getCollegeAcademicYear } from '@/lib/academic-utils';
 import { decrypt } from '@/lib/encryption';
+import { formatDate } from '@/lib/date';
 import { staffAcademicAffiliations, academicDepartments, academicPrograms } from '@/db/schema';
 
 export async function GET(request) {
@@ -154,7 +155,7 @@ export async function GET(request) {
         admission_no: s.admission_no,
         branch: branchName,
         email: s.email || 'N/A',
-        dob: s.date_of_birth ? new Date(s.date_of_birth).toLocaleDateString() : 'N/A',
+        dob: s.date_of_birth ? formatDate(s.date_of_birth, 'N/A') : 'N/A',
         phone: decrypt(s.mobile) || 'N/A',
         father_name: s.father_name || 'N/A',
         mother_name: s.mother_name || 'N/A',

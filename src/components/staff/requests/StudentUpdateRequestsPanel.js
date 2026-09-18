@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { getAssetUrl } from '@/lib/assets';
 import { Search, Filter, ArrowUpDown, FileText, XCircle } from 'lucide-react';
 import { StudentUpdateReviewModal } from '@/components/ui/edit-modals/StudentUpdateReviewModal';
+import { formatDate } from '@/lib/date';
 
 const StudentUpdateRequestsPanel = () => {
   const { loading: isContextLoading, pendingProfileRequests, isLoadingRequests, refreshProfileRequests } = useStaff();
@@ -181,7 +182,7 @@ const StudentUpdateRequestsPanel = () => {
                       <div className="text-sm text-gray-600 font-medium font-mono">{req.roll_no}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-xs text-gray-500">{new Date(req.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                      <div className="text-xs text-gray-500">{formatDate(req.created_at)}</div>
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className="inline-flex items-center justify-center bg-gray-100 text-gray-700 text-xs font-bold px-2.5 py-1 rounded-full border border-gray-200">

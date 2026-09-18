@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { formatDate } from '@/lib/date';
 
 export default function ArchiveDashboardStats({ metrics, loading }) {
   if (loading) {
@@ -107,7 +108,7 @@ export default function ArchiveDashboardStats({ metrics, loading }) {
 
           {metrics?.lastJobDate && idx === 3 && (
             <p className="text-[10px] text-slate-400 font-mono mt-3 pt-2 border-t border-slate-100">
-              Last Job: {new Date(metrics.lastJobDate).toLocaleDateString()}
+              Last Job: {formatDate(metrics.lastJobDate)}
             </p>
           )}
         </div>

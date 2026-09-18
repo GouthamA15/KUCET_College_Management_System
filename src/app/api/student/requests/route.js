@@ -9,7 +9,6 @@ import { eq, and, desc } from "drizzle-orm";
 import { getAdmissionTypeFromRoll } from "@/lib/rollNumber";
 import { getCollegeAcademicYear } from "@/lib/academic-utils";
 import { apiError, apiResponse, getAuthUser } from "@/lib/api-utils";
-import { getNow } from "@/lib/clock";
 import { storage } from '@/lib/providers';
 import IdempotencyService from '@/services/IdempotencyService';
 import { FinanceService } from '@/services/FinanceService';
@@ -90,7 +89,6 @@ export async function POST(request) {
     }
 
     const paymentAmountNum = Number(paymentAmount) || 0;
-    const now = await getNow();
     const academicYear = await getCollegeAcademicYear();
 
     const isBonafide = certificateType === 'Bonafide Certificate';
@@ -248,7 +246,7 @@ export async function POST(request) {
           from_date: fromDateStr ? new Date(fromDateStr) : null,
           to_date: toDateStr ? new Date(toDateStr) : null,
           status: 'PENDING',
-          updated_at: now,
+          updated_at: new Date(),
           completed_at: null,
           is_flagged: isFlagged,
           flag_details: flagDetails,
@@ -270,8 +268,8 @@ export async function POST(request) {
         is_flagged: isFlagged,
         flag_details: flagDetails,
         payment_hash: paymentHash,
-        created_at: now,
-        updated_at: now
+        created_at: new Date(),
+        updated_at: new Date()
       });
       requestId = result[0].insertId;
 

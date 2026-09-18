@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
 import { getAssetUrl } from '@/lib/assets';
+import { formatDateTime } from '@/lib/date';
 import RealtimeListener from '@/components/RealtimeListener';
 
 export default function PendingStaffRequests({ onRequestAction, categoryFilter }) {
@@ -239,7 +240,7 @@ export default function PendingStaffRequests({ onRequestAction, categoryFilter }
                   <p><span className="font-medium text-slate-700">Address:</span> {req.address || 'N/A'}</p>
                   <p><span className="font-medium text-slate-700">Email:</span> {req.email}</p>
                   <p className="text-slate-400">
-                    Submitted: {req.created_at ? new Date(req.created_at).toLocaleString() : 'Recent'}
+                    Submitted: {req.created_at ? formatDateTime(req.created_at) : 'Recent'}
                   </p>
                 </div>
               </div>

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx-js-style';
 import { branchCodes, getBatchFromRoll } from '@/lib/rollNumber';
 import { getAssetUrl } from '@/lib/assets';
+import { formatDate } from '@/lib/date';
 
 const ExportStudents = () => {
   const [branch, setBranch] = useState('');
@@ -90,7 +91,7 @@ const ExportStudents = () => {
       'Batch': getBatchFromRoll(s.roll_no),
       'Full Name': s.name,
       'Gender': s.gender,
-      'Date of Birth': s.dob,
+      'Date of Birth': s.dob ? formatDate(s.dob) : 'N/A',
       'Email': s.email,
       'Mobile Number': s.mobile,
       'Father Name': s.father_name,

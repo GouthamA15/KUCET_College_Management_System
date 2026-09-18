@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import { formatDateTime } from '@/lib/date';
 import RealtimeListener from '@/components/RealtimeListener';
 import { 
   CheckCircle2, XCircle, Search, Clock, 
@@ -469,13 +470,7 @@ export default function StaffRequestsClient() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                      {new Date(req.created_at).toLocaleString('en-US', { 
-                        year: 'numeric', 
-                        month: 'short', 
-                        day: 'numeric', 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
+                      {formatDateTime(req.created_at)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button

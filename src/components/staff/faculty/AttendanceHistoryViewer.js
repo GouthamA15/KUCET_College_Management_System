@@ -3,6 +3,7 @@ import { useState, useEffect, Fragment } from 'react';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Calendar, Users, Activity, History, BookOpen, Edit3, Plus } from 'lucide-react';
 import LectureTopicModal from './LectureTopicModal';
+import { formatDate } from '@/lib/date';
 
 export default function AttendanceHistoryViewer({ assignment, onBack }) {
   const [historyData, setHistoryData] = useState([]);
@@ -201,7 +202,7 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                       return (
                         <tr key={sessionKey} className="bg-gray-50 border-b border-gray-100">
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-400">
-                            {session.date}
+                            {formatDate(session.date)}
                           </td>
                           <td colSpan="5" className="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-500 uppercase tracking-widest">
                             {session.holiday_name ? `${session.day_type} - ${session.holiday_name}` : session.day_type}
@@ -214,7 +215,7 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                       <Fragment key={sessionKey}>
                         <tr onClick={() => toggleSession(sessionKey)} className={`hover:bg-gray-50 transition-colors cursor-pointer group ${isHoliday ? 'bg-red-50/30' : ''}`}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 flex flex-col">
-                            <span>{session.date}</span>
+                            <span>{formatDate(session.date)}</span>
                             {isHoliday && <span className="text-[10px] font-black text-red-600 uppercase mt-1">{session.day_type}</span>}
                           </td>
                           <td className="px-4 py-4 whitespace-nowrap text-center">
@@ -335,7 +336,7 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                   return (
                     <div key={sessionKey} className="flex flex-col bg-gray-50 border-b border-gray-100 p-4">
                       <div className="flex justify-between items-center mb-2">
-                        <span className="font-bold text-gray-400">{session.date}</span>
+                        <span className="font-bold text-gray-400">{formatDate(session.date)}</span>
                       </div>
                       <div className="text-center py-2 text-sm font-bold text-gray-500 uppercase tracking-widest">
                         {session.holiday_name ? `${session.day_type} - ${session.holiday_name}` : session.day_type}
@@ -349,7 +350,7 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                     <div onClick={() => toggleSession(sessionKey)} className="p-4 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
                       <div className="flex justify-between items-center mb-2">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-gray-900">{session.date}</span>
+                          <span className="font-bold text-gray-900">{formatDate(session.date)}</span>
                           {isHoliday && <span className="text-[10px] font-black text-red-600 uppercase">{session.day_type}</span>}
                           <span className="bg-gray-100 text-gray-800 text-[10px] font-black px-2 py-0.5 rounded-md uppercase border border-gray-200">
                             Session {session.session}

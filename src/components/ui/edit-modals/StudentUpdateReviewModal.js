@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { X, FileText, CheckCircle, XCircle } from 'lucide-react';
 import { getAssetUrl } from '@/lib/assets';
+import { formatDate, formatDateTime } from '@/lib/date';
 
 export const StudentUpdateReviewModal = ({
   reviewingRequest,
@@ -15,32 +16,17 @@ export const StudentUpdateReviewModal = ({
 }) => {
   if (!reviewingRequest) return null;
 
-  const formatIstDateTimeUpper = (value) => {
-    if (!value) return '';
-    try {
-      return new Intl.DateTimeFormat('en-IN', {
-        timeZone: 'Asia/Kolkata',
-        year: 'numeric',
-        month: 'short',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-      }).format(new Date(value)).toUpperCase();
-    } catch {
-      try {
-        return new Date(value).toISOString().replace('T', ' ').slice(0, 16).toUpperCase();
-      } catch {
-        return '';
-      }
-    }
-  };
-
   const formatLabel = (str) => {
     return str.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
 
-  const renderValue = (val) => (val !== null && val !== undefined ? String(val) : 'Null');
+  const renderValue = (val, field) => {
+    if (val === null || val === undefined) return 'Null';
+    if (field && (field === 'dob' || field === 'date_of_birth')) {
+      return formatDate(val) || String(val);
+    }
+    return String(val);
+  };
 
   const modal = (
     <div className="fixed inset-0 z-[100] flex justify-end">
@@ -55,7 +41,7 @@ export const StudentUpdateReviewModal = ({
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-white sticky top-0 z-10">
           <div>
             <h3 className="text-lg font-bold text-gray-900">Review Modification Request</h3>
-            <p className="text-xs text-gray-500 font-mono mt-1">REQ-{reviewingRequest.id} • {formatIstDateTimeUpper(reviewingRequest.created_at)}</p>
+            <p className="text-xs text-gray-500 font-mono mt-1">REQ-{reviewingRequest.id} • {formatDateTime(reviewingRequest.created_at).toUpperCase()}</p>
           </div>
           <button 
             onClick={() => !processing && setReviewingRequest(null)}
@@ -87,7 +73,7 @@ export const StudentUpdateReviewModal = ({
               </div>
               <div>
                 <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">Submitted</p>
-                <p className="text-sm font-medium text-gray-700">{new Date(reviewingRequest.created_at).toLocaleDateString('en-GB')}</p>
+                <p className="text-sm font-medium text-gray-700">{formatDate(reviewingRequest.created_at)}</p>
               </div>
             </div>
           </div>
@@ -222,14 +208,14 @@ export const StudentUpdateReviewModal = ({
                   <div key={field} className="p-4 grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-4 items-center">
                     <div className="space-y-1">
                       <p className="text-[10px] uppercase font-bold text-gray-500">{formatLabel(field)}</p>
-                      <p className="text-sm text-gray-600 line-through decoration-gray-400">{renderValue(reviewingRequest.current_values?.[field])}</p>
+                      <p className="text-sm text-gray-600 line-through decoration-gray-400">{renderValue(reviewingRequest.current_values?.[field], field)}</p>
                     </div>
                     <div className="hidden sm:flex justify-center text-gray-300">
                       →
                     </div>
                     <div className="space-y-1 sm:text-right">
                       <p className="text-[10px] uppercase font-bold text-blue-600">New Value</p>
-                      <p className="text-sm font-semibold text-gray-900 bg-blue-50 px-2 py-0.5 rounded inline-block">{renderValue(value)}</p>
+                      <p className="text-sm font-semibold text-gray-900 bg-blue-50 px-2 py-0.5 rounded inline-block">{renderValue(value, field)}</p>
                     </div>
                   </div>
                 ))}

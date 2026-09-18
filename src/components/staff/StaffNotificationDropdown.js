@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useStaff } from '@/context/StaffContext';
+import { formatDate } from '@/lib/date';
 
 export default function StaffNotificationDropdown({ onOpenChange }) {
   const { 
@@ -27,19 +28,7 @@ export default function StaffNotificationDropdown({ onOpenChange }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const formatIstDate = (value) => {
-    if (!value) return '';
-    try {
-      return new Intl.DateTimeFormat('en-GB', {
-        timeZone: 'Asia/Kolkata',
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }).format(new Date(value));
-    } catch {
-      return '';
-    }
-  };
+  const formatIstDate = (value) => formatDate(value);
 
   const totalCount = (pendingProfileRequests?.length || 0) + (pendingCertificateRequests?.length || 0);
 
