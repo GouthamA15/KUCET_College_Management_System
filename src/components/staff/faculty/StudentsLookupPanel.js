@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { useStaff } from '@/context/StaffContext';
 import { ChevronDown, Search, Users, UserSearch, Download, Info, X } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
+import { formatDate } from '@/lib/date';
 
 export default function StudentsLookupPanel() {
   const { staffData } = useStaff();
@@ -66,7 +67,7 @@ export default function StudentsLookupPanel() {
         s.phone,
         s.father_name,
         s.mother_name,
-        s.dob,
+        formatDate(s.dob) || s.dob || '-',
         s.address,
         s.current_year,
         s.batch_year
@@ -410,7 +411,7 @@ export default function StudentsLookupPanel() {
                 </div>
                 <div>
                   <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Date of Birth</span>
-                  <span className="font-semibold text-slate-700">{selectedStudent.dob || '-'}</span>
+                  <span className="font-semibold text-slate-700">{formatDate(selectedStudent.dob) || selectedStudent.dob || '-'}</span>
                 </div>
                 <div>
                   <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Phone Number</span>

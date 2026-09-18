@@ -9,6 +9,7 @@ import HeaderMobileView from '@/components/Header-MobileView';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { safeJsonParse } from '@/lib/json-utils';
+import { formatDate } from '@/lib/date';
 
 export default function DevelopersClient() {
   const { getAsset } = useAssets();
@@ -486,7 +487,7 @@ export default function DevelopersClient() {
                             )}
                           </div>
                           <span className="text-xs text-gray-400 whitespace-nowrap">
-                            {new Date(report.created_at).toLocaleDateString()}
+                            {formatDate(report.created_at)}
                           </span>
                         </div>
 
@@ -504,7 +505,7 @@ export default function DevelopersClient() {
                               <strong>Fixed by:</strong> {report.fixed_by}
                               {report.fixed_at && (
                                 <span className="font-normal text-gray-500">
-                                  {' '}on {new Date(report.fixed_at).toLocaleDateString()}
+                                  {' '}on {formatDate(report.fixed_at)}
                                 </span>
                               )}
                             </p>

@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useAdmin } from '@/context/AdminContext';
 import toast from 'react-hot-toast';
+import { formatDate } from '@/lib/date';
 
 import { FACULTY_BRANCHES } from '@/lib/staff-config';
 import { 
@@ -541,7 +542,7 @@ export default function ManageStaffClient() {
                                           <span className="text-xs text-slate-500 font-mono bg-slate-100 px-1.5 py-0.5 rounded">{req.academic_year}</span>
                                         </div>
                                         <p className="text-xs text-slate-500">
-                                          Submitted: {new Date(req.created_at).toLocaleDateString()}
+                                          Submitted: {formatDate(req.created_at)}
                                         </p>
                                         {req.status === 'REJECTED' && req.rejection_reason && (
                                           <p className="text-xs text-red-600 mt-1">Reason: {req.rejection_reason}</p>

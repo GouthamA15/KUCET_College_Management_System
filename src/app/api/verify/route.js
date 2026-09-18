@@ -4,6 +4,7 @@ import { studentRequests, students, certificateVerifications } from '@/db/schema
 import { eq, _and, asc } from 'drizzle-orm';
 import { apiError, apiResponse } from '@/lib/api-utils';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { formatDate } from '@/lib/date';
 
 export async function POST(request) {
     try {
@@ -137,9 +138,7 @@ export async function POST(request) {
                 name: certData.name,
                 roll_no: certData.roll_no,
                 cert_id: certData.generated_certificate_id,
-                issue_date: (certData.completed_at && !isNaN(new Date(certData.completed_at).getTime())) 
-                    ? new Date(certData.completed_at).toLocaleDateString('en-GB') 
-                    : 'N/A',
+                issue_date: certData.completed_at ? formatDate(certData.completed_at, 'N/A') : 'N/A',
                 cert_type: certData.certificate_type,
                 type: certData.certificate_type
             }

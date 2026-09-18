@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { formatDate, formatDateTime } from '@/lib/date';
 
 export default function ArchiveSearchRestorePanel({ onRestoreCompleted, onRefreshOverview }) {
   const [query, setQuery] = useState('');
@@ -174,7 +175,7 @@ export default function ArchiveSearchRestorePanel({ onRestoreCompleted, onRefres
                         <td className="py-2.5 px-3 font-mono font-bold text-blue-900">{st.roll_no}</td>
                         <td className="py-2.5 px-3 font-semibold text-slate-800">{st.name}</td>
                         <td className="py-2.5 px-3 text-slate-600">{st.branch} ({st.batch})</td>
-                        <td className="py-2.5 px-3 text-slate-500 font-mono">{new Date(st.archived_at).toLocaleDateString()}</td>
+                        <td className="py-2.5 px-3 text-slate-500 font-mono">{formatDate(st.archived_at)}</td>
                         <td className="py-2.5 px-3 text-right">
                           <button
                             type="button"
@@ -216,7 +217,7 @@ export default function ArchiveSearchRestorePanel({ onRestoreCompleted, onRefres
                         <td className="py-2.5 px-3 font-mono font-bold text-slate-800">{att.roll_no}</td>
                         <td className="py-2.5 px-3 text-slate-700">{att.subject_code || 'CS301'}</td>
                         <td className="py-2.5 px-3 text-slate-600">{att.branch} S{att.semester} ({att.academic_year})</td>
-                        <td className="py-2.5 px-3 text-slate-500 font-mono">{att.date}</td>
+                        <td className="py-2.5 px-3 text-slate-500 font-mono">{formatDate(att.date)}</td>
                         <td className="py-2.5 px-3">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                             att.status === 'PRESENT' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
@@ -293,7 +294,7 @@ export default function ArchiveSearchRestorePanel({ onRestoreCompleted, onRefres
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500 font-medium">Archived Date:</span>
-                  <span className="font-mono text-slate-600">{new Date(previewItem.student.archived_at).toLocaleString()}</span>
+                  <span className="font-mono text-slate-600">{formatDateTime(previewItem.student.archived_at)}</span>
                 </div>
               </div>
 

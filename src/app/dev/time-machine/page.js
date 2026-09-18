@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { formatDateTime } from '@/lib/date';
 import Header from '@/components/Header';
 import HeaderMobileView from '@/components/Header-MobileView';
 
@@ -38,16 +39,7 @@ export default function TimeMachine() {
     const updateDisplay = () => {
       const cookieMatch = document.cookie.match(/dev_mock_date=([^;]+)/);
       const d = cookieMatch ? new Date(decodeURIComponent(cookieMatch[1])) : new Date();
-      setCurrentDisplay(d.toLocaleString('en-IN', { 
-        weekday: 'short', 
-        day: '2-digit', 
-        month: 'short', 
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true 
-      }));
+      setCurrentDisplay(formatDateTime(d, { showSeconds: true }));
     };
 
     updateDisplay();
@@ -86,7 +78,7 @@ export default function TimeMachine() {
         return;
       }
       document.cookie = `dev_mock_date=${encodeURIComponent(date.toISOString())}; path=/; max-age=86400`;
-      toast.success(`Time traveled to ${date.toLocaleString()}`);
+      toast.success(`Time traveled to ${formatDateTime(date)}`);
       setMockDate(dateTimeStr);
     }
     setTimeout(() => window.location.reload(), 800);
@@ -145,7 +137,7 @@ export default function TimeMachine() {
               <button onClick={() => setTime('2026-03-10T09:30')} className="group flex items-center justify-between bg-white/5 hover:bg-white/10 border border-white/5 p-4 rounded-2xl transition-all text-left">
                 <div>
                    <div className="text-xs font-black text-white uppercase tracking-tight">Period 1 Start</div>
-                   <div className="text-[10px] text-gray-500 font-bold uppercase mt-0.5">Mar 10, 09:30 AM</div>
+                   <div className="text-[10px] text-gray-500 font-bold uppercase mt-0.5">10-03-2026 • 09:30 AM</div>
                 </div>
                 <div className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">&rarr;</div>
               </button>
@@ -153,7 +145,7 @@ export default function TimeMachine() {
               <button onClick={() => setTime('2026-03-10T11:15')} className="group flex items-center justify-between bg-white/5 hover:bg-white/10 border border-white/5 p-4 rounded-2xl transition-all text-left">
                 <div>
                    <div className="text-xs font-black text-white uppercase tracking-tight">Mid-Morning Break</div>
-                   <div className="text-[10px] text-gray-500 font-bold uppercase mt-0.5">Mar 10, 11:15 AM</div>
+                   <div className="text-[10px] text-gray-500 font-bold uppercase mt-0.5">10-03-2026 • 11:15 AM</div>
                 </div>
                 <div className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">&rarr;</div>
               </button>
@@ -161,7 +153,7 @@ export default function TimeMachine() {
               <button onClick={() => setTime('2026-03-10T13:30')} className="group flex items-center justify-between bg-white/5 hover:bg-white/10 border border-white/5 p-4 rounded-2xl transition-all text-left">
                 <div>
                    <div className="text-xs font-black text-white uppercase tracking-tight">Lunch Break</div>
-                   <div className="text-[10px] text-gray-500 font-bold uppercase mt-0.5">Mar 10, 01:30 PM</div>
+                   <div className="text-[10px] text-gray-500 font-bold uppercase mt-0.5">10-03-2026 • 01:30 PM</div>
                 </div>
                 <div className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">&rarr;</div>
               </button>

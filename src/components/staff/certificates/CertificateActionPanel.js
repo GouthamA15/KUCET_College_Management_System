@@ -4,28 +4,12 @@ import { useState } from "react";
 import Image from "next/image";
 import { getStatusStyles } from "@/lib/ui-utils";
 import { formatCertificateName } from '@/lib/certificate-utils';
+import { formatDate } from '@/lib/date';
 
 export default function CertificateActionPanel({ request }) {
   const [imageLoading, setImageLoading] = useState(true);
 
-  const toDmy = (val) => {
-    if (!val) return "—";
-    try {
-      const s = String(val);
-      const datePart = s.split("T")[0];
-      if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
-        const [y, m, d] = datePart.split("-");
-        return `${d}-${m}-${y}`;
-      }
-      const ddmmyyyy = s.split("-");
-      if (ddmmyyyy.length === 3 && ddmmyyyy[0].length === 2 && ddmmyyyy[1].length === 2 && ddmmyyyy[2].length === 4) {
-        return s; // already DD-MM-YYYY
-      }
-      return s;
-    } catch {
-      return String(val);
-    }
-  };
+  const toDmy = (val) => formatDate(val, '—');
 
   const currency = (amt) => {
     if (amt === null || amt === undefined) return "—";

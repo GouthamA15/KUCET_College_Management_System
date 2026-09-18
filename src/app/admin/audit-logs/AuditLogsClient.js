@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { safeJsonParse } from '@/lib/json-utils';
+import { formatDateTime } from '@/lib/date';
 
 export default function AuditLogsClient() {
   const [logs, setLogs] = useState([]);
@@ -158,7 +159,7 @@ export default function AuditLogsClient() {
                     <React.Fragment key={log.id}>
                       <tr className={`hover:bg-slate-50 transition-colors ${expandedLog === log.id ? 'bg-slate-50' : ''}`}>
                         <td className="px-4 py-3 text-xs font-medium text-slate-600 whitespace-nowrap">
-                          {new Date(log.created_at).toLocaleString()}
+                          {formatDateTime(log.created_at)}
                         </td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
@@ -253,7 +254,7 @@ export default function AuditLogsClient() {
                       </span>
                     </div>
                     <span className="text-[10px] font-medium text-slate-500 text-right">
-                      {new Date(log.created_at).toLocaleString()}
+                      {formatDateTime(log.created_at)}
                     </span>
                   </div>
                   

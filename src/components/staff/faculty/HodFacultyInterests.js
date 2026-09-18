@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Check, X, Calendar, User, BookOpen } from 'lucide-react';
+import { formatDate } from '@/lib/date';
 
 export default function HodFacultyInterests() {
   const [interests, setInterests] = useState([]);
@@ -111,7 +112,7 @@ export default function HodFacultyInterests() {
                 </span>
                 <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
                   <Calendar size={10} />
-                  {new Date(interest.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {formatDate(interest.created_at)}
                 </span>
               </div>
               

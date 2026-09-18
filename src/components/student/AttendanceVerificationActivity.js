@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useStudent } from '@/context/StudentContext';
+import { formatDate } from '@/lib/date';
 
 export default function AttendanceVerificationActivity({ sessions, onSessionVerified }) {
   const { studentData } = useStudent();
@@ -175,40 +176,6 @@ export default function AttendanceVerificationActivity({ sessions, onSessionVeri
     } finally {
       setSubmittingId(null);
     }
-  };
-
-  const formatDate = (value) => {
-    if (!value) return null;
-
-    let d = String(value).trim();
-    if (!d) return null;
-
-    // Handle ISO timestamps like "2026-04-20T00:00:00.000Z" by extracting the date portion.
-    if (d.includes('T')) {
-      d = d.split('T')[0];
-    }
-
-    // If already in YYYY-MM-DD, format to DD-MM-YYYY.
-    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
-      const [y, m, day] = d.split('-');
-      return `${day}-${m}-${y}`;
-    }
-
-    // If already in DD-MM-YYYY, keep it.
-    if (/^\d{2}-\d{2}-\d{4}$/.test(d)) {
-      return d;
-    }
-
-    // Fallback: try Date parsing.
-    const parsed = new Date(value);
-    if (!Number.isNaN(parsed.getTime())) {
-      const day = String(parsed.getDate()).padStart(2, '0');
-      const month = String(parsed.getMonth() + 1).padStart(2, '0');
-      const year = parsed.getFullYear();
-      return `${day}-${month}-${year}`;
-    }
-
-    return String(value);
   };
 
   return (

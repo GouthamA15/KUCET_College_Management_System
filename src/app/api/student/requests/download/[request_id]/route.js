@@ -13,6 +13,7 @@ import fs from 'fs';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import { getCollegeAcademicYear, calculateYearAndSemesterAsync } from '@/lib/academic-utils';
 import { getNow } from '@/lib/clock';
+import { formatDate } from '@/lib/date';
 import { decrypt } from '@/lib/encryption';
 import { _studentImages } from '@/db/schema';
 import { resolveLocalFilePath } from '@/app/api/assets/view/[...path]/route';
@@ -141,15 +142,8 @@ export async function GET(request, context) {
         const qrBase64 = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 150 });
 
         const approvedDate = certRequest.updated_at ? new Date(certRequest.updated_at) : await getNow();
-        const formattedDate = `${String(approvedDate.getDate()).padStart(2, '0')}/${String(approvedDate.getMonth() + 1).padStart(2, '0')}/${approvedDate.getFullYear()}`;
-        
-        let formattedDob = 'N/A';
-        if (student.date_of_birth) {
-            const dob = new Date(student.date_of_birth);
-            if (!Number.isNaN(dob.getTime())) {
-                formattedDob = `${String(dob.getDate()).padStart(2, '0')}-${String(dob.getMonth() + 1).padStart(2, '0')}-${dob.getFullYear()}`;
-            }
-        }
+        const formattedDate = formatDate(approvedDate);
+        const formattedDob = student.date_of_birth ? formatDate(student.date_of_birth, 'N/A') : 'N/A';
         const course = String(getBranchFromRoll(student.roll_no) || '');
 
         const base64Cache = new Map();
@@ -216,13 +210,6 @@ export async function GET(request, context) {
         const stampUrl = await InstitutionAssetService.getAssetDataUrl('institution/seal');
         const stampSign = await InstitutionAssetService.getAssetDataUrl('principal/signature-stamp') 
             || signatureUrl;
-
-        const formatDate = (d) => {
-            if (!d) return '';
-            const dt = new Date(d);
-            if (Number.isNaN(dt.getTime())) return '';
-            return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
-        };
 
         const category = student.category || '';
         const subCaste = student.sub_caste || '';
