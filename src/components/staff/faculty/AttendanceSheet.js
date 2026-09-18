@@ -637,7 +637,9 @@ const LectureTopicInlinePanel = () => {
   );
 };
 
-export default function AttendanceSheet({ onBack, mode }) {
+import AttendanceModeSelector from './AttendanceModeSelector';
+
+export default function AttendanceSheet({ onBack, mode, onSelectMode }) {
   const { assignment, loading, students, selectedDate, dayInfo, dateValidation, handleCalendarSelect, setAttendanceStatus, setBatchAttendanceStatus, verifiedStudentIds: _verifiedStudentIds, setVerifiedStudentIds, topicModalSession, setTopicModalSession } = useFacultyAttendance();
 
   const handleQRScan = (rollNo) => {
@@ -692,6 +694,9 @@ export default function AttendanceSheet({ onBack, mode }) {
       {/* Subject Identity Panel */}
       <SubjectIdentityPanel assignment={assignment} />
 
+      {/* ATTENDANCE MODE SELECTOR */}
+      <AttendanceModeSelector selectedMode={mode} onSelectMode={onSelectMode} />
+
       {/* MODE SPECIFIC PANELS */}
       {assignment.is_active && mode === 'gps' && <SessionControlPanel />}
       {assignment.is_active && mode === 'qr' && <QRScannerPanel onScanSuccess={handleQRScan} onScannerStop={handleQRStop} />}
@@ -705,8 +710,9 @@ export default function AttendanceSheet({ onBack, mode }) {
       />
 
       {/* ATTENDANCE ENTRY SECTION */}
-      <section id="faculty-attendance-section" className="bg-white p-4 sm:p-6 rounded-lg border-2 mb-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 border-b pb-3">
+      {mode && (
+        <section id="faculty-attendance-section" className="bg-white p-4 sm:p-6 rounded-lg border-2 mb-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 border-b pb-3">
           <div>
             <p className="text-[11px] font-bold text-gray-500 tracking-[0.18em] uppercase">ATTENDANCE ENTRY</p>
             <p className="text-sm text-gray-600 mt-1">Select a WORKING day from the calendar to record attendance.</p>
@@ -746,6 +752,7 @@ export default function AttendanceSheet({ onBack, mode }) {
           </>
         )}
       </section>
+      )}
 
       {/* Lecture Topic Modal after successful attendance save */}
       <LectureTopicModal
