@@ -165,7 +165,7 @@ export async function issueStudentAuthCookie(response, student, rememberMe = fal
 
   setCookie(response, 'student_auth', token, {
     httpOnly: true,
-    sameSite: 'Strict',
+    sameSite: 'Lax',
     maxAge: cookieMaxAge,
   });
 
@@ -217,7 +217,7 @@ export async function issueStaffAuthCookie(response, staff, rememberMe = false, 
 
   setCookie(response, 'staff_auth', token, {
     httpOnly: true,
-    sameSite: 'Strict',
+    sameSite: 'Lax',
     maxAge: cookieMaxAge,
   });
 
@@ -273,7 +273,7 @@ export async function issueAdminAuthCookie(response, admin, rememberMe = false, 
 
   setCookie(response, 'admin_auth', token, {
     httpOnly: true,
-    sameSite: 'Strict',
+    sameSite: 'Lax',
     maxAge: cookieMaxAge,
   });
 

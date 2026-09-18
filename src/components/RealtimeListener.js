@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { StudentContext } from '@/context/StudentContext';
 import { StaffContext } from '@/context/StaffContext';
 import { normalizeEventName, REALTIME_EVENTS } from '@/lib/events/realtime-events';
+import { getClientSessionType, refreshClientSession } from '@/lib/client-auth';
 
 // Global shared singleton state for all instances of RealtimeListener across the React tree
 let sharedSocket = null;
@@ -37,38 +38,18 @@ function notifyEvent(eventData) {
 /**
  * Initializes and maintains a single centralized Socket.IO connection.
  */
-let isRefreshingToken = false;
 let lastSilentRefreshTime = 0;
 
 async function trySilentTokenRefresh() {
   const now = Date.now();
-  if (isRefreshingToken || now - lastSilentRefreshTime < 30000) return false;
-  isRefreshingToken = true;
+  if (now - lastSilentRefreshTime < 15000) return false;
   lastSilentRefreshTime = now;
   try {
-    // Dynamically detect user type from client-accessible companion cookies
-    let userType = 'staff';
-    if (typeof document !== 'undefined') {
-      const cookies = document.cookie || '';
-      if (cookies.includes('admin_logged_in=true') || cookies.includes('admin_auth')) {
-        userType = 'admin';
-      } else if (cookies.includes('student_logged_in=true') || cookies.includes('student_auth')) {
-        userType = 'student';
-      } else if (cookies.includes('staff_logged_in=true') || cookies.includes('staff_auth')) {
-        userType = 'staff';
-      }
-    }
-
-    const res = await fetch('/api/auth/refresh', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: userType })
-    });
-    return res.ok;
+    const userType = getClientSessionType() || 'staff';
+    const res = await refreshClientSession(userType);
+    return !!(res && res.ok);
   } catch (_e) {
     return false;
-  } finally {
-    isRefreshingToken = false;
   }
 }
 

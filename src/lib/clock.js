@@ -388,6 +388,13 @@ export function getNow(context = null) {
 }
 
 /**
+ * Authoritative real system time in IST.
+ */
+export function getRealNow() {
+  return Clock.getRealNow();
+}
+
+/**
  * Backward-compatible synchronous function export.
  * Delegates to Clock.now(context).
  */

@@ -29,16 +29,35 @@ export default function AdmissionDashboardClient() {
   const admissionDraftsCount = Array.isArray(admissionDrafts) ? admissionDrafts.length : 0;
   const totalPending = profilePendingCount + certificatePendingCount;
 
+  // StaffContext automatically bootstraps admission data on mount.
+  // We only fetch here if data has not yet been initialized by context.
   const fetchedRef = useRef(false);
   useEffect(() => {
-    if (staff?.role === 'admission' && !fetchedRef.current) {
+    if (
+      staff?.role === 'admission' &&
+      !fetchedRef.current &&
+      !pendingProfileRequests?.length &&
+      !pendingCertificateRequests?.length &&
+      !admissionDrafts?.length &&
+      !studentHistory?.records?.length
+    ) {
       fetchedRef.current = true;
       refreshStudentHistory('my');
       refreshProfileRequests();
       refreshCertificateRequests('admission');
       refreshAdmissionDrafts();
     }
-  }, [staff?.role, refreshStudentHistory, refreshProfileRequests, refreshCertificateRequests, refreshAdmissionDrafts]);
+  }, [
+    staff?.role,
+    pendingProfileRequests?.length,
+    pendingCertificateRequests?.length,
+    admissionDrafts?.length,
+    studentHistory?.records?.length,
+    refreshStudentHistory,
+    refreshProfileRequests,
+    refreshCertificateRequests,
+    refreshAdmissionDrafts
+  ]);
 
   const completedTodayCount = useMemo(() => {
     if (!studentHistory?.records) return 0;

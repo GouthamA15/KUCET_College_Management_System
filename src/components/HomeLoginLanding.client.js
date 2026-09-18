@@ -1,22 +1,16 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import LoginPanel from '@/components/LoginPanel';
 import SearchParamToast from '@/components/SearchParamToast.client';
 import Image from 'next/image';
 import { getDashboardPathByRole } from '@/lib/path-utils';
-
-function getSessionType() {
-  if (typeof document === 'undefined') return null;
-  const cookies = document.cookie;
-  if (cookies.includes('admin_logged_in=')) return 'admin';
-  if (cookies.includes('staff_logged_in=')) return 'staff';
-  if (cookies.includes('student_logged_in=')) return 'student';
-  return null;
-}
+import { getClientSessionType, refreshClientSession } from '@/lib/client-auth';
 
 export default function HomeLoginLanding({ serverError, initialPanel }) {
+  const router = useRouter();
   const [activePanel, setActivePanel] = useState(() => {
     if (initialPanel === 'staff' || initialPanel === 'student') return initialPanel;
     return 'student';
@@ -30,31 +24,21 @@ export default function HomeLoginLanding({ serverError, initialPanel }) {
   useEffect(() => {
     // This runs only on the client after hydration, preventing server/client mismatch
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setActiveSessionType(getSessionType());
+    setActiveSessionType(getClientSessionType());
   }, []);
 
   const restoreAuth = useCallback(async () => {
-    const sessionType = getSessionType();
-    console.info('[AuthRestore] Detected sessionType:', sessionType);
+    const sessionType = getClientSessionType();
 
     if (!sessionType) {
-      console.info('[AuthRestore] No session companion cookie found. Falling back to login.');
       setAuthStatus(false);
       return;
     }
 
     try {
-      console.info(`[AuthRestore] Attempting POST /api/auth/refresh for ${sessionType}`);
-      const res = await fetch('/api/auth/refresh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: sessionType }),
-        credentials: 'include',
-      });
+      const res = await refreshClientSession(sessionType);
 
-      console.info('[AuthRestore] Fetch returned status:', res.status);
-
-      if (res.ok) {
+      if (res && res.ok) {
         let destination = '/student';
         if (sessionType === 'admin') {
           destination = '/admin/dashboard';
@@ -63,29 +47,16 @@ export default function HomeLoginLanding({ serverError, initialPanel }) {
           const staffRole = staffRoleMatch?.[1];
           destination = getDashboardPathByRole(staffRole) || '/staff';
         }
-        console.info('[AuthRestore] Success! Hard navigating to:', destination);
         
-        setTimeout(() => {
-          window.location.href = destination;
-        }, 100);
+        router.replace(destination);
         return;
       }
 
-      const errText = await res.text().catch(() => 'Unknown Error');
-      console.error(`[AuthRestore] FAILED with status ${res.status}:`, errText);
-      
-      if (res.status === 401 && errText.includes('Token revoked')) {
-         alert('Session refresh failed: Token was revoked (likely due to a concurrent request or expired grace period). Please login again.');
-      } else if (res.status >= 500) {
-         alert(`Server error during session refresh (HTTP ${res.status}): ${errText}`);
-      }
-      
       setAuthStatus(false);
-    } catch (err) {
-      console.error('[AuthRestore] Network or fetch error:', err);
+    } catch (_err) {
       setAuthStatus(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     let cancelled = false;

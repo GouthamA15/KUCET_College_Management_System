@@ -19,18 +19,40 @@ async function verify(token, secret) {
   }
 }
 
+const inflightProxyRefreshes = new Map();
+
 async function trySilentRefresh(request, userType, jwtSecret) {
   try {
-    const origin = request.nextUrl.origin;
+    const host = request.headers.get('host') || request.nextUrl.host || 'localhost';
+    const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
     const cookieHeader = request.headers.get('cookie') || '';
-    const res = await fetch(`${origin}/api/auth/refresh`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        cookie: cookieHeader,
-      },
-      body: JSON.stringify({ type: userType }),
-    });
+    const port = process.env.PORT || 3000;
+    const loopbackUrl = `http://127.0.0.1:${port}/api/auth/refresh`;
+
+    let res;
+    try {
+      res = await fetch(loopbackUrl, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'host': host,
+          'x-forwarded-proto': forwardedProto,
+          'cookie': cookieHeader,
+        },
+        body: JSON.stringify({ type: userType }),
+      });
+    } catch (_loopbackErr) {
+      // Fallback to public origin if loopback is unreachable
+      const origin = request.nextUrl.origin;
+      res = await fetch(`${origin}/api/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          cookie: cookieHeader,
+        },
+        body: JSON.stringify({ type: userType }),
+      });
+    }
 
     if (!res.ok) return null;
 
@@ -61,6 +83,27 @@ async function trySilentRefresh(request, userType, jwtSecret) {
     // Refresh failed or network error
   }
   return null;
+}
+
+function deduplicatedSilentRefresh(request, userType, jwtSecret) {
+  const refreshCookie =
+    request.cookies.get(`${userType}_refresh_token`)?.value ||
+    request.cookies.get(`${userType}_session_id`)?.value ||
+    request.cookies.get(`${userType}_auth`)?.value ||
+    'anonymous';
+
+  const dedupeKey = `${userType}:${refreshCookie.slice(-32)}`;
+
+  if (inflightProxyRefreshes.has(dedupeKey)) {
+    return inflightProxyRefreshes.get(dedupeKey);
+  }
+
+  const promise = trySilentRefresh(request, userType, jwtSecret).finally(() => {
+    inflightProxyRefreshes.delete(dedupeKey);
+  });
+
+  inflightProxyRefreshes.set(dedupeKey, promise);
+  return promise;
 }
 
 function applyRefreshedCookies(response, cookiesToSet) {
@@ -126,7 +169,7 @@ export default async function proxy(request) {
   let staffPayload = staffRes.payload;
   let studentPayload = studentRes.payload;
 
-  // 2. Silent refresh — only for roles that (a) don't have a valid payload and (b) have refresh cookies.
+  // 2. Silent refresh — strictly scoped to role routes or landing page with active session companion cookies
   const isAdminPath = pathname.startsWith('/admin') || pathname.startsWith('/api/admin');
   const isStaffPath = pathname.startsWith('/staff') || pathname.startsWith('/api/staff');
   const isStudentPath = pathname.startsWith('/student') || pathname.startsWith('/api/student');
@@ -136,24 +179,24 @@ export default async function proxy(request) {
     !adminPayload &&
     (adminRes.expired || !adminAuth) &&
     (cookies.get('admin_refresh_token') || cookies.get('admin_logged_in')) &&
-    (isAdminPath || isHomePath || (!isStaffPath && !isStudentPath));
+    (isAdminPath || (isHomePath && cookies.get('admin_logged_in')));
 
   const needsStaffRefresh =
     !staffPayload &&
     (staffRes.expired || !staffAuth) &&
     (cookies.get('staff_refresh_token') || cookies.get('staff_logged_in')) &&
-    (isStaffPath || isHomePath || (!isAdminPath && !isStudentPath));
+    (isStaffPath || (isHomePath && cookies.get('staff_logged_in')));
 
   const needsStudentRefresh =
     !studentPayload &&
     (studentRes.expired || !studentAuth) &&
     (cookies.get('student_refresh_token') || cookies.get('student_logged_in')) &&
-    (isStudentPath || isHomePath || (!isAdminPath && !isStaffPath));
+    (isStudentPath || (isHomePath && cookies.get('student_logged_in')));
 
   const refreshResults = await Promise.all([
-    needsAdminRefresh ? trySilentRefresh(request, 'admin', jwtSecret) : Promise.resolve(null),
-    needsStaffRefresh ? trySilentRefresh(request, 'staff', jwtSecret) : Promise.resolve(null),
-    needsStudentRefresh ? trySilentRefresh(request, 'student', jwtSecret) : Promise.resolve(null),
+    needsAdminRefresh ? deduplicatedSilentRefresh(request, 'admin', jwtSecret) : Promise.resolve(null),
+    needsStaffRefresh ? deduplicatedSilentRefresh(request, 'staff', jwtSecret) : Promise.resolve(null),
+    needsStudentRefresh ? deduplicatedSilentRefresh(request, 'student', jwtSecret) : Promise.resolve(null),
   ]);
 
   const [adminRefreshed, staffRefreshed, studentRefreshed] = refreshResults;
@@ -253,6 +296,6 @@ export default async function proxy(request) {
 
 export const config = {
   matcher: [
-    '/((?!api/auth|api/public|api/dev|api/verify|_next/static|_next/image|favicon.ico|sw.js|manifest.json|manifest.webmanifest|robots.txt|sitemap.xml|offline|assets|screenshots).*)',
+    '/((?!api/auth|api/public|api/dev|api/verify|api/health|_next/static|_next/image|favicon.ico|sw.js|manifest.json|manifest.webmanifest|robots.txt|sitemap.xml|offline|assets|screenshots).*)',
   ],
 };
