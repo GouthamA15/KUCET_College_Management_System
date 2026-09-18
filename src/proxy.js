@@ -19,18 +19,40 @@ async function verify(token, secret) {
   }
 }
 
+const inflightProxyRefreshes = new Map();
+
 async function trySilentRefresh(request, userType, jwtSecret) {
   try {
-    const origin = request.nextUrl.origin;
+    const host = request.headers.get('host') || request.nextUrl.host || 'localhost';
+    const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
     const cookieHeader = request.headers.get('cookie') || '';
-    const res = await fetch(`${origin}/api/auth/refresh`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        cookie: cookieHeader,
-      },
-      body: JSON.stringify({ type: userType }),
-    });
+    const port = process.env.PORT || 3000;
+    const loopbackUrl = `http://127.0.0.1:${port}/api/auth/refresh`;
+
+    let res;
+    try {
+      res = await fetch(loopbackUrl, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'host': host,
+          'x-forwarded-proto': forwardedProto,
+          'cookie': cookieHeader,
+        },
+        body: JSON.stringify({ type: userType }),
+      });
+    } catch (_loopbackErr) {
+      // Fallback to public origin if loopback is unreachable
+      const origin = request.nextUrl.origin;
+      res = await fetch(`${origin}/api/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          cookie: cookieHeader,
+        },
+        body: JSON.stringify({ type: userType }),
+      });
+    }
 
     if (!res.ok) return null;
 
@@ -63,6 +85,27 @@ async function trySilentRefresh(request, userType, jwtSecret) {
   return null;
 }
 
+function deduplicatedSilentRefresh(request, userType, jwtSecret) {
+  const refreshCookie =
+    request.cookies.get(`${userType}_refresh_token`)?.value ||
+    request.cookies.get(`${userType}_session_id`)?.value ||
+    request.cookies.get(`${userType}_auth`)?.value ||
+    'anonymous';
+
+  const dedupeKey = `${userType}:${refreshCookie.slice(-32)}`;
+
+  if (inflightProxyRefreshes.has(dedupeKey)) {
+    return inflightProxyRefreshes.get(dedupeKey);
+  }
+
+  const promise = trySilentRefresh(request, userType, jwtSecret).finally(() => {
+    inflightProxyRefreshes.delete(dedupeKey);
+  });
+
+  inflightProxyRefreshes.set(dedupeKey, promise);
+  return promise;
+}
+
 function applyRefreshedCookies(response, cookiesToSet) {
   if (!cookiesToSet || !Array.isArray(cookiesToSet)) return;
   for (const c of cookiesToSet) {
@@ -70,7 +113,7 @@ function applyRefreshedCookies(response, cookiesToSet) {
   }
 }
 
-async function handleUnauthorized(request) {
+function handleUnauthorized(request) {
   const { pathname } = request.nextUrl;
 
   if (pathname.startsWith('/api/')) {
@@ -80,8 +123,26 @@ async function handleUnauthorized(request) {
     );
   }
 
-  // Redirect to home page where AuthRestoreGuard will attempt to refresh the session client-side
-  return NextResponse.redirect(new URL('/', request.url), 303);
+  // Redirect to home page and purge stale companion cookies to prevent infinite spinner loop
+  const redirectRes = NextResponse.redirect(new URL('/', request.url), 303);
+  if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
+    redirectRes.cookies.delete('admin_auth');
+    redirectRes.cookies.delete('admin_logged_in');
+    redirectRes.cookies.delete('admin_session_id');
+    redirectRes.cookies.delete('admin_refresh_token');
+  } else if (pathname.startsWith('/staff') || pathname.startsWith('/api/staff')) {
+    redirectRes.cookies.delete('staff_auth');
+    redirectRes.cookies.delete('staff_logged_in');
+    redirectRes.cookies.delete('staff_role');
+    redirectRes.cookies.delete('staff_session_id');
+    redirectRes.cookies.delete('staff_refresh_token');
+  } else if (pathname.startsWith('/student') || pathname.startsWith('/api/student')) {
+    redirectRes.cookies.delete('student_auth');
+    redirectRes.cookies.delete('student_logged_in');
+    redirectRes.cookies.delete('student_session_id');
+    redirectRes.cookies.delete('student_refresh_token');
+  }
+  return redirectRes;
 }
 
 export default async function proxy(request) {
@@ -126,7 +187,7 @@ export default async function proxy(request) {
   let staffPayload = staffRes.payload;
   let studentPayload = studentRes.payload;
 
-  // 2. Silent refresh — only for roles that (a) don't have a valid payload and (b) have refresh cookies.
+  // 2. Silent refresh — strictly scoped to role routes or landing page with active session companion cookies
   const isAdminPath = pathname.startsWith('/admin') || pathname.startsWith('/api/admin');
   const isStaffPath = pathname.startsWith('/staff') || pathname.startsWith('/api/staff');
   const isStudentPath = pathname.startsWith('/student') || pathname.startsWith('/api/student');
@@ -136,24 +197,24 @@ export default async function proxy(request) {
     !adminPayload &&
     (adminRes.expired || !adminAuth) &&
     (cookies.get('admin_refresh_token') || cookies.get('admin_logged_in')) &&
-    (isAdminPath || isHomePath || (!isStaffPath && !isStudentPath));
+    (isAdminPath || (isHomePath && cookies.get('admin_logged_in')));
 
   const needsStaffRefresh =
     !staffPayload &&
     (staffRes.expired || !staffAuth) &&
     (cookies.get('staff_refresh_token') || cookies.get('staff_logged_in')) &&
-    (isStaffPath || isHomePath || (!isAdminPath && !isStudentPath));
+    (isStaffPath || (isHomePath && cookies.get('staff_logged_in')));
 
   const needsStudentRefresh =
     !studentPayload &&
     (studentRes.expired || !studentAuth) &&
     (cookies.get('student_refresh_token') || cookies.get('student_logged_in')) &&
-    (isStudentPath || isHomePath || (!isAdminPath && !isStaffPath));
+    (isStudentPath || (isHomePath && cookies.get('student_logged_in')));
 
   const refreshResults = await Promise.all([
-    needsAdminRefresh ? trySilentRefresh(request, 'admin', jwtSecret) : Promise.resolve(null),
-    needsStaffRefresh ? trySilentRefresh(request, 'staff', jwtSecret) : Promise.resolve(null),
-    needsStudentRefresh ? trySilentRefresh(request, 'student', jwtSecret) : Promise.resolve(null),
+    needsAdminRefresh ? deduplicatedSilentRefresh(request, 'admin', jwtSecret) : Promise.resolve(null),
+    needsStaffRefresh ? deduplicatedSilentRefresh(request, 'staff', jwtSecret) : Promise.resolve(null),
+    needsStudentRefresh ? deduplicatedSilentRefresh(request, 'student', jwtSecret) : Promise.resolve(null),
   ]);
 
   const [adminRefreshed, staffRefreshed, studentRefreshed] = refreshResults;
@@ -183,26 +244,26 @@ export default async function proxy(request) {
   let response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('x-request-id', requestId);
 
-  if (adminRefreshed) {
-    applyRefreshedCookies(response, adminRefreshed.cookiesToSet);
-  }
-  if (staffRefreshed) {
-    applyRefreshedCookies(response, staffRefreshed.cookiesToSet);
-  }
-  if (studentRefreshed) {
-    applyRefreshedCookies(response, studentRefreshed.cookiesToSet);
-  }
+  // Helper to ensure newly refreshed cookies are never dropped across 303 redirects or next responses
+  const withCookies = (targetResponse) => {
+    if (adminRefreshed?.cookiesToSet) applyRefreshedCookies(targetResponse, adminRefreshed.cookiesToSet);
+    if (staffRefreshed?.cookiesToSet) applyRefreshedCookies(targetResponse, staffRefreshed.cookiesToSet);
+    if (studentRefreshed?.cookiesToSet) applyRefreshedCookies(targetResponse, studentRefreshed.cookiesToSet);
+    return targetResponse;
+  };
+
+  withCookies(response);
 
   // ─── Route: Home "/" ──────────────────────────────────────────────────────
   if (pathname === '/') {
-    // If valid payload exists, immediately redirect to dashboard
-    if (adminPayload) return NextResponse.redirect(new URL('/admin/dashboard', request.url), 303);
+    // If valid payload exists, immediately redirect to dashboard with refreshed cookies preserved
+    if (adminPayload) return withCookies(NextResponse.redirect(new URL('/admin/dashboard', request.url), 303));
     if (staffPayload) {
       const dashboard = getDashboardPathByRole(staffPayload.role);
-      return NextResponse.redirect(new URL(dashboard, request.url), 303);
+      return withCookies(NextResponse.redirect(new URL(dashboard, request.url), 303));
     }
     if (studentPayload) {
-      return NextResponse.redirect(new URL('/student', request.url), 303);
+      return withCookies(NextResponse.redirect(new URL('/student', request.url), 303));
     }
     return response;
   }
@@ -222,30 +283,30 @@ export default async function proxy(request) {
   // ─── Protect UI Routes ────────────────────────────────────────────────────
   if (pathname.startsWith('/admin')) {
     if (!adminPayload) return handleUnauthorized(request);
-    if (pathname === '/admin') return NextResponse.redirect(new URL('/admin/dashboard', request.url), 303);
+    if (pathname === '/admin') return withCookies(NextResponse.redirect(new URL('/admin/dashboard', request.url), 303));
   } else if (pathname === '/staff' || pathname.startsWith('/staff/')) {
     // Academic calendar can be accessed by Admin or HOD (Faculty)
     if (pathname.startsWith('/staff/academic-calendar')) {
       if (!adminPayload && !staffPayload) return handleUnauthorized(request);
       if (staffPayload && staffPayload.role !== 'faculty') {
-        return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
+        return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
       }
     } else {
       if (!staffPayload) return handleUnauthorized(request);
       if (pathname === '/staff') {
         const dashboard = getDashboardPathByRole(staffPayload.role);
-        return NextResponse.redirect(new URL(dashboard, request.url), 303);
+        return withCookies(NextResponse.redirect(new URL(dashboard, request.url), 303));
       }
-      if (pathname.startsWith('/staff/scholarship') && staffPayload.role !== 'scholarship') return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
-      if (pathname.startsWith('/staff/admission') && staffPayload.role !== 'admission') return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
-      if (pathname.startsWith('/staff/faculty') && staffPayload.role !== 'faculty') return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
-      if (pathname.startsWith('/staff/hod') && (staffPayload.role !== 'faculty' || !staffPayload.is_hod)) return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
+      if (pathname.startsWith('/staff/scholarship') && staffPayload.role !== 'scholarship') return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
+      if (pathname.startsWith('/staff/admission') && staffPayload.role !== 'admission') return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
+      if (pathname.startsWith('/staff/faculty') && staffPayload.role !== 'faculty') return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
+      if (pathname.startsWith('/staff/hod') && (staffPayload.role !== 'faculty' || !staffPayload.is_hod)) return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
     }
   } else if (pathname.startsWith('/student')) {
     if (!studentPayload) return handleUnauthorized(request);
     const isVerified = studentPayload.is_email_verified && studentPayload.has_password_set;
     const allowedForUnverified = pathname === '/student' || pathname === '/student/settings/security' || pathname === '/student/profile';
-    if (!isVerified && !allowedForUnverified) return NextResponse.redirect(new URL('/student/settings/security', request.url), 303);
+    if (!isVerified && !allowedForUnverified) return withCookies(NextResponse.redirect(new URL('/student/settings/security', request.url), 303));
   }
 
   return response;
@@ -253,6 +314,6 @@ export default async function proxy(request) {
 
 export const config = {
   matcher: [
-    '/((?!api/auth|api/public|api/dev|api/verify|_next/static|_next/image|favicon.ico|sw.js|manifest.json|manifest.webmanifest|robots.txt|sitemap.xml|offline|assets|screenshots).*)',
+    '/((?!api/auth|api/public|api/dev|api/verify|api/health|_next/static|_next/image|favicon.ico|sw.js|manifest.json|manifest.webmanifest|robots.txt|sitemap.xml|offline|assets|screenshots).*)',
   ],
 };

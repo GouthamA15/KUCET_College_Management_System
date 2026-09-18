@@ -109,4 +109,19 @@ describe('Navigation, Proxy Guards & Silent Auth Refresh Suite', () => {
     const data = await res.json();
     expect(data.error).toBe('Unauthorized');
   });
+
+  it('should purge stale companion cookies when unauthorized user accesses protected UI route', async () => {
+    const req = createMockRequest({
+      pathname: '/staff/admission/dashboard',
+      cookies: { staff_logged_in: 'true', staff_role: 'admission' }
+    });
+    const res = await proxy(req);
+    expect(res.status).toBe(303);
+    expect(res.headers.get('location')).toBe('http://localhost:3000/');
+    // Verify stale companion cookies are deleted on redirect
+    const setCookieHeaders = res.headers.getSetCookie();
+    expect(setCookieHeaders.some(c => c.includes('staff_auth=;'))).toBe(true);
+    expect(setCookieHeaders.some(c => c.includes('staff_logged_in=;'))).toBe(true);
+  });
 });
+

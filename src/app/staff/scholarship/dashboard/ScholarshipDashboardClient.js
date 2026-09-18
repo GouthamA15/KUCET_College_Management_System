@@ -23,11 +23,11 @@ export default function ScholarshipDashboardClient() {
 
   const fetchedRef = useRef(false);
   useEffect(() => {
-    if (staff?.role === 'scholarship' && !fetchedRef.current) {
+    if (staff?.role === 'scholarship' && !fetchedRef.current && !pendingCertificateRequests?.length) {
       fetchedRef.current = true;
       refreshCertificateRequests('scholarship');
     }
-  }, [staff?.role, refreshCertificateRequests]);
+  }, [staff?.role, pendingCertificateRequests?.length, refreshCertificateRequests]);
 
   const actionCards = [
     {

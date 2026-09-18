@@ -701,7 +701,7 @@ export default function AttendanceSheet({ onBack, mode }) {
 
       {/* ATTENDANCE ENTRY SECTION */}
       <section id="faculty-attendance-section" className="bg-white p-4 sm:p-6 rounded-lg border-2 mb-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 border-b pb-3">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 border-b pb-3">
           <div>
             <p className="text-[11px] font-bold text-gray-500 tracking-[0.18em] uppercase">ATTENDANCE ENTRY</p>
             <p className="text-sm text-gray-600 mt-1">Select a WORKING day from the calendar to record attendance.</p>

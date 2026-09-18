@@ -171,13 +171,21 @@ export function AdminProvider({ children }) {
     const promise = (async () => {
       try {
         if (!adminDataRef.current) setLoading(true);
+        // Step 1: Validate Admin Identity & Basic Config (fast path)
         await Promise.all([
           fetchAdminMe(),
-          fetchStaff(),
-          fetchStudentStats(),
           fetchCollegeInfo()
         ]);
+
+        // Unblock Admin layout and sidebar immediately!
+        setLoading(false);
         lastFetchTimeRef.current = Date.now();
+
+        // Step 2: Load aggregate staff and student stats in background
+        await Promise.all([
+          fetchStaff(),
+          fetchStudentStats()
+        ]);
       } catch (e) {
         console.error('Failed to refresh admin data', e);
       } finally {
@@ -195,8 +203,8 @@ export function AdminProvider({ children }) {
     const isBfcacheRestore = event?.type === 'pageshow' && event.persisted;
     const currentAdmin = adminDataRef.current;
 
-    // Check if we should revalidate
-    const throttleTime = 60000; // 60 seconds throttle
+    // Check if we should revalidate (5 minute throttle)
+    const throttleTime = 300000;
     const isThrottled = now - lastFetchTimeRef.current < throttleTime;
 
     if (!isBfcacheRestore && isThrottled) {

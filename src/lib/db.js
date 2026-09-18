@@ -19,6 +19,7 @@ let pool;
 
 export function getDb() {
   if (!pool) {
+    const connectionLimit = parseInt(process.env.DB_CONNECTION_LIMIT || '10', 10);
     let poolConfig;
     if (process.env.DATABASE_URL) {
       const url = new URL(process.env.DATABASE_URL);
@@ -30,7 +31,7 @@ export function getDb() {
         port: Number(url.port) || 3306,
         dateStrings: true,
         waitForConnections: true,
-        connectionLimit: 3,
+        connectionLimit,
         queueLimit: 0,
         enableKeepAlive: true,
         keepAliveInitialDelay: 10000,
@@ -60,7 +61,7 @@ export function getDb() {
         port: process.env.DB_PORT || 3306,
         dateStrings: true, // Prevent timezone conversion issues
         waitForConnections: true,
-        connectionLimit: 3, // Increased to 3 to support concurrent queries in hot paths
+        connectionLimit, // Configurable pool limit (default 10) for parallel queries
         queueLimit: 0,
         // PRODUCTION HARDENING (Serverless Optimized):
         enableKeepAlive: true,

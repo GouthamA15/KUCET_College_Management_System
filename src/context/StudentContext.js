@@ -161,8 +161,8 @@ export function StudentProvider({ children }) {
     const isBfcacheRestore = event?.type === 'pageshow' && event.persisted;
     const currentStudent = studentDataRef.current;
 
-    // Check if we should revalidate
-    const throttleTime = 60000; // 60 seconds throttle
+    // Check if we should revalidate (5 minute throttle)
+    const throttleTime = 300000;
     const isThrottled = now - lastFetchTimeRef.current < throttleTime;
 
     if (!isBfcacheRestore && isThrottled) {

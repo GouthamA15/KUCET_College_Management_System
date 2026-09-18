@@ -118,7 +118,8 @@ export async function POST(req) {
       return apiError('Your session has been revoked. Please login again.', 401);
     }
 
-    const now = (await import('@/lib/clock')).getNow();
+    const { getNow } = await import('@/lib/clock');
+    const now = getNow();
 
     if (sessionRecord && new Date(sessionRecord.expires_at) < now) {
       logDevValues();
@@ -261,7 +262,7 @@ export async function POST(req) {
 
           setCookie(response, 'student_auth', token, {
             httpOnly: true,
-            sameSite: 'Strict',
+            sameSite: 'Lax',
             maxAge: cookieMaxAge
           });
         } else if (type === 'staff') {
@@ -279,7 +280,7 @@ export async function POST(req) {
 
           setCookie(response, 'staff_auth', token, {
             httpOnly: true,
-            sameSite: 'Strict',
+            sameSite: 'Lax',
             maxAge: cookieMaxAge
           });
         } else if (type === 'admin') {
@@ -295,7 +296,7 @@ export async function POST(req) {
 
           setCookie(response, 'admin_auth', token, {
             httpOnly: true,
-            sameSite: 'Strict',
+            sameSite: 'Lax',
             maxAge: cookieMaxAge
           });
         }

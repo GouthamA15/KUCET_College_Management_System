@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Mail, Briefcase, UserCircle, Search, CheckCircle } from 'lucide-react';
 import ManageFacultyModal from './ManageFacultyModal';
+import { TableSkeleton } from '@/components/ui/DashboardSkeleton';
 
 export default function ActiveFacultyList() {
   const [facultyList, setFacultyList] = useState([]);
@@ -35,11 +36,7 @@ export default function ActiveFacultyList() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center h-48 border border-gray-200 rounded-lg bg-gray-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0b3578]"></div>
-      </div>
-    );
+    return <TableSkeleton />;
   }
 
 

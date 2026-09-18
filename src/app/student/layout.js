@@ -9,10 +9,8 @@ import Footer from '@/components/Footer';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import MobileTopbar from '@/components/MobileTopbar';
-// import StudentTopBar from '@/components/student/StudentTopBar';
 import { usePathname, useRouter } from 'next/navigation';
 import { useStudent } from '@/context/StudentContext';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { StudentDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
 import { getPortalTitle } from '@/lib/path-utils';
 import { MOBILE_NAV_MODE } from '@/lib/college-config';
@@ -44,7 +42,7 @@ function ActivationGuard({ children }) {
     }
     return (
       <div className="flex-1 flex flex-col min-h-0">
-        <LoadingSpinner label="Authenticating Session" />
+        <StudentDashboardSkeleton />
       </div>
     );
   }

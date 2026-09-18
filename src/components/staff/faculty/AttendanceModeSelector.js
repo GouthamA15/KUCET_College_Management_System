@@ -43,7 +43,7 @@ export default function AttendanceModeSelector({ assignment, onSelectMode, onBac
         <div className="mb-8">
           <h2 className="text-2xl font-black text-gray-900 mb-2">Select Attendance Mode</h2>
           <p className="text-gray-500 font-medium text-sm">
-            Choose how you want to record attendance for <span className="font-bold text-gray-700">{assignment.subject_name}</span>.
+            Choose how you want to record attendance for <span className="font-bold text-gray-700">{assignment?.subject_name}</span>.
           </p>
         </div>
 

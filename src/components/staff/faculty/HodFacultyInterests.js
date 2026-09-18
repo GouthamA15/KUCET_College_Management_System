@@ -3,7 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Check, X, Calendar, User, BookOpen } from 'lucide-react';
-import { formatDate } from '@/lib/date';
+import { TableSkeleton } from '@/components/ui/DashboardSkeleton';
+
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  return new Date(dateString).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+};
 
 export default function HodFacultyInterests() {
   const [interests, setInterests] = useState([]);
@@ -66,11 +75,7 @@ export default function HodFacultyInterests() {
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center h-48 border border-gray-200 rounded-lg bg-gray-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0b3578]"></div>
-      </div>
-    );
+    return <TableSkeleton />;
   }
 
   const filteredInterests = filter === 'ALL' 

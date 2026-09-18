@@ -48,18 +48,19 @@ export function toISTDate(dateInput = new Date()) {
       minute: 'numeric',
       second: 'numeric',
       fractionalSecondDigits: 3,
-      hour12: false,
+      hourCycle: 'h23',
     });
     const parts = formatter.formatToParts(d);
     const partMap = {};
     for (const p of parts) {
       if (p.type !== 'literal') partMap[p.type] = parseInt(p.value, 10);
     }
+    const hour = (partMap.hour || 0) % 24;
     return new Date(
       partMap.year,
       partMap.month - 1,
       partMap.day,
-      partMap.hour,
+      hour,
       partMap.minute,
       partMap.second,
       partMap.fractionalSecond || 0
@@ -385,6 +386,13 @@ export const Clock = {
  */
 export function getNow(context = null) {
   return Clock.now(context);
+}
+
+/**
+ * Authoritative real system time in IST.
+ */
+export function getRealNow() {
+  return Clock.getRealNow();
 }
 
 /**

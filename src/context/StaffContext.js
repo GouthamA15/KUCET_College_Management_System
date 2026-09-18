@@ -157,84 +157,140 @@ export function StaffProvider({ children }) {
     }
   }, []);
 
+  const inflightRequestsRef = useRef(new Map());
+
   const fetchPendingProfileRequests = useCallback(async () => {
-    setIsLoadingRequests(true);
-    try {
-      const res = await fetch(`/api/staff/admission/student-requests?t=${Date.now()}`);
-      if (res.ok) {
-        const json = await res.json();
-        setPendingProfileRequests(json.data || []);
-      }
-    } catch (e) {
-      console.error('Failed to fetch pending profile requests', e);
-    } finally {
-      setIsLoadingRequests(false);
+    const key = 'pending_profile_requests';
+    if (inflightRequestsRef.current.has(key)) {
+      return inflightRequestsRef.current.get(key);
     }
+
+    const promise = (async () => {
+      setIsLoadingRequests(true);
+      try {
+        const res = await fetch(`/api/staff/admission/student-requests?t=${Date.now()}`);
+        if (res.ok) {
+          const json = await res.json();
+          setPendingProfileRequests(json.data || []);
+          return json.data || [];
+        }
+      } catch (e) {
+        console.error('Failed to fetch pending profile requests', e);
+      } finally {
+        setIsLoadingRequests(false);
+        inflightRequestsRef.current.delete(key);
+      }
+      return [];
+    })();
+
+    inflightRequestsRef.current.set(key, promise);
+    return promise;
   }, []);
 
   const fetchPendingCertificateRequests = useCallback(async (role) => {
     if (!role) return;
-    setIsLoadingRequests(true);
-    try {
-      const res = await fetch(`/api/staff/requests?staffType=${role}&t=${Date.now()}`);
-      if (res.ok) {
-        const json = await res.json();
-        setPendingCertificateRequests(json.records || []);
-      }
-    } catch (e) {
-      console.error('Failed to fetch pending certificate requests', e);
-    } finally {
-      setIsLoadingRequests(false);
+    const key = `pending_cert_requests_${role}`;
+    if (inflightRequestsRef.current.has(key)) {
+      return inflightRequestsRef.current.get(key);
     }
+
+    const promise = (async () => {
+      setIsLoadingRequests(true);
+      try {
+        const res = await fetch(`/api/staff/requests?staffType=${role}&t=${Date.now()}`);
+        if (res.ok) {
+          const json = await res.json();
+          setPendingCertificateRequests(json.records || []);
+          return json.records || [];
+        }
+      } catch (e) {
+        console.error('Failed to fetch pending certificate requests', e);
+      } finally {
+        setIsLoadingRequests(false);
+        inflightRequestsRef.current.delete(key);
+      }
+      return [];
+    })();
+
+    inflightRequestsRef.current.set(key, promise);
+    return promise;
   }, []);
 
   const fetchAdmissionDrafts = useCallback(async (workspace = null) => {
-    setIsLoadingRequests(true);
-    try {
-      let url = `/api/staff/admission/drafts?status=DRAFT&t=${Date.now()}`;
-      if (workspace?.targetBranch && workspace?.intakeExam) {
-        const queryParams = new URLSearchParams({
-          status: 'DRAFT',
-          branch: workspace.targetBranch,
-          entrance_exam: workspace.intakeExam,
-          t: String(Date.now())
-        });
-        if (workspace.entryYear) {
-          queryParams.set('entry_year', String(workspace.entryYear));
-        }
-        url = `/api/staff/admission/drafts?${queryParams.toString()}`;
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (res.ok) {
-        setAdmissionDrafts(data.data || []);
-        return data.data || [];
-      }
-    } catch (e) {
-      console.error('Failed to fetch admission drafts', e);
-    } finally {
-      setIsLoadingRequests(false);
+    const wsKey = workspace?.targetBranch && workspace?.intakeExam 
+      ? `admission_drafts_${workspace.targetBranch}_${workspace.intakeExam}_${workspace.entryYear || ''}`
+      : 'admission_drafts_default';
+
+    if (inflightRequestsRef.current.has(wsKey)) {
+      return inflightRequestsRef.current.get(wsKey);
     }
-    return [];
+
+    const promise = (async () => {
+      setIsLoadingRequests(true);
+      try {
+        let url = `/api/staff/admission/drafts?status=DRAFT&t=${Date.now()}`;
+        if (workspace?.targetBranch && workspace?.intakeExam) {
+          const queryParams = new URLSearchParams({
+            status: 'DRAFT',
+            branch: workspace.targetBranch,
+            entrance_exam: workspace.intakeExam,
+            t: String(Date.now())
+          });
+          if (workspace.entryYear) {
+            queryParams.set('entry_year', String(workspace.entryYear));
+          }
+          url = `/api/staff/admission/drafts?${queryParams.toString()}`;
+        }
+        const res = await fetch(url);
+        const data = await res.json();
+        if (res.ok) {
+          setAdmissionDrafts(data.data || []);
+          return data.data || [];
+        }
+      } catch (e) {
+        console.error('Failed to fetch admission drafts', e);
+      } finally {
+        setIsLoadingRequests(false);
+        inflightRequestsRef.current.delete(wsKey);
+      }
+      return [];
+    })();
+
+    inflightRequestsRef.current.set(wsKey, promise);
+    return promise;
   }, []);
 
   const fetchStudentHistory = useCallback(async (scope = 'my') => {
-    setIsLoadingHistory(true);
-    try {
-      const res = await fetch(`/api/staff/student-history?scope=${scope}&t=${Date.now()}`);
-      if (res.ok) {
-        const json = await res.json();
-        setStudentHistory({
-          records: json.records || [],
-          myCount: json.myCount || 0,
-          allCount: json.allCount || 0
-        });
-      }
-    } catch (e) {
-      console.error('Failed to fetch student history', e);
-    } finally {
-      setIsLoadingHistory(false);
+    const key = `student_history_${scope}`;
+    if (inflightRequestsRef.current.has(key)) {
+      return inflightRequestsRef.current.get(key);
     }
+
+    const promise = (async () => {
+      setIsLoadingHistory(true);
+      try {
+        const res = await fetch(`/api/staff/student-history?scope=${scope}&t=${Date.now()}`);
+        if (res.ok) {
+          const json = await res.json();
+          const result = {
+            records: json.records || [],
+            myCount: json.myCount || 0,
+            allCount: json.allCount || 0
+          };
+          setStudentHistory(result);
+          return result;
+        }
+      } catch (e) {
+        console.error('Failed to fetch student history', e);
+      } finally {
+        setIsLoadingHistory(false);
+        inflightRequestsRef.current.delete(key);
+      }
+      return null;
+    })();
+
+    inflightRequestsRef.current.set(key, promise);
+    return promise;
   }, []);
 
   const refreshAllRequests = useCallback(async (role) => {
@@ -260,6 +316,10 @@ export function StaffProvider({ children }) {
         const staff = await fetchStaffData();
         await fetchCollegeInfo();
 
+        // Drop the global loading state immediately as soon as identity & config are known
+        setLoading(false);
+        lastFetchTimeRef.current = Date.now();
+
         if (staff) {
           if (staff.role === 'faculty') {
             await fetchFacultyData();
@@ -272,13 +332,11 @@ export function StaffProvider({ children }) {
             await refreshAllRequests('scholarship');
           }
         }
-
-        // Basic identity and config are loaded! Drop the global spinner immediately.
-        setLoading(false);
-        lastFetchTimeRef.current = Date.now();
       } catch (e) {
         console.error('Failed to refresh staff data', e);
       } finally {
+        setLoading(false);
+        setAreRequestsBootstrapping(false);
         activePromiseRef.current = null;
       }
     })();
@@ -292,8 +350,8 @@ export function StaffProvider({ children }) {
     const isBfcacheRestore = event?.type === 'pageshow' && event.persisted;
     const currentStaff = staffData;
 
-    // Check if we should revalidate
-    const throttleTime = 60000; // 60 seconds throttle
+    // Check if we should revalidate (5 minute throttle)
+    const throttleTime = 300000;
     const isThrottled = now - lastFetchTimeRef.current < throttleTime;
 
     if (!isBfcacheRestore && isThrottled) {

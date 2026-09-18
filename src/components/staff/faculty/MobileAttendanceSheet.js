@@ -4,6 +4,7 @@ import { useState, _useEffect } from 'react';
 import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
 import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
+import { canonicalizeRollNo } from '@/lib/rollNumber';
 import dynamic from 'next/dynamic';
 import LectureTopicModal from './LectureTopicModal';
 import { getAssetUrl } from '@/lib/assets';
@@ -299,10 +300,11 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
 
   const handleQRScan = (rollNo) => {
     if (!selectedDate || !dateValidation?.isValid) {
-      toast.error('Select a valid WORKING day from the calendar first.', { id: 'qr-error' });
+      toast.error('Select a valid WORKING day from the calendar first.', { id: 'qr-error-mobile' });
       return;
     }
-    const student = students.find(s => s.roll_no === rollNo || s.roll_no.replace('T', '') === rollNo.replace('T', ''));
+    const targetRoll = canonicalizeRollNo(rollNo);
+    const student = students.find(s => canonicalizeRollNo(s.roll_no) === targetRoll);
     if (student) {
       setAttendanceStatus(student.id, 'PRESENT');
       if (setVerifiedStudentIds) {
