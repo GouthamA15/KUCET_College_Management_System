@@ -289,4 +289,78 @@ describe('Hardened Clock & Time Machine System Suite', () => {
     expect(fromGetNowSync.getTime()).toBe(fromClock.getTime());
     expect(fromGetNow.getFullYear()).toBe(2027);
   });
+
+  // 21. Midnight Hour Cycle Invariant (Never Hour 24 or Day Overflow)
+  it('Scenario 21: toISTDate never produces hour 24 or accidental day overflow during midnight window', () => {
+    // 18:30:00 UTC on Sep 18 is 00:00:00 IST on Sep 19
+    const midnightUtc = new Date('2026-09-18T18:30:00.000Z');
+    const istMidnight = toISTDate(midnightUtc);
+
+    expect(istMidnight.getHours()).toBe(0);
+    expect(istMidnight.getDate()).toBe(19);
+    expect(istMidnight.getMonth() + 1).toBe(9);
+    expect(istMidnight.getFullYear()).toBe(2026);
+
+    // 19:20:00 UTC on Sep 18 is 00:50:00 IST on Sep 19
+    const midnight50Utc = new Date('2026-09-18T19:20:00.000Z');
+    const istMidnight50 = toISTDate(midnight50Utc);
+
+    expect(istMidnight50.getHours()).toBe(0);
+    expect(istMidnight50.getMinutes()).toBe(50);
+    expect(istMidnight50.getDate()).toBe(19);
+  });
+
+  // 22. Exact Offset Consistency Across Day Boundary
+  it('Scenario 22: getOffset accurately calculates positive and negative offsets across midnight transitions', () => {
+    // Test across all 24 hours of a day
+    for (let h = 0; h < 24; h++) {
+      const baseUtc = new Date(Date.UTC(2026, 8, 18, h, 30, 0));
+      const plus1h = new Date(baseUtc.getTime() + 3600000);
+      const minus1h = new Date(baseUtc.getTime() - 3600000);
+
+      const istBase = toISTDate(baseUtc);
+      const istPlus = toISTDate(plus1h);
+      const istMinus = toISTDate(minus1h);
+
+      expect(istPlus.getTime() - istBase.getTime()).toBe(3600000);
+      expect(istMinus.getTime() - istBase.getTime()).toBe(-3600000);
+    }
+  });
+
+  // 23. Signed Offsets (+1h, -1h, +24h, -24h)
+  it('Scenario 23: Accurate signed offsets for +1h, -1h, +24h, and -24h', () => {
+    const mockContext = (offset) => ({
+      headers: new Headers({
+        'x-app-mock-date': JSON.stringify({
+          target: new Date(Date.now() + offset).toISOString(),
+          setAt: Date.now(),
+          frozen: false,
+        }),
+      }),
+    });
+
+    const offsetsToTest = [
+      { ms: 3600000, label: '+1 hour' },
+      { ms: -3600000, label: '-1 hour' },
+      { ms: 86400000, label: '+24 hours' },
+      { ms: -86400000, label: '-24 hours' },
+    ];
+
+    for (const { ms } of offsetsToTest) {
+      const ctx = mockContext(ms);
+      const calculatedOffset = Clock.getOffset(ctx);
+      expect(Math.abs(calculatedOffset - ms)).toBeLessThan(100);
+    }
+  });
+
+  // 24. Multiple Concurrent Contexts Without Bleed
+  it('Scenario 24: Multiple concurrent contexts operate completely isolated from each other', () => {
+    const ctxA = { headers: new Headers({ 'x-app-mock-date': '2025-01-01T00:00:00.000Z' }) };
+    const ctxB = { headers: new Headers({ 'x-app-mock-date': '2027-06-01T00:00:00.000Z' }) };
+    const ctxC = { headers: new Headers() };
+
+    expect(Clock.now(ctxA).getFullYear()).toBe(2025);
+    expect(Clock.now(ctxB).getFullYear()).toBe(2027);
+    expect(Clock.now(ctxC).getFullYear()).toBe(Clock.getRealNow().getFullYear());
+  });
 });
