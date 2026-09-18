@@ -272,9 +272,7 @@ const MobileLectureTopicInlinePanel = () => {
   );
 };
 
-import AttendanceModeSelector from './AttendanceModeSelector';
-
-export default function MobileAttendanceSheet({ onBack, mode, onSelectMode }) {
+export default function MobileAttendanceSheet({ onBack, mode }) {
   const {
     assignment,
     students,
@@ -349,9 +347,6 @@ export default function MobileAttendanceSheet({ onBack, mode, onSelectMode }) {
       {/* Subject Identity Panel */}
       <MobileSubjectIdentityPanel />
 
-      {/* ATTENDANCE MODE SELECTOR (MOBILE) */}
-      <AttendanceModeSelector selectedMode={mode} onSelectMode={onSelectMode} />
-
       {/* MODE SPECIFIC PANELS (MOBILE) */}
       {assignment.is_active && mode === 'gps' && <MobileSessionControlPanel />}
       {assignment.is_active && mode === 'qr' && <QRScannerPanel onScanSuccess={handleQRScan} onScannerStop={handleQRStop} />}
@@ -365,7 +360,6 @@ export default function MobileAttendanceSheet({ onBack, mode, onSelectMode }) {
       />
 
       {/* ATTENDANCE ENTRY SECTION */}
-      {mode && (
       <section id="mobile-faculty-attendance-section" className="bg-white p-4 rounded-lg border-2 mb-6">
         <div className="mb-4 border-b pb-3 flex flex-col gap-2">
           <div>
@@ -560,10 +554,9 @@ export default function MobileAttendanceSheet({ onBack, mode, onSelectMode }) {
           </>
         )}
       </section>
-      )}
 
       {/* STICKY BOTTOM ACTION BAR */}
-      {mode && selectedDate && dateValidation.isValid && assignment.is_active && (
+      {selectedDate && dateValidation.isValid && assignment.is_active && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex gap-3 z-30 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
           <button
             type="button"

@@ -113,7 +113,7 @@ function applyRefreshedCookies(response, cookiesToSet) {
   }
 }
 
-async function handleUnauthorized(request) {
+function handleUnauthorized(request) {
   const { pathname } = request.nextUrl;
 
   if (pathname.startsWith('/api/')) {
@@ -123,8 +123,26 @@ async function handleUnauthorized(request) {
     );
   }
 
-  // Redirect to home page where AuthRestoreGuard will attempt to refresh the session client-side
-  return NextResponse.redirect(new URL('/', request.url), 303);
+  // Redirect to home page and purge stale companion cookies to prevent infinite spinner loop
+  const redirectRes = NextResponse.redirect(new URL('/', request.url), 303);
+  if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
+    redirectRes.cookies.delete('admin_auth');
+    redirectRes.cookies.delete('admin_logged_in');
+    redirectRes.cookies.delete('admin_session_id');
+    redirectRes.cookies.delete('admin_refresh_token');
+  } else if (pathname.startsWith('/staff') || pathname.startsWith('/api/staff')) {
+    redirectRes.cookies.delete('staff_auth');
+    redirectRes.cookies.delete('staff_logged_in');
+    redirectRes.cookies.delete('staff_role');
+    redirectRes.cookies.delete('staff_session_id');
+    redirectRes.cookies.delete('staff_refresh_token');
+  } else if (pathname.startsWith('/student') || pathname.startsWith('/api/student')) {
+    redirectRes.cookies.delete('student_auth');
+    redirectRes.cookies.delete('student_logged_in');
+    redirectRes.cookies.delete('student_session_id');
+    redirectRes.cookies.delete('student_refresh_token');
+  }
+  return redirectRes;
 }
 
 export default async function proxy(request) {
@@ -226,26 +244,26 @@ export default async function proxy(request) {
   let response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('x-request-id', requestId);
 
-  if (adminRefreshed) {
-    applyRefreshedCookies(response, adminRefreshed.cookiesToSet);
-  }
-  if (staffRefreshed) {
-    applyRefreshedCookies(response, staffRefreshed.cookiesToSet);
-  }
-  if (studentRefreshed) {
-    applyRefreshedCookies(response, studentRefreshed.cookiesToSet);
-  }
+  // Helper to ensure newly refreshed cookies are never dropped across 303 redirects or next responses
+  const withCookies = (targetResponse) => {
+    if (adminRefreshed?.cookiesToSet) applyRefreshedCookies(targetResponse, adminRefreshed.cookiesToSet);
+    if (staffRefreshed?.cookiesToSet) applyRefreshedCookies(targetResponse, staffRefreshed.cookiesToSet);
+    if (studentRefreshed?.cookiesToSet) applyRefreshedCookies(targetResponse, studentRefreshed.cookiesToSet);
+    return targetResponse;
+  };
+
+  withCookies(response);
 
   // ─── Route: Home "/" ──────────────────────────────────────────────────────
   if (pathname === '/') {
-    // If valid payload exists, immediately redirect to dashboard
-    if (adminPayload) return NextResponse.redirect(new URL('/admin/dashboard', request.url), 303);
+    // If valid payload exists, immediately redirect to dashboard with refreshed cookies preserved
+    if (adminPayload) return withCookies(NextResponse.redirect(new URL('/admin/dashboard', request.url), 303));
     if (staffPayload) {
       const dashboard = getDashboardPathByRole(staffPayload.role);
-      return NextResponse.redirect(new URL(dashboard, request.url), 303);
+      return withCookies(NextResponse.redirect(new URL(dashboard, request.url), 303));
     }
     if (studentPayload) {
-      return NextResponse.redirect(new URL('/student', request.url), 303);
+      return withCookies(NextResponse.redirect(new URL('/student', request.url), 303));
     }
     return response;
   }
@@ -265,30 +283,30 @@ export default async function proxy(request) {
   // ─── Protect UI Routes ────────────────────────────────────────────────────
   if (pathname.startsWith('/admin')) {
     if (!adminPayload) return handleUnauthorized(request);
-    if (pathname === '/admin') return NextResponse.redirect(new URL('/admin/dashboard', request.url), 303);
+    if (pathname === '/admin') return withCookies(NextResponse.redirect(new URL('/admin/dashboard', request.url), 303));
   } else if (pathname === '/staff' || pathname.startsWith('/staff/')) {
     // Academic calendar can be accessed by Admin or HOD (Faculty)
     if (pathname.startsWith('/staff/academic-calendar')) {
       if (!adminPayload && !staffPayload) return handleUnauthorized(request);
       if (staffPayload && staffPayload.role !== 'faculty') {
-        return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
+        return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
       }
     } else {
       if (!staffPayload) return handleUnauthorized(request);
       if (pathname === '/staff') {
         const dashboard = getDashboardPathByRole(staffPayload.role);
-        return NextResponse.redirect(new URL(dashboard, request.url), 303);
+        return withCookies(NextResponse.redirect(new URL(dashboard, request.url), 303));
       }
-      if (pathname.startsWith('/staff/scholarship') && staffPayload.role !== 'scholarship') return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
-      if (pathname.startsWith('/staff/admission') && staffPayload.role !== 'admission') return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
-      if (pathname.startsWith('/staff/faculty') && staffPayload.role !== 'faculty') return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
-      if (pathname.startsWith('/staff/hod') && (staffPayload.role !== 'faculty' || !staffPayload.is_hod)) return NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303);
+      if (pathname.startsWith('/staff/scholarship') && staffPayload.role !== 'scholarship') return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
+      if (pathname.startsWith('/staff/admission') && staffPayload.role !== 'admission') return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
+      if (pathname.startsWith('/staff/faculty') && staffPayload.role !== 'faculty') return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
+      if (pathname.startsWith('/staff/hod') && (staffPayload.role !== 'faculty' || !staffPayload.is_hod)) return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
     }
   } else if (pathname.startsWith('/student')) {
     if (!studentPayload) return handleUnauthorized(request);
     const isVerified = studentPayload.is_email_verified && studentPayload.has_password_set;
     const allowedForUnverified = pathname === '/student' || pathname === '/student/settings/security' || pathname === '/student/profile';
-    if (!isVerified && !allowedForUnverified) return NextResponse.redirect(new URL('/student/settings/security', request.url), 303);
+    if (!isVerified && !allowedForUnverified) return withCookies(NextResponse.redirect(new URL('/student/settings/security', request.url), 303));
   }
 
   return response;

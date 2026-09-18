@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useStaff } from '@/context/StaffContext';
 import RequestTabs from '@/components/staff/requests/RequestTabs';
@@ -15,6 +15,7 @@ function RequestsCenterContent() {
     const { 
         pendingProfileRequests, 
         pendingCertificateRequests,
+        admissionDrafts,
         isLoadingRequests,
         refreshProfileRequests,
         refreshCertificateRequests,
@@ -24,16 +25,17 @@ function RequestsCenterContent() {
 
     const activeTab = searchParams.get('tab') || 'admissions';
 
+    const fetchedRef = useRef(false);
     useEffect(() => {
-        if (staffData?.role) {
-            refreshProfileRequests();
-            refreshCertificateRequests(staffData.role);
-            if (staffData.role === 'admission') {
+        if (staffData?.role && !fetchedRef.current) {
+            fetchedRef.current = true;
+            if (!pendingProfileRequests?.length) refreshProfileRequests();
+            if (!pendingCertificateRequests?.length) refreshCertificateRequests(staffData.role);
+            if (staffData.role === 'admission' && !admissionDrafts?.length) {
                 refreshAdmissionDrafts();
             }
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [staffData?.role]);
+    }, [staffData?.role, pendingProfileRequests?.length, pendingCertificateRequests?.length, admissionDrafts?.length, refreshProfileRequests, refreshCertificateRequests, refreshAdmissionDrafts]);
 
     const handleTabChange = (tabId) => {
         const params = new URLSearchParams(searchParams);

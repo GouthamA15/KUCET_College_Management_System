@@ -1,6 +1,6 @@
 # Chronological Forensics of Major Resolved Incidents
 
-**Last Updated:** August 25, 2026
+**Last Updated:** September 18, 2026
 **Status:** Forensic Incident Repository  
 **Scope:** Root Cause Analysis, Forensic Call Stacks, Resolution Steps, and Diagnostic Audits.
 
@@ -10,6 +10,8 @@
 
 | Session | Date | Category | Affected Subsystem | Primary Root Cause Summary | Resolution Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Session 215** | Sep 18, 2026 | CI / Testing & App Router | Faculty Attendance & Admission | Post-merge regression from branch commit `92e807c82b` deleted App Router dynamic mode route `/take/[mode]`, breaking attendance deep-linking, back navigation, and mode selection; ESLint failure in `requests/page.js` due to undefined `admissionDrafts` in hook dependencies | **RESOLVED** |
+| **Session 214** | Sep 18, 2026 | Performance & Auth Proxy | Session Restoration & Navigation | Proxy 303 redirects (`NextResponse.redirect`) dropped refreshed auth cookies, triggering token reuse revocations and infinite session restoration loops; stale companion cookies not purged on unauthorized redirect; duplicate `Cache-Control` headers in Nginx | **RESOLVED** |
 | **Session 213** | Sep 13, 2026 | PWA / DevOps / Ingress | Production Uptime & Reconnection Loop | Service worker same-URL `location.replace('/')` no-op causing sticky reconnect loop on root URL after deploy restart; container network drift `EXPERIMENT_DB_HOST=127.0.0.1` inside Docker network throwing `ECONNREFUSED`; file ownership conflict between `root` and `deployer` in deploy scripts; separated container build from swap for zero-downtime deployments | **RESOLVED** |
 | **Session 211** | Sep 04, 2026 | React 19 State & Auth Proxy | Faculty Attendance & Admission Workspace | Minified React error #479 from `startTransition` inside `setState` updater in `FacultyAttendanceContext.js`; 401 Unauthorized errors on calendar load and proxy JWT refresh header omission; missing inline topic logging; multi-branch filter extension in admission workspace | **RESOLVED** |
 | **Session 210** | Sep 03, 2026 | CI/CD & Git Worktree | GitHub Actions Runner & Scripts | Non-executable file mode `100644` in Git index caused runtime `chmod +x` to create unstaged mode diffs (`100755`); `deploy.sh` attempted `git checkout` before `git reset --hard`; runner user `deployer` (UID 1001) hit `Permission denied` on files owned by `kucet-dev` (UID 1000) | **RESOLVED** |
@@ -29,6 +31,89 @@
 ---
 
 ## Detailed Forensics & Technical Resolutions
+
+### 0. Session 215: Forensic Resolution of Post-Merge CI/Playwright Attendance Routing Regressions & App Router Deep-Linking
+
+#### Incident Summary
+Following a merge into branch `testvanilla`, GitHub Actions CI checks failed with:
+1. 6 failing tests in `tests/attendance-routing.spec.js`:
+   - `navigates directly to take/manual mode via URL`
+   - `navigates directly to take/qr mode via URL`
+   - `navigates directly to take/gps mode via URL`
+   - `updates URL when mode is selected`
+   - `handles browser back button from mode to selector`
+   - `redirects invalid mode to assignment root`
+2. Build compilation failure during ESLint check:
+   - `src/app/staff/admission/requests/page.js: 'admissionDrafts' is not defined (react-hooks/exhaustive-deps)`
+
+#### Root Cause Analysis
+1. **Teammate Commit Dynamic Route Deletion (`src/app/staff/faculty/attendance/[assignmentId]/take/[mode]/page.js`)**:
+   - Commit `92e807c82b` ("Attendance Page - 3 modules") intended to simplify attendance by removing the dedicated App Router sub-route `take/[mode]` and rendering the sheet conditionally inside `[assignmentId]/page.js`.
+   - This violated the system's App Router deep-linking architecture:
+     - Direct URL visits to `/staff/faculty/attendance/[assignmentId]/take/[mode]` returned HTTP 404.
+     - Browser back/forward history between mode selection and taking attendance was broken.
+     - Mode selection cards did not update the URL path to `/take/${mode}`.
+     - Redirection logic for invalid modes (`/take/invalid` $\rightarrow$ `/staff/faculty/attendance/[assignmentId]`) ceased to exist.
+     - `AttendanceModeSelector.js` heading `<h2>Select Attendance Mode</h2>` and subject presentation header were removed or altered.
+2. **ESLint Hook Exhaustive-Deps Error (`src/app/staff/admission/requests/page.js`)**:
+   - `admissionDrafts` was referenced in a `useEffect` dependency array without being destructured from `useStaff()`. Next.js ESLint configuration treats undeclared variables in hooks as fatal errors, causing `npm run build` and `npm run lint` to fail with exit code 1.
+3. **Unused Import (`src/app/student/layout.js`)**:
+   - `LoadingSpinner` remained imported despite the student layout session restoration refactor.
+
+#### Resolution Steps
+1. **Recreated Dedicated App Router Route (`src/app/staff/faculty/attendance/[assignmentId]/take/[mode]/page.js`)**:
+   - Dynamic route supporting valid modes `['manual', 'qr', 'gps']`.
+   - Validates route params; invalid modes redirect to `/staff/faculty/attendance/[assignmentId]`.
+   - Wraps `TakeAttendancePage` with `FacultyAttendanceProvider` for deterministic attendance state.
+   - Supports direct deep-linking and browser refresh persistence.
+2. **Restored Mode Selector Route (`src/app/staff/faculty/attendance/[assignmentId]/page.js`)**:
+   - Dedicated page rendering `AttendanceModeSelector` with `onSelectMode` navigating to `/take/${mode}` and `onBack` navigating to `/staff/faculty/academics`.
+3. **Restored `AttendanceModeSelector.js` Contract**:
+   - Reinstated `<h2>Select Attendance Mode</h2>`, subject header badge, QR/GPS/Manual cards, and history/back navigation.
+4. **Preserved Positive Teammate Formatting Improvements**:
+   - Kept Indian Standard presentation date formatting (`DD-MM-YYYY`) and roll number canonicalization (`canonicalizeRollNo`) in `AttendanceSheet.js` and `MobileAttendanceSheet.js` while removing embedded duplicate selector code.
+5. **Fixed ESLint Destructuring**:
+   - Destructured `admissionDrafts` from `useStaff()` in `src/app/staff/admission/requests/page.js`.
+   - Cleaned unused `LoadingSpinner` in `src/app/student/layout.js`.
+6. **Automated Verification**:
+   - `tests/attendance-routing.spec.js`: 9/9 tests passed (100%).
+   - All 7 Playwright spec files: 23/23 tests passed (100%).
+   - All 77 Vitest unit test files: 640/640 tests passed (100%).
+   - ESLint: 0 errors.
+   - Build: Exit code 0.
+
+---
+
+### 0. Session 214: Deep Production Performance, Session Restoration & Tailscale Optimization
+
+#### Incident & Performance Forensics Summary
+Users in production observed noticeable delays during login and session restoration, repeated session bootstrapping during internal navigation (such as navigating between `/staff/dashboard` and `/staff/admission`), session restoration spinners when reopening browser tabs or waking from sleep, and perceived general slowness across Tailscale Funnel.
+
+#### Root Cause Analysis & Empirical Measurements
+1. **Proxy 303 Redirects Dropped Refreshed Cookies (`src/proxy.js`):**
+   When `deduplicatedSilentRefresh` successfully rotated tokens in `/api/auth/refresh`, the new `Set-Cookie` headers were attached to the default `response` object. However, when `proxy.js` evaluated routing rules (e.g. `/` redirecting to role dashboard, `/admin` redirecting to `/admin/dashboard`, or role transitions), it returned a brand-new `NextResponse.redirect(..., 303)`. This discarded the refreshed cookies. The browser followed the 303 redirect holding the *old* expired token and the *old* (already rotated) refresh token. On the destination page, the proxy triggered a second refresh with the old token. Since the old refresh token was already flagged `revoked_at` outside the grace window, `/api/auth/refresh` triggered safety revocation, invalidated all user sessions, and returned 401. The browser was redirected to `/` where `HomeLoginLanding` began spinning in a futile session restoration loop.
+2. **Stale Companion Cookies Not Purged on Unauthorized Redirects:**
+   When an unauthorized access was intercepted, `handleUnauthorized` redirected to `/` without clearing companion cookies (`staff_logged_in`, `admin_logged_in`). On `/`, `HomeLoginLanding` read `staff_logged_in=true` and launched the full-screen "Restoring academic session..." spinner and attempted client-side refresh before failing and revealing the login panel.
+3. **StudentContext Heavy Multi-Endpoint Cascade Blocking Navigation:**
+   `StudentContext.js` deferred dropping its `loading` state until 6 separate endpoints (`/api/student/me`, `/college-info`, `/api/student/[rollno]`, `/signature`, `/latest-request`, `/academic-info`) completed sequentially or in parallel. Any direct navigation or page refresh under `/student/*` was blocked by `<LoadingSpinner label="Authenticating Session" />` for 2-4 seconds.
+4. **Tailscale Funnel Latency Measurement (Debunked as Primary Bottleneck):**
+   Precision benchmarking directly from the production server and external clients proved Tailscale Funnel was **NOT** the root cause of the sluggishness:
+   - Direct local Next.js App (`/api/health`): **17.7 ms**
+   - Nginx reverse proxy (`/api/health`): **17.3 ms**
+   - Tailscale Funnel (`/api/health`): **26.7 ms**
+   - Nginx proxy HTML SSR (`/`): **88.1 ms**
+   - Tailscale Funnel HTML SSR (`/`): **107.2 ms**
+   - Public client over Internet to Funnel: **~250-310 ms** (DNS 14ms + TCP 72ms + TLS 147ms + TTFB 254ms).
+   The actual latency was generated by cascading redirects, dropped cookies, repeated refreshes, and duplicate API calls, rather than tunnel transfer overhead.
+
+#### Engineering Resolutions
+- **Redirect Cookie Forwarding (`withCookies` in `src/proxy.js`):** Implemented `withCookies(res)` wrapping every `NextResponse.redirect()` to guarantee all refreshed auth cookies (`*_auth`, `*_refresh_token`, `*_session_id`, `*_logged_in`, `*_role`) are transferred directly onto 303 redirect responses.
+- **Stale Cookie Invalidation on Unauthorized Redirect (`handleUnauthorized`):** Configured explicit deletion of all role companion cookies on 303 redirect to `/`, preventing client components from entering infinite session restoration spinners.
+- **Lightweight Student Session Restoration (`StudentContext.js` & `StudentLayout.js`):** Dropped `loading` to `false` immediately upon receiving core identity from `/api/student/me`, backgrounding secondary metadata queries and replacing blocking spinners with smooth layout skeletons.
+- **Sub-Resource Fetch Deduplication (`StaffContext.js`, `requests/page.js`, `ScholarshipDashboardClient.js`):** Added in-memory guards preventing child page components from re-requesting datasets already cached in parent contexts.
+- **Nginx Static Asset Cache Consolidation (`DEPLOYMENT_PACKAGE/nginx/nginx.conf`):** Added `proxy_hide_header Cache-Control;` in Nginx before setting `add_header Cache-Control "public, max-age=31536000, immutable" always;` to eliminate duplicate `Cache-Control` header declarations on immutable chunks.
+
+---
 
 ### 0. Session 213: Forensic Resolution of Sticky Reconnection Screen, Container Network Drift, and Zero-Downtime Deployment
 
