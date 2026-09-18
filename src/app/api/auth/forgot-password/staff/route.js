@@ -59,9 +59,7 @@ export async function POST(req) {
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
-    const { getNow } = await import('@/lib/clock');
-    const now = getNow();
-
+    const now = new Date();
     const expires_at = new Date(now.getTime() + 60 * 60 * 1000); // 60 minutes
 
     await db.insert(passwordResetTokens).values({

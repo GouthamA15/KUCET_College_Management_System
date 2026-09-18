@@ -10,7 +10,6 @@ import {
 import { eq, and, ne, sql, desc } from 'drizzle-orm';
 import { broadcastUpdate } from '@/lib/sse';
 import logger from '@/lib/logger';
-import { getNow } from '@/lib/clock';
 import { parseUA } from '@/lib/ua-parser';
 import { sendInstitutionalEmail, getBaseUrl } from '@/lib/email';
 import { formatInstitutionalDateTime } from '@/lib/date';
@@ -98,7 +97,7 @@ export class SecurityService {
 
       let title, subject, bodyHtml;
       const deviceInfo = details.browser ? `${details.browser} on ${details.operatingSystem || details.operating_system || 'Unknown OS'}` : 'Unknown device';
-      const timeStr = formatInstitutionalDateTime(getNow());
+      const timeStr = formatInstitutionalDateTime(new Date());
 
       switch (eventType) {
         case 'NEW_DEVICE_LOGIN':
@@ -160,11 +159,11 @@ export class SecurityService {
    */
   static async updateLastLogin(userType, userId, ipAddress) {
     try {
-      const now = getNow();
+      const now = new Date();
       const safeIp = ipAddress || 'unknown';
       
       if (!(now instanceof Date)) {
-        throw new Error('getNow() did not return a Date object');
+        throw new Error('Real time did not return a Date object');
       }
 
       const upperType = userType.toUpperCase();
@@ -230,7 +229,7 @@ export class SecurityService {
    */
   static async getActiveSessions(userType, userId, currentTokenHash = null) {
     try {
-      const now = getNow();
+      const now = new Date();
       const sessions = await db
         .select()
         .from(userSessions)
@@ -466,9 +465,9 @@ export class SecurityService {
           eq(userSessions.user_type, upperType)
         ));
 
-      const createdAt = getNow();
-      const lastSeenAt = getNow();
-      const expiryDate = expiresAt ? new Date(expiresAt) : new Date(getNow().getTime() + 30 * 24 * 60 * 60 * 1000);
+      const createdAt = new Date();
+      const lastSeenAt = new Date();
+      const expiryDate = expiresAt ? new Date(expiresAt) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
       logger.info('[SESSION_REGISTRATION_TYPES]', {
         createdAtIsDate: createdAt instanceof Date,
@@ -526,8 +525,8 @@ export class SecurityService {
       }
       const deviceInfo = parseUA(userAgent);
       const sessionTokenHash = crypto.createHash('sha256').update(newToken).digest('hex');
-      const lastSeenAt = getNow();
-      const expiryDate = expiresAt ? new Date(expiresAt) : new Date(getNow().getTime() + 30 * 24 * 60 * 60 * 1000);
+      const lastSeenAt = new Date();
+      const expiryDate = expiresAt ? new Date(expiresAt) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
       // Ensure session exists and ownership matches
       const [session] = await db

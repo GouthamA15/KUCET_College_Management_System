@@ -3,7 +3,6 @@ import { db } from '@/db';
 import { academicCalendar } from '@/db/schema';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { getNow } from '@/lib/clock';
 
 export async function GET(request) {
   try {
@@ -61,7 +60,7 @@ export async function POST(request) {
       if (dateString.includes('T')) dateString = dateString.split('T')[0];
       if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return apiError('Invalid date format. Use YYYY-MM-DD.', 400);
 
-      const now = await getNow();
+      const now = new Date();
 
       await db.insert(academicCalendar).values({
         date: dateString,

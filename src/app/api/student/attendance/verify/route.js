@@ -9,7 +9,7 @@ import {
 } from '@/db/schema';
 import { eq, and, gt, sql } from 'drizzle-orm';
 import { isWithinRange } from '@/lib/geo-utils';
-import { getNow } from '@/lib/clock';
+import { Clock } from '@/lib/clock';
 import crypto from 'crypto';
 
 /**
@@ -30,7 +30,7 @@ export async function POST(request) {
       return apiError('Location and Verification Data (PIN/QR) are required.', 400);
     }
 
-    const now = await getNow();
+    const now = Clock.now(request);
     
     // 1. Fetch the active session
     const session = await db.query.attendanceSessions.findFirst({

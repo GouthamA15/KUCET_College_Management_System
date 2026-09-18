@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { getDashboardPathByRole } from '@/lib/path-utils';
 import { parseSetCookieString } from '@/lib/parse-set-cookie';
+import { isTimeMachineEnabled, parseMockDateInput } from '@/lib/clock';
 
 async function verify(token, secret) {
   try {
@@ -99,6 +100,22 @@ export default async function proxy(request) {
   const requestHeaders = new Headers(request.headers);
   const requestId = request.headers.get('x-request-id') || `req_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 7)}`;
   requestHeaders.set('x-request-id', requestId);
+
+  // Time Machine Header Forwarding (Test / Dev only)
+  if (isTimeMachineEnabled()) {
+    const mockCookie = cookies.get('dev_mock_date');
+    if (mockCookie?.value) {
+      const parsed = parseMockDateInput(mockCookie.value);
+      if (parsed) {
+        requestHeaders.set('x-app-mock-date', mockCookie.value);
+      } else {
+        requestHeaders.delete('x-app-mock-date');
+      }
+    }
+  } else {
+    // In production without override: strictly purge any untrusted mock headers
+    requestHeaders.delete('x-app-mock-date');
+  }
 
   // 1. Verify existing tokens
   let adminRes = adminAuth ? await verify(adminAuth.value, jwtSecret) : { payload: null, expired: false };

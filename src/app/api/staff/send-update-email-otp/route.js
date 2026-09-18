@@ -47,8 +47,7 @@ export async function POST(req) {
       // Store OTP as SHA-256 hash — never plaintext
       const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
 
-      const { getNow } = await import('@/lib/clock');
-      const now = getNow();
+      const now = new Date();
       const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
 
       // We use String(staffId) because identifier in otp_codes might be a string

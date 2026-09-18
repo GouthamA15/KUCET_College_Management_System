@@ -39,8 +39,7 @@ export async function POST(req) {
         return apiError('Invalid or expired OTP.', 400);
       }
 
-      const { getNow } = await import('@/lib/clock');
-      const now = getNow();
+      const now = new Date();
 
       if (now > new Date(otpData.expires_at)) {
         await db.delete(otpCodes).where(eq(otpCodes.id, otpData.id));

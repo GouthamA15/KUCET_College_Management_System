@@ -8,7 +8,6 @@ import {
 } from './schema.js';
 import { lt, _sql } from 'drizzle-orm';
 import logger from '../lib/logger.js';
-import { getNow } from '../lib/clock.js';
 
 /**
  * Database Garbage Collection (Pruning)
@@ -16,7 +15,7 @@ import { getNow } from '../lib/clock.js';
  */
 async function pruneExpiredRecords() {
   logger.info('--- STARTING DATABASE GARBAGE COLLECTION ---');
-  const now = await getNow();
+  const now = new Date();
   
   try {
     // 1. Prune Expired OTPs
