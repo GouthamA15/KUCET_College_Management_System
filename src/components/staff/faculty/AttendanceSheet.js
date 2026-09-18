@@ -8,19 +8,14 @@ import { canonicalizeRollNo } from '@/lib/rollNumber';
 import dynamic from 'next/dynamic';
 import LectureTopicModal from './LectureTopicModal';
 import { getAssetUrl } from '@/lib/assets';
+import { formatDate } from '@/lib/date';
 
 const QRScannerPanel = dynamic(() => import('./QRScannerPanel'), {
   ssr: false,
   loading: () => <div className="p-6 text-center text-emerald-600 bg-emerald-50 rounded-xl mb-6">Loading camera module...</div>
 });
 
-const formatDisplayDate = (dateStr) => {
-  if (!dateStr) return '—';
-  const parts = dateStr.split('-');
-  if (parts.length !== 3) return dateStr;
-  const [year, month, day] = parts;
-  return `${day}-${month}-${year}`;
-};
+const formatDisplayDate = (dateStr) => formatDate(dateStr, '—');
 
 const SubjectIdentityPanel = () => {
   const { assignment } = useFacultyAttendance();
@@ -528,7 +523,7 @@ const PendingSyncIndicator = () => {
       <div className="mt-3 flex flex-wrap gap-2">
         {pendingSyncs.map(p => (
           <div key={p.id} className="text-[10px] font-bold bg-white/60 text-amber-800 px-2.5 py-1 rounded border border-amber-200">
-            {p.subject_name || 'Subject'} | {p.date} | S{p.session}
+            {p.subject_name || 'Subject'} | {formatDate(p.date)} | S{p.session}
           </div>
         ))}
       </div>

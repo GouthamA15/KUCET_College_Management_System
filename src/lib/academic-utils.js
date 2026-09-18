@@ -1,7 +1,7 @@
 import { db } from '@/db';
 import { semesters } from '@/db/schema';
 import { sql, desc, asc } from 'drizzle-orm';
-import { getNow } from './clock';
+import { Clock } from './clock';
 import { getEntryYearFromRoll, getAdmissionTypeFromRoll } from './rollNumber';
 
 // Helper to get YYYY-MM-DD
@@ -93,13 +93,14 @@ const CACHE_TTL = 1000 * 60 * 5; // 5 minutes
  * Gets the current academic session details directly from the semesters table.
  * Returns { academicYear, semester, status, isCurrent }
  */
-export async function getCurrentCalendarSession() {
+export async function getCurrentCalendarSession(context = null) {
+  const isTimeTraveling = Clock.isTimeTraveling(context);
   const nowTime = Date.now();
-  if (cachedSession && (nowTime - cacheTimestamp < CACHE_TTL)) {
+  if (!isTimeTraveling && cachedSession && (nowTime - cacheTimestamp < CACHE_TTL)) {
     return cachedSession;
   }
 
-  const now = await getNow();
+  const now = Clock.now(context);
   const dateStr = formatDate(now);
   
   // Priority 1: Active Semester
@@ -111,14 +112,17 @@ export async function getCurrentCalendarSession() {
     .limit(1);
 
   if (activeSemRows.length > 0) {
-    cachedSession = {
+    const session = {
       academicYear: activeSemRows[0].academic_year,
       semester: activeSemRows[0].semester,
       status: 'ACTIVE',
       isCurrent: true
     };
-    cacheTimestamp = nowTime;
-    return cachedSession;
+    if (!isTimeTraveling) {
+      cachedSession = session;
+      cacheTimestamp = nowTime;
+    }
+    return session;
   }
 
   // Priority 2: Latest completed semester
@@ -131,14 +135,17 @@ export async function getCurrentCalendarSession() {
     .limit(1);
 
   if (prevSemRows.length > 0) {
-    cachedSession = {
+    const session = {
       academicYear: prevSemRows[0].academic_year,
       semester: prevSemRows[0].semester,
       status: 'PREVIOUS',
       isCurrent: false
     };
-    cacheTimestamp = nowTime;
-    return cachedSession;
+    if (!isTimeTraveling) {
+      cachedSession = session;
+      cacheTimestamp = nowTime;
+    }
+    return session;
   }
 
   // Priority 3: Nearest upcoming semester (if before the first semester ever starts)
@@ -151,19 +158,24 @@ export async function getCurrentCalendarSession() {
     .limit(1);
 
   if (upcomingSemRows.length > 0) {
-    cachedSession = {
+    const session = {
       academicYear: upcomingSemRows[0].academic_year,
       semester: upcomingSemRows[0].semester,
       status: 'UPCOMING',
       isCurrent: false
     };
-    cacheTimestamp = nowTime;
-    return cachedSession;
+    if (!isTimeTraveling) {
+      cachedSession = session;
+      cacheTimestamp = nowTime;
+    }
+    return session;
   }
 
   // Priority 4: Not configured
-  cachedSession = null;
-  cacheTimestamp = nowTime;
+  if (!isTimeTraveling) {
+    cachedSession = null;
+    cacheTimestamp = nowTime;
+  }
   return null;
 }
 

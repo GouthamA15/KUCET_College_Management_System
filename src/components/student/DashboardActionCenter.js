@@ -6,6 +6,7 @@ import useProfileActivity from '@/hooks/student/useProfileActivity';
 import useActivityDismissal from '@/hooks/student/useActivityDismissal';
 import { useStudent } from '@/context/StudentContext';
 import toast from 'react-hot-toast';
+import { formatDate } from '@/lib/date';
 
 const periodTimes = {
   1: { start: '09:30', end: '10:20' },
@@ -237,15 +238,6 @@ export default function DashboardActionCenter({ student }) {
 
   const showSecurityWarning = !!student && (!student.email || !student.is_email_verified || !student.password_hash);
   
-  const formatDateDDMMYYYY = (dateStr) => {
-    if (!dateStr) return 'N/A';
-    const d = new Date(dateStr);
-    if (!Number.isNaN(d.getTime())) {
-      return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
-    }
-    return String(dateStr);
-  };
-
   const hasAttendanceSessions = attendanceSessions.length > 0;
   
   const activeAlerts = [
@@ -348,7 +340,7 @@ export default function DashboardActionCenter({ student }) {
       type: 'info',
       icon: '📅',
       title: 'Scholarship Applications Open',
-      desc: `Window: ${formatDateDDMMYYYY(scholarshipApplicationsOpen.startDate)} — ${formatDateDDMMYYYY(scholarshipApplicationsOpen.endDate)}`,
+      desc: `Window: ${formatDate(scholarshipApplicationsOpen.startDate)} — ${formatDate(scholarshipApplicationsOpen.endDate)}`,
       action: { label: 'Apply Now', href: 'https://telanganaepass.cgg.gov.in/', target: '_blank' },
       dismissible: true,
       dismissFn: dismissals.open.dismiss,

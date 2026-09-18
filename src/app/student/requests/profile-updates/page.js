@@ -7,6 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { getAssetUrl } from '@/lib/assets';
+import { formatDate, formatDateTime } from '@/lib/date';
 
 const FallbackImage = ({ src, alt, width, height, className, type = 'photo' }) => {
   const [error, setError] = useState(false);
@@ -129,7 +130,7 @@ export default function ProfileUpdatesPage() {
                       </span>
                     </div>
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
-                      Timestamp: {new Date(req.created_at).toLocaleString().toUpperCase()}
+                      Timestamp: {formatDateTime(req.created_at).toUpperCase()}
                     </span>
                   </div>
 
@@ -185,7 +186,7 @@ export default function ProfileUpdatesPage() {
                           <div className="bg-emerald-50 border border-emerald-100 p-4">
                             <h5 className="text-[10px] font-black text-emerald-800 uppercase tracking-widest mb-2">Verification Notice</h5>
                             <p className="text-[11px] text-emerald-700 leading-relaxed font-medium">
-                              This modification request was successfully verified and implemented by the records office on {new Date(req.updated_at).toLocaleDateString()}.
+                              This modification request was successfully verified and implemented by the records office on {formatDate(req.updated_at)}.
                             </p>
                           </div>
                         )}

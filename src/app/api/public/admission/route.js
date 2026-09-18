@@ -4,7 +4,6 @@ import { studentAdmissionDrafts, students, staffAccounts, studentPersonalDetails
 import { eq, and, ne } from 'drizzle-orm';
 import { apiError, apiResponse } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
-import { getNow } from '@/lib/clock';
 import { storage } from '@/lib/providers';
 import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 import { encrypt, hashForIndex } from '@/lib/encryption';
@@ -241,7 +240,7 @@ export async function POST(req) {
           fee_reimbursement: fee_reimbursement || null,
           identification_mark_1: identification_mark_1 || null,
           identification_mark_2: identification_mark_2 || null,
-          data_policy_consented_at: getNow(),
+          data_policy_consented_at: new Date(),
           ...addressFields
       });
 

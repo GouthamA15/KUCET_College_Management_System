@@ -1,24 +1,7 @@
-"use client";
+import { formatDate } from '@/lib/date';
 
 export default function CertificateDateHistory({ dates = [], selectedDate, onSelectDate }) {
-  const toDmy = (val) => {
-    if (!val) return '-';
-    try {
-      const s = String(val);
-      const datePart = s.split('T')[0];
-      if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
-        const [y, m, d] = datePart.split('-');
-        return `${d}-${m}-${y}`;
-      }
-      const ddmmyyyy = s.split('-');
-      if (ddmmyyyy.length === 3 && ddmmyyyy[0].length === 2 && ddmmyyyy[1].length === 2 && ddmmyyyy[2].length === 4) {
-        return s; // already DD-MM-YYYY
-      }
-      return s;
-    } catch {
-      return String(val);
-    }
-  };
+  const toDmy = (val) => formatDate(val, '-');
 
   return (
     <section className="bg-white border rounded-lg p-3 shadow-sm">

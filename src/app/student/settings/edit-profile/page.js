@@ -5,6 +5,7 @@ import { useStudent } from '@/context/StudentContext';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { getAssetUrl } from '@/lib/assets';
+import { formatDateTime, toMySQLDate } from '@/lib/date';
 import { createPortal } from 'react-dom';
 import { Info, X, Camera, UploadCloud, FileText } from 'lucide-react';
 
@@ -535,7 +536,7 @@ export default function EditProfilePage() {
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-gray-600">Date of Birth</label>
-                    <input disabled={isPending} type="date" value={formData.personal.dob ? new Date(formData.personal.dob).toISOString().split('T')[0] : ''} onChange={e => updateField('personal', 'dob', e.target.value)} className="w-full border border-gray-300 px-3 py-1.5 text-sm rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-50 disabled:text-gray-400 transition-shadow" />
+                    <input disabled={isPending} type="date" value={formData.personal.dob ? toMySQLDate(formData.personal.dob) || '' : ''} onChange={e => updateField('personal', 'dob', e.target.value)} className="w-full border border-gray-300 px-3 py-1.5 text-sm rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-50 disabled:text-gray-400 transition-shadow" />
                   </div>
                 </div>
               </section>
@@ -691,7 +692,7 @@ export default function EditProfilePage() {
                     <div key={i} className="flex flex-col border border-gray-200 rounded-lg bg-gray-50 overflow-hidden">
                       <div className="flex flex-col sm:flex-row justify-between sm:items-center p-4 border-b border-gray-100 bg-white gap-3">
                         <div>
-                          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">{new Date(req.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">{formatDateTime(req.created_at)}</div>
                           <div className="text-sm font-semibold text-gray-800">Profile Modification Request</div>
                         </div>
                         <div className="self-start sm:self-auto">

@@ -6,7 +6,6 @@ import {
 import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, wrapHandler } from '@/lib/api-utils';
 import { validateRollNo } from '@/lib/rollNumber';
-import { getNow } from '@/lib/clock';
 import { z } from 'zod';
 import { decrypt } from '@/lib/encryption';
 
@@ -101,7 +100,7 @@ export const POST = wrapHandler({
             status: "FINALIZED",
             pfp: null,
             signature: null,
-            updated_at: getNow()
+            updated_at: new Date()
           })
           .where(eq(studentAdmissionDrafts.id, id));
 

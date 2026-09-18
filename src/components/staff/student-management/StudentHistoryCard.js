@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { formatDate } from '@/lib/date';
 
 export default function StudentHistoryCard({ _currentStaffId }) {
   // State
@@ -19,14 +20,7 @@ export default function StudentHistoryCard({ _currentStaffId }) {
   const requestKey = useMemo(() => `${historyScope}|${appliedFilters.dateRange}|${actionTypesKey}`, [historyScope, appliedFilters.dateRange, actionTypesKey]);
 
   // Helpers
-  const formatDateKey = (iso) => {
-    if (!iso) return 'unknown';
-    const d = new Date(iso);
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yyyy = d.getFullYear();
-    return `${dd}-${mm}-${yyyy}`;
-  };
+  const formatDateKey = (iso) => formatDate(iso) || 'unknown';
 
   // Fetch records from backend when scope or filters change
   useEffect(() => {

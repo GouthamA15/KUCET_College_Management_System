@@ -5,6 +5,15 @@ import toast from 'react-hot-toast';
 import { Check, X, Calendar, User, BookOpen } from 'lucide-react';
 import { TableSkeleton } from '@/components/ui/DashboardSkeleton';
 
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  return new Date(dateString).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+};
+
 export default function HodFacultyInterests() {
   const [interests, setInterests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -108,7 +117,7 @@ export default function HodFacultyInterests() {
                 </span>
                 <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
                   <Calendar size={10} />
-                  {new Date(interest.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {formatDate(interest.created_at)}
                 </span>
               </div>
               

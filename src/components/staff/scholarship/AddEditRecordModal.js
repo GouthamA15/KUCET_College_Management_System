@@ -1,6 +1,7 @@
 'use client';
 import StudentPaymentsView from './StudentPaymentsView';
 import { createPortal } from 'react-dom';
+import { formatDate } from '@/lib/date';
 
 export default function AddEditRecordModal({
   open,
@@ -14,8 +15,9 @@ export default function AddEditRecordModal({
   onClose,
   onDeletePayment,
   onDeleteScholarship,
-  toDmy,
+  toDmy: toDmyProp,
 }) {
+  const toDmy = toDmyProp || ((val) => formatDate(val, '-'));
   if (!open) return null;
   const isScholar = student?.fee_reimbursement === 'YES' || student?.fee_reimbursement === 'GOV';
   const isSfc = String(student?.fee_category).toUpperCase() === 'SFC';

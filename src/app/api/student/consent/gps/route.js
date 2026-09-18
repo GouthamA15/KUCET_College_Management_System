@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { students } from '@/db/schema';
-import { getNow } from '@/lib/clock';
 import { getAuthUser } from '@/lib/api-utils';
 
 export async function POST(_req) {
@@ -13,7 +12,7 @@ export async function POST(_req) {
     }
 
     const rollNo = user.roll_no;
-    const now = getNow();
+    const now = new Date();
 
     await db.update(students)
       .set({ gps_consent_granted_at: now })

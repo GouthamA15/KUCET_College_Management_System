@@ -3,26 +3,17 @@ import { db } from '@/db';
 import { branchTimetable, syllabusSubjects, semesters } from '@/db/schema';
 import { eq, and, desc, sql, like, or } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { getNow } from '@/lib/clock';
+import { Clock } from '@/lib/clock';
 
-export async function GET(_req) {
+export async function GET(req) {
   try {
     const user = await getAuthUser('faculty');
     if (!user || (user.role !== 'faculty' && user.role !== 'admin')) return apiError('Unauthorized', 401);
 
-    const now = await getNow();
-    const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-    const day = days[now.getDay()]; 
-    const time = now.getHours() * 100 + now.getMinutes(); 
-
-    let period = null;
-    if (time >= 930 && time < 1020) period = 1;
-    else if (time >= 1020 && time < 1110) period = 2;
-    else if (time >= 1120 && time < 1210) period = 3;
-    else if (time >= 1210 && time < 1300) period = 4;
-    else if (time >= 1400 && time < 1450) period = 5;
-    else if (time >= 1450 && time < 1540) period = 6;
-    else if (time >= 1540 && time < 1630) period = 7;
+    const now = Clock.now(req);
+    const parts = Clock.getISTParts(now);
+    const day = parts.dayName;
+    const period = Clock.currentPeriod(now);
 
     if (!period || day === 'SUN') {
       return apiResponse({ active: false, message: 'Outside college hours or Weekend' });

@@ -6,6 +6,7 @@ import Header from '@/components/Header';
 import HeaderMobileView from '@/components/Header-MobileView';
 import Footer from '@/components/Footer';
 import ClientShell from '@/components/ClientShell.client';
+import { formatDate } from '@/lib/date';
 
 export default function VerifyClient() {
   const searchParams = useSearchParams();
@@ -132,7 +133,7 @@ export default function VerifyClient() {
                     </div>
                     <div className="flex flex-col border-b border-slate-100 pb-2">
                       <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Issue Date</span>
-                      <span className="text-slate-900 font-bold text-lg">{data.issue_date}</span>
+                      <span className="text-slate-900 font-bold text-lg">{formatDate(data.issue_date) || '—'}</span>
                     </div>
                   </div>
 

@@ -3,7 +3,6 @@ import { db } from '@/db';
 import { studentRequests, students, staffAccounts, studentRequestImages } from '@/db/schema';
 import { eq, and, _sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
-import { getNow } from '@/lib/clock';
 import crypto from 'crypto';
 
 const roleToTypes = {
@@ -62,7 +61,7 @@ export async function PUT(request, { params }) {
             generatedCertId = `KUCET-${hash.substring(0, 8).toUpperCase()}`;
         }
 
-        const now = getNow();
+        const now = new Date();
         const updateData = { status, updated_at: now };
 
         if (status === 'REJECTED') {

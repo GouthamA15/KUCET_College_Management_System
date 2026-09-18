@@ -8,7 +8,7 @@ import {
 import { eq, and, gt } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import crypto from 'crypto';
-import { getNow } from '@/lib/clock';
+import { Clock } from '@/lib/clock';
 
 /**
  * GET /api/staff/faculty/attendance/session?assignment_id=X
@@ -39,7 +39,7 @@ export async function GET(request) {
     .where(and(
       eq(attendanceSessions.assignment_id, assignment_id),
       eq(attendanceSessions.is_active, true),
-      gt(attendanceSessions.expires_at, getNow())
+      gt(attendanceSessions.expires_at, Clock.now(request))
     ))
     .limit(1);
 
@@ -130,7 +130,7 @@ export async function POST(request) {
     const sessionToken = crypto.randomBytes(32).toString('hex');
     
     // Session valid for 10 minutes by default
-    const now = getNow();
+    const now = Clock.now(request);
     const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
 
     // 5. Create new session

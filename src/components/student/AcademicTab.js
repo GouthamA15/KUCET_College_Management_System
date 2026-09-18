@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import { formatDate } from '@/lib/date';
 
 const MarkAttendanceCard = ({ session, onVerified }) => {
   const [pin, setPin] = useState('');
@@ -113,7 +114,7 @@ export default function AcademicTab() {
 
   const onVerificationSuccess = (assignmentId, subjectName, attendanceDate) => {
     // Add confirmation message
-    const today = attendanceDate || new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const today = formatDate(attendanceDate || new Date());
     setVerifiedMessages(prev => {
       // Prevent duplicate messages if already present
       if (prev.find(m => m.id === assignmentId)) return prev;
@@ -244,7 +245,7 @@ export default function AcademicTab() {
                         ? 'bg-orange-50 border-orange-200 text-orange-800'
                         : 'bg-red-50 border-red-200 text-red-800'
                     }`}>
-                      <div className="text-sm font-bold">{new Date(record.date).toLocaleDateString()}</div>
+                      <div className="text-sm font-bold">{formatDate(record.date)}</div>
                       <div className="text-[10px] font-black uppercase tracking-widest">{record.status}</div>
                       <div className="absolute top-1 right-1 bg-white/50 px-1.5 py-0.5 rounded text-[8px] font-bold">S{record.session}</div>
                     </div>

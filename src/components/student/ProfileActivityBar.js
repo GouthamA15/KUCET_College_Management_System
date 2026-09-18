@@ -4,6 +4,7 @@ import Link from 'next/link';
 import _toast from 'react-hot-toast';
 import AttendanceVerificationActivity from './AttendanceVerificationActivity';
 import useActivityDismissal from '@/hooks/student/useActivityDismissal';
+import { formatDate } from '@/lib/date';
 
 export default function ProfileActivityBar({ activity, student }) {
   const {
@@ -124,22 +125,6 @@ export default function ProfileActivityBar({ activity, student }) {
 
   const handleSessionVerified = (assignmentId) => {
     setAttendanceSessions((prev) => prev.filter((s) => s.assignment_id !== assignmentId));
-  };
-
-  const formatDateDDMMYYYY = (dateStr) => {
-    if (!dateStr) return 'N/A';
-    const d = new Date(dateStr);
-    if (!Number.isNaN(d.getTime())) {
-      const day = String(d.getDate()).padStart(2, '0');
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const year = d.getFullYear();
-      return `${day}-${month}-${year}`;
-    }
-    const parts = String(dateStr).split('-');
-    if (parts.length === 3) {
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
-    }
-    return String(dateStr);
   };
 
   const isScholarshipEligible = student?.fee_reimbursement === 'YES' || student?.fee_reimbursement === 'GOV';
@@ -270,7 +255,7 @@ export default function ProfileActivityBar({ activity, student }) {
                     Apply online and submit your documents in the scholarship office.
                   </div>
                   <div className="mt-2 text-xs text-blue-900">
-                    Submission Window: <span className="font-medium">{formatDateDDMMYYYY(scholarshipApplicationsOpen.startDate)}</span> — <span className="font-medium">{formatDateDDMMYYYY(scholarshipApplicationsOpen.endDate)}</span>
+                    Submission Window: <span className="font-medium">{formatDate(scholarshipApplicationsOpen.startDate)}</span> — <span className="font-medium">{formatDate(scholarshipApplicationsOpen.endDate)}</span>
                   </div>
                 </div>
               </div>

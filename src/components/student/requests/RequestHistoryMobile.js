@@ -1,6 +1,7 @@
 "use client";
 import { getStatusStyles } from '@/lib/ui-utils';
 import { formatCertificateName } from '@/lib/certificate-utils';
+import { formatDate } from '@/lib/date';
 
 export default function RequestHistoryMobile({
   requests,
@@ -39,7 +40,7 @@ export default function RequestHistoryMobile({
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusStyles(s)}`}>{s}</span>
                 </div>
                 <div className="mt-3 text-sm text-gray-600">
-                  <div>Applied: <span className="font-medium text-gray-800">{new Date(req.created_at).toLocaleDateString()}</span></div>
+                  <div>Applied: <span className="font-medium text-gray-800">{formatDate(req.created_at)}</span></div>
                   {req.reject_reason && (
                     <div className="mt-2 text-sm text-gray-700">Remarks: <span className="font-normal text-gray-800">{req.reject_reason}</span></div>
                   )}

@@ -46,11 +46,7 @@ export async function POST(req) {
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
-    // ─── FIX #14: Use getNow() (IST clock) instead of Date.now() ───
-    const { getNow } = await import('@/lib/clock');
-    const now = getNow();
-
-    // ─── FIX #15: Reset token expiry raised from 10 min → 60 min ───
+    const now = new Date();
     const expires_at = new Date(now.getTime() + 60 * 60 * 1000); // 60 minutes
 
     await db.insert(passwordResetTokens).values({

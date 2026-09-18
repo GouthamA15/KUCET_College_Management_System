@@ -1,6 +1,7 @@
 'use client';
 import { useStaff } from '@/context/StaffContext';
 import { getStatusStyles } from '@/lib/ui-utils';
+import { formatDate } from '@/lib/date';
 
 export default function InterestStatusList() {
   const { facultyInterests = [], isLoadingFaculty } = useStaff();
@@ -8,23 +9,7 @@ export default function InterestStatusList() {
   const loading = isLoadingFaculty;
   const interests = facultyInterests;
 
-  const formatIstDate = (value) => {
-    if (!value) return '';
-    try {
-      return new Intl.DateTimeFormat('en-GB', {
-        timeZone: 'Asia/Kolkata',
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }).format(new Date(value));
-    } catch {
-      try {
-        return new Date(value).toISOString().slice(0, 10);
-      } catch {
-        return '';
-      }
-    }
-  };
+  const formatIstDate = (value) => formatDate(value);
 
   if (loading) {
     return (

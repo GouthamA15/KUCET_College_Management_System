@@ -3,11 +3,11 @@ import { db } from '@/db';
 import { scholarshipWindows, students as studentsTable } from '@/db/schema';
 import { eq, desc, and, or, sql } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { toMySQLDate } from '@/lib/date';
-import { getNow } from '@/lib/clock';
+import { toMySQLDate, formatDate } from '@/lib/date';
+import { Clock } from '@/lib/clock';
 import { sendInstitutionalEmail } from '@/lib/email';
 
-export async function GET() {
+export async function GET(req) {
   const user = await getAuthUser('scholarship');
   if (!user || (user.role !== 'scholarship' && user.role !== 'admin')) return apiError('Unauthorized', 401);
 
@@ -22,11 +22,10 @@ export async function GET() {
 
     let status = 'CLOSED';
     if (win.start_date && win.end_date) {
-      const now = await getNow();
-      const start = new Date(win.start_date);
-      const end = new Date(win.end_date);
-      const today = new Date(now.toISOString().slice(0, 10));
-      if (today >= start && today <= end) {
+      const todayStr = Clock.today(req);
+      const startStr = toMySQLDate(win.start_date);
+      const endStr = toMySQLDate(win.end_date);
+      if (todayStr >= startStr && todayStr <= endStr) {
         status = 'OPEN';
       }
     }
@@ -105,31 +104,16 @@ export async function POST(req) {
 
     // Compute current status for UI (OPEN/CLOSED)
     let status = 'CLOSED';
-    const now = await getNow();
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const today = new Date(now.toISOString().slice(0, 10));
-    if (today >= start && today <= end) {
+    const todayStr = Clock.today(req);
+    if (todayStr >= startDate && todayStr <= endDate) {
       status = 'OPEN';
     }
 
     // Email notifications based on event type
     if ((eventType === 'WINDOW_CREATED' || eventType === 'WINDOW_EXTENDED') && status === 'OPEN') {
       try {
-        const formatDateDDMMYYYY = (dateStr) => {
-          if (!dateStr) return 'N/A';
-          const d = new Date(dateStr);
-          if (!Number.isNaN(d.getTime())) {
-            const day = String(d.getDate()).padStart(2, '0');
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const year = d.getFullYear();
-            return `${day}-${month}-${year}`;
-          }
-          return String(dateStr);
-        };
-
-        const formattedStart = formatDateDDMMYYYY(startDate);
-        const formattedEnd = formatDateDDMMYYYY(endDate);
+        const formattedStart = formatDate(startDate);
+        const formattedEnd = formatDate(endDate);
         
         const eligibleStudents = await db.select({ id: studentsTable.id, name: studentsTable.name, email: studentsTable.email })
           .from(studentsTable)

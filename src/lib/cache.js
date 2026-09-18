@@ -1,6 +1,5 @@
 import { Redis } from '@upstash/redis';
 import logger from '@/lib/logger';
-import { getNow } from '@/lib/clock';
 
 let redis = null;
 if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
@@ -126,7 +125,7 @@ export async function fetchWithSWR(key, fetcher, staleTimeSeconds = 60, maxCache
     return await fetcher();
   }
 
-  const nowTime = getNow().getTime();
+  const nowTime = Date.now();
   if (failureCount >= FAILURE_THRESHOLD) {
     if (nowTime - lastFailureTime < RESET_TIMEOUT) {
       return await fetcher();
@@ -144,13 +143,13 @@ export async function fetchWithSWR(key, fetcher, staleTimeSeconds = 60, maxCache
     failureCount = 0;
 
     if (cachedRecord && cachedRecord.data !== undefined && cachedRecord.timestamp) {
-      const now = getNow().getTime();
+      const now = Date.now();
       const isStale = now - cachedRecord.timestamp > staleTimeSeconds * 1000;
 
       if (isStale) {
         fetcher()
           .then(async (freshData) => {
-            await redis.set(key, { data: freshData, timestamp: getNow().getTime() }, { ex: maxCacheTimeSeconds });
+            await redis.set(key, { data: freshData, timestamp: Date.now() }, { ex: maxCacheTimeSeconds });
           })
           .catch((err) => {
             logger.error(`[SWR_REVALIDATE_ERROR] for key ${key}:`, err);
@@ -162,7 +161,7 @@ export async function fetchWithSWR(key, fetcher, staleTimeSeconds = 60, maxCache
 
     const freshData = await fetcher();
     await Promise.race([
-      redis.set(key, { data: freshData, timestamp: getNow().getTime() }, { ex: maxCacheTimeSeconds }),
+      redis.set(key, { data: freshData, timestamp: Date.now() }, { ex: maxCacheTimeSeconds }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Redis set timeout')), 2000)),
     ]).catch((err) => {
       logger.warn(`[SWR_SET_ERROR] for key ${key}:`, err);
@@ -170,7 +169,7 @@ export async function fetchWithSWR(key, fetcher, staleTimeSeconds = 60, maxCache
     return freshData;
   } catch (error) {
     failureCount++;
-    lastFailureTime = getNow().getTime();
+    lastFailureTime = Date.now();
     logger.error(`[SWR_CACHE_ERROR] for key ${key}:`, error);
     return await fetcher();
   }

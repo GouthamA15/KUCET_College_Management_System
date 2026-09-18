@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { getAssetUrl } from '@/lib/assets';
+import { formatDate, formatDateTime, toMySQLDate } from '@/lib/date';
 import { X, CheckCircle, XCircle } from 'lucide-react';
 
 export const BLOOD_GROUP_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
@@ -66,10 +67,14 @@ export const EditableField = React.memo(function EditableField({
                     maxLength={maxLength}
                     className={`${baseClass} ${isEditing ? activeClass : readOnlyClass} resize-none`}
                 />
+            ) : !isEditing && type === 'date' ? (
+                <div className={`${baseClass} ${readOnlyClass}`}>
+                    {formatDate(resolvedValue) || '—'}
+                </div>
             ) : (
                 <input
                     type={type}
-                    value={resolvedValue}
+                    value={type === 'date' ? (toMySQLDate(resolvedValue) || '') : resolvedValue}
                     onChange={handleChange}
                     disabled={!isEditing}
                     inputMode={inputMode}
@@ -602,11 +607,11 @@ export function AdmissionModal({
                                             <p className="text-sm text-rose-700 mt-1">
                                                 <strong>Reason:</strong> {detail.rejection_reason || 'Information provided was incomplete or inconsistent with documents.'}
                                             </p>
-                                            {detail.rejected_at && (
-                                                <p className="text-xs text-rose-500 mt-1 font-medium">
-                                                    Rejected on: {new Date(detail.rejected_at).toLocaleString()}
-                                                </p>
-                                            )}
+                                             {detail.rejected_at && (
+                                                 <p className="text-xs text-rose-500 mt-1 font-medium">
+                                                     Rejected on: {formatDateTime(detail.rejected_at)}
+                                                 </p>
+                                             )}
                                         </div>
                                     </div>
                                     {onRestore && (
@@ -647,7 +652,7 @@ export function AdmissionModal({
                                                                     {h.old_status ? `${h.old_status} ➔ ` : ''}{h.new_status}
                                                                 </span>
                                                                 <span className="text-xs text-gray-500 font-mono bg-gray-50 px-2 py-0.5 rounded">
-                                                                    {new Date(h.created_at).toLocaleString()}
+                                                                    {formatDateTime(h.created_at)}
                                                                 </span>
                                                             </div>
                                                             {h.reason && <p className="text-gray-600 mt-1 italic text-sm">{h.reason}</p>}
