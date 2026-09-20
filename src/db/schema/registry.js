@@ -190,3 +190,30 @@ export const admissionStatusHistory = mysqlTable('admission_status_history', {
   draftIdx: index('idx_ash_draft_id').on(table.draft_id),
   createdAtIdx: index('idx_ash_created_at').on(table.created_at),
 }));
+
+export const studentAchievements = mysqlTable('student_achievements', {
+  id: int('id').autoincrement().primaryKey(),
+  student_id: int('student_id').notNull(),
+  achievement_type: varchar('achievement_type', { length: 50 }).notNull(),
+  title: varchar('title', { length: 255 }).notNull(),
+  program_name: varchar('program_name', { length: 255 }),
+  issuing_organization: varchar('issuing_organization', { length: 255 }),
+  academic_year: varchar('academic_year', { length: 9 }).notNull(),
+  achievement_date: date('achievement_date'),
+  start_date: date('start_date'),
+  end_date: date('end_date'),
+  achievement_level: varchar('achievement_level', { length: 50 }),
+  recognition: varchar('recognition', { length: 100 }),
+  description: text('description'),
+  certificate_file_path: varchar('certificate_file_path', { length: 500 }),
+  certificate_mime_type: varchar('certificate_mime_type', { length: 100 }),
+  additional_data: json('additional_data'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  studentIdx: index('idx_achievement_student').on(table.student_id),
+  typeIdx: index('idx_achievement_type').on(table.achievement_type),
+  yearIdx: index('idx_achievement_academic_year').on(table.academic_year),
+  dateIdx: index('idx_achievement_date').on(table.achievement_date),
+  studentYearIdx: index('idx_achievement_student_year').on(table.student_id, table.academic_year),
+}));
