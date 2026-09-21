@@ -37,7 +37,7 @@ export default function StudentAchievementsTab() {
 
   if (loading) {
     return (
-      <section className="space-y-6">
+    <section className="border border-gray-300 rounded-md bg-white p-4 shadow-sm space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <div className="h-6 w-48 skeleton-shimmer rounded mb-2"></div>
@@ -70,7 +70,7 @@ export default function StudentAchievementsTab() {
   }
 
   return (
-    <section className="space-y-6">
+    <section className="border border-gray-300 rounded-md bg-white p-4 shadow-sm space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-lg font-bold text-gray-800">Achievements & Activities</h2>
@@ -151,5 +151,6 @@ export default function StudentAchievementsTab() {
     </section>
   );
 }
+
 
 

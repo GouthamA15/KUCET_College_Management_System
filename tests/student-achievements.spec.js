@@ -110,6 +110,27 @@ test.describe('Student Achievements E2E Flow', () => {
         }),
       });
     });
+
+    // Mock student/me endpoint
+    await page.route('**/api/student/me', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: testStudent.id,
+          roll_no: testStudent.roll_no,
+          name: testStudent.name,
+          email: testStudent.email,
+          student_status: testStudent.student_status,
+          academic_status: testStudent.academic_status,
+          academic_offset_years: testStudent.academic_offset_years,
+          is_email_verified: 1,
+          has_password_set: true,
+          mobile: null,
+          personal_details: null,
+        }),
+      });
+    });
   });
 
   test('should display empty state when no achievements exist', async ({ page }) => {
