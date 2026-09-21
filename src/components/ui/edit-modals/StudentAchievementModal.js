@@ -5,6 +5,7 @@ import { X, Upload, Save, Loader2, Image as ImageIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AcademicYearSelect, { getCurrentFrontendAcademicYear } from '@/components/ui/AcademicYearSelect';
 import { getAssetUrl } from '@/lib/assets';
+import { compressImage } from '@/lib/image-compressor';
 
 const ACHIEVEMENT_TYPES = [
   "Certification",
@@ -343,7 +344,7 @@ export default function StudentAchievementModal({ onClose, onSaveSuccess, achiev
     setForm(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -352,9 +353,26 @@ export default function StudentAchievementModal({ onClose, onSaveSuccess, achiev
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('Image must be less than 2MB');
-      return;
+    let finalFile = file;
+
+    if (file.size > 1024 * 1024) {
+      const loadingToast = toast.loading('Compressing image...');
+      try {
+        finalFile = await compressImage(file, 1600, 1600, 0.7);
+        toast.dismiss(loadingToast);
+        
+        if (finalFile.size > 1024 * 1024) {
+             finalFile = await compressImage(finalFile, 1200, 1200, 0.5);
+        }
+        if (finalFile.size > 1024 * 1024) {
+             toast.error('Image is still too large after compression. Please upload a smaller image.');
+             return;
+        }
+      } catch (err) {
+        toast.dismiss(loadingToast);
+        toast.error('Failed to compress image');
+        return;
+      }
     }
 
     const reader = new FileReader();
@@ -362,7 +380,7 @@ export default function StudentAchievementModal({ onClose, onSaveSuccess, achiev
       setPreviewImage(event.target.result);
       setForm(prev => ({ ...prev, certificate_base64: event.target.result }));
     };
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(finalFile);
   };
 
   const validateForm = () => {
@@ -585,7 +603,7 @@ export default function StudentAchievementModal({ onClose, onSaveSuccess, achiev
                   >
                     <Upload className="w-8 h-8 text-gray-400 mb-2" />
                     <p className="text-sm text-gray-600 font-medium">Click to upload certificate</p>
-                    <p className="text-xs text-gray-400 mt-1">PNG, JPG up to 2MB</p>
+                    <p className="text-xs text-gray-400 mt-1">PNG, JPG (Auto-compressed to &le; 1MB)</p>
                   </div>
                 ) : (
                   <div className="relative rounded-lg border border-gray-200 p-2 bg-gray-50 flex items-center justify-center min-h-[160px]">
