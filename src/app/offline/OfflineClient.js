@@ -45,16 +45,17 @@ export default function OfflineClient() {
       }
       sessionStorage.setItem(OFFLINE_RELOAD_KEY, now.toString());
       sessionStorage.removeItem('kucet_chunk_retry_ts');
+
+      // Clear any stale Service Worker cache
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_ALL_CACHES' });
+      }
     } catch (_e) {
       // Ignore storage errors
     }
 
-    // If currently rendering on /offline, replace URL with root portal /
-    if (window.location.pathname === '/offline') {
-      window.location.replace('/');
-    } else {
-      window.location.reload();
-    }
+    // Always navigate to portal root '/' upon reconnection to break out of any stale or protected URL trap
+    window.location.replace('/');
   }, []);
 
   const testServerHealth = useCallback(async () => {
@@ -139,7 +140,12 @@ export default function OfflineClient() {
 
   const handleManualAction = () => {
     if (typeof window !== 'undefined') {
-      navigateToPortalOrReload();
+      try {
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_ALL_CACHES' });
+        }
+      } catch (_e) {}
+      window.location.replace('/');
     }
   };
 
