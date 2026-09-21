@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { StudentProvider } from '@/context/StudentContext';
 import { ProfileActivityProvider } from '@/context/ProfileActivityContext';
-import StudentActivityBar from '@/components/student/StudentActivityBar';
 import Sidebar from '@/components/Sidebar';
 import Footer from '@/components/Footer';
 import Header from '@/components/Header';
@@ -110,10 +109,7 @@ export default function StudentLayout({ children }) {
               {/* Content stack (single, consistent top spacing below header/topbar) */}
               <div className="flex-1 flex flex-col min-h-0 pt-(--app-content-top-gap,20px) lg:pt-(--app-fixed-header-offset,72px) ">
                 <ActivationGuard>
-                  {/* Activity Bar */}
-                  <div className="px-4 lg:px-8">
-                    <StudentActivityBar />
-                  </div>
+
 
                   {/* Page Content */}
                   <main className="flex-1 p-4 lg:p-8 pt-0">
@@ -141,4 +137,5 @@ export default function StudentLayout({ children }) {
     </StudentProvider>
   );
 }
+
 
