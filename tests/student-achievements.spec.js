@@ -99,11 +99,15 @@ test.describe('Student Achievements E2E Flow', () => {
     });
 
     // Mock subjects fetching (used in academics page)
-    await page.route('/api/student/academics/subjects?*', async (route) => {
+    await page.route('**/api/student/academic-info*', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify([]),
+        body: JSON.stringify({
+          data: [],
+          semester: 1,
+          academicYear: '2026-27'
+        }),
       });
     });
   });
@@ -122,7 +126,7 @@ test.describe('Student Achievements E2E Flow', () => {
     await page.goto('/student/academics');
     
     // Switch to Achievements tab
-    await page.click('text="Achievements"');
+    await page.click('button:has-text("Achievements")');
 
     // Wait for the empty state to appear
     await expect(page.locator('text="No achievements added yet"')).toBeVisible();
@@ -143,7 +147,7 @@ test.describe('Student Achievements E2E Flow', () => {
     await page.goto('/student/academics');
     
     // Switch to Achievements tab
-    await page.click('text="Achievements"');
+    await page.click('button:has-text("Achievements")');
 
     // The mock achievement should be visible
     await expect(page.locator('text="AWS Certified Cloud Practitioner"')).toBeVisible();
@@ -187,7 +191,7 @@ test.describe('Student Achievements E2E Flow', () => {
     await page.goto('/student/academics');
     
     // Switch to Achievements tab
-    await page.click('text="Achievements"');
+    await page.click('button:has-text("Achievements")');
     
     // Click Add Achievement
     await page.click('button:has-text("Add Achievement")');
