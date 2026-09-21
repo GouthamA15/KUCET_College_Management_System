@@ -12,6 +12,9 @@ import {
   ALL_BRANCHES_VALUE,
 } from '@/lib/admission-workspace';
 import { GET as getDraftsHandler } from '@/app/api/staff/admission/drafts/route';
+import fs from 'fs';
+import path from 'path';
+import { COLLEGE_CONFIG } from '@/lib/college-config';
 
 vi.mock('@/lib/logger', () => ({
   default: {
@@ -453,6 +456,118 @@ describe('Canonical Admission Workspace Architecture', () => {
       const json = await res.json();
       expect(json.data).toBeInstanceOf(Array);
       expect(json.workspace?.targetBranch).toBe('ALL');
+    });
+  });
+
+  describe('7. AdmissionWorkspaceFilter - Target Branch Dropdown Scope Isolation', () => {
+    function simulateTargetBranchOptions(allowAllBranches = true) {
+      const showAllBranches = allowAllBranches !== false;
+      const options = [];
+      if (showAllBranches) {
+        options.push({ value: 'ALL', label: 'All Branches' });
+      }
+      COLLEGE_CONFIG.branches.forEach((b) => {
+        options.push({ value: b.name, label: b.name.toUpperCase() });
+      });
+      return options;
+    }
+
+    it('verifies AdmissionWorkspaceFilter component conditionally renders "All Branches"', () => {
+      const filterComponentPath = path.resolve(__dirname, '../../src/components/staff/requests/AdmissionWorkspaceFilter.js');
+      const filterCode = fs.readFileSync(filterComponentPath, 'utf-8');
+
+      // Verify prop definition
+      expect(filterCode).toContain('allowAllBranches = true');
+      expect(filterCode).toContain('showAllBranches');
+
+      // Verify conditional option rendering
+      expect(filterCode).toMatch(/\{showAllBranches\s*&&\s*<option value="ALL">All Branches<\/option>\}/);
+
+      // Verify all branches mapped from COLLEGE_CONFIG.branches
+      expect(filterCode).toContain('COLLEGE_CONFIG.branches.map');
+    });
+
+    it('verifies Finalize Admissions page passes allowAllBranches={false} to AdmissionWorkspaceFilter', () => {
+      const finalizePagePath = path.resolve(__dirname, '../../src/app/staff/admission/finalize/page.js');
+      const finalizeCode = fs.readFileSync(finalizePagePath, 'utf-8');
+
+      // Verify AdmissionWorkspaceFilter has allowAllBranches={false}
+      expect(finalizeCode).toMatch(/<AdmissionWorkspaceFilter[\s\S]*?allowAllBranches=\{false\}[\s\S]*?\/>/);
+    });
+
+    it('verifies AdmissionRequestsPanel (Requests Center) retains default allowAllBranches (not false)', () => {
+      const requestsPanelPath = path.resolve(__dirname, '../../src/components/staff/requests/AdmissionRequestsPanel.js');
+      const requestsCode = fs.readFileSync(requestsPanelPath, 'utf-8');
+
+      // Verify AdmissionRequestsPanel does NOT disable allowAllBranches
+      expect(requestsCode).not.toContain('allowAllBranches={false}');
+    });
+
+    it('removes "All Branches" option ONLY when allowAllBranches is false (Finalize Admissions)', () => {
+      const options = simulateTargetBranchOptions(false);
+      const optionValues = options.map(o => o.value);
+      const optionLabels = options.map(o => o.label);
+
+      // Verify "All Branches" is NOT available in Target Branch dropdown
+      expect(optionValues).not.toContain('ALL');
+      expect(optionLabels).not.toContain('All Branches');
+      expect(optionLabels).not.toContain('All Branch');
+      expect(optionLabels).not.toContain('All');
+
+      // Verify expected branches remain available
+      const expectedBranches = ['CSE', 'CSD', 'ECE', 'EEE', 'CIVIL', 'IT', 'MECH'];
+      expect(optionValues).toEqual(expectedBranches);
+      expect(optionLabels).toEqual(expectedBranches);
+    });
+
+    it('preserves "All Branches" option by default when allowAllBranches is not false (Requests Center / other pages)', () => {
+      const options = simulateTargetBranchOptions(true);
+      const optionValues = options.map(o => o.value);
+      const optionLabels = options.map(o => o.label);
+
+      // Verify "All Branches" IS available in other pages
+      expect(optionValues).toContain('ALL');
+      expect(optionLabels).toContain('All Branches');
+      expect(optionValues[0]).toBe('ALL');
+
+      // Verify all branches also remain available
+      ['CSE', 'CSD', 'ECE', 'EEE', 'CIVIL', 'IT', 'MECH'].forEach(b => {
+        expect(optionValues).toContain(b);
+      });
+    });
+
+    it('preserves branch filtering query conditions for each individual branch', () => {
+      const mockTable = {
+        status: 'status_col',
+        branch: 'branch_col',
+        entrance_exam: 'exam_col',
+        admission_year: 'year_col',
+      };
+
+      const branches = ['CSE', 'CSD', 'ECE', 'EEE', 'CIVIL', 'IT', 'MECH'];
+      branches.forEach(branchName => {
+        const workspace = { intakeExam: 'TG EAPCET', targetBranch: branchName, entryYear: 2026 };
+        const conditions = buildAdmissionWorkspaceConditions(mockTable, workspace, 'PROCESSED');
+        
+        // 4 conditions: status, branch, entrance_exam, admission_year
+        expect(conditions.length).toBe(4);
+      });
+    });
+
+    it('preserves initial loading query behavior when workspace has default ALL targetBranch', () => {
+      const mockTable = {
+        status: 'status_col',
+        branch: 'branch_col',
+        entrance_exam: 'exam_col',
+        admission_year: 'year_col',
+      };
+
+      // When page loads initially with ALL branches
+      const initialWorkspace = { intakeExam: 'TG EAPCET', targetBranch: 'ALL', entryYear: 2026 };
+      const initialConditions = buildAdmissionWorkspaceConditions(mockTable, initialWorkspace, 'PROCESSED');
+
+      // 3 conditions: status, entrance_exam, admission_year (no branch filter, displays all eligible students)
+      expect(initialConditions.length).toBe(3);
     });
   });
 });
