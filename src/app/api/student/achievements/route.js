@@ -44,7 +44,7 @@ export async function POST(req) {
       additional_data
     } = body;
 
-    if (!achievement_type || !title || !academic_year || !achievement_level || !certificate_base64) {
+    if (!achievement_type || !title || !academic_year || !certificate_base64) {
       return apiError('Missing required fields', 400);
     }
 
@@ -73,7 +73,7 @@ export async function POST(req) {
       achievement_date: achievement_date || null,
       start_date: start_date || null,
       end_date: end_date || null,
-      achievement_level,
+      achievement_level: achievement_level || null,
       recognition: recognition || null,
       description: description || null,
       certificate_file_path,

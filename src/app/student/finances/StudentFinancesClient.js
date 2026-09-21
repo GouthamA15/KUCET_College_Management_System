@@ -111,7 +111,7 @@ export default function StudentFinancesClient() {
       <button
         type="button"
         onClick={() => setActiveTab('summary')}
-        className={`px-3 py-2 rounded-md text-sm transition-colors cursor-pointer ${
+        className={`flex-1 sm:flex-none justify-center whitespace-nowrap px-3 py-2 rounded-md text-sm transition-colors cursor-pointer inline-flex items-center ${
           activeTab === 'summary' ? 'bg-[#0b3578] text-white' : 'bg-white border text-gray-700 hover:bg-gray-50'
         }`}
       >
@@ -120,7 +120,7 @@ export default function StudentFinancesClient() {
       <button
         type="button"
         onClick={() => setActiveTab('transactions')}
-        className={`px-3 py-2 rounded-md text-sm transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
+        className={`flex-1 sm:flex-none justify-center whitespace-nowrap px-3 py-2 rounded-md text-sm transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
           activeTab === 'transactions' ? 'bg-[#0b3578] text-white' : 'bg-white border text-gray-700 hover:bg-gray-50'
         }`}
       >
