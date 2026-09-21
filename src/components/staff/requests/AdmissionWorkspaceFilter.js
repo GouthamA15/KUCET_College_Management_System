@@ -12,7 +12,10 @@ export default function AdmissionWorkspaceFilter({
     subtitle = 'Select target branch and intake examination',
     actions = null,
     hideYear = false,
+    allowAllBranches = true,
+    includeAllOption = true,
 }) {
+    const showAllBranches = allowAllBranches && includeAllOption;
     const [prevPropYear, setPrevPropYear] = React.useState(workspace?.entryYear);
     const [yearInput, setYearInput] = React.useState(String(workspace?.entryYear ?? ''));
 
@@ -67,12 +70,12 @@ export default function AdmissionWorkspaceFilter({
                 <div className="flex-1 sm:w-60">
                     <label className="block text-sm font-medium text-gray-400 mb-1.5">Target Branch</label>
                     <select
-                        value={workspace?.targetBranch || 'ALL'}
+                        value={workspace?.targetBranch || (showAllBranches ? 'ALL' : '')}
                         onChange={handleBranchChange}
                         disabled={isLoading}
                         className="w-full px-4 py-2 bg-gray-50 border border-gray-200 text-sm font-medium text-[#0b3578] focus:outline-none focus:ring-2 focus:ring-blue-100 rounded-md transition-all disabled:opacity-60"
                     >
-                        <option value="ALL">All Branches</option>
+                        {showAllBranches && <option value="ALL">All Branches</option>}
                         {COLLEGE_CONFIG.branches.map((b) => (
                             <option key={b.code} value={b.name}>
                                 {b.name.toUpperCase()}
