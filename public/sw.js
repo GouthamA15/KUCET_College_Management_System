@@ -1,6 +1,6 @@
 // KUCET CMS - Production Service Worker
-// Version: v6 (True Reload Reconnection & Resilient Pre-Cache Release)
-const CACHE_VERSION = 'v6';
+// Version: v7 (True Navigation Redirect Follow & Outage Trap Liberation Release)
+const CACHE_VERSION = 'v7';
 const CACHE_NAME = `kucet-cms-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline';
 
@@ -92,13 +92,29 @@ self.addEventListener('fetch', (event) => {
   // Auth middleware returns different responses (redirects vs. 200) based on dynamic cookie state.
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(async () => {
-        // Network request failed — try serving cached offline page
-        const offlineResponse = await caches.match(OFFLINE_URL);
-        if (offlineResponse) return offlineResponse;
+      (async () => {
+        try {
+          // Explicitly construct Request with redirect: 'follow'.
+          // When request.mode === 'navigate', the browser specifies redirect: 'manual'.
+          // Passing that directly into fetch() causes an opaqueredirect on HTTP 3xx responses
+          // (such as unauthenticated 303 redirects or role-based dashboard redirects).
+          // Returning an opaqueredirect to respondWith() throws a TypeError in Chromium/WebKit,
+          // which mistakenly triggers the catch block and traps the user in the offline fallback page.
+          const fetchRequest = new Request(request.url, {
+            method: 'GET',
+            headers: request.headers,
+            credentials: request.credentials,
+            cache: 'no-cache',
+            redirect: 'follow',
+          });
+          return await fetch(fetchRequest);
+        } catch (_error) {
+          // Network request failed — try serving cached offline page
+          const offlineResponse = await caches.match(OFFLINE_URL);
+          if (offlineResponse) return offlineResponse;
 
-        // Auto-reconnecting HTML fallback with background health polling
-        const fallbackHtml = `<!DOCTYPE html>
+          // Auto-reconnecting HTML fallback with background health polling
+          const fallbackHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -131,10 +147,8 @@ self.addEventListener('fetch', (event) => {
   <script>
     function doRestore() {
       try {
-        if (window.location.pathname === '/offline') {
-          window.location.replace('/');
-          return;
-        }
+        window.location.replace('/');
+        return;
       } catch (_e) {}
       window.location.reload();
     }
@@ -146,7 +160,7 @@ self.addEventListener('fetch', (event) => {
           return;
         }
       } catch (e) {}
-      window.location.reload();
+      window.location.replace('/');
     }
     setInterval(async () => {
       try {
@@ -160,11 +174,12 @@ self.addEventListener('fetch', (event) => {
 </body>
 </html>`;
 
-        return new Response(fallbackHtml, {
-          status: 200,
-          headers: { 'Content-Type': 'text/html; charset=utf-8' },
-        });
-      })
+          return new Response(fallbackHtml, {
+            status: 200,
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+          });
+        }
+      })()
     );
     return;
   }

@@ -52,11 +52,17 @@ export default function StudentFinancesClient() {
             <div className="text-slate-400 p-1 rounded-full"><Info size={20} className="shrink-0" /></div>
           </div>
           <p className="text-sm text-gray-600 mt-1">Institutional tuition fee structures, government scholarship reimbursements, and payment receipts.</p>
-          <div className="md:hidden flex items-center gap-2 mt-3.5">
+          <div className="md:hidden flex flex-wrap items-center gap-2 mt-3.5">
              <button className="px-3 py-2 rounded-md text-sm transition-colors bg-[#0b3578] text-white">Academic Ledger</button>
              <button className="px-3 py-2 rounded-md text-sm transition-colors bg-white border text-gray-700 cursor-not-allowed">Transactions & Receipts</button>
           </div>
         </header>
+
+        {/* Construction Warning Bar */}
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-md text-sm font-medium flex items-start gap-2 shadow-sm mb-4">
+          <Info className="w-5 h-5 shrink-0 mt-0.5" />
+          <span>The Finances module and its core features (Academic ledger, Fee payments, and Transactions) are currently in the construction stage. Data shown may be for testing purposes and not final.</span>
+        </div>
 
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[...Array(4)].map((_, i) => (
@@ -216,10 +222,16 @@ export default function StudentFinancesClient() {
         <p className="text-sm text-gray-600 mt-1">Institutional tuition fee structures, government scholarship reimbursements, and payment receipts.</p>
         
         {/* Mobile View: Render tab buttons immediately after header text */}
-        <div className="md:hidden flex items-center gap-2 mt-3.5">
+        <div className="md:hidden flex flex-wrap items-center gap-2 mt-3.5">
           {tabButtons}
         </div>
       </header>
+
+      {/* Construction Warning Bar */}
+      <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-md text-sm font-medium flex items-start gap-2 shadow-sm mb-4">
+        <Info className="w-5 h-5 shrink-0 mt-0.5" />
+        <span>The Finances module and its core features (Academic ledger, Fee payments, and Transactions) are currently in the construction stage. Data shown may be for testing purposes and not final.</span>
+      </div>
 
       {/* Responsive 2x2 Mobile / 4x1 Desktop Grid with subtle border designs */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -312,3 +324,4 @@ export default function StudentFinancesClient() {
     </div>
   );
 }
+

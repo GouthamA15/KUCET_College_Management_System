@@ -10,6 +10,7 @@
 
 | Session | Date | Category | Affected Subsystem | Primary Root Cause Summary | Resolution Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Session 216** | Sep 21, 2026 | Production Availability & PWA | Service Worker & Ingress | Service Worker navigation fetch with `redirect: manual` caused `opaqueredirect` TypeError on HTTP 3xx responses (Next.js middleware auth redirects to `/`), catching errors as network failures and trapping clients in cached `/offline` "Service Temporarily Unavailable" screen; `OfflineClient.js` reloaded failing URL instead of navigating to `/`; duplicate crontabs between root and kucet-dev caused concurrent monitoring executions | **RESOLVED** |
 | **Session 215** | Sep 18, 2026 | CI / Testing & App Router | Faculty Attendance & Admission | Post-merge regression from branch commit `92e807c82b` deleted App Router dynamic mode route `/take/[mode]`, breaking attendance deep-linking, back navigation, and mode selection; ESLint failure in `requests/page.js` due to undefined `admissionDrafts` in hook dependencies | **RESOLVED** |
 | **Session 214** | Sep 18, 2026 | Performance & Auth Proxy | Session Restoration & Navigation | Proxy 303 redirects (`NextResponse.redirect`) dropped refreshed auth cookies, triggering token reuse revocations and infinite session restoration loops; stale companion cookies not purged on unauthorized redirect; duplicate `Cache-Control` headers in Nginx | **RESOLVED** |
 | **Session 213** | Sep 13, 2026 | PWA / DevOps / Ingress | Production Uptime & Reconnection Loop | Service worker same-URL `location.replace('/')` no-op causing sticky reconnect loop on root URL after deploy restart; container network drift `EXPERIMENT_DB_HOST=127.0.0.1` inside Docker network throwing `ECONNREFUSED`; file ownership conflict between `root` and `deployer` in deploy scripts; separated container build from swap for zero-downtime deployments | **RESOLVED** |
@@ -32,7 +33,52 @@
 
 ## Detailed Forensics & Technical Resolutions
 
-### 0. Session 215: Forensic Resolution of Post-Merge CI/Playwright Attendance Routing Regressions & App Router Deep-Linking
+### 0. Session 216: Forensic Resolution of Service Worker Navigation Redirect Trap, Outage False-Positive & Cron Duplication
+
+#### Incident Summary
+The physical self-hosted KUCET server was completely online (uptime 18 days), Docker daemon was healthy, all 6 production containers (`kucet-cms-app`, `kucet-cms-realtime`, `kucet-cms-redis`, `kucet-cms-db`, `kucet-cms-proxy`, `kucet-cms-monitor`) were `Up (healthy)`, and Tailscale Funnel was active. However, when users opened browser sessions to the Tailscale Funnel URL or visited protected routes such as `/staff/admission/requests?tab=admissions`, the browser displayed:
+```
+Service Temporarily Unavailable
+Your internet is active, but the KUCET server or campus network endpoint is currently undergoing maintenance, deployment restart, or reconnecting.
+```
+Clicking "Retry Now" or "Return to Portal" did not recover the browser and repeatedly returned to the same outage screen.
+
+#### Root Cause Analysis
+1. **Service Worker Navigation Redirect `opaqueredirect` Crash (`public/sw.js`):**
+   - For all browser document navigation requests (`request.mode === 'navigate'`), browsers create requests with `redirect: 'manual'` under the Fetch specification.
+   - `public/sw.js` passed `request` directly into `fetch(request)`.
+   - When an unauthenticated user or an unauthorized route was visited, Next.js Edge middleware (`src/proxy.js`) returned `HTTP 303 See Other` (`Location: /`).
+   - Because `redirect` was `'manual'`, `fetch()` produced an `opaqueredirect` Response. Under the W3C Service Worker Fetch specification, returning an `opaqueredirect` to `event.respondWith()` on a `mode: 'navigate'` request is forbidden for security reasons and immediately throws:
+     `TypeError: Failed to execute 'respondWith' on 'FetchEvent': a redirected response was used for a request whose redirect mode is not 'follow'`.
+   - The `.catch()` handler in `sw.js` caught this `TypeError` and erroneously interpreted the redirect as a network/server failure, returning `caches.match('/offline')`.
+2. **Inescapable Route Trap in `OfflineClient.js`:**
+   - In `src/app/offline/OfflineClient.js`, `navigateToPortalOrReload()` called `window.location.reload()`, which re-requested the failing URL (`/staff/admission/requests?tab=admissions`).
+   - The browser re-sent the request, the proxy returned 303 again, the Service Worker threw `TypeError` again, and served `/offline` again in an infinite loop.
+   - The "Return to Portal" button also called `navigateToPortalOrReload()`, leaving users unable to reach `/`.
+3. **Health Route False-Positive 503 on Non-Critical Warning (`src/app/api/health/route.js`):**
+   - `const statusCode = diagnostics.status === 'healthy' ? 200 : 503;` returned 503 whenever non-critical subsystems were in `degraded` state (e.g. unconfigured optional email credentials), causing external monitors to declare the entire core system down.
+4. **Duplicate System Cron Jobs:**
+   - Both `root` and `kucet-dev` had identical crontabs executing `monitor.sh`, `nightly-backup.sh`, and `boot-recovery.sh`, causing concurrent executions and race conditions in log files.
+
+#### Resolution Steps
+1. **Fixed Service Worker Navigation Handler (`public/sw.js`):**
+   - Constructed a fresh `Request` with `redirect: 'follow'` for all `mode: 'navigate'` requests. This instructs the fetch engine to transparently follow HTTP 3xx redirects (301, 302, 303, 307) without throwing `TypeError`.
+   - Updated inline fallback `doRestore()` and `checkNow()` to navigate to `/` via `window.location.replace('/')`.
+   - Bumped `CACHE_VERSION` from `v6` to `v7` to trigger automatic activation and cache eviction across all connected clients.
+2. **Hardened `OfflineClient.js` Recovery Navigation:**
+   - Updated `navigateToPortalOrReload()` to always navigate to the portal root (`/`) via `window.location.replace('/')`, freeing users from invalid or protected route traps.
+   - Updated the "Return to Portal" button (`handleManualAction`) to directly replace location with `/`.
+   - Added `CLEAR_ALL_CACHES` postMessage to evict any stale service worker caches on recovery.
+3. **Harden Health Endpoint (`src/app/api/health/route.js`):**
+   - Changed status code check to `const statusCode = diagnostics.status === 'unhealthy' ? 503 : 200;`, returning 200 for `healthy` and `degraded` states.
+4. **Cleaned Duplicate Crontabs on Production Host:**
+   - Removed duplicate crontab from `kucet-dev`, leaving `root` as the sole authoritative cron runner.
+5. **Rebuilt & Deployed Production Image:**
+   - Rebuilt `deployment_package-app` image, verified all 6 containers `Up (healthy)`, and verified all 24 production health checks pass (100%).
+
+---
+
+### 1. Session 215: Forensic Resolution of Post-Merge CI/Playwright Attendance Routing Regressions & App Router Deep-Linking
 
 #### Incident Summary
 Following a merge into branch `testvanilla`, GitHub Actions CI checks failed with:

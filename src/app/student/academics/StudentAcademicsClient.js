@@ -9,6 +9,7 @@ import { AcademicsProvider, useAcademicsCache } from '@/context/AcademicsContext
 import toast from 'react-hot-toast';
 import { Info, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import StudentAchievementsTab from '@/components/student/StudentAchievementsTab';
 
 // Utility: derive subject metadata (kept isolated for future DB migration)
 function getSubjectMeta(_subjectName) {
@@ -258,10 +259,11 @@ function AcademicsInner({ studentData }) {
         <p className="text-sm text-gray-600 mt-1">Overview of your current semester subjects, attendance, and internal assessment results.</p>
       </header>
 
-      <div className="flex items-center gap-2 mb-3">
-        <button onClick={() => setActiveTab('subjects')} className={`px-3 py-2 rounded-md text-sm transition-colors cursor-pointer ${activeTab === 'subjects' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>Subjects</button>
-        <button onClick={() => setActiveTab('attendance')} className={`px-3 py-2 rounded-md text-sm transition-colors cursor-pointer ${activeTab === 'attendance' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>Attendance</button>
-        <button onClick={() => setActiveTab('internals')} className={`px-3 py-2 rounded-md text-sm transition-colors cursor-pointer ${activeTab === 'internals' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>Internals</button>
+      <div className="flex flex-wrap items-center gap-2 mb-3 pb-1">
+        <button onClick={() => setActiveTab('subjects')} className={`px-3 py-2 rounded-md text-sm transition-colors cursor-pointer whitespace-nowrap ${activeTab === 'subjects' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>Subjects</button>
+        <button onClick={() => setActiveTab('attendance')} className={`px-3 py-2 rounded-md text-sm transition-colors cursor-pointer whitespace-nowrap ${activeTab === 'attendance' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>Attendance</button>
+        <button onClick={() => setActiveTab('internals')} className={`px-3 py-2 rounded-md text-sm transition-colors cursor-pointer whitespace-nowrap ${activeTab === 'internals' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>Internals</button>
+        <button onClick={() => setActiveTab('achievements')} className={`px-3 py-2 rounded-md text-sm transition-colors cursor-pointer whitespace-nowrap ${activeTab === 'achievements' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>Achievements</button>
       </div>
 
       {/* Construction Warning Bar */}
@@ -566,8 +568,12 @@ function AcademicsInner({ studentData }) {
           })()}
         </section>
       )}
+
+      {activeTab === 'achievements' && <StudentAchievementsTab />}
       
       {typeof document !== 'undefined' && isBottomSheetOpen && isMobileDevice && createPortal(bottomSheet, document.body)}
     </div>
   );
 }
+
+

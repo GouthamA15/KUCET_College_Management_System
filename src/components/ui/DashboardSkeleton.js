@@ -3,30 +3,7 @@ import React from 'react';
 
 export function StudentDashboardSkeleton() {
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-16 px-4 md:px-8 font-sans mt-4">
-      <div className="flex flex-col gap-4 lg:gap-5">
-        {/* Header */}
-        <div className="h-28 lg:h-32 rounded-md skeleton-shimmer w-full"></div>
-        
-        <div className="grid grid-cols-1 lg:flex lg:flex-row gap-5 lg:gap-6">
-          {/* Priority Actions */}
-          <div className="order-1 flex flex-col gap-5 w-full lg:w-1/3">
-            <div className="h-64 skeleton-shimmer rounded-md border border-slate-100"></div>
-          </div>
-          
-          {/* Academic Records and Support */}
-          <div className="order-2 flex flex-col gap-5 w-full lg:w-2/3">
-            <div className="h-96 skeleton-shimmer rounded-md border border-slate-100"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export function StaffDashboardSkeleton() {
-  return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-16 px-4 md:px-8 font-sans">
+    <div className="w-full max-w-7xl mx-auto space-y-8 pb-16 px-4 md:px-8 font-sans mt-4 lg:mt-6">
       {/* Banner */}
       <div className="h-32 skeleton-shimmer rounded-md w-full"></div>
       
@@ -37,7 +14,7 @@ export function StaffDashboardSkeleton() {
           <div className="h-4 skeleton-shimmer w-20 rounded"></div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-           {[...Array(4)].map((_, i) => <div key={i} className="h-24 skeleton-shimmer rounded-md border border-slate-100"></div>)}
+           {[...Array(4)].map((_, i) => <div key={i} className="h-32 skeleton-shimmer rounded-md border border-slate-100"></div>)}
         </div>
       </div>
 
@@ -47,7 +24,37 @@ export function StaffDashboardSkeleton() {
           <div className="h-4 skeleton-shimmer w-40 rounded"></div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-           {[...Array(3)].map((_, i) => <div key={i} className="h-36 skeleton-shimmer rounded-md border border-slate-100"></div>)}
+           {[...Array(3)].map((_, i) => <div key={i} className="h-48 skeleton-shimmer rounded-md border border-slate-100"></div>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function StaffDashboardSkeleton() {
+  return (
+    <div className="w-full max-w-7xl mx-auto space-y-8 pb-16 px-4 md:px-8 font-sans">
+      {/* Banner */}
+      <div className="h-32 skeleton-shimmer rounded-md w-full"></div>
+      
+      {/* Metrics */}
+      <div className="space-y-4">
+        <div className="flex justify-between">
+          <div className="h-4 skeleton-shimmer w-32 rounded"></div>
+          <div className="h-4 skeleton-shimmer w-20 rounded"></div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+           {[...Array(4)].map((_, i) => <div key={i} className="h-32 skeleton-shimmer rounded-md border border-slate-100"></div>)}
+        </div>
+      </div>
+
+      {/* Primary Operations */}
+      <div className="space-y-4">
+        <div className="flex justify-between">
+          <div className="h-4 skeleton-shimmer w-40 rounded"></div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+           {[...Array(3)].map((_, i) => <div key={i} className="h-48 skeleton-shimmer rounded-md border border-slate-100"></div>)}
         </div>
       </div>
     </div>
@@ -121,3 +128,7 @@ export function GenericPageSkeleton() {
     </div>
   );
 }
+
+
+
+

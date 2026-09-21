@@ -52,6 +52,21 @@ export default function HomeLoginLanding({ serverError, initialPanel }) {
         return;
       }
 
+      if (res) {
+        const errText = await res.text().catch(() => 'Unknown Error');
+        if (res.status === 401) {
+          // If the token is invalid, expired, or revoked, we must clear the browser cookies
+          // so it doesn't get stuck in a reload loop
+          await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+          
+          if (errText.includes('revoked') || errText.includes('expired')) {
+            alert(`Session could not be restored: ${errText.includes('revoked') ? 'Session was revoked' : 'Session expired'}. Please login again.`);
+          }
+        } else if (res.status >= 500) {
+          alert(`Server error during session refresh (HTTP ${res.status}): ${errText}`);
+        }
+      }
+
       setAuthStatus(false);
     } catch (_err) {
       setAuthStatus(false);

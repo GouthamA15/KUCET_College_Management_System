@@ -107,11 +107,11 @@ describe('PWA & Chunk Recovery Resilience Suite', () => {
   });
 
   describe('Service Worker File Invariants', () => {
-    it('should contain CACHE_VERSION v6 and bypass /api/ routes', () => {
+    it('should contain CACHE_VERSION v7 and bypass /api/ routes', () => {
       const swPath = path.resolve(process.cwd(), 'public/sw.js');
       const swContent = fs.readFileSync(swPath, 'utf8');
 
-      expect(swContent).toContain("CACHE_VERSION = 'v6'");
+      expect(swContent).toContain("CACHE_VERSION = 'v7'");
       expect(swContent).toContain("url.pathname.startsWith('/api/')");
       expect(swContent).toContain("url.pathname.startsWith('/_next/static/chunks/')");
       expect(swContent).toContain("OFFLINE_URL = '/offline'");
@@ -119,13 +119,14 @@ describe('PWA & Chunk Recovery Resilience Suite', () => {
       expect(swContent).toContain("self.clients.claim()");
     });
 
-    it('should not cache RSC payloads or auth routes', () => {
+    it('should not cache RSC payloads or auth routes and follow navigation redirects', () => {
       const swPath = path.resolve(process.cwd(), 'public/sw.js');
       const swContent = fs.readFileSync(swPath, 'utf8');
 
-      // Verifies navigation mode prioritizing network
+      // Verifies navigation mode prioritizing network with redirect: 'follow'
       expect(swContent).toContain("request.mode === 'navigate'");
-      expect(swContent).toContain('fetch(request).catch');
+      expect(swContent).toContain("redirect: 'follow'");
+      expect(swContent).toContain('await fetch(fetchRequest)');
     });
   });
 });

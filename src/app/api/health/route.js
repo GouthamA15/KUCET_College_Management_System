@@ -3,7 +3,7 @@ import HealthService from '@/services/shared/HealthService';
 
 export async function GET() {
   const diagnostics = await HealthService.getFullDiagnostics();
-  const statusCode = diagnostics.status === 'healthy' ? 200 : 503;
+  const statusCode = diagnostics.status === 'unhealthy' ? 503 : 200;
 
   return NextResponse.json(diagnostics, {
     status: statusCode,

@@ -348,6 +348,7 @@ function FinalizeAdmissionContent() {
                 workspace={workspace}
                 onChange={handleWorkspaceChange}
                 isLoading={loading}
+                allowAllBranches={false}
                 actions={
                     <button
                         type="button"

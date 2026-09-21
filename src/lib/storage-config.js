@@ -19,6 +19,7 @@ export const STORAGE_FOLDERS = Object.freeze({
   // Student Operational Assets
   STUDENTS_PFP: 'students/pfp',
   STUDENTS_SIGNATURES: 'students/signatures',
+  STUDENTS_ACHIEVEMENTS: 'students/achievements',
 
   // Request & Staging Media
   REQUESTS_PFP: 'requests/pfp',
@@ -76,3 +77,4 @@ export const UPLOAD_LIMITS = Object.freeze({
 });
 
 export { INSTITUTION_ASSET_KEYS, INSTITUTIONAL_ASSETS_MAP, isInstitutionalAssetPath, resolveInstitutionalFilename };
+
