@@ -90,7 +90,11 @@ test.describe('Student Achievements E2E Flow', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          student: testStudent,
+          student: {
+            ...testStudent,
+            is_email_verified: 1,
+            password_hash: 'mock_hash',
+          },
           background: null,
           details: null,
           images: null
@@ -109,6 +113,14 @@ test.describe('Student Achievements E2E Flow', () => {
           academicYear: '2026-27'
         }),
       });
+    });
+
+    // Mock signature & latest-request endpoints
+    await page.route('**/api/student/signature', async (route) => {
+      await route.fulfill({ status: 200, body: JSON.stringify({ latestRequest: null }) });
+    });
+    await page.route(/\/api\/student\/latest-request.*/, async (route) => {
+      await route.fulfill({ status: 200, body: JSON.stringify({ latestRequest: null }) });
     });
 
     // Mock student/me endpoint
