@@ -10,6 +10,8 @@
 
 | Session | Date | Category | Affected Subsystem | Primary Root Cause Summary | Resolution Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Session 217 (Part 2)** | Sep 22, 2026 | CI/CD & Database Migrations | TiDB Cloud & Drizzle Migrator | Migration `0021_students_achievements_schema.sql` failed on `main` branch CI runner with `CREATE TABLE student_achievements` failure due to unsupported MySQL 8.0 `COLLATE=utf8mb4_0900_ai_ci` and `ON UPDATE CASCADE` in TiDB Cloud; missing Rule 21 in `src/db/baseline-rules.js` prevented multi-environment baseline detection | **RESOLVED** |
+| **Session 217 (Part 1)** | Sep 21, 2026 | Security & Storage | Student Certificate Uploads | Unchecked `/api/student/achievements` endpoint accepted arbitrary payload sizes and non-image MIME types; `src/lib/cloudinary.js` skipped byte checks on raw base64 data URIs; client modal lacked bounded multi-pass compression | **RESOLVED** |
 | **Session 216** | Sep 21, 2026 | Production Availability & PWA | Service Worker & Ingress | Service Worker navigation fetch with `redirect: manual` caused `opaqueredirect` TypeError on HTTP 3xx responses (Next.js middleware auth redirects to `/`), catching errors as network failures and trapping clients in cached `/offline` "Service Temporarily Unavailable" screen; `OfflineClient.js` reloaded failing URL instead of navigating to `/`; duplicate crontabs between root and kucet-dev caused concurrent monitoring executions | **RESOLVED** |
 | **Session 215** | Sep 18, 2026 | CI / Testing & App Router | Faculty Attendance & Admission | Post-merge regression from branch commit `92e807c82b` deleted App Router dynamic mode route `/take/[mode]`, breaking attendance deep-linking, back navigation, and mode selection; ESLint failure in `requests/page.js` due to undefined `admissionDrafts` in hook dependencies | **RESOLVED** |
 | **Session 214** | Sep 18, 2026 | Performance & Auth Proxy | Session Restoration & Navigation | Proxy 303 redirects (`NextResponse.redirect`) dropped refreshed auth cookies, triggering token reuse revocations and infinite session restoration loops; stale companion cookies not purged on unauthorized redirect; duplicate `Cache-Control` headers in Nginx | **RESOLVED** |
@@ -32,6 +34,81 @@
 ---
 
 ## Detailed Forensics & Technical Resolutions
+
+### 00. Session 217: Forensic Resolution of TiDB Collation Incompatibility (utf8mb4_0900_ai_ci) & Missing Migration Baseline Tracking in CI/CD Pipeline
+
+#### Incident Summary
+Following the merge of PR #114 from `testvanilla` into `main`, GitHub Actions CI/CD job `database-migration-runner` failed during `npm run db:migrate` with:
+```
+Running database migrations via Drizzle ORM...
+Migration failed: Failed query: CREATE TABLE student_achievements (
+    id INT NOT NULL AUTO_INCREMENT,
+    student_id INT NOT NULL,
+    achievement_type VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    ...
+```
+The failure halted automated deployments on the `main` branch.
+
+#### Root Cause Analysis
+1. **Unsupported Collation in TiDB (`COLLATE=utf8mb4_0900_ai_ci`):**
+   - In commit `9a0fd18e`, migration `0021_students_achievements_schema.sql` was authored with:
+     ```sql
+     ) ENGINE=InnoDB
+       DEFAULT CHARSET=utf8mb4
+       COLLATE=utf8mb4_0900_ai_ci;
+     ```
+   - TiDB Cloud (the production MySQL-compatible distributed database) supports `utf8mb4_bin`, `utf8mb4_general_ci`, and `utf8mb4_unicode_ci`.
+   - TiDB does **NOT** support `utf8mb4_0900_ai_ci` (a MySQL 8.0-only collation). Executing DDL with this collation on TiDB throws `ERROR 1273 (HY000): Unknown collation: 'utf8mb4_0900_ai_ci'`.
+2. **Unsupported Foreign Key Constraint Action (`ON UPDATE CASCADE`):**
+   - The original migration included `ON UPDATE CASCADE` on `fk_achievement_student`. In TiDB with foreign key enforcement active, `ON UPDATE CASCADE` is rejected with `ERROR 8200 (HY000): Unsupported constraint action: on update cascade`.
+3. **Missing Multi-Environment Baseline Rule 21 (`src/db/baseline-rules.js`):**
+   - `src/db/baseline-rules.js` contained automated baseline detection rules only up to index 20 (`0020_subject_module_and_elective_groups`).
+   - If `student_achievements` already existed in the target database, Drizzle's migration runner did not detect it, attempting to re-execute the raw SQL without `CREATE TABLE IF NOT EXISTS`, triggering fatal DDL collision crashes.
+4. **Missing Statement Breakpoints:**
+   - In `_journal.json`, entry 21 specified `"breakpoints": true`, but `0021_students_achievements_schema.sql` lacked `--> statement-breakpoint` delimiters, causing the entire file to be treated as a single composite SQL statement.
+
+#### Resolution Steps
+1. **Normalized Migration 0021 DDL (`drizzle/0021_students_achievements_schema.sql`):**
+   - Converted table creation to `CREATE TABLE IF NOT EXISTS \`student_achievements\``.
+   - Stripped engine and collation overrides (`COLLATE=utf8mb4_0900_ai_ci`), defaulting to the server's default charset.
+   - Normalized foreign key to `ON DELETE CASCADE` (supported across TiDB and MySQL).
+   - Added standard `--> statement-breakpoint` between table creation and individual index declarations.
+2. **Added Automated Baseline Rule 21 (`src/db/baseline-rules.js`):**
+   - Added Rule 21 to `BASELINE_RULES` inspecting `information_schema.tables` for `table_name = "student_achievements"`.
+   - If the table exists in the target environment, the migration timestamp is inserted into `__drizzle_migrations`, cleanly preventing re-execution crashes.
+3. **Automated Unit Test Verification:**
+   - Updated `tests/unit/db/baseline-rules.test.js` to verify Rule 21 resolution and dual true/false satisfaction checks.
+   - Verified `npm run db:check` and unit tests pass 100%.
+
+---
+
+### 01. Session 217: Forensic Hardening of Certificate Image Hard 1 MB Limit & Multi-Tier Compression Pipeline
+
+#### Incident Summary
+Auditing recent contributor commits revealed that the new student achievement certificate upload feature in `/student/academics` had no server-side payload size or MIME validation guards. Additionally, `src/lib/cloudinary.js` only checked `File` instances, allowing raw Base64 data URIs of any size to bypass upload limits and consume cloud storage quotas.
+
+#### Root Cause Analysis
+1. **No Server-Side Payload Validation in `POST /api/student/achievements`:**
+   - Accepted arbitrary string values for `certificate_base64` without decoding length or verifying file headers.
+2. **Base64 Data URI Bypass in Cloudinary Provider:**
+   - In `src/lib/cloudinary.js`, the size validation `fileToUpload.size > MAX_SIZE` only executed when `fileToUpload instanceof File`, bypassing direct string uploads.
+3. **Client-Side Modal Permitted Uncompressed Payloads:**
+   - `StudentAchievementModal.js` had obsolete "2MB" helper text and converted selected files directly into base64 without dimension constraints.
+
+#### Resolution Steps
+1. **Multi-Stage Progressive Client Compression:**
+   - Implemented 3-stage bounded compression in `StudentAchievementModal.js` using `@/lib/image-compressor` (1600px q0.8 -> 1200px q0.65 -> 1000px q0.5) ensuring all images compress below 1,048,576 bytes.
+   - Added client-side payload validation on the final compressed base64 string before form submission.
+2. **Server-Side Zero-Trust MIME & Size Inspection:**
+   - Hardened `src/app/api/student/achievements/route.js` and `src/app/api/student/signature/route.js` with regex MIME validation (`image/jpeg`, `image/png`, `image/webp`) and `Buffer.byteLength(base64Data, 'base64') <= 1048576`.
+3. **Storage-Level Invariant Enforcement:**
+   - Hardened `uploadToCloudinary` in `src/lib/cloudinary.js` to decode and check byte length for both buffers and base64 data URIs against `MAX_SIZE = 1 * 1024 * 1024` (1,048,576 bytes).
+   - Verified `LocalStorageProvider.js` enforces the identical 1 MB ceiling.
+4. **Comprehensive Test Suite:**
+   - Authored `tests/unit/api/student/certificate-upload-limit.test.js` with 14 tests covering edge cases: 500 KB, 999 KB, 1,048,575 bytes, 1,048,576 bytes, 1,048,577 bytes, 2 MB, 5 MB, and invalid MIME types. All 14 tests passed.
+
+---
 
 ### 0. Session 216: Forensic Resolution of Service Worker Navigation Redirect Trap, Outage False-Positive & Cron Duplication
 

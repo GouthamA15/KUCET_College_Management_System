@@ -90,4 +90,29 @@ describe('Multi-Environment Drizzle Baseline Rules Registry', () => {
     };
     expect(await rule0020.isSatisfied(mockPartial)).toBe(false);
   });
+
+  it('resolves and evaluates 0021_students_achievements_schema baseline rule', async () => {
+    const rule0021 = BASELINE_RULES.find((r) => r.id === 21);
+    expect(rule0021).toBeDefined();
+
+    const mockEntries = [
+      { idx: 20, tag: '0020_subject_module_and_elective_groups', when: 200 },
+      { idx: 21, tag: '0021_students_achievements_schema', when: 210 },
+    ];
+
+    const matched = rule0021.getEntries(mockEntries);
+    expect(matched.length).toBe(1);
+    expect(matched[0].idx).toBe(21);
+    expect(rule0021.getReason(matched[0])).toContain('student_achievements table already exists');
+
+    const mockConnTrue = {
+      query: vi.fn().mockResolvedValue([[{ count: '1' }]]),
+    };
+    expect(await rule0021.isSatisfied(mockConnTrue)).toBe(true);
+
+    const mockConnFalse = {
+      query: vi.fn().mockResolvedValue([[{ count: '0' }]]),
+    };
+    expect(await rule0021.isSatisfied(mockConnFalse)).toBe(false);
+  });
 });

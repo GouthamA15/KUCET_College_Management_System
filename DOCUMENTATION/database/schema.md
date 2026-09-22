@@ -324,6 +324,30 @@ Immutable audit trail recording every state transition for student admission dra
 - **`student_profile_requests`**: Profile update request workflow (`status: 'pending' | 'approved' | 'rejected'`).
 - **`student_import_logs`**: Bulk Excel/CSV student onboarding audit logs.
 
+### Table: `student_achievements`
+
+Stores student extracurricular, technical, research, competition, and internship achievements along with verified digital credentials and certificates.
+
+- `id` (`INT`, Auto Increment, Primary Key)
+- `student_id` (`INT`, Not Null, Index: `idx_achievement_student`) → Foreign key referencing `students.id` (`ON DELETE CASCADE`)
+- `achievement_type` (`VARCHAR(50)`, Not Null, Index: `idx_achievement_type`) — Category (e.g. `Certification`, `Competition`, `Hackathon`, `Internship`, `Workshop`, `Seminar`, `Publication`, `Research`, `Project`, `Sports`, `Cultural`, `Leadership`, `Volunteer`, `Other`)
+- `title` (`VARCHAR(255)`, Not Null) — Achievement or competition title
+- `program_name` (`VARCHAR(255)`) — Optional event, summit, or program name
+- `issuing_organization` (`VARCHAR(255)`) — Issuing entity or organization
+- `academic_year` (`VARCHAR(9)`, Not Null, Index: `idx_achievement_academic_year`) — Academic year format (e.g. `2025-2026`)
+- `achievement_date` (`DATE`, Index: `idx_achievement_date`) — Date of achievement or issue
+- `start_date` (`DATE`) — Start date (for internships/projects)
+- `end_date` (`DATE`) — End date (for internships/projects)
+- `achievement_level` (`VARCHAR(50)`) — Scope level (`College`, `University`, `State`, `National`, `International`)
+- `recognition` (`VARCHAR(100)`) — Distinction or position (e.g. `First Place`, `Gold Medal`, `Merit Award`, `Completed`)
+- `description` (`TEXT`) — Summary details and description
+- `certificate_file_path` (`VARCHAR(500)`) — Canonical relative storage key for certificate image (e.g. `kucet/student/achievements/<uuid>.webp`)
+- `certificate_mime_type` (`VARCHAR(100)`) — MIME type (e.g. `image/jpeg`, `image/png`, `image/webp`)
+- `additional_data` (`JSON`) — Dynamic metadata snapshot
+- `created_at` (`TIMESTAMP`, Default: `NOW()`, Not Null)
+- `updated_at` (`TIMESTAMP`, Default: `NOW()`, Not Null, On Update: `CURRENT_TIMESTAMP`)
+- Compound Index: `idx_achievement_student_year` on (`student_id`, `academic_year`)
+
 ---
 
 ## 4. Attendance Domain

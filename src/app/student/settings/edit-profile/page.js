@@ -231,8 +231,9 @@ export default function EditProfilePage() {
         }
       }
 
-      if (processedFile.size > 5 * 1024 * 1024) {
-        toast.error('File exceeds 5MB limit.');
+      const MAX_BYTES = 1048576; // 1 MB = 1,048,576 bytes
+      if (processedFile.size > MAX_BYTES) {
+        toast.error(`File exceeds the 1 MB limit (1,048,576 bytes). Current size: ${(processedFile.size / (1024 * 1024)).toFixed(2)} MB.`);
         return;
       }
       

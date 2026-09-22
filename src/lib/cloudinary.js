@@ -100,8 +100,22 @@ export async function uploadToCloudinary(file, folder, publicId = null) {
   }
   // Handle Buffers
   else if (Buffer.isBuffer(file)) {
+    const MAX_SIZE = 1 * 1024 * 1024;
+    if (file.length > MAX_SIZE) {
+      throw new Error(`File too large (${(file.length / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1MB.`);
+    }
     const base64 = file.toString('base64');
     fileToUpload = `data:image/jpeg;base64,${base64}`;
+  }
+  // Handle Base64 Data URIs
+  else if (typeof file === 'string' && file.startsWith('data:')) {
+    const matches = file.match(/^data:([A-Za-z-+/0-9]+);base64,(.+)$/);
+    const base64Content = matches ? matches[2] : (file.split(',')[1] || file);
+    const byteLength = Buffer.byteLength(base64Content, 'base64');
+    const MAX_SIZE = 1 * 1024 * 1024;
+    if (byteLength > MAX_SIZE) {
+      throw new Error(`File too large (${(byteLength / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1MB.`);
+    }
   }
 
   const cleanPublicId = typeof publicId === 'string' && publicId.trim() && !publicId.includes('[object') 

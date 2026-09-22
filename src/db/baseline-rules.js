@@ -85,6 +85,18 @@ const BASELINE_RULES = [
     },
     getReason: () => 'staff_account_id and elective_groups already exist',
   },
+  {
+    id: 21,
+    description: '0021_students_achievements_schema',
+    getEntries: (entries) => entries.filter((e) => e.idx === 21),
+    isSatisfied: async (conn) => {
+      const [r] = await conn.query(
+        'SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = "student_achievements"'
+      );
+      return Number(r?.[0]?.count || 0) > 0;
+    },
+    getReason: () => 'student_achievements table already exists',
+  },
 ];
 
 module.exports = {

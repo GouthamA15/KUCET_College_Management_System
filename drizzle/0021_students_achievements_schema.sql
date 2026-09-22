@@ -1,47 +1,32 @@
-CREATE TABLE student_achievements (
-    id INT NOT NULL AUTO_INCREMENT,
-
-    student_id INT NOT NULL,
-
-    achievement_type VARCHAR(50) NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    program_name VARCHAR(255) DEFAULT NULL,
-    issuing_organization VARCHAR(255) DEFAULT NULL,
-
-    academic_year VARCHAR(9) NOT NULL,
-
-    achievement_date DATE DEFAULT NULL,
-    start_date DATE DEFAULT NULL,
-    end_date DATE DEFAULT NULL,
-
-    achievement_level VARCHAR(50) DEFAULT NULL,
-    recognition VARCHAR(100) DEFAULT NULL,
-
-    description TEXT DEFAULT NULL,
-
-    certificate_file_path VARCHAR(500) DEFAULT NULL,
-    certificate_mime_type VARCHAR(100) DEFAULT NULL,
-
-    additional_data JSON DEFAULT NULL,
-
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-
-    PRIMARY KEY (id),
-
-    KEY idx_achievement_student (student_id),
-    KEY idx_achievement_type (achievement_type),
-    KEY idx_achievement_academic_year (academic_year),
-    KEY idx_achievement_date (achievement_date),
-    KEY idx_achievement_student_year (student_id, academic_year),
-
-    CONSTRAINT fk_achievement_student
-        FOREIGN KEY (student_id)
-        REFERENCES students(id)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE
-
-) ENGINE=InnoDB
-  DEFAULT CHARSET=utf8mb4
-  COLLATE=utf8mb4_0900_ai_ci;
+CREATE TABLE IF NOT EXISTS `student_achievements` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`student_id` int NOT NULL,
+	`achievement_type` varchar(50) NOT NULL,
+	`title` varchar(255) NOT NULL,
+	`program_name` varchar(255),
+	`issuing_organization` varchar(255),
+	`academic_year` varchar(9) NOT NULL,
+	`achievement_date` date,
+	`start_date` date,
+	`end_date` date,
+	`achievement_level` varchar(50),
+	`recognition` varchar(100),
+	`description` text,
+	`certificate_file_path` varchar(500),
+	`certificate_mime_type` varchar(100),
+	`additional_data` json,
+	`created_at` timestamp DEFAULT (now()) NOT NULL,
+	`updated_at` timestamp DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP NOT NULL,
+	CONSTRAINT `student_achievements_id` PRIMARY KEY(`id`),
+	CONSTRAINT `fk_achievement_student` FOREIGN KEY (`student_id`) REFERENCES `students`(`id`) ON DELETE CASCADE
+);
+--> statement-breakpoint
+CREATE INDEX `idx_achievement_student` ON `student_achievements` (`student_id`);
+--> statement-breakpoint
+CREATE INDEX `idx_achievement_type` ON `student_achievements` (`achievement_type`);
+--> statement-breakpoint
+CREATE INDEX `idx_achievement_academic_year` ON `student_achievements` (`academic_year`);
+--> statement-breakpoint
+CREATE INDEX `idx_achievement_date` ON `student_achievements` (`achievement_date`);
+--> statement-breakpoint
+CREATE INDEX `idx_achievement_student_year` ON `student_achievements` (`student_id`, `academic_year`);

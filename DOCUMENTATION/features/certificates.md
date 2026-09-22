@@ -209,10 +209,67 @@ When a student downloads an approved certificate (`/api/student/requests/downloa
 
 ---
 
-## 8. Cross-References
+## 8. Student Achievement Certificates & Hard 1 MB Media Limit Pipeline
+
+In addition to institutional PDF issuance, KUCET CMS allows students to register verifiable extracurricular, academic, and professional achievements (`/student/academics` -> Achievements tab) by uploading evidence certificates.
+
+### 1. Inviolable 1 MB (1,048,576 Bytes) Storage Limit
+
+To prevent storage abuse, memory bloat, and network latency on mobile connections, all certificate image uploads are subject to an inviolable **Hard 1 MB Limit** (`1,048,576 bytes`).
+
+```mermaid
+flowchart TD
+    A[Student File Selection] --> B{MIME Check: image/jpeg, png, webp}
+    B -->|Invalid| C[Reject with Toast Notification]
+    B -->|Valid Image| D[Progressive 3-Stage Client Compression]
+    
+    D --> D1[Pass 1: 1600x1600 @ 0.8 quality]
+    D1 --> D2{Size <= 1,048,576 B?}
+    D2 -->|No| D3[Pass 2: 1200x1200 @ 0.65 quality]
+    D3 --> D4{Size <= 1,048,576 B?}
+    D4 -->|No| D5[Pass 3: 1000x1000 @ 0.5 quality]
+    D4 -->|Yes| E[Validate Final Payload Size]
+    D5 --> E
+    
+    E -->|Final Size > 1 MB| F[Reject: Image exceeds 1 MB limit]
+    E -->|Final Size <= 1 MB| G[Render Live Preview + Size Badge]
+    
+    G --> H[Pre-Submit Base64 Size Check]
+    H --> I[POST /api/student/achievements]
+    
+    I --> J{Server-Side MIME & Buffer.byteLength <= 1 MB?}
+    J -->|No| K[Return HTTP 400 Bad Request]
+    J -->|Yes| L[Cloudinary / LocalStorage Invariant Guard]
+    
+    L --> M{Storage Byte Size <= 1 MB?}
+    M -->|No| N[Throw Storage Error]
+    M -->|Yes| O[Store Relative Key: kucet/student/achievements/uuid.webp]
+    O --> P[Insert student_achievements row in DB]
+```
+
+### 2. Multi-Layer Guard Architecture
+
+1. **Client-Side Progressive Compression (`StudentAchievementModal.js`)**:
+   - Uses `@/lib/image-compressor` to compress images across 3 progressive bounded passes before base64 encoding.
+   - Preserves high visual fidelity for text legibility while guaranteeing payload reduction.
+   - Calculates exact decoded byte size of the final base64 payload before form submission:
+     `byteLength = Math.ceil((base64Data.length * 3) / 4) - padding`.
+2. **Server-Side Zero-Trust Validation (`/api/student/achievements/route.js`)**:
+   - Validates MIME type strictly against `image/jpeg`, `image/jpg`, `image/png`, and `image/webp` using regex. Non-image formats (e.g. PDFs or executables) are rejected with HTTP 400.
+   - Validates decoded buffer length: `Buffer.byteLength(base64Data, 'base64') <= 1048576`. Returns HTTP 400 with exact byte and MB diagnostics if breached.
+3. **Storage Provider Invariant Guard (`src/lib/cloudinary.js` & `LocalStorageProvider.js`)**:
+   - `uploadToCloudinary` validates both `Buffer` length and raw Base64 data URI payload length against `MAX_SIZE = 1 * 1024 * 1024` (1,048,576 bytes).
+   - `LocalStorageProvider.upload` enforces `file.length <= 1048576`.
+4. **Automated Unit Test Verification**:
+   - Covered by `tests/unit/api/student/certificate-upload-limit.test.js` (14 unit tests) verifying boundary cases: 500 KB (PASS), 999 KB (PASS), 1,048,575 bytes (PASS), 1,048,576 bytes (PASS), 1,048,577 bytes (REJECT), 2 MB (REJECT), 5 MB (REJECT), non-image MIME (REJECT).
+
+---
+
+## 9. Cross-References
 
 - Student Requests Workflow: [requests.md](./requests.md)
 - Admissions System: [admissions.md](./admissions.md)
 - System Storage Architecture: [storage.md](../architecture/storage.md)
 - Database Schema Documentation: [schema.md](../database/schema.md)
+
 

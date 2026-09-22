@@ -6,11 +6,12 @@ import toast from 'react-hot-toast';
 import AcademicYearSelect, { getCurrentFrontendAcademicYear } from '@/components/ui/AcademicYearSelect';
 import { getAssetUrl } from '@/lib/assets';
 import { compressImage } from '@/lib/image-compressor';
-
 import { ACHIEVEMENT_TYPES, ACHIEVEMENT_CONFIG } from '@/lib/achievement-config';
 
 export default function StudentAchievementModal({ onClose, onSaveSuccess, achievement = null }) {
   const [loading, setLoading] = useState(false);
+  const [compressing, setCompressing] = useState(false);
+  const [fileSizeInfo, setFileSizeInfo] = useState('');
   const fileInputRef = useRef(null);
 
   const isEditMode = !!achievement;
@@ -26,7 +27,7 @@ export default function StudentAchievementModal({ onClose, onSaveSuccess, achiev
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return '';
       return d.toISOString().split('T')[0];
-    } catch (e) {
+    } catch (_e) {
       return '';
     }
   };
@@ -34,7 +35,7 @@ export default function StudentAchievementModal({ onClose, onSaveSuccess, achiev
   const parseAdditional = (data) => {
     if (!data) return {};
     if (typeof data === 'string') {
-      try { return JSON.parse(data); } catch(e) { return {}; }
+      try { return JSON.parse(data); } catch(_e) { return {}; }
     }
     return data;
   };
@@ -96,42 +97,56 @@ export default function StudentAchievementModal({ onClose, onSaveSuccess, achiev
   };
 
   const handleFileChange = async (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      toast.error('Please select a valid image file');
+      toast.error('Please select a valid image file (JPEG, PNG, WebP).');
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
-    let finalFile = file;
+    const MAX_CERTIFICATE_BYTES = 1048576; // 1 MB = 1,048,576 bytes
+    let processedFile = file;
 
-    if (file.size > 1024 * 1024) {
-      const loadingToast = toast.loading('Compressing image...');
-      try {
-        finalFile = await compressImage(file, 1600, 1600, 0.7);
-        toast.dismiss(loadingToast);
-        
-        if (finalFile.size > 1024 * 1024) {
-             finalFile = await compressImage(finalFile, 1200, 1200, 0.5);
-        }
-        if (finalFile.size > 1024 * 1024) {
-             toast.error('Image is still too large after compression. Please upload a smaller image.');
-             return;
-        }
-      } catch (err) {
-        toast.dismiss(loadingToast);
-        toast.error('Failed to compress image');
-        return;
+    setCompressing(true);
+    try {
+      // Pass 1: High quality preservation for certificate readability (1600x1600, quality 0.8)
+      processedFile = await compressImage(file, 1600, 1600, 0.8);
+
+      // Pass 2: If still exceeds 1MB, reduce dimensions & quality (1200x1200, quality 0.65)
+      if (processedFile.size > MAX_CERTIFICATE_BYTES) {
+        processedFile = await compressImage(file, 1200, 1200, 0.65);
       }
+
+      // Pass 3: Final bounded attempt if still > 1MB (1000x1000, quality 0.5)
+      if (processedFile.size > MAX_CERTIFICATE_BYTES) {
+        processedFile = await compressImage(file, 1000, 1000, 0.5);
+      }
+    } catch (compressErr) {
+      console.error('Certificate compression failed, using original file:', compressErr);
+    } finally {
+      setCompressing(false);
     }
+
+    // Strict validation on FINAL compressed payload
+    if (processedFile.size > MAX_CERTIFICATE_BYTES) {
+      toast.error(`Certificate image exceeds the 1 MB limit (1,048,576 bytes). Final compressed size is ${(processedFile.size / (1024 * 1024)).toFixed(2)} MB. Please choose a smaller certificate image.`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    const sizeFormatted = processedFile.size < 1024 * 1024
+      ? `${(processedFile.size / 1024).toFixed(1)} KB`
+      : `${(processedFile.size / (1024 * 1024)).toFixed(2)} MB`;
+    setFileSizeInfo(sizeFormatted);
 
     const reader = new FileReader();
     reader.onload = (event) => {
       setPreviewImage(event.target.result);
       setForm(prev => ({ ...prev, certificate_base64: event.target.result }));
     };
-    reader.readAsDataURL(finalFile);
+    reader.readAsDataURL(processedFile);
   };
 
   const validateForm = () => {
@@ -166,6 +181,17 @@ export default function StudentAchievementModal({ onClose, onSaveSuccess, achiev
     if (errorMsg) {
       toast.error(errorMsg);
       return;
+    }
+
+    // Verify final base64 payload size before sending to server (if new certificate provided)
+    if (form.certificate_base64) {
+      const base64Data = form.certificate_base64.split(',')[1] || form.certificate_base64;
+      const byteLength = Math.ceil((base64Data.length * 3) / 4) - (base64Data.endsWith('==') ? 2 : base64Data.endsWith('=') ? 1 : 0);
+      const MAX_CERTIFICATE_BYTES = 1048576; // 1 MB = 1,048,576 bytes
+      if (byteLength > MAX_CERTIFICATE_BYTES) {
+        toast.error(`Certificate image exceeds the 1 MB limit (1,048,576 bytes). Current payload is ${(byteLength / (1024 * 1024)).toFixed(2)} MB.`);
+        return;
+      }
     }
 
     setLoading(true);
@@ -342,33 +368,54 @@ export default function StudentAchievementModal({ onClose, onSaveSuccess, achiev
                         <ImageIcon className="w-4 h-4" /> Current Certificate
                       </p>
                       <p className="text-xs text-gray-500 mb-3 mt-1">This image is currently attached to your achievement. You can upload a new one to replace it.</p>
-                      <button type="button" onClick={() => fileInputRef.current?.click()} className="text-xs bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors font-medium">
-                        Select New Image
+                      <button 
+                        type="button" 
+                        onClick={() => !compressing && fileInputRef.current?.click()} 
+                        disabled={compressing}
+                        className="text-xs bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors font-medium flex items-center gap-1.5 mx-auto sm:mx-0"
+                      >
+                        {compressing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                        {compressing ? 'Compressing...' : 'Select New Image'}
                       </button>
                     </div>
                   </div>
                 ) : !previewImage ? (
                   <div 
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => !compressing && fileInputRef.current?.click()}
                     className="border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors bg-white"
                   >
-                    <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                    <p className="text-sm text-gray-600 font-medium">Click to upload certificate</p>
-                    <p className="text-xs text-gray-400 mt-1">PNG, JPG (Auto-compressed to &le; 1MB)</p>
+                    {compressing ? (
+                      <div className="flex flex-col items-center py-2">
+                        <Loader2 className="w-8 h-8 text-[#0b3578] animate-spin mb-2" />
+                        <p className="text-sm font-semibold text-gray-700">Compressing & optimizing certificate...</p>
+                        <p className="text-xs text-gray-400 mt-1">Ensuring strictly under 1 MB</p>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                        <p className="text-sm text-gray-600 font-medium">Click to upload certificate</p>
+                        <p className="text-xs text-gray-400 mt-1">PNG, JPG, WebP (Strict 1 MB limit &bull; 1,048,576 bytes)</p>
+                      </>
+                    )}
                   </div>
                 ) : (
-                  <div className="relative rounded-lg border border-gray-200 p-2 bg-gray-50 flex items-center justify-center min-h-[160px]">
-                    <img src={previewImage} alt="Certificate preview" className="max-h-48 rounded object-contain shadow-sm" />
+                  <div className="relative rounded-lg border border-gray-200 p-3 bg-gray-50 flex flex-col items-center justify-center min-h-[160px]">
+                    <img src={previewImage} alt="Certificate preview" className="max-h-48 rounded object-contain mb-2 shadow-sm" />
+                    {fileSizeInfo && (
+                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 mb-2">
+                        Optimized Size: {fileSizeInfo} (Under 1 MB limit)
+                      </span>
+                    )}
                     <button 
                       type="button" 
-                      onClick={() => { setPreviewImage(null); setForm(prev => ({...prev, certificate_base64: null})); }}
+                      onClick={() => { setPreviewImage(null); setFileSizeInfo(''); setForm(prev => ({...prev, certificate_base64: null})); }}
                       className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-md hover:bg-gray-100 text-gray-600 hover:text-red-600 transition-colors"
                     >
                       <X className="w-4 h-4" />
                     </button>
                     {isEditMode && (
-                      <div className="absolute bottom-2 left-0 right-0 text-center pointer-events-none">
-                        <span className="bg-black/60 text-white text-[10px] uppercase font-bold px-2 py-1 rounded">Replacement Image Ready</span>
+                      <div className="text-center pointer-events-none mt-1">
+                        <span className="bg-black/60 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded">Replacement Image Ready</span>
                       </div>
                     )}
                   </div>
@@ -380,11 +427,11 @@ export default function StudentAchievementModal({ onClose, onSaveSuccess, achiev
         </div>
 
         <div className="px-5 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0">
-          <button type="button" onClick={onClose} disabled={loading}
+          <button type="button" onClick={onClose} disabled={loading || compressing}
             className="px-4 py-2 border border-gray-300 rounded-md text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors">
             Cancel
           </button>
-          <button type="submit" form="achievement-form" disabled={loading}
+          <button type="submit" form="achievement-form" disabled={loading || compressing}
             className="px-4 py-2 rounded-md text-sm font-semibold text-white bg-[#0b3578] hover:bg-[#0f449a] transition-colors flex items-center gap-2">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {loading ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Save Achievement')}

@@ -250,7 +250,31 @@ const result = await db.transaction(async (tx) => {
 
 ---
 
-## 8. Cross-References
+## 8. Finalize Admissions Workspace & Scoped Branch Filter
+
+On `/staff/admission/finalize`, clerks perform final enrollment, verify physical certificates, assign institutional roll numbers, and promote student drafts into active database tables.
+
+### Scoped Branch Selection Invariant (`allowAllBranches={false}`)
+
+1. **Cohort-Specific Operational Requirement**:
+   - Finalizing admissions requires focused batch processing by specific engineering department cohorts (e.g. `CSE`, `CSD`, `ECE`, `EEE`, `CIVIL`, `IT`, `MECH`).
+   - Selecting "All Branches" during finalization causes roll-number allocation confusion and cross-branch batching errors.
+2. **Targeted UI Isolation**:
+   - `AdmissionWorkspaceFilter.js` accepts the prop `allowAllBranches={false}` on `/staff/admission/finalize`.
+   - The dropdown strictly renders only the individual engineering branches (`CSE`, `CSD`, `ECE`, `EEE`, `CIVIL`, `IT`, `MECH`) without "All Branches".
+   - It defaults gracefully to the first department cohort (`CSE`), loading eligible finalizable students immediately upon page load.
+3. **Global Preservation Guarantee**:
+   - "All Branches" is strictly preserved across all other admission and reporting pages:
+     - Student Registry (`/staff/admission/registry`)
+     - Admission Requests (`/staff/admission/requests`)
+     - Admission Dashboard & Reports (`/staff/admission/dashboard`)
+     - Draft Admissions Workspace (`/staff/admission/drafts`)
+     - Finalized Students Directory (`/staff/admission/finalized`)
+     - Super Admin and Student Console filters
+
+---
+
+## 9. Cross-References
 
 - Database Schemas: [schema.md](../database/schema.md)
 - Storage Lifecycle & Media Promotion: [requests.md](./requests.md)

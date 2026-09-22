@@ -150,6 +150,26 @@ export async function POST(req) {
         if (encryptedData.aadhaar_no) encryptedData.aadhaar_no = encrypt(encryptedData.aadhaar_no);
     }
     
+    // Validate file sizes for any provided base64 data URIs
+    const MAX_FILE_BYTES = 1048576; // 1 MB (1,048,576 bytes)
+    const validateDataUri = (dataUri, label) => {
+      if (typeof dataUri === 'string' && dataUri.startsWith('data:')) {
+        const base64Data = dataUri.split(',')[1] || '';
+        const byteLength = Math.ceil((base64Data.length * 3) / 4) - (base64Data.endsWith('==') ? 2 : base64Data.endsWith('=') ? 1 : 0);
+        if (byteLength > MAX_FILE_BYTES) {
+          throw new Error(`${label} exceeds the maximum allowed size of 1 MB (1,048,576 bytes). Current: ${(byteLength / (1024 * 1024)).toFixed(2)} MB.`);
+        }
+      }
+    };
+
+    try {
+      if (signature && signature !== 'REMOVE') validateDataUri(signature, 'Signature image');
+      if (pfp && pfp !== 'REMOVE') validateDataUri(pfp, 'Profile photo');
+      if (proof) validateDataUri(proof, 'Proof document');
+    } catch (valErr) {
+      return apiError(valErr.message, 400);
+    }
+
     // Upload images to Cloudinary / Local storage if provided
     const { STORAGE_FOLDERS } = await import('@/lib/storage-config');
     let signatureUrl = null;

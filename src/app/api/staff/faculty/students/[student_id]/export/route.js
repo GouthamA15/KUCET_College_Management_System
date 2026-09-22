@@ -9,12 +9,13 @@ import {
 import { studentMarks } from '@/db/schema/operations';
 import { studentFeePayments } from '@/db/schema/finance';
 import { staffAcademicAffiliations, academicPrograms } from '@/db/schema';
-import { eq, inArray } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { getAuthUser, apiError } from '@/lib/api-utils';
-import { branchCodes } from '@/lib/rollNumber';
+import { branchCodes, getBranchFromRoll, getEntryYearFromRoll } from '@/lib/rollNumber';
 import { getAssetUrl } from '@/lib/assets';
 import { resolveLocalFilePath } from '@/app/api/assets/view/[...path]/route';
-import { ACHIEVEMENT_CONFIG } from '@/lib/achievement-config';
+import { decrypt } from '@/lib/encryption';
+import logger from '@/lib/logger';
 import ExcelJS from 'exceljs';
 import fs from 'fs';
 import { formatDate } from '@/lib/date';
@@ -37,7 +38,7 @@ async function fetchAssetBuffer(assetPath) {
        }
     }
   } catch (err) {
-    console.error('Failed to fetch asset buffer', err);
+    logger.error({ err }, 'Failed to fetch asset buffer for Excel export');
   }
   return null;
 }
@@ -52,7 +53,7 @@ export async function GET(request, { params }) {
     const { student_id } = await params;
     if (!student_id) return apiError('Student ID is required', 400);
 
-    let studentIdNum = parseInt(student_id);
+    let studentIdNum = parseInt(student_id, 10);
     if (isNaN(studentIdNum)) return apiError('Invalid ID', 400);
 
     const studentRecord = await db.select().from(studentsTable).where(eq(studentsTable.id, studentIdNum));
@@ -61,7 +62,7 @@ export async function GET(request, { params }) {
     }
     const student = studentRecord[0];
 
-    // 1. Authorize exactly like class-lookup & achievements
+    // 1. Authorize: Faculty/HOD must be affiliated with student's branch
     if (user.role !== 'admin') {
       const affil = await db.select({ 
         prog_code: academicPrograms.program_code 
@@ -81,12 +82,16 @@ export async function GET(request, { params }) {
       else if (matchLe) branchCode = matchLe[1];
       else if (rollNo.length === 10) branchCode = rollNo.substring(6, 8);
 
-      if (!branchCode || !allowedBranchCodes.includes(branchCode)) {
+      const branchName = getBranchFromRoll(rollNo);
+      const isAuthorizedBranch = (branchCode && allowedBranchCodes.includes(branchCode)) || 
+                                 (branchName && allowedPrograms.includes(branchName));
+
+      if (!isAuthorizedBranch) {
         return apiError('Unauthorized to view this student', 403);
       }
     }
 
-    // 2. Fetch everything
+    // 2. Fetch student domain records
     const personalDetails = await db.select().from(studentPersonalDetails).where(eq(studentPersonalDetails.student_id, studentIdNum));
     const academicBg = await db.select().from(studentAcademicBackground).where(eq(studentAcademicBackground.student_id, studentIdNum));
     const performance = await db.select().from(studentMarks).where(eq(studentMarks.student_id, studentIdNum));
@@ -114,25 +119,54 @@ export async function GET(request, { params }) {
     const profileSheet = workbook.addWorksheet('Student Profile');
     applyHeaderStyle(profileSheet, ['Field', 'Value']);
     const pd = personalDetails[0] || {};
+    
+    // Decrypt sensitive fields safely
+    let decryptedMobile = 'N/A';
+    try {
+      if (student.mobile) decryptedMobile = decrypt(student.mobile) || student.mobile;
+    } catch (_e) {
+      decryptedMobile = 'Error decrypting';
+    }
+
+    let decryptedGuardianMobile = 'N/A';
+    try {
+      if (pd.guardian_mobile) decryptedGuardianMobile = decrypt(pd.guardian_mobile) || pd.guardian_mobile;
+    } catch (_e) {
+      decryptedGuardianMobile = 'Error decrypting';
+    }
+
+    let decryptedAadhaar = 'N/A';
+    try {
+      if (pd.aadhaar_no) decryptedAadhaar = decrypt(pd.aadhaar_no) || pd.aadhaar_no;
+    } catch (_e) {
+      decryptedAadhaar = 'Error decrypting';
+    }
+
+    const branch = getBranchFromRoll(student.roll_no) || 'N/A';
+    const entryYear = getEntryYearFromRoll(student.roll_no) || 'N/A';
+    const permAddress = [pd.perm_house_no, pd.perm_street, pd.perm_city, pd.perm_state, pd.perm_pincode, pd.perm_country].filter(Boolean).join(', ');
+    const currAddress = [pd.curr_house_no, pd.curr_street, pd.curr_city, pd.curr_state, pd.curr_pincode, pd.curr_country].filter(Boolean).join(', ');
+
     const profileData = [
       ['Roll Number', student.roll_no],
       ['Name', student.name],
       ['Email', student.email],
-      ['Phone', student.phone],
-      ['Branch', student.branch],
-      ['Current Year', student.current_year || ''],
-      ['Batch', student.batch_year || ''],
+      ['Phone', decryptedMobile],
+      ['Branch', branch],
       ['Admission No', student.admission_no || ''],
-      ['Date of Birth', formatDate(student.dob) || student.dob || ''],
-      ['Father Name', student.father_name || ''],
-      ['Mother Name', student.mother_name || ''],
-      ['Address', student.address || ''],
-      ['Gender', pd.gender || ''],
+      ['Entry Year', entryYear],
+      ['Date of Birth', formatDate(student.date_of_birth) || student.date_of_birth || ''],
+      ['Gender', student.gender || pd.gender || ''],
+      ['Fee Reimbursement', student.fee_reimbursement || 'NO'],
+      ['Status', student.student_status || 'ACTIVE'],
+      ['Father Name', pd.father_name || ''],
+      ['Mother Name', pd.mother_name || ''],
       ['Category', pd.category || ''],
       ['Blood Group', pd.blood_group || ''],
-      ['Aadhar Number', pd.aadhar_number || ''],
-      ['Parent Phone', pd.parent_phone || ''],
-      ['Permanent Address', [pd.perm_house_no, pd.perm_street, pd.perm_village, pd.perm_mandal, pd.perm_district, pd.perm_state, pd.perm_pincode].filter(Boolean).join(', ')],
+      ['Aadhaar Number', decryptedAadhaar],
+      ['Parent/Guardian Phone', decryptedGuardianMobile],
+      ['Permanent Address', permAddress || 'N/A'],
+      ['Current Address', currAddress || permAddress || 'N/A'],
     ];
     profileData.forEach(row => profileSheet.addRow(row));
     profileSheet.getColumn(1).width = 25;
@@ -143,12 +177,12 @@ export async function GET(request, { params }) {
     applyHeaderStyle(acadSheet, ['Level', 'Institution', 'Board/University', 'Year of Passing', 'Percentage', 'Grade']);
     academicBg.forEach(ab => {
       acadSheet.addRow([
-        ab.education_level || 'N/A',
-        ab.institution_name || 'N/A',
-        ab.board_university || 'N/A',
-        ab.year_of_passing || 'N/A',
-        ab.percentage || 'N/A',
-        ab.grade || 'N/A'
+        ab.qualifying_exam || 'N/A',
+        ab.previous_college_details || 'N/A',
+        ab.medium_of_instruction || 'N/A',
+        ab.ssc_marks || 'N/A',
+        ab.inter_marks || 'N/A',
+        ab.ranks || 'N/A'
       ]);
     });
     acadSheet.columns.forEach(c => c.width = 20);
@@ -195,7 +229,7 @@ export async function GET(request, { params }) {
     achSheet.getColumn(5).width = 40;
     achSheet.getColumn(6).width = 45;
 
-    let currentRow = 2; // header is 1
+    let currentRow = 2; // header is row 1
     for (const ach of achievements) {
       achSheet.addRow([
         ach.achievement_type,
@@ -205,8 +239,6 @@ export async function GET(request, { params }) {
         ach.description || 'N/A',
         '' // Image placeholder
       ]);
-      
-      const config = ACHIEVEMENT_CONFIG[ach.achievement_type] || {};
 
       if (ach.certificate_file_path) {
         achSheet.getRow(currentRow).height = 100;
@@ -216,7 +248,7 @@ export async function GET(request, { params }) {
             let imgExt = 'jpeg';
             const ext = ach.certificate_file_path.split('.').pop()?.toLowerCase();
             if (ext === 'png') imgExt = 'png';
-            if (ext === 'gif') imgExt = 'gif';
+            if (ext === 'webp') imgExt = 'png'; // ExcelJS image embedding supports png/jpeg/gif
 
             const imageId = workbook.addImage({
               buffer: imgBuffer,
@@ -231,7 +263,7 @@ export async function GET(request, { params }) {
              achSheet.getCell(currentRow, 6).value = 'Not uploaded (or missing)';
           }
         } catch (e) {
-          console.error('Failed embedding image', e);
+          logger.error({ err: e }, 'Failed embedding certificate image into Excel');
           achSheet.getCell(currentRow, 6).value = 'Error fetching certificate';
         }
       } else {
@@ -250,9 +282,8 @@ export async function GET(request, { params }) {
         'Content-Disposition': `attachment; filename="Student_${student.roll_no}_Complete_Record.xlsx"`
       }
     });
-
   } catch (error) {
-    console.error('Individual Export Error:', error);
-    return apiError('Server error generating export', 500);
+    logger.error({ err: error }, 'Exporting student comprehensive data failed');
+    return apiError('Internal Server Error', 500);
   }
 }

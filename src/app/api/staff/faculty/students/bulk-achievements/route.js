@@ -4,7 +4,8 @@ import { studentAchievements } from '@/db/schema';
 import { staffAcademicAffiliations, students as studentsTable, academicPrograms } from '@/db/schema';
 import { inArray, eq } from 'drizzle-orm';
 import { getAuthUser, apiError } from '@/lib/api-utils';
-import { branchCodes } from '@/lib/rollNumber';
+import { branchCodes, getBranchFromRoll } from '@/lib/rollNumber';
+import logger from '@/lib/logger';
 
 export async function POST(request) {
   try {
@@ -45,7 +46,9 @@ export async function POST(request) {
           else if (matchLe) branchCode = matchLe[1];
           else if (rollNo.length === 10) branchCode = rollNo.substring(6, 8);
 
-          return branchCode && allowedBranchCodes.includes(branchCode);
+          const branchName = getBranchFromRoll(rollNo);
+          return (branchCode && allowedBranchCodes.includes(branchCode)) || 
+                 (branchName && allowedPrograms.includes(branchName));
         })
         .map(s => s.id);
     }
@@ -60,6 +63,7 @@ export async function POST(request) {
 
     return NextResponse.json({ data: achievements });
   } catch (error) {
+    logger.error({ err: error }, 'Server error generating bulk achievements');
     return apiError('Server error generating bulk achievements', 500);
   }
 }
