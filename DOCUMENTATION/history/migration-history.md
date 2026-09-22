@@ -233,7 +233,57 @@ Prior to Session 210, rejecting a student admission draft executed an unrecovera
 
 ---
 
-## 11. Cross-References & Related Documentation
+## 11. Session 214 — Subject Module Schema, Staff Accounts Keys & Elective Groups (September 11, 2026)
+
+### Key Engineering Milestones:
+- **Migration `0020_subject_module_and_elective_groups.sql`**:
+  - Migrated `faculty_subject_assignments.faculty_id` to `staff_account_id` foreign key referencing `staff_accounts.id` with `ON DELETE RESTRICT`.
+  - Added elective group tables (`elective_groups`, `elective_group_subjects`) supporting semester elective pooling.
+  - Added baseline rule 20 in `src/db/baseline-rules.js` to ensure dual-condition verification (`staff_account_id` in `faculty_subject_assignments` and `elective_groups` table existence) before applying DDL in existing environments.
+- **Test Suite Verification**: **74/74 test files passed (612/612 unit tests passed)**.
+
+---
+
+## 12. Session 215 & 216 — App Router Deep-Linking & Production Service Worker Resolution (September 18–21, 2026)
+
+### Key Engineering Milestones:
+- **Attendance Deep-Linking Route Restoration**:
+  - Restored dynamic App Router structure `/staff/faculty/attendance/[assignmentId]/take/[mode]` preserving backward compatibility with direct URL bookmarks and Playwright suites.
+- **Service Worker Navigation Redirect Resolution**:
+  - Resolved `opaqueredirect` TypeError when browsers encountered Next.js middleware 3xx auth redirects under `redirect: 'manual'` navigation mode.
+  - Enforced `redirect: 'follow'` for all navigation requests in `public/sw.js` and bumped cache to `v7`.
+  - Hardened `/offline` recovery navigation to always redirect to `/` via `window.location.replace('/')`.
+- **IST Time Machine Hours Hardening**:
+  - Enforced `hourCycle: 'h23'` in `toISTDate` (`src/lib/date.js`) to eliminate midnight hour 24 overflow distortion in ICU/Intl environments.
+
+---
+
+## 13. Session 217 — Student Achievements Schema, TiDB Collation Harmonization, Baseline Tracking & Hard 1 MB Limit (September 21–22, 2026)
+
+### Key Engineering Milestones:
+- **Migration `0021_students_achievements_schema.sql`**:
+  - Authored schema migration creating `student_achievements` table for tracking student extracurricular, technical, and professional achievements with digital certificates.
+  - Configured compound indexes: `idx_achievement_student`, `idx_achievement_type`, `idx_achievement_academic_year`, `idx_achievement_date`, and `idx_achievement_student_year`.
+  - Established `fk_achievement_student` referencing `students(id)` with `ON DELETE CASCADE`.
+- **TiDB Distributed SQL Collation Harmonization**:
+  - Removed MySQL 8.0-specific `COLLATE=utf8mb4_0900_ai_ci` and `ON UPDATE CASCADE` which caused `ERROR 1273 (HY000): Unknown collation: 'utf8mb4_0900_ai_ci'` on TiDB Cloud during GitHub Actions CI/CD deployment on `main`.
+  - Added `CREATE TABLE IF NOT EXISTS` and statement breakpoints (`--> statement-breakpoint`) conforming to Drizzle migrator standards.
+- **Automated Multi-Environment Baseline Rule 21 (`src/db/baseline-rules.js`)**:
+  - Registered Rule 21 inspecting `information_schema.tables` for `student_achievements`.
+  - If the table already exists in high-availability clusters, Drizzle automatically records the migration timestamp in `__drizzle_migrations` and prevents DDL collision crashes.
+  - Added unit test coverage in `tests/unit/db/baseline-rules.test.js`.
+- **Certificate Image Hard 1 MB Limit & Multi-Tier Compression**:
+  - Enforced strict `1,048,576 bytes` limit across client, API, and storage layers.
+  - Client modal features 3-stage progressive compression (1600px q0.8 -> 1200px q0.65 -> 1000px q0.5) with live size badge.
+  - Server endpoints (`/api/student/achievements` and `/api/student/signature`) enforce zero-trust MIME validation and buffer length verification.
+  - Storage providers (`CloudinaryStorageProvider`, `LocalStorageProvider`) enforce invariant byte checks on both buffers and base64 data URIs.
+- **Finalize Admissions Scoped Branch Filter**:
+  - Isolated branch selector on `/staff/admission/finalize` with `allowAllBranches={false}`, removing "All Branches" solely from finalization workflows while preserving global multi-branch selectors across all other pages.
+- **Test Suite Verification**: **78/78 test files passed (665/665 unit tests passed)**, 0 ESLint errors, `npm run db:check` verified 100% consistent.
+
+---
+
+## 14. Cross-References & Related Documentation
 
 - [System Architectural Decision Records (ADRs)](./architectural-decisions.md)
 - [Chronological Forensics of Resolved Incidents](./resolved-incidents.md)
@@ -241,6 +291,8 @@ Prior to Session 210, rejecting a student admission draft executed an unrecovera
 - [Backend Architecture & Service Ecosystem](../architecture/backend.md)
 - [Production Deployment & DevOps Specification](../architecture/deployment.md)
 - [Head of Department (HOD) Console](../pages/hod-pages.md)
+- [Digital Certificate Engine](../features/certificates.md)
+- [Admissions System](../features/admissions.md)
 
 
 

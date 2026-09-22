@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -204,6 +204,7 @@ function AcademicsInner({ studentData }) {
             <li><strong>Subjects:</strong> Displays your current semester curriculum, credits, and assigned faculty.</li>
             <li><strong>Attendance:</strong> Tracks your attendance percentage based on conducted vs. attended classes.</li>
             <li><strong>Internals:</strong> Shows mid-term and assignment marks for theory subjects, and evaluation marks for lab subjects.</li>
+              <li><strong>Achievements:</strong> Add and manage your academic, technical, and extracurricular recognitions.</li>
           </ul>
         </div>
         <button 
@@ -251,6 +252,7 @@ function AcademicsInner({ studentData }) {
                   <li><strong>Subjects:</strong> Displays your current semester curriculum, credits, and assigned faculty.</li>
                   <li><strong>Attendance:</strong> Tracks your attendance percentage based on conducted vs. attended classes.</li>
                   <li><strong>Internals:</strong> Shows mid-term and assignment marks for theory subjects, and evaluation marks for lab subjects.</li>
+              <li><strong>Achievements:</strong> Add and manage your academic, technical, and extracurricular recognitions.</li>
                 </ul>
               </div>
             )}
@@ -269,7 +271,7 @@ function AcademicsInner({ studentData }) {
       {/* Construction Warning Bar */}
       <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-md text-sm font-medium flex items-start gap-2 shadow-sm mb-4">
         <Info className="w-5 h-5 shrink-0 mt-0.5" />
-        <span>The Academics module and its core features (Subjects curriculum, Attendance tracking, and Internal marks recording) are currently in the construction stage. Data shown may be for testing purposes and not final.</span>
+        <span>The Academics module and its core features (Subjects curriculum, Attendance tracking, Internal marks recording, and Achievements) are currently in the construction stage. Data shown may be for testing purposes and not final.</span>
       </div>
 
       {/* Section 1: Subjects Offered */}
@@ -277,10 +279,10 @@ function AcademicsInner({ studentData }) {
         <section className="border border-gray-300 rounded-md bg-white p-4">
         <div className="mb-3">
           <h2 className="text-sm font-semibold text-gray-800">
-            Subjects Offered {currentSem ? `– Semester ${currentSem}` : ''}
+            Subjects Offered {currentSem ? `â€“ Semester ${currentSem}` : ''}
           </h2>
           <p className="text-sm text-gray-600">
-            Academic Year {currentYear || '—'}
+            Academic Year {currentYear || 'â€”'}
           </p>
         </div>
 
@@ -299,14 +301,14 @@ function AcademicsInner({ studentData }) {
               <tbody>
                 {data.map((sub) => {
                   const meta = getSubjectMeta(sub.subject_name);
-                  const code = sub.subject_code || '—';
+                  const code = sub.subject_code || 'â€”';
                   return (
                     <tr key={sub.subject_code} className="border-b">
                       <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-800 whitespace-normal wrap-break-word">{code}</td>
                       <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal wrap-break-word">{sub.subject_name}</td>
                       <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal wrap-break-word">{meta.type}</td>
                       <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{meta.credits}</td>
-                      <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal wrap-break-word">{sub.faculty_name || '—'}</td>
+                      <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal wrap-break-word">{sub.faculty_name || 'â€”'}</td>
                     </tr>
                   );
                 })}
@@ -316,7 +318,7 @@ function AcademicsInner({ studentData }) {
           <div className="md:hidden flex flex-col gap-3">
             {data.map((sub) => {
               const meta = getSubjectMeta(sub.subject_name);
-              const code = sub.subject_code || '—';
+              const code = sub.subject_code || 'â€”';
               return (
                 <div key={sub.subject_code} className="bg-gray-50 border border-gray-200 rounded p-3 text-sm">
                   <div className="flex justify-between items-start mb-2">
@@ -325,7 +327,7 @@ function AcademicsInner({ studentData }) {
                   </div>
                   <div className="font-medium text-gray-800 mb-2">{sub.subject_name}</div>
                   <div className="flex justify-between items-center text-xs text-gray-600">
-                    <div><span className="font-semibold">Faculty:</span> {sub.faculty_name || '—'}</div>
+                    <div><span className="font-semibold">Faculty:</span> {sub.faculty_name || 'â€”'}</div>
                     <div><span className="font-semibold">Credits:</span> {meta.credits}</div>
                   </div>
                 </div>
@@ -369,7 +371,7 @@ function AcademicsInner({ studentData }) {
               <tbody>
                 {data.map((sub) => {
                   const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 100;
-                  const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
+                  const short = deriveShortName(sub.subject_name) || sub.subject_code || 'â€”';
                   return (
                     <tr key={`att-${sub.subject_code}`} className="border-b">
                       <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-800">{short}</td>
@@ -385,7 +387,7 @@ function AcademicsInner({ studentData }) {
           <div className="md:hidden flex flex-col gap-3">
             {data.map((sub) => {
               const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 100;
-              const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
+              const short = deriveShortName(sub.subject_name) || sub.subject_code || 'â€”';
               return (
                 <div key={`att-${sub.subject_code}`} className="bg-gray-50 border border-gray-200 rounded p-3 text-sm flex justify-between items-center">
                   <div className="font-medium text-gray-800">{short}</div>
@@ -417,7 +419,7 @@ function AcademicsInner({ studentData }) {
               <div className="border border-gray-300 rounded-md bg-white p-4">
                 <div className="mb-3">
                   <h2 className="text-sm font-semibold text-gray-800">Internal Assessment 
-                    <span className="font-normal"> – Theory Subjects</span>
+                    <span className="font-normal"> â€“ Theory Subjects</span>
                   </h2>
                   <p className="text-sm text-gray-600">Mid examinations and assignment marks for theory subjects.</p>
                 </div>
@@ -443,7 +445,7 @@ function AcademicsInner({ studentData }) {
                             const bestMid = Math.max(m1 ?? 0, m2 ?? 0);
                             total = bestMid + (assgn ?? 0);
                           }
-                          const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
+                          const short = deriveShortName(sub.subject_name) || sub.subject_code || 'â€”';
                           return (
                             <tr key={`theory-${sub.subject_code}`} className="border-b">
                               <td className="py-2 px-2 text-xs sm:text-sm text-gray-800 whitespace-normal wrap-break-word">{short}</td>
@@ -467,7 +469,7 @@ function AcademicsInner({ studentData }) {
                         const bestMid = Math.max(m1 ?? 0, m2 ?? 0);
                         total = bestMid + (assgn ?? 0);
                       }
-                      const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
+                      const short = deriveShortName(sub.subject_name) || sub.subject_code || 'â€”';
                       return (
                         <div key={`theory-${sub.subject_code}`} className="bg-gray-50 border border-gray-200 rounded p-3 text-sm flex flex-col gap-2">
                           <div className="font-semibold text-gray-800">{short}</div>
@@ -521,7 +523,7 @@ function AcademicsInner({ studentData }) {
                           if (th !== null || ex !== null || rec !== null) {
                             total = (th ?? 0) + (ex ?? 0) + (rec ?? 0);
                           }
-                          const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
+                          const short = deriveShortName(sub.subject_name) || sub.subject_code || 'â€”';
                           return (
                             <tr key={`lab-${sub.subject_code}`} className="border-b">
                               <td className="py-2 px-2 text-xs sm:text-sm text-gray-800 whitespace-normal wrap-break-word">{short}</td>
@@ -544,7 +546,7 @@ function AcademicsInner({ studentData }) {
                       if (th !== null || ex !== null || rec !== null) {
                         total = (th ?? 0) + (ex ?? 0) + (rec ?? 0);
                       }
-                      const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
+                      const short = deriveShortName(sub.subject_name) || sub.subject_code || 'â€”';
                       return (
                         <div key={`lab-${sub.subject_code}`} className="bg-gray-50 border border-gray-200 rounded p-3 text-sm flex flex-col gap-2">
                           <div className="font-semibold text-gray-800">{short}</div>
@@ -575,5 +577,6 @@ function AcademicsInner({ studentData }) {
     </div>
   );
 }
+
 
 

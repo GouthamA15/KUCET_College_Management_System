@@ -37,6 +37,7 @@
     "docxtemplater": "^3.67.6",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.1",
+    "exceljs": "^4.4.0",
     "html5-qrcode": "^2.3.8",
     "ioredis": "^5.10.1",
     "jimp": "^1.6.1",

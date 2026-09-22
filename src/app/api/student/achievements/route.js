@@ -44,18 +44,33 @@ export async function POST(req) {
       additional_data
     } = body;
 
-    if (!achievement_type || !title || !academic_year || !achievement_level || !certificate_base64) {
+    if (!achievement_type || !title || !academic_year || !certificate_base64) {
       return apiError('Missing required fields', 400);
     }
 
-    // Upload certificate
+    // Validate and enforce 1 MB hard limit (1,048,576 bytes) on certificate upload
     let certificate_file_path = null;
     let certificate_mime_type = null;
+
+    const mimeMatch = certificate_base64.match(/^data:(image\/(jpeg|jpg|png|webp));base64,(.+)$/i);
+    if (!mimeMatch) {
+      return apiError('Invalid certificate image format. Only JPEG, PNG, and WebP images are allowed.', 400);
+    }
+    certificate_mime_type = mimeMatch[1].toLowerCase();
+
+    const base64Data = mimeMatch[3];
+    const byteLength = Buffer.byteLength(base64Data, 'base64');
+    const MAX_CERTIFICATE_SIZE_BYTES = 1048576; // 1 MB = 1,048,576 bytes
+
+    if (byteLength === 0) {
+      return apiError('Certificate image file cannot be empty.', 400);
+    }
+
+    if (byteLength > MAX_CERTIFICATE_SIZE_BYTES) {
+      return apiError(`Certificate image exceeds the 1 MB limit (1,048,576 bytes). Current size: ${(byteLength / (1024 * 1024)).toFixed(2)} MB (${byteLength.toLocaleString()} bytes).`, 400);
+    }
+
     try {
-      const mimeMatch = certificate_base64.match(/^data:(image\/\w+);base64,/);
-      if (mimeMatch) {
-        certificate_mime_type = mimeMatch[1];
-      }
       const uploadRes = await storage.upload(certificate_base64, STORAGE_FOLDERS.STUDENTS_ACHIEVEMENTS);
       certificate_file_path = uploadRes?.path || uploadRes;
     } catch (uploadError) {
@@ -73,7 +88,7 @@ export async function POST(req) {
       achievement_date: achievement_date || null,
       start_date: start_date || null,
       end_date: end_date || null,
-      achievement_level,
+      achievement_level: achievement_level || null,
       recognition: recognition || null,
       description: description || null,
       certificate_file_path,

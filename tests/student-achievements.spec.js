@@ -1,4 +1,4 @@
-// @ts-check
+﻿// @ts-check
 import { test, expect } from '@playwright/test';
 import { SignJWT } from 'jose';
 
@@ -256,4 +256,52 @@ test.describe('Student Achievements E2E Flow', () => {
     await expect(page.locator('text="Hackathon Winner"')).toBeVisible();
     await expect(page.locator('text="MLH"')).toBeVisible();
   });
+
+  test('should delete an achievement', async ({ page }) => {
+    let deleteCalled = false;
+    
+    await page.route('/api/student/achievements', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(mockAchievements), // 1 achievement initially
+        });
+      }
+    });
+
+    await page.route('/api/student/achievements/1', async (route) => {
+      if (route.request().method() === 'DELETE') {
+        deleteCalled = true;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true, message: 'Achievement deleted' }),
+        });
+      }
+    });
+
+    await page.goto('/student/academics');
+    
+    // Switch to Achievements tab
+    await page.click('button:has-text("Achievements")');
+
+    // The mock achievement should be visible
+    await expect(page.locator('text="AWS Certified Cloud Practitioner"')).toBeVisible();
+
+    // Click Delete button
+    await page.click('button[title="Delete Achievement"]');
+
+    // Wait for confirmation modal and click Delete inside it
+    await expect(page.locator('text="Delete Achievement?"')).toBeVisible();
+    await page.click('button:has-text("Delete")');
+
+    // The modal should close and the UI should be empty
+    await expect(page.locator('text="Delete Achievement?"')).not.toBeVisible();
+    await expect(page.locator('text="No achievements added yet"')).toBeVisible();
+    
+    // Verify backend was called
+    expect(deleteCalled).toBe(true);
+  });
 });
+
