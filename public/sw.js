@@ -91,6 +91,13 @@ self.addEventListener('fetch', (event) => {
   // 3. Navigation requests (HTML page loads) MUST always prioritize network.
   // Auth middleware returns different responses (redirects vs. 200) based on dynamic cookie state.
   if (request.mode === 'navigate') {
+    // CRITICAL: Do not intercept the root path '/' or auth routes. 
+    // They return 303 Redirects with Set-Cookie headers. Fetching them via SW with redirect: 'follow' 
+    // strips the Set-Cookie headers, causing an infinite auth loop.
+    if (url.pathname === '/' || url.pathname.startsWith('/api/')) {
+      return;
+    }
+
     event.respondWith(
       (async () => {
         try {
