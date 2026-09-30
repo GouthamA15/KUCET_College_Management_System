@@ -27,7 +27,11 @@ function FinalizeAdmissionContent() {
             targetBranch: urlBranch,
             entryYear: urlYear
         });
-        return normalized || getDefaultAdmissionWorkspace();
+        const ws = normalized || getDefaultAdmissionWorkspace();
+        if (ws.targetBranch === 'ALL' || ws.targetBranch === 'ALL BRANCHES') {
+            ws.targetBranch = 'CSE'; // Force a specific branch, disallow ALL in Finalize
+        }
+        return ws;
     }, [urlExam, urlBranch, urlYear]);
 
     const [workspace, setWorkspace] = useState(activeWorkspace);
