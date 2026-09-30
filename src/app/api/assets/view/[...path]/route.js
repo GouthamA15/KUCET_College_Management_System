@@ -172,7 +172,19 @@ export async function GET(request, { params }) {
     const cleanCloudinaryKey = (filename.startsWith('kucet/') || filename.startsWith('archive/'))
       ? filename
       : `kucet/${filename}`;
-    const cdnUrl = `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/f_auto,q_auto/${cleanCloudinaryKey}`;
+    
+    const { searchParams } = new URL(request.url);
+    const forceDownload = searchParams.get('download') === 'true';
+    let requestedFilename = searchParams.get('filename') || filename.split('/').pop();
+    const sanitizedFilename = requestedFilename.replace(/[\r\n"'\\/]/g, '_');
+    const finalName = sanitizedFilename.includes('.') ? sanitizedFilename : `${sanitizedFilename}.${extension}`;
+    
+    const transformations = ['f_auto', 'q_auto'];
+    if (forceDownload) {
+      transformations.push(`fl_attachment:${finalName.replace(/\.[^/.]+$/, "")}`); // Cloudinary fl_attachment takes name without ext
+    }
+
+    const cdnUrl = `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformations.join(',')}/${cleanCloudinaryKey}`;
     return NextResponse.redirect(cdnUrl, 307);
   }
 
@@ -211,9 +223,16 @@ export async function GET(request, { params }) {
       'Last-Modified': stat.mtime.toUTCString(),
     };
 
-    if (['.svg', '.pdf'].includes(extension)) {
-      const sanitizedFilename = path.basename(filePath).replace(/[\r\n"'\\/]/g, '');
-      headers['Content-Disposition'] = `attachment; filename="${sanitizedFilename}"`;
+    const { searchParams } = new URL(request.url);
+    const forceDownload = searchParams.get('download') === 'true';
+    let requestedFilename = searchParams.get('filename');
+
+    if (forceDownload || ['.svg', '.pdf'].includes(extension)) {
+      if (!requestedFilename) requestedFilename = path.basename(filePath);
+      const sanitizedFilename = requestedFilename.replace(/[\r\n"'\\/]/g, '_');
+      // Fix .webp extension mapping if passing original filename
+      const finalName = sanitizedFilename.includes('.') ? sanitizedFilename : `${sanitizedFilename}${extension}`;
+      headers['Content-Disposition'] = `attachment; filename="${finalName}"`;
     } else {
       headers['Content-Disposition'] = 'inline';
     }

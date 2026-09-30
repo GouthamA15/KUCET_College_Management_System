@@ -20,6 +20,8 @@ export default function StudentsLookupPanel() {
   // Search State
   const [searchRoll, setSearchRoll] = useState('');
   const [searchName, setSearchName] = useState('');
+  const [certificatesOnly, setCertificatesOnly] = useState(false);
+  const [activeAcademicYear, setActiveAcademicYear] = useState('');
 
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -32,9 +34,38 @@ export default function StudentsLookupPanel() {
   const [loadingAchievements, setLoadingAchievements] = useState(false);
   const [achievementsError, setAchievementsError] = useState(null);
 
+  const handleDownloadCertificate = async (ach) => {
+    if (!ach.certificate_file_path) return;
+    const sanitizedTitle = ach.title.replace(/[\s\W]+/g, '_');
+    const ext = ach.certificate_file_path.split('.').pop();
+    const fileName = selectedStudent.roll_no + '_' + sanitizedTitle + '_Certificate.' + ext;
+    
+    toast.loading('Downloading...', { id: 'download-toast' });
+    try {
+      const url = getAssetUrl(ach.certificate_file_path);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Download failed');
+      
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+      
+      toast.success('Download complete', { id: 'download-toast' });
+    } catch (e) {
+      toast.error('Failed to download file', { id: 'download-toast' });
+      console.error(e);
+    }
+  };
+
   const handleViewProfile = (student) => {
     setSelectedStudent(student);
-    setModalTab('profile');
+    setModalTab(certificatesOnly ? 'achievements' : 'profile');
     setAchievements([]);
     setAchievementsError(null);
   };
@@ -46,7 +77,7 @@ export default function StudentsLookupPanel() {
       setLoadingAchievements(true);
       setAchievementsError(null);
       try {
-        const res = await fetch(`/api/staff/faculty/students/${selectedStudent.id}/achievements`);
+        const res = await fetch(`/api/staff/faculty/students/${selectedStudent.id}/achievements${certificatesOnly ? '?cohort=true' : ''}`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Failed to fetch achievements');
         setAchievements(json.data || []);
@@ -240,10 +271,12 @@ export default function StudentsLookupPanel() {
     setStudents([]);
     
     try {
-      const res = await fetch(`/api/staff/faculty/class-lookup?program=${program}&yearOfStudy=${yearOfStudy}`);
+      const res = await fetch(`/api/staff/faculty/class-lookup?program=${program}&yearOfStudy=${yearOfStudy}${certificatesOnly ? '&certificatesOnly=true' : ''}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch students');
       setStudents(data.data || []);
+      if (data.activeAcademicYear) setActiveAcademicYear(data.activeAcademicYear);
+      if (data.activeAcademicYear) setActiveAcademicYear(data.activeAcademicYear);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -271,6 +304,7 @@ export default function StudentsLookupPanel() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to search students');
       setStudents(data.data || []);
+      if (data.activeAcademicYear) setActiveAcademicYear(data.activeAcademicYear);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -295,7 +329,7 @@ export default function StudentsLookupPanel() {
     }
     return () => clearTimeout(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [program, yearOfStudy, activeTab]);
+  }, [program, yearOfStudy, activeTab, certificatesOnly]);
 
   const branches = staffData?.branches || [];
 
@@ -361,6 +395,20 @@ export default function StudentsLookupPanel() {
                   <option value="4">4th Year</option>
                 </select>
                 <ChevronDown size={14} className="absolute right-3 top-[34px] text-gray-400 pointer-events-none" />
+              </div>
+            
+              <div className="relative flex-1 sm:flex-none sm:w-48">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-1 block">Certificates Filter</label>
+                <select
+                  value={certificatesOnly ? 'true' : 'false'}
+                  onChange={(e) => setCertificatesOnly(e.target.value === 'true')}
+                  className="w-full appearance-none pl-3 pr-7 py-2.5 text-sm font-medium border border-gray-200 rounded-sm bg-white text-gray-700 focus:outline-none focus:border-[#0b3578]/40 focus:ring-1 focus:ring-[#0b3578]/10 transition cursor-pointer"
+                >
+                  <option value="false">All Students</option>
+                  <option value="true">Has Certificates</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-[34px] text-gray-400 pointer-events-none" />
+                {activeAcademicYear && certificatesOnly && <span className="absolute -top-1 right-0 text-[9px] bg-blue-50 text-[#0b3578] px-1.5 rounded font-bold uppercase">{activeAcademicYear}</span>}
               </div>
             </div>
           </div>
@@ -456,6 +504,7 @@ export default function StudentsLookupPanel() {
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Roll No</th>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Student Name</th>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Branch</th>
+                      {certificatesOnly && <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Certificates</th>}
                       <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">More</th>
                     </tr>
                   </thead>
@@ -471,6 +520,13 @@ export default function StudentsLookupPanel() {
                         <td className="px-4 py-3 whitespace-nowrap font-mono text-xs font-medium text-gray-500">
                           {student.branch}
                         </td>
+                          {certificatesOnly && (
+                            <td className="px-4 py-3 whitespace-nowrap text-center">
+                               <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-[#0b3578] bg-blue-100 rounded-full">
+                                {student.certificates_count || 0}
+                              </span>
+                            </td>
+                          )}
                         <td className="px-4 py-3 whitespace-nowrap text-center">
                           <button
                             onClick={() => handleViewProfile(student)}
@@ -641,6 +697,9 @@ export default function StudentsLookupPanel() {
                                 >
                                   <ImageIcon className="w-4 h-4" /> View Certificate <ExternalLink className="w-3 h-3 ml-1" />
                                 </a>
+                                  <button onClick={() => handleDownloadCertificate(ach)} className="ml-2 inline-flex items-center gap-1.5 text-sm font-medium text-white hover:text-white bg-[#0b3578] hover:bg-[#082a5e] px-3 py-1.5 rounded-md transition-colors">
+                                    <Download className="w-4 h-4" /> Download
+                                  </button>
                               </div>
                             )}
                           </div>

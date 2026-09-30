@@ -175,7 +175,7 @@ function AcademicsContent() {
       { id: 'requests', label: 'Request Subjects' }
     ]),
     { id: 'roster', label: 'Students' },
-    { id: 'hod', label: 'HOD Access' },
+          { id: 'hod', label: 'HOD Access' },
   ];
 
   const [activeTab, setActiveTab] = useState('subjects');
@@ -441,7 +441,8 @@ function AcademicsContent() {
       )}
 
       {/* ── HOD Access ── */}
-      {activeTab === 'hod' && (
+      
+        {activeTab === 'hod' && (
         <HodAccessManager />
       )}
 

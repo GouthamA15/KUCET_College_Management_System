@@ -94,6 +94,33 @@ export async function GET(request) {
         ELSE 0
       END = ${yearOfStudy}`);
     }
+
+    const certificatesOnly = searchParams.get('certificatesOnly') === 'true';
+    let certificatesCountSq = sql`0`.mapWith(Number);
+    let activeAcademicYear = null;
+
+    if (certificatesOnly) {
+      const { getCollegeAcademicYear } = await import('@/lib/academic-utils');
+      activeAcademicYear = await getCollegeAcademicYear();
+      if (!activeAcademicYear) {
+        return apiError('Active academic year not configured', 400);
+      }
+      const { studentAchievements } = await import('@/db/schema/registry');
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM ${studentAchievements} 
+          WHERE ${studentAchievements.student_id} = ${studentsTable.id}
+            AND ${studentAchievements.certificate_file_path} IS NOT NULL
+            AND ${studentAchievements.certificate_file_path} != ''
+        )`
+      );
+      certificatesCountSq = sql`(
+        SELECT COUNT(id) FROM ${studentAchievements}
+        WHERE ${studentAchievements.student_id} = ${studentsTable.id}
+          AND ${studentAchievements.certificate_file_path} IS NOT NULL
+          AND ${studentAchievements.certificate_file_path} != ''
+      )`.mapWith(Number);
+    }
     
     const students = await db.select({
       id: studentsTable.id,
@@ -106,6 +133,7 @@ export async function GET(request) {
       mobile: studentsTable.mobile,
       father_name: studentPersonalDetails.father_name,
       mother_name: studentPersonalDetails.mother_name,
+      certificates_count: certificatesCountSq,
       curr_house_no: studentPersonalDetails.curr_house_no,
       curr_apartment: studentPersonalDetails.curr_apartment,
       curr_street: studentPersonalDetails.curr_street,
@@ -150,6 +178,7 @@ export async function GET(request) {
 
       return {
         id: s.id,
+        certificates_count: s.certificates_count,
         roll_no: s.roll_no,
         name: s.name,
         admission_no: s.admission_no,

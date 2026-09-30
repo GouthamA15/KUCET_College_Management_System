@@ -79,7 +79,6 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#0b3578]">Weekly view</p>
             <span className="mt-0.5 block text-xs font-semibold text-slate-600">{subtitle}</span>
           </div>
-          <span className="hidden rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700 sm:inline-flex">Auto-synced</span>
         </div>
       )}
 
@@ -186,14 +185,18 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
         <div className="md:hidden">
           {/* Compact scrollable day selector */}
           <div className="sticky top-0 z-20 border-b border-[#e6eef9] bg-white px-3 py-3">
-            <div className="flex gap-1 overflow-x-auto hide-scrollbar">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[#0b3578]">Select day</span>
+              <span className="text-[10px] font-medium text-slate-400">Swipe schedule to browse</span>
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto hide-scrollbar">
               {DAYS.map(day => (
                 <button
                   key={day}
                   onClick={() => setActiveMobileDay(day)}
                   aria-pressed={activeMobileDay === day}
                   className={[
-                    'flex-shrink-0 rounded-lg border px-3 py-2 text-[11px] font-bold transition-colors',
+                    'min-w-[48px] flex-shrink-0 rounded-lg border px-3 py-2 text-[11px] font-bold transition-colors',
                     activeMobileDay === day
                       ? 'border-[#0b3578] bg-[#0b3578] text-white shadow-[0_5px_12px_rgba(11,53,120,0.18)]'
                       : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50',
@@ -238,32 +241,43 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
                   <div
                     onClick={() => isEditable && onEditSlot && onEditSlot(activeMobileDay, p, slot)}
                     className={[
-                      'relative flex items-start gap-3 rounded-xl border px-3 py-3 transition-colors',
+                      'relative flex items-start gap-3 rounded-xl border px-3.5 py-3.5 transition-colors',
                       isEditable ? 'cursor-pointer active:scale-[0.99]' : '',
-                      active ? 'border-blue-300 bg-blue-50 shadow-[0_5px_14px_rgba(37,99,235,0.12)]' : slot ? 'border-slate-200 bg-white shadow-[0_3px_10px_rgba(11,53,120,0.04)]' : 'border-dashed border-slate-200 bg-slate-50',
+                      active ? 'border-emerald-300 bg-emerald-50/70 shadow-[0_5px_14px_rgba(16,185,129,0.12)]' : slot ? 'border-slate-200 bg-white shadow-[0_3px_10px_rgba(11,53,120,0.04)]' : 'border-dashed border-slate-200 bg-slate-50',
                     ].join(' ')}
                   >
                     {/* Period badge */}
                     <div className={[
                       'flex-shrink-0 w-12 text-center pt-0.5',
                     ].join(' ')}>
-                      <div className={`text-[9px] font-bold uppercase tracking-wider ${active ? 'text-blue-600' : 'text-slate-700'}`}>P{p}</div>
-                      <div className={`text-[9px] font-medium tabular-nums leading-tight mt-0.5 ${active ? 'text-blue-500' : 'text-slate-400'}`}>
+                      <div className={`text-[9px] font-bold uppercase tracking-wider ${active ? 'text-emerald-700' : 'text-slate-700'}`}>P{p}</div>
+                      <div className={`text-[9px] font-medium tabular-nums leading-tight mt-0.5 ${active ? 'text-emerald-600' : 'text-slate-400'}`}>
                         {PERIOD_TIMES[p].split(' to ')[0]}
                       </div>
                     </div>
 
-                    <div className="flex-1 min-w-0 flex flex-col justify-center items-center text-center">
+                    <div className="flex min-w-0 flex-1 flex-col justify-center text-left">
                       {slot ? (
-                        <p className={`break-words text-[13px] font-bold leading-[1.3] ${act ? 'text-amber-800' : 'text-slate-800'}`}>
-                          {getDisplayName(slot)}
-                        </p>
+                        <>
+                          <div className="flex items-start justify-between gap-2">
+                            <p className={`break-words text-[13px] font-bold leading-[1.3] ${act ? 'text-amber-800' : 'text-slate-800'}`}>
+                              {getDisplayName(slot)}
+                            </p>
+                            {active && <span className="mt-0.5 flex shrink-0 items-center gap-1 text-[9px] font-bold uppercase tracking-wide text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Live</span>}
+                          </div>
+                          {(slot.room_no || slot.faculty_name) && (
+                            <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-slate-500">
+                              {slot.room_no && <span className="rounded-md bg-slate-100 px-2 py-1">Room {slot.room_no}</span>}
+                              {slot.faculty_name && <span className="max-w-full truncate rounded-md bg-slate-100 px-2 py-1">{slot.faculty_name}</span>}
+                            </div>
+                          )}
+                        </>
                       ) : isEditable ? (
                         <p className="text-[12px] text-[#0b3578] font-medium py-0.5 flex items-center justify-center gap-1.5 opacity-80">
                           <span className="text-[16px] leading-none">+</span> Add class
                         </p>
                       ) : (
-                        <p className="text-[12px] text-slate-400 italic py-0.5 text-center">
+                        <p className="py-0.5 text-left text-[12px] italic text-slate-400">
                           Free period
                         </p>
                       )}
@@ -285,7 +299,7 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
             </div>
             <span className="hidden text-[11px] font-medium text-slate-400 sm:block">Assigned teaching staff</span>
           </div>
-          <div className="overflow-x-auto rounded-xl border border-[#dce8f8]">
+          <div className="hidden overflow-x-auto rounded-xl border border-[#dce8f8] md:block">
             <table className="w-full text-left border-collapse text-sm">
               <thead className="border-b border-[#dce8f8] bg-[#eaf2ff]">
                 <tr>
@@ -313,6 +327,23 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="space-y-2 md:hidden">
+            {Object.values(data.reduce((acc, slot) => {
+              const act = INSTITUTIONAL_ACTIVITIES.find(a => a.code === slot.subject_code);
+              if (act) return acc;
+              const key = slot.subject_code;
+              if (!acc[key]) {
+                acc[key] = { subjectName: slot.display_name || slot.subject_name || slot.subject_code, faculties: new Set() };
+              }
+              if (slot.faculty_name) acc[key].faculties.add(slot.faculty_name);
+              return acc;
+            }, {})).filter(item => item.faculties.size > 0).map((item, idx) => (
+              <div key={idx} className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-3 shadow-sm">
+                <span className="min-w-0 break-words text-xs font-bold leading-5 text-slate-700">{item.subjectName}</span>
+                <span className="max-w-[480 %] break-words text-right text-[11px] leading-5 text-slate-500">{Array.from(item.faculties).join(', ')}</span>
+              </div>
+            ))}
           </div>
         </div>
       )}

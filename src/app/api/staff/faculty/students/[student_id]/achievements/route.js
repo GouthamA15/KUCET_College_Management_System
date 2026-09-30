@@ -64,9 +64,28 @@ export async function GET(request, { params }) {
       }
     }
 
+    const { searchParams } = new URL(request.url);
+    const cohortMode = searchParams.get('cohort') === 'true';
+
+    let conditions = [eq(studentAchievements.student_id, parseInt(student_id))];
+
+    if (cohortMode) {
+      const { getCollegeAcademicYear } = await import('@/lib/academic-utils');
+      const activeYear = await getCollegeAcademicYear();
+      const { and, isNotNull, ne } = await import('drizzle-orm');
+      
+      if (activeYear) {
+        
+        conditions.push(isNotNull(studentAchievements.certificate_file_path));
+        conditions.push(ne(studentAchievements.certificate_file_path, ''));
+      }
+    }
+
+    const { and: drizzleAnd } = await import('drizzle-orm');
+
     // 2. Fetch Achievements
     const achievements = await db.query.studentAchievements.findMany({
-      where: eq(studentAchievements.student_id, parseInt(student_id)),
+      where: drizzleAnd(...conditions),
       orderBy: [
         desc(studentAchievements.achievement_date),
         desc(studentAchievements.end_date),
