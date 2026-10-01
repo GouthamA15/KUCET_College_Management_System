@@ -44,6 +44,7 @@ const MarkAttendanceCard = ({ session, onVerified }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           assignment_id: session.assignment_id,
+          session_id: session.session_id,
           pin: pin,
           latitude,
           longitude,

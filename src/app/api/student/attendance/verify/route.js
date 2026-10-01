@@ -5,11 +5,14 @@ import {
   attendanceSessions, 
   attendanceSessionLogs, 
   students, 
-  studentAttendance 
+  studentAttendance,
+  facultySubjectAssignments
 } from '@/db/schema';
-import { eq, and, gt, sql } from 'drizzle-orm';
+import { eq, and, desc, asc, sql } from 'drizzle-orm';
 import { isWithinRange } from '@/lib/geo-utils';
 import { Clock } from '@/lib/clock';
+import { getBranchFromRoll } from '@/lib/rollNumber';
+import { calculateYearAndSemesterAsync } from '@/lib/academic-utils';
 import crypto from 'crypto';
 
 /**
@@ -31,21 +34,93 @@ export async function POST(request) {
     }
 
     const now = Clock.now(request);
-    
-    // 1. Fetch the active session
+
+    // 1. Fetch the session (identifying whether active, expired, or closed)
+    const sessionConditions = [];
+    if (session_id) {
+      sessionConditions.push(eq(attendanceSessions.id, session_id));
+    }
+    if (assignment_id) {
+      sessionConditions.push(eq(attendanceSessions.assignment_id, assignment_id));
+    }
+
     const session = await db.query.attendanceSessions.findFirst({
-      where: and(
-        session_id ? eq(attendanceSessions.id, session_id) : eq(attendanceSessions.assignment_id, assignment_id),
-        eq(attendanceSessions.is_active, true),
-        gt(attendanceSessions.expires_at, now)
-      )
+      where: sessionConditions.length > 1 ? and(...sessionConditions) : sessionConditions[0],
+      orderBy: [desc(attendanceSessions.id)]
     });
 
     if (!session) {
-      return apiError('No active attendance session found or session expired.', 404);
+      return apiError('No attendance session found for the provided details.', 404);
+    }
+
+    if (!session.is_active) {
+      return apiError('This attendance session has ended or is closed.', 403);
+    }
+
+    if (new Date(session.expires_at).getTime() <= now.getTime()) {
+      return apiError('This attendance session has expired.', 403);
     }
 
     const sessionNum = session.session_number || 1;
+
+    // 2. Verify Assignment Existence & Student Eligibility
+    const assignmentRows = await db.select({
+      id: facultySubjectAssignments.id,
+      branch: facultySubjectAssignments.branch,
+      course_semester: facultySubjectAssignments.course_semester,
+      academic_year: facultySubjectAssignments.academic_year,
+      subject_code: facultySubjectAssignments.subject_code,
+      subject_name: facultySubjectAssignments.subject_name
+    })
+    .from(facultySubjectAssignments)
+    .where(eq(facultySubjectAssignments.id, session.assignment_id))
+    .limit(1);
+
+    if (assignmentRows.length === 0) {
+      return apiError('Associated subject assignment not found.', 404);
+    }
+
+    const assignment = assignmentRows[0];
+
+    // Branch Eligibility Guard
+    const studentBranch = getBranchFromRoll(user.roll_no);
+    if (studentBranch && assignment.branch && studentBranch !== assignment.branch) {
+      return apiError(`You are not eligible for this session (Branch mismatch: expected ${assignment.branch}, got ${studentBranch}).`, 403);
+    }
+
+    // Semester Eligibility Guard
+    const academicSession = await calculateYearAndSemesterAsync(user.roll_no, user.academic_offset_years || 0);
+    if (academicSession?.semester && assignment.course_semester && academicSession.semester !== assignment.course_semester) {
+      return apiError(`You are not eligible for this session (Semester mismatch: expected Semester ${assignment.course_semester}, you are in Semester ${academicSession.semester}).`, 403);
+    }
+
+    // 3. Duplicate Attendance Prevention
+    const existingSuccessLogs = await db.select({ id: attendanceSessionLogs.id })
+      .from(attendanceSessionLogs)
+      .where(and(
+        eq(attendanceSessionLogs.session_id, session.id),
+        eq(attendanceSessionLogs.student_id, user.student_id),
+        eq(attendanceSessionLogs.status, 'SUCCESS')
+      ))
+      .limit(1);
+
+    if (existingSuccessLogs.length > 0) {
+      return apiError('You have already verified your attendance for this session.', 409);
+    }
+
+    const existingAttendance = await db.select({ id: studentAttendance.id, status: studentAttendance.status })
+      .from(studentAttendance)
+      .where(and(
+        eq(studentAttendance.assignment_id, session.assignment_id),
+        eq(studentAttendance.student_id, user.student_id),
+        eq(studentAttendance.date, session.attendance_date),
+        eq(studentAttendance.session, sessionNum)
+      ))
+      .limit(1);
+
+    if (existingAttendance.length > 0 && existingAttendance[0].status === 'PRESENT') {
+      return apiError('Attendance has already been marked as PRESENT for this session.', 409);
+    }
 
     // --- GPS RADIUS & ACCURACY CHECK ---
     const maxAccuracy = 100; // 100 meters
@@ -210,24 +285,54 @@ export async function POST(request) {
     }
 
 
-    // 5. Record the log with all fingerprinting markers
-    await db.insert(attendanceSessionLogs)
-      .values({
-        session_id: session.id,
-        student_id: user.student_id,
-        device_hash: finalDeviceId,
-        ip_address: ipAddress,
-        ua_hash: uaHash,
-        status: 'SUCCESS'
-      })
-      .onDuplicateKeyUpdate({
-        set: {
-          status: 'SUCCESS',
+    // --- SHARED DATA LOGIC: Canonical ID ---
+    const canonicalRows = await db.select({ id: facultySubjectAssignments.id })
+      .from(facultySubjectAssignments)
+      .where(and(
+        eq(facultySubjectAssignments.subject_code, assignment.subject_code),
+        eq(facultySubjectAssignments.branch, assignment.branch),
+        eq(facultySubjectAssignments.course_semester, assignment.course_semester),
+        eq(facultySubjectAssignments.academic_year, assignment.academic_year)
+      ))
+      .orderBy(asc(facultySubjectAssignments.created_at))
+      .limit(1);
+
+    const targetAssignmentId = canonicalRows[0]?.id || session.assignment_id;
+
+    // 5. Atomic Persistence: Session Verification Log + Student Attendance Record
+    await db.transaction(async (tx) => {
+      // Record verification log
+      await tx.insert(attendanceSessionLogs)
+        .values({
+          session_id: session.id,
+          student_id: user.student_id,
           device_hash: finalDeviceId,
           ip_address: ipAddress,
-          ua_hash: uaHash
-        }
-      });
+          ua_hash: uaHash,
+          status: 'SUCCESS'
+        })
+        .onDuplicateKeyUpdate({
+          set: {
+            status: 'SUCCESS',
+            device_hash: finalDeviceId,
+            ip_address: ipAddress,
+            ua_hash: uaHash
+          }
+        });
+
+      // Record student attendance status as PRESENT in studentAttendance
+      await tx.insert(studentAttendance)
+        .values({
+          assignment_id: targetAssignmentId,
+          student_id: user.student_id,
+          date: session.attendance_date,
+          session: sessionNum,
+          status: 'PRESENT'
+        })
+        .onDuplicateKeyUpdate({
+          set: { status: 'PRESENT' }
+        });
+    });
 
     // --- REAL-TIME: Notify Faculty ---
     try {
@@ -243,7 +348,7 @@ export async function POST(request) {
 
     return apiResponse({ 
       success: true, 
-      message: 'Attendance verified successfully. The faculty will finalize the records.' 
+      message: 'Attendance verified successfully. Marked as PRESENT.' 
     });
 
   } catch (error) {

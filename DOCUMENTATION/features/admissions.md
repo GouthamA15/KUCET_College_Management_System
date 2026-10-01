@@ -274,7 +274,28 @@ On `/staff/admission/finalize`, clerks perform final enrollment, verify physical
 
 ---
 
-## 9. Cross-References
+## 9. Admission Draft Sorting Toggle (Admission Intake Only)
+
+In `/staff/admission/requests` under the **Admission Intake** (`mode === 'DRAFT'`) tab, admission clerks can toggle the presentation order of student applications.
+
+### Operational Requirements & Invariants
+1. **Scope Restriction**: The sorting toggle is strictly rendered **ONLY** on the Admission Draft / Admission Intake tab (`/staff/admission/requests?tab=admissions`). It is explicitly forbidden and absent from:
+   - Finalize Admissions (`/staff/admission/finalize`)
+   - Finalized Students directory (`/staff/admission/finalized`)
+   - Student Registry & other administrative tables
+2. **Default State**: Latest First (`sortMode = 'latest'`). Student applications are ordered by `created_at DESC, id DESC`.
+3. **Alphabetical State**: Name A to Z (`sortMode = 'name'`). Student applications are ordered alphabetically by student name (`name ASC, id ASC`) using deterministic case-insensitive collation.
+4. **Universal Branch Support**: Operates consistently across `All Branches` as well as individual department cohorts (`CSE`, `CSD`, `ECE`, `EEE`, `CIVIL`, `IT`, `MECH`).
+5. **Composability**: Integrates seamlessly with all workspace filters:
+   - Intake Exam (`TG EAPCET`, `TG ECET`, etc.)
+   - Target Branch
+   - Entry Year
+   - Real-time text search
+6. **State Preservation**: The active sort preference (`sortMode`) is preserved across branch switches, exam filter adjustments, and manual workspace synchronizations without resetting to default.
+
+---
+
+## 10. Cross-References
 
 - Database Schemas: [schema.md](../database/schema.md)
 - Storage Lifecycle & Media Promotion: [requests.md](./requests.md)

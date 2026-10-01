@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentAdmissionDrafts } from '@/db/schema';
-import { and, asc } from 'drizzle-orm';
+import { and, asc, desc } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { buildAdmissionWorkspaceConditions } from '@/lib/admission-workspace';
 
@@ -18,6 +18,7 @@ export async function GET(req) {
     const entryYear = searchParams.get('entry_year') || searchParams.get('entryYear') || searchParams.get('joiningYear') || searchParams.get('admission_year') || searchParams.get('year');
     const status = searchParams.get('status') || 'DRAFT';
     const search = searchParams.get('search')?.trim() || null;
+    const sort = searchParams.get('sort')?.toLowerCase().trim() || 'latest';
 
     if (!['DRAFT', 'PROCESSED', 'FINALIZED', 'REJECTED', 'ALL'].includes(status)) {
       return apiError('Invalid status parameter', 400);
@@ -67,6 +68,10 @@ export async function GET(req) {
       search
     );
 
+    const orderClause = sort === 'name'
+      ? [asc(studentAdmissionDrafts.name), asc(studentAdmissionDrafts.id)]
+      : [desc(studentAdmissionDrafts.created_at), desc(studentAdmissionDrafts.id)];
+
     const drafts = await db.select({
       id: studentAdmissionDrafts.id,
       name: studentAdmissionDrafts.name,
@@ -87,7 +92,7 @@ export async function GET(req) {
     })
     .from(studentAdmissionDrafts)
     .where(and(...conditions))
-    .orderBy(asc(studentAdmissionDrafts.name));
+    .orderBy(...orderClause);
     
     return apiResponse({ data: drafts, workspace: effectiveWorkspace || null });
 

@@ -30,6 +30,7 @@ const AdmissionRequestsPanel = ({ mode = 'DRAFT' }) => {
     }, [urlExam, urlBranch, urlYear]);
 
     const [workspace, setWorkspace] = useState(activeWorkspace);
+    const [sortMode, setSortMode] = useState('latest');
     const [drafts, setDrafts] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
@@ -50,19 +51,33 @@ const AdmissionRequestsPanel = ({ mode = 'DRAFT' }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditData] = useState({});
 
-    // Filter drafts by search term (candidate name, app no, roll no, rank, email)
+    // Filter drafts by search term (candidate name, app no, roll no, rank, email) and apply deterministic sorting
     const filteredDrafts = useMemo(() => {
-        if (!searchTerm.trim()) return drafts;
-        const term = searchTerm.toLowerCase().trim();
-        return drafts.filter(draft => {
-            const nameMatch = draft.name?.toLowerCase().includes(term);
-            const appNoMatch = (draft.application_no || String(draft.id))?.toLowerCase().includes(term);
-            const rollNoMatch = draft.roll_no?.toLowerCase().includes(term);
-            const rankMatch = String(draft.exam_rank || '').includes(term);
-            const emailMatch = draft.email?.toLowerCase().includes(term);
-            return nameMatch || appNoMatch || rollNoMatch || rankMatch || emailMatch;
+        let result = drafts;
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase().trim();
+            result = drafts.filter(draft => {
+                const nameMatch = draft.name?.toLowerCase().includes(term);
+                const appNoMatch = (draft.application_no || String(draft.id))?.toLowerCase().includes(term);
+                const rollNoMatch = draft.roll_no?.toLowerCase().includes(term);
+                const rankMatch = String(draft.exam_rank || '').includes(term);
+                const emailMatch = draft.email?.toLowerCase().includes(term);
+                return nameMatch || appNoMatch || rollNoMatch || rankMatch || emailMatch;
+            });
+        }
+        return [...result].sort((a, b) => {
+            if (sortMode === 'name') {
+                const nameComp = (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' });
+                if (nameComp !== 0) return nameComp;
+                return (a.id || 0) - (b.id || 0);
+            } else {
+                const timeA = new Date(a.created_at || 0).getTime();
+                const timeB = new Date(b.created_at || 0).getTime();
+                if (timeA !== timeB) return timeB - timeA;
+                return (b.id || 0) - (a.id || 0);
+            }
         });
-    }, [drafts, searchTerm]);
+    }, [drafts, searchTerm, sortMode]);
 
     const formatDate = (dateStr) => {
         if (!dateStr) return null;
@@ -89,12 +104,18 @@ const AdmissionRequestsPanel = ({ mode = 'DRAFT' }) => {
 
     const workspaceRef = useRef(workspace);
     const queueTabRef = useRef(mode);
+    const sortModeRef = useRef(sortMode);
     useEffect(() => {
         workspaceRef.current = workspace;
         queueTabRef.current = mode;
-    }, [workspace, mode]);
+        sortModeRef.current = sortMode;
+    }, [workspace, mode, sortMode]);
 
-    const fetchWorkspaceDrafts = useCallback(async (targetWs = workspaceRef.current, status = queueTabRef.current) => {
+    const fetchWorkspaceDrafts = useCallback(async (
+        targetWs = workspaceRef.current, 
+        status = queueTabRef.current,
+        currentSort = sortModeRef.current
+    ) => {
         if (!targetWs?.targetBranch || !targetWs?.intakeExam) return;
         setLoading(true);
         try {
@@ -102,6 +123,7 @@ const AdmissionRequestsPanel = ({ mode = 'DRAFT' }) => {
                 status: status || 'DRAFT',
                 branch: targetWs.targetBranch,
                 entrance_exam: targetWs.intakeExam,
+                sort: currentSort || 'latest',
                 t: String(Date.now())
             });
             if (targetWs.entryYear) {
@@ -110,13 +132,7 @@ const AdmissionRequestsPanel = ({ mode = 'DRAFT' }) => {
             const res = await fetch(`/api/staff/admission/drafts?${queryParams.toString()}`);
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to fetch admission drafts.');
-            const sortedData = [...(data.data || [])].sort((a, b) => {
-                const dateA = new Date(a.updated_at || a.created_at || 0).getTime();
-                const dateB = new Date(b.updated_at || b.created_at || 0).getTime();
-                if (dateA !== dateB) return dateB - dateA;
-                return (b.id || 0) > (a.id || 0) ? 1 : -1;
-            });
-            setDrafts(sortedData);
+            setDrafts(data.data || []);
         } catch (error) {
             toast.error(error.message);
         } finally {
@@ -125,8 +141,14 @@ const AdmissionRequestsPanel = ({ mode = 'DRAFT' }) => {
     }, []);
 
     useEffect(() => {
-        fetchWorkspaceDrafts(workspace, mode);
-    }, [workspace, mode, fetchWorkspaceDrafts]);
+        fetchWorkspaceDrafts(workspace, mode, sortMode);
+    }, [workspace, mode, sortMode, fetchWorkspaceDrafts]);
+
+    const handleToggleSort = () => {
+        const next = sortMode === 'latest' ? 'name' : 'latest';
+        setSortMode(next);
+        fetchWorkspaceDrafts(workspace, mode, next);
+    };
 
     const handleWorkspaceChange = (newWs) => {
         setWorkspace(newWs);
@@ -334,25 +356,47 @@ const AdmissionRequestsPanel = ({ mode = 'DRAFT' }) => {
                   </p>
                 </div>
 
-                {/* Instant In-Queue Search Bar */}
-                <div className="relative w-full sm:max-w-xs mt-2 sm:mt-0">
-                    <input 
-                        type="text" 
-                        placeholder="Search name, app no, rank..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-300 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578] shadow-sm"
-                    />
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">🔍</span>
-                    {searchTerm && (
-                        <button
-                            onClick={() => setSearchTerm('')}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs px-1 font-bold"
-                            title="Clear search"
-                        >
-                            ✕
-                        </button>
+                {/* Right controls: Sort by Name Toggle (DRAFT only) + Instant In-Queue Search Bar */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+                    {mode === 'DRAFT' && (
+                        <label className="inline-flex items-center gap-2.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm cursor-pointer select-none hover:bg-slate-100/70 transition-colors">
+                            <span className="text-xs font-semibold text-slate-700 whitespace-nowrap">Sort by Name</span>
+                            <div className="relative inline-flex items-center">
+                                <input 
+                                    type="checkbox" 
+                                    checked={sortMode === 'name'} 
+                                    onChange={handleToggleSort} 
+                                    className="sr-only peer"
+                                    aria-label="Sort by Name"
+                                />
+                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0b3578]"></div>
+                            </div>
+                            <span className={`text-[11px] font-bold ${sortMode === 'name' ? 'text-[#0b3578]' : 'text-slate-400'}`}>
+                                {sortMode === 'name' ? 'A → Z' : 'Latest'}
+                            </span>
+                        </label>
                     )}
+
+                    {/* Instant In-Queue Search Bar */}
+                    <div className="relative w-full sm:max-w-xs">
+                        <input 
+                            type="text" 
+                            placeholder="Search name, app no, rank..." 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-300 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578] shadow-sm"
+                        />
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">🔍</span>
+                        {searchTerm && (
+                            <button
+                                onClick={() => setSearchTerm('')}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs px-1 font-bold"
+                                title="Clear search"
+                            >
+                                ✕
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
