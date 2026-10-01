@@ -155,7 +155,26 @@ The faculty live monitoring UI utilizes deterministic React state management in 
 
 ---
 
-## 8. Cross-References
+## 8. Hardened Student PIN & GPS Verification Workflow
+
+In `POST /api/student/attendance/verify`, student attendance submission via 4-digit PIN or dynamic QR token is hardened with multi-layer verification and atomic persistence.
+
+### Verification Lifecycle
+1. **Granular Session State Inspection**:
+   - HTTP 404: Session does not exist.
+   - HTTP 403: Session is inactive (`is_active = 0`) with explicit message *"This attendance session has ended or is closed"*.
+   - HTTP 403: Session has expired (`expires_at <= now`) with explicit message *"This attendance session has expired"*.
+2. **Student Department & Semester Eligibility**:
+   - The student's department code (derived from institutional roll number or registry record) must strictly match the assigned course branch. Cross-department PIN submission is rejected with HTTP 403.
+   - The student's current academic semester (computed via `calculateYearAndSemesterAsync`) is verified against the course semester.
+3. **Multi-Check Duplicate Prevention**:
+   - Prevents duplicate requests by inspecting both `attendanceSessionLogs` (returns HTTP 409 if status is already `SUCCESS`) and `studentAttendance` (returns HTTP 409 if status is already `PRESENT`).
+4. **Immediate Atomic Attendance Commitment**:
+   - Verified student submissions are committed in an atomic `db.transaction()` that simultaneously inserts the audit record into `attendanceSessionLogs` AND upserts the student's status as `PRESENT` in `studentAttendance` using the canonical assignment ID. This guarantees students are marked present immediately without relying on manual faculty panel re-saves.
+
+---
+
+## 9. Cross-References
 
 - Examinations & Evaluation System: [examinations.md](./examinations.md)
 - Institutional Reports & Attendance Archival: [reports.md](./reports.md)
