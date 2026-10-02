@@ -312,7 +312,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     const previousStatusMap = { ...attendanceStatusMap };
     const previousCache = { ...attendanceCache };
     const previousActiveSession = activeSession;
-    const topicToSave = explicitTopic !== undefined ? explicitTopic : (currentTopicCovered || '');
+    const topicToSave = (typeof explicitTopic === 'string' ? explicitTopic : currentTopicCovered) || '';
 
     setSubmitting(true);
     try {

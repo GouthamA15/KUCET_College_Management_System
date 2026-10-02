@@ -58,8 +58,8 @@ export class RecommendationEngine {
     for (const stat of attendanceStats) {
       totalSessions += stat.total;
       totalPresent += stat.present;
-      const pct = stat.total > 0 ? (stat.present / stat.total) * 100 : 100;
-      if (pct < 75) {
+      const pct = stat.total > 0 ? (stat.present / stat.total) * 100 : 0;
+      if (stat.total > 0 && pct < 75) {
         recommendations.push(this._createRecommendation(
           RecommendationRegistry.ATTEND_REMEDIAL,
           `Subject attendance is ${pct.toFixed(2)}%`,
@@ -71,8 +71,8 @@ export class RecommendationEngine {
       }
     }
 
-    const overallPct = totalSessions > 0 ? (totalPresent / totalSessions) * 100 : 100;
-    if (overallPct < 75) {
+    const overallPct = totalSessions > 0 ? (totalPresent / totalSessions) * 100 : 0;
+    if (totalSessions > 0 && overallPct < 75) {
       recommendations.push(this._createRecommendation(
         RecommendationRegistry.IMPROVE_ATTENDANCE,
         `Overall attendance is ${overallPct.toFixed(2)}%`,

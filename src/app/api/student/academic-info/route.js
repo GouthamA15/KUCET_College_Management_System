@@ -80,7 +80,7 @@ export async function GET(_request) {
           _marks_updated_at: studentMarks.updated_at,
 
           // Attendance (Filtering by Admission Date to avoid Spot Admission penalty)
-          total_classes: sql`COUNT(DISTINCT CASE WHEN ${studentAttendance.date} >= COALESCE(${studentsTable.admission_date}, '1900-01-01') THEN ${studentAttendance.id} END)`,
+          total_classes: sql`(SELECT COUNT(DISTINCT s.id) FROM attendance_sessions s WHERE s.assignment_id = ${canonicalAssignments.canonical_id} AND s.attendance_date >= COALESCE(${studentsTable.admission_date}, '1900-01-01'))`,
           attended_classes: sql`COUNT(DISTINCT CASE WHEN ${studentAttendance.status} IN ('PRESENT', 'NCC', 'MEDICAL') AND ${studentAttendance.date} >= COALESCE(${studentsTable.admission_date}, '1900-01-01') THEN ${studentAttendance.id} END)`
         })
         .from(syllabusStructure)

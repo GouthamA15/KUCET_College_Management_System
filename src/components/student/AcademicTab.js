@@ -283,7 +283,7 @@ export default function AcademicTab() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
                 {data.map((sub) => {
-                  const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 100;
+                  const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 0;
                   const isLab = sub.subject_type === 'lab';
                   
                   // Max Mark Calculation
@@ -373,7 +373,7 @@ export default function AcademicTab() {
 
           <div className="md:hidden flex flex-col gap-4">
             {data.map((sub) => {
-              const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 100;
+              const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 0;
               const isLab = sub.subject_type === 'lab';
               
               // Max Mark Calculation
