@@ -213,7 +213,7 @@ export default function StudentAchievementsTab() {
                     {ach.achievement_type} • {ach.achievement_level}
                   </div>
                   <div className="text-[11px] text-slate-500 mb-3 px-2">
-                    {ach.academic_year} {ach.issuing_organization ? `• ${ach.issuing_organization}` : ''}
+                    {ach.academic_year} {ach.issuing_organization ? <React.Fragment>• <span>{ach.issuing_organization}</span></React.Fragment> : ""}
                   </div>
                   
                   {ach.recognition && (
@@ -227,8 +227,8 @@ export default function StudentAchievementsTab() {
                         View Certificate
                       </a>
                     )}
-                    <button onClick={() => handleEdit(ach)} className="inline-flex items-center justify-center w-7 h-7 rounded-full border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-[#0b3578] transition-colors"><Edit2 className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => setDeletingAchievement(ach)} className="inline-flex items-center justify-center w-7 h-7 rounded-full border border-slate-200 text-slate-400 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => handleEdit(ach)} title="Edit Achievement" className="inline-flex items-center justify-center w-7 h-7 rounded-full border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-[#0b3578] transition-colors"><Edit2 className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => setDeletingAchievement(ach)} title="Delete Achievement" className="inline-flex items-center justify-center w-7 h-7 rounded-full border border-slate-200 text-slate-400 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 </div>
               </div>
