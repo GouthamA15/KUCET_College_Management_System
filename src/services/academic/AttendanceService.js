@@ -81,7 +81,7 @@ export async function getStudentSubjectAttendance(studentId, assignmentId) {
     };
   });
 
-  const percentage = classesHeld > 0 ? (((present + ncc + medical) / classesHeld) * 100).toFixed(1) : 100;
+  const percentage = classesHeld > 0 ? (((present + ncc + medical) / classesHeld) * 100).toFixed(1) : 0;
 
   return {
     summary: {

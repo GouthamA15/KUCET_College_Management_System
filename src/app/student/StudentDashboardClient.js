@@ -26,7 +26,7 @@ function toTitleCase(str) {
 function getAttendancePercent(sub) {
   const total = Number(sub?.total_classes || 0);
   const attended = Number(sub?.attended_classes || 0);
-  if (total <= 0) return 100;
+  if (total <= 0) return 0;
   return clampNumber((attended / total) * 100, 0, 100);
 }
 

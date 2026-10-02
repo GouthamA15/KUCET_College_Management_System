@@ -278,87 +278,77 @@ function AcademicsInner({ studentData }) {
 
       {/* Section 1: Subjects Offered */}
       {activeTab === 'subjects' && (
-        <section className="border border-gray-300 rounded-md bg-white p-4">
-        <div className="mb-3">
-          <h2 className="text-sm font-semibold text-gray-800">
-            Subjects Offered {currentSem ? `at Semester ${currentSem}` : ''}
-          </h2>
-          <p className="text-sm text-gray-600">
-            Academic Year {currentYear || 'â€”'}
-          </p>
-        </div>
+        <section className="bg-white border border-gray-300 rounded-md p-4 sm:p-6 lg:p-8 w-full shadow-sm">
+          <header className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Subjects Offered</h2>
+              </div>
+              <p className="text-sm text-gray-600 mt-1">
+                Semester {currentSem || '—'} • Academic Year {currentYear || '—'}
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              {syllabusUrl && (
+                <a href={syllabusUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-[#0b3578] hover:underline">
+                  View Curriculum
+                </a>
+              )}
+              <Link href="/student/timetable" className="text-sm font-medium text-[#0b3578] hover:underline">
+                View Timetable
+              </Link>
+            </div>
+          </header>
 
-        <>
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full min-w-0 table-auto">
-              <thead className="bg-gray-100 text-sm font-medium text-gray-700">
-                <tr>
-                  <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Code</th>
-                  <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Subject Name</th>
-                  <th className="text-left py-2.5 px-2 w-20 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Type</th>
-                  <th className="text-right py-2.5 px-2 w-16 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Credits</th>
-                  <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Faculty</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((sub) => {
-                  const meta = getSubjectMeta(sub.subject_name);
-                  const code = sub.subject_code || '--';
-                  const isClickable = !!sub.assignment_id;
-                  return (
-                    <tr 
-                      key={sub.subject_code} 
-                      onClick={() => isClickable && router.push(`/student/academics/subjects/${sub.assignment_id}`)}
-                      className={`border-b ${isClickable ? 'cursor-pointer hover:bg-blue-50 transition-colors' : 'opacity-70'}`}
-                      title={isClickable ? "View Subject Details" : "No faculty assigned yet"}
-                    >
-                      <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-800 whitespace-normal wrap-break-word">{code}</td>
-                      <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal wrap-break-word">{sub.subject_name}</td>
-                      <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal wrap-break-word">{meta.type}</td>
-                      <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{meta.credits}</td>
-                      <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal wrap-break-word">{sub.faculty_name || 'â€”'}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className="md:hidden flex flex-col gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {data.map((sub) => {
               const meta = getSubjectMeta(sub.subject_name);
               const code = sub.subject_code || '--';
               const isClickable = !!sub.assignment_id;
+              
+              // Determine colors based on timetable logic
+              let circleColor = 'bg-slate-50/80 group-hover:bg-slate-100';
+              let hoverBorder = 'hover:border-slate-300';
+              let pillClasses = 'bg-slate-50 border-slate-200 text-slate-700';
+              
+              if (meta.type.toLowerCase().includes('theory')) {
+                circleColor = 'bg-blue-50/80 group-hover:bg-blue-100';
+                hoverBorder = 'hover:border-blue-200';
+                pillClasses = 'bg-blue-50 border-blue-200 text-blue-700';
+              } else if (meta.type.toLowerCase().includes('lab') || meta.type.toLowerCase().includes('practical')) {
+                circleColor = 'bg-emerald-50/80 group-hover:bg-emerald-100';
+                hoverBorder = 'hover:border-emerald-200';
+                pillClasses = 'bg-emerald-50 border-emerald-200 text-emerald-700';
+              } else if (meta.type.toLowerCase().includes('project') || meta.type.toLowerCase().includes('seminar')) {
+                circleColor = 'bg-amber-50/80 group-hover:bg-amber-100';
+                hoverBorder = 'hover:border-amber-200';
+                pillClasses = 'bg-amber-50 border-amber-200 text-amber-700';
+              }
+
               return (
                 <div 
                   key={sub.subject_code} 
                   onClick={() => isClickable && router.push(`/student/academics/subjects/${sub.assignment_id}`)}
-                  className={`bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-4 text-sm shadow-sm ${isClickable ? 'cursor-pointer hover:from-white hover:to-gray-50 hover:border-gray-300 transition-all active:scale-[0.98]' : 'opacity-70'}`}
+                  className={`bg-white rounded-md p-5 sm:p-6 border border-slate-200 shadow-sm relative overflow-hidden group transition-all ${isClickable ? 'cursor-pointer ' + hoverBorder : 'opacity-70'}`}
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="font-semibold text-gray-800 text-xs">{code}</div>
-                    <div className="bg-white border text-xs px-2 py-0.5 rounded text-gray-600">{meta.type}</div>
-                  </div>
-                  <div className="font-medium text-gray-800 mb-2">{sub.subject_name}</div>
-                  <div className="flex justify-between items-center text-xs text-gray-600">
-                    <div><span className="font-semibold">Faculty:</span> {sub.faculty_name || 'â€”'}</div>
-                    <div><span className="font-semibold">Credits:</span> {meta.credits}</div>
+                  <div className={`absolute top-0 right-0 w-20 h-20 sm:w-24 sm:h-24 ${circleColor} rounded-bl-full -mr-5 -mt-5 transition-all duration-300 ${isClickable ? 'group-hover:scale-110' : ''}`}></div>
+                  <div className="relative flex flex-col items-center text-center">
+                    <h3 className="font-bold text-slate-800 text-lg tracking-wide mb-1">{sub.subject_name}</h3>
+                    <p className="text-xs font-medium text-slate-500 mb-4">
+                      {code} &bull; {meta.type} <br />
+                      <span className="opacity-80 font-normal">Faculty: {sub.faculty_name || 'TBA'} &bull; Credits: {meta.credits}</span>
+                    </p>
+                    {isClickable && (
+                      <span className={`text-[10px] font-bold px-3 py-1 rounded-full border ${pillClasses} uppercase tracking-wider`}>
+                        View Details
+                      </span>
+                    )}
                   </div>
                 </div>
               );
             })}
           </div>
-        </>
-
-        <div className="mt-4 text-right space-y-1">
-          {syllabusUrl ? (
-            <a href={syllabusUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-[#0b3578] hover:underline">View Full Curriculum</a>
-          ) : (
-            <div className="text-sm text-gray-500">Curriculum Not Available</div>
-          )}
-          <div>
-            <Link href="/student/timetable" className="text-sm text-[#0b3578] hover:underline">View Detailed Time Table</Link>
-          </div>
-        </div>
         </section>
       )}
 
@@ -382,7 +372,7 @@ function AcademicsInner({ studentData }) {
              {/* Bars Container */}
              <div className="ml-8 flex-1 flex items-end justify-around h-full pb-6 relative z-10 border-b border-gray-200">
                {data.map((sub, idx) => {
-                 const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 100;
+                 const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 0;
                  // Fixed colors mapping exactly to the design constraints
                  const colors = ['#f97316', '#06b6d4', '#0ea5e9', '#84cc16', '#f59e0b', '#8b5cf6', '#ec4899', '#f97316', '#ef4444', '#10b981'];
                  const color = colors[idx % colors.length];
@@ -403,7 +393,7 @@ function AcademicsInner({ studentData }) {
           {(() => {
             const totalHeld = data.reduce((sum, sub) => sum + (sub.total_classes || 0), 0);
             const totalAttended = data.reduce((sum, sub) => sum + (sub.attended_classes || 0), 0);
-            const overallPct = totalHeld > 0 ? ((totalAttended / totalHeld) * 100).toFixed(2) : '100.00';
+            const overallPct = totalHeld > 0 ? ((totalAttended / totalHeld) * 100).toFixed(2) : '0.00';
             return (
               <div className="bg-[#e8f7ee] border border-[#bbf7d0] rounded-2xl p-4 sm:p-5 mb-8 shadow-sm">
                 <h3 className="text-base sm:text-lg font-bold text-gray-900">Total Attendance: {overallPct}%</h3>
@@ -414,7 +404,7 @@ function AcademicsInner({ studentData }) {
           {/* Legend / List */}
           <div className="space-y-4 sm:space-y-5">
             {data.map((sub, idx) => {
-              const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 100;
+              const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 0;
               const colors = ['#f97316', '#06b6d4', '#0ea5e9', '#84cc16', '#f59e0b', '#8b5cf6', '#ec4899', '#f97316', '#ef4444', '#10b981'];
               const color = colors[idx % colors.length];
               return (
