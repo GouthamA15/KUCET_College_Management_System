@@ -70,6 +70,7 @@ export async function POST(req) {
     sessionCookieId = sessionCookieVal ? parseInt(sessionCookieVal, 10) : null;
 
     const refreshToken = cookieStore.get(refreshCookieName)?.value;
+    refreshTokenPresent = !!refreshToken;
 
     if (!refreshToken) {
       logDevValues();
@@ -220,13 +221,22 @@ export async function POST(req) {
         if (type === 'student') {
           cookieRole = 'student';
         } else if (type === 'staff') {
-          cookieRole = cookieStore.get('staff_role')?.value || user.role; // Use user.role from DB if cookie is missing
+          cookieRole = cookieStore.get('staff_role')?.value || user.role;
         } else if (type === 'admin') {
           cookieRole = 'admin';
         }
 
         const dbRole = type === 'staff' ? user.role : type;
-        const jwtRole = jwtPayload?.role;
+        let jwtRole = jwtPayload?.role;
+        
+        // FIX: Reconcile 'staff' generic role from older cookies to the resolved DB role
+        if (type === 'staff' && cookieRole === 'staff' && ['faculty', 'admission', 'scholarship'].includes(dbRole)) {
+          cookieRole = dbRole;
+        }
+        if (type === 'staff' && jwtRole === 'staff' && ['faculty', 'admission', 'scholarship'].includes(dbRole)) {
+          jwtRole = dbRole;
+        }
+
         roleValidationResult = (cookieRole === dbRole && (!jwtRole || jwtRole === dbRole));
 
         if (!ownershipValidationResult || !roleValidationResult) {
@@ -397,17 +407,26 @@ export async function POST(req) {
 
     // Task 6: Role validation (cookie role -> db role -> JWT role -> refresh token owner)
     let cookieRole = null;
-    if (type === 'student') {
-      cookieRole = 'student';
-    } else if (type === 'staff') {
-      cookieRole = cookieStore.get('staff_role')?.value || user.role;
-    } else if (type === 'admin') {
-      cookieRole = 'admin';
-    }
+        if (type === 'student') {
+          cookieRole = 'student';
+        } else if (type === 'staff') {
+          cookieRole = cookieStore.get('staff_role')?.value || user.role;
+        } else if (type === 'admin') {
+          cookieRole = 'admin';
+        }
 
-    const dbRole = type === 'staff' ? user.role : type;
-    const jwtRole = jwtPayload?.role;
-    roleValidationResult = (cookieRole === dbRole && (!jwtRole || jwtRole === dbRole));
+        const dbRole = type === 'staff' ? user.role : type;
+        let jwtRole = jwtPayload?.role;
+        
+        // FIX: Reconcile 'staff' generic role from older cookies to the resolved DB role
+        if (type === 'staff' && cookieRole === 'staff' && ['faculty', 'admission', 'scholarship'].includes(dbRole)) {
+          cookieRole = dbRole;
+        }
+        if (type === 'staff' && jwtRole === 'staff' && ['faculty', 'admission', 'scholarship'].includes(dbRole)) {
+          jwtRole = dbRole;
+        }
+
+        roleValidationResult = (cookieRole === dbRole && (!jwtRole || jwtRole === dbRole));
 
     if (!ownershipValidationResult || !roleValidationResult) {
       logDevValues();
