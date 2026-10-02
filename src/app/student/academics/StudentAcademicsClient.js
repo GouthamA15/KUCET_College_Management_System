@@ -1,13 +1,14 @@
 ﻿'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useStudent } from '@/context/StudentContext';
 import { getSyllabusUrl } from '@/lib/getSyllabusUrl';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import { AcademicsProvider, useAcademicsCache } from '@/context/AcademicsContext';
 import toast from 'react-hot-toast';
-import { Info, X } from 'lucide-react';
+import { Info, X, ArrowLeft } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import StudentAchievementsTab from '@/components/student/StudentAchievementsTab';
 
@@ -37,6 +38,7 @@ export default function StudentAcademicsClient() {
 }
 
 function AcademicsInner({ studentData }) {
+  const router = useRouter();
   const [data, setData] = useState([]);
   const [_loading, setLoading] = useState(true);
   const [_historySubject, setHistorySubject] = useState(null);
@@ -279,7 +281,7 @@ function AcademicsInner({ studentData }) {
         <section className="border border-gray-300 rounded-md bg-white p-4">
         <div className="mb-3">
           <h2 className="text-sm font-semibold text-gray-800">
-            Subjects Offered {currentSem ? `â€“ Semester ${currentSem}` : ''}
+            Subjects Offered {currentSem ? `at Semester ${currentSem}` : ''}
           </h2>
           <p className="text-sm text-gray-600">
             Academic Year {currentYear || 'â€”'}
@@ -301,9 +303,15 @@ function AcademicsInner({ studentData }) {
               <tbody>
                 {data.map((sub) => {
                   const meta = getSubjectMeta(sub.subject_name);
-                  const code = sub.subject_code || 'â€”';
+                  const code = sub.subject_code || '--';
+                  const isClickable = !!sub.assignment_id;
                   return (
-                    <tr key={sub.subject_code} className="border-b">
+                    <tr 
+                      key={sub.subject_code} 
+                      onClick={() => isClickable && router.push(`/student/academics/subjects/${sub.assignment_id}`)}
+                      className={`border-b ${isClickable ? 'cursor-pointer hover:bg-blue-50 transition-colors' : 'opacity-70'}`}
+                      title={isClickable ? "View Subject Details" : "No faculty assigned yet"}
+                    >
                       <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-800 whitespace-normal wrap-break-word">{code}</td>
                       <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal wrap-break-word">{sub.subject_name}</td>
                       <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal wrap-break-word">{meta.type}</td>
@@ -318,9 +326,14 @@ function AcademicsInner({ studentData }) {
           <div className="md:hidden flex flex-col gap-3">
             {data.map((sub) => {
               const meta = getSubjectMeta(sub.subject_name);
-              const code = sub.subject_code || 'â€”';
+              const code = sub.subject_code || '--';
+              const isClickable = !!sub.assignment_id;
               return (
-                <div key={sub.subject_code} className="bg-gray-50 border border-gray-200 rounded p-3 text-sm">
+                <div 
+                  key={sub.subject_code} 
+                  onClick={() => isClickable && router.push(`/student/academics/subjects/${sub.assignment_id}`)}
+                  className={`bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-4 text-sm shadow-sm ${isClickable ? 'cursor-pointer hover:from-white hover:to-gray-50 hover:border-gray-300 transition-all active:scale-[0.98]' : 'opacity-70'}`}
+                >
                   <div className="flex justify-between items-start mb-2">
                     <div className="font-semibold text-gray-800 text-xs">{code}</div>
                     <div className="bg-white border text-xs px-2 py-0.5 rounded text-gray-600">{meta.type}</div>
@@ -351,60 +364,70 @@ function AcademicsInner({ studentData }) {
 
       {/* Section 2: Attendance Summary */}
       {activeTab === 'attendance' && (
-        <section className="border border-gray-300 rounded-md bg-white p-4">
-        <div className="mb-3">
-          <h2 className="text-xs sm:text-sm font-semibold text-gray-800">Attendance Summary</h2>
-          <p className="text-xs sm:text-sm text-gray-600">Conducted and attended classes (shortcut codes)</p>
-        </div>
-
-        <>
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full table-auto">
-              <thead className="bg-gray-100 text-xs sm:text-sm font-medium text-gray-700">
-                <tr>
-                  <th className="text-left py-2.5 px-2 text-xs sm:text-sm">Subject</th>
-                  <th className="text-right py-2.5 px-2 w-20 text-xs sm:text-sm">Conducted</th>
-                  <th className="text-right py-2.5 px-2 w-20 text-xs sm:text-sm">Attended</th>
-                  <th className="text-right py-2.5 px-2 w-20 text-xs sm:text-sm">%</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((sub) => {
-                  const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 100;
-                  const short = deriveShortName(sub.subject_name) || sub.subject_code || 'â€”';
-                  return (
-                    <tr key={`att-${sub.subject_code}`} className="border-b">
-                      <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-800">{short}</td>
-                      <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-700 text-right">{sub.total_classes ?? '--'}</td>
-                      <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-700 text-right">{sub.attended_classes ?? '--'}</td>
-                      <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-700 text-right">{pct.toFixed(1)}%</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        <section className="bg-white border border-gray-300 rounded-md p-4 sm:p-6 lg:p-8 w-full shadow-sm">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-8 flex items-center gap-2">
+            
+            Overall Attendance
+          </h2>
+          
+          {/* Custom Vertical Bar Chart */}
+          <div className="relative h-48 sm:h-56 w-full flex items-end justify-between gap-1 sm:gap-3 mb-6 pr-2 sm:pr-4">
+             {/* Y-axis labels */}
+             <div className="absolute left-0 top-0 bottom-0 w-8 flex flex-col justify-between text-[10px] sm:text-xs text-gray-800 font-bold pb-6 z-0">
+               <span>100</span>
+               <span>50</span>
+               <span>0</span>
+             </div>
+             
+             {/* Bars Container */}
+             <div className="ml-8 flex-1 flex items-end justify-around h-full pb-6 relative z-10 border-b border-gray-200">
+               {data.map((sub, idx) => {
+                 const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 100;
+                 // Fixed colors mapping exactly to the design constraints
+                 const colors = ['#f97316', '#06b6d4', '#0ea5e9', '#84cc16', '#f59e0b', '#8b5cf6', '#ec4899', '#f97316', '#ef4444', '#10b981'];
+                 const color = colors[idx % colors.length];
+                 return (
+                   <div key={`bar-${sub.subject_code}`} className="w-full max-w-[2.5rem] md:max-w-[3.5rem] lg:max-w-[4rem] mx-1 sm:mx-2 lg:mx-4 flex flex-col items-center justify-end h-full group">
+                     <div 
+                       className="w-full rounded-t-sm transition-all duration-700 hover:opacity-80 cursor-pointer shadow-sm" 
+                       style={{ height: `${pct}%`, backgroundColor: color }}
+                       title={`${sub.subject_name}: ${pct.toFixed(2)}%`}
+                     ></div>
+                   </div>
+                 );
+               })}
+             </div>
           </div>
-          <div className="md:hidden flex flex-col gap-3">
-            {data.map((sub) => {
+
+          {/* Total Attendance Box */}
+          {(() => {
+            const totalHeld = data.reduce((sum, sub) => sum + (sub.total_classes || 0), 0);
+            const totalAttended = data.reduce((sum, sub) => sum + (sub.attended_classes || 0), 0);
+            const overallPct = totalHeld > 0 ? ((totalAttended / totalHeld) * 100).toFixed(2) : '100.00';
+            return (
+              <div className="bg-[#e8f7ee] border border-[#bbf7d0] rounded-2xl p-4 sm:p-5 mb-8 shadow-sm">
+                <h3 className="text-base sm:text-lg font-bold text-gray-900">Total Attendance: {overallPct}%</h3>
+              </div>
+            );
+          })()}
+
+          {/* Legend / List */}
+          <div className="space-y-4 sm:space-y-5">
+            {data.map((sub, idx) => {
               const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 100;
-              const short = deriveShortName(sub.subject_name) || sub.subject_code || 'â€”';
+              const colors = ['#f97316', '#06b6d4', '#0ea5e9', '#84cc16', '#f59e0b', '#8b5cf6', '#ec4899', '#f97316', '#ef4444', '#10b981'];
+              const color = colors[idx % colors.length];
               return (
-                <div key={`att-${sub.subject_code}`} className="bg-gray-50 border border-gray-200 rounded p-3 text-sm flex justify-between items-center">
-                  <div className="font-medium text-gray-800">{short}</div>
-                  <div className="flex gap-4 items-center">
-                    <div className="text-right">
-                      <div className="text-[10px] text-gray-500 font-semibold uppercase">Attended / Total</div>
-                      <div className="text-xs text-gray-800">{sub.attended_classes ?? '--'} / {sub.total_classes ?? '--'}</div>
-                    </div>
-                    <div className={`font-bold ${pct < 75 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                      {pct.toFixed(1)}%
-                    </div>
+                <div key={`list-${sub.subject_code}`} className="flex items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-start sm:items-center gap-3 sm:gap-4 pr-2">
+                    <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full shrink-0 mt-1 sm:mt-0 shadow-sm" style={{ backgroundColor: color }}></div>
+                    <span className="text-sm sm:text-[15px] font-semibold text-gray-900 leading-tight">{sub.subject_name}</span>
                   </div>
+                  <span className="text-sm sm:text-[15px] font-semibold text-gray-900 shrink-0 mt-0.5 sm:mt-0">{pct.toFixed(2)}%</span>
                 </div>
               );
             })}
           </div>
-        </>
         </section>
       )}
 
@@ -471,7 +494,7 @@ function AcademicsInner({ studentData }) {
                       }
                       const short = deriveShortName(sub.subject_name) || sub.subject_code || 'â€”';
                       return (
-                        <div key={`theory-${sub.subject_code}`} className="bg-gray-50 border border-gray-200 rounded p-3 text-sm flex flex-col gap-2">
+                        <div key={`theory-${sub.subject_code}`} className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-4 text-sm flex flex-col gap-2 shadow-sm">
                           <div className="font-semibold text-gray-800">{short}</div>
                           <div className="flex justify-between items-center text-xs">
                             <div className="flex gap-3 text-gray-600">
@@ -548,7 +571,7 @@ function AcademicsInner({ studentData }) {
                       }
                       const short = deriveShortName(sub.subject_name) || sub.subject_code || 'â€”';
                       return (
-                        <div key={`lab-${sub.subject_code}`} className="bg-gray-50 border border-gray-200 rounded p-3 text-sm flex flex-col gap-2">
+                        <div key={`lab-${sub.subject_code}`} className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-4 text-sm flex flex-col gap-2 shadow-sm">
                           <div className="font-semibold text-gray-800">{short}</div>
                           <div className="flex justify-between items-center text-xs">
                             <div className="flex gap-3 text-gray-600">
