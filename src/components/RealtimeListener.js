@@ -104,13 +104,17 @@ function ensureSocketConnection() {
     withCredentials: true,
     autoConnect: true,
     reconnection: true,
-    reconnectionAttempts: 20,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 10000,
-    timeout: 10000,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 2000,
+    reconnectionDelayMax: 30000,
+    randomizationFactor: 0.5,
+    timeout: 8000,
   });
 
+  let hasWarnedSocketError = false;
+
   sharedSocket.on('connect', () => {
+    hasWarnedSocketError = false;
     notifyStatus('connected');
   });
 
@@ -137,10 +141,16 @@ function ensureSocketConnection() {
         }
         // Socket.IO reconnection loop will pick up the new cookie automatically on the next attempt
       });
-    } else {
-      console.warn('[Realtime] Socket connection error:', msg);
+    } else if (!hasWarnedSocketError) {
+      console.warn('[Realtime] Socket connection error (will retry with bounded backoff):', msg);
+      hasWarnedSocketError = true;
     }
     notifyStatus('error');
+  });
+
+  sharedSocket.on('reconnect_failed', () => {
+    console.info('[Realtime] Reconnection attempts exhausted. Operating in fallback HTTP/API mode.');
+    notifyStatus('disconnected');
   });
 
   sharedSocket.on('disconnect', (reason) => {
