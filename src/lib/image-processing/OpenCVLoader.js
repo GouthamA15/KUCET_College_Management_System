@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Utility to dynamically load OpenCV.js in the browser.
  */
 
@@ -20,13 +20,29 @@ export async function loadOpenCV() {
         script.async = true;
         
         script.onload = () => {
-            // OpenCV.js uses a callback when WASM is fully initialized
-            if (window.cv.getBuildInformation) {
-                resolve(window.cv);
-            } else {
-                window.cv['onRuntimeInitialized'] = () => {
+            try {
+                if (window.cv && window.cv.getBuildInformation) {
                     resolve(window.cv);
-                };
+                } else if (window.cv) {
+                    window.cv['onRuntimeInitialized'] = () => {
+                        resolve(window.cv);
+                    };
+                } else {
+                    // Try polling for a few seconds if it's injected differently
+                    let attempts = 0;
+                    const interval = setInterval(() => {
+                        if (window.cv && window.cv.Mat) {
+                            clearInterval(interval);
+                            resolve(window.cv);
+                        }
+                        if (++attempts > 50) {
+                            clearInterval(interval);
+                            reject(new Error('OpenCV object not found on window'));
+                        }
+                    }, 100);
+                }
+            } catch (e) {
+                reject(e);
             }
         };
         
