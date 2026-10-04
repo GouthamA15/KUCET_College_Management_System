@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import RealtimeListener from '@/components/RealtimeListener';
 import { getPendingAttendance, savePendingAttendance, deletePendingAttendance } from '@/lib/idb-attendance';
@@ -22,7 +22,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
   const [loading, setLoading] = useState(true);
   const [statusLoading, setStatusLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [attendanceCache, setAttendanceCache] = useState({});
+  const attendanceCacheRef = useRef({});
   const [activeSession, setActiveSession] = useState(null);
   const [verifiedStudentIds, setVerifiedStudentIds] = useState(new Set());
   const [pendingSyncs, setPendingSyncs] = useState([]);
@@ -81,10 +81,11 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     if (!dateToUse && !activeSession) return;
 
     const cacheKey = `${dateToUse}-${sessionToUse}`;
-    if (!bypassCache && !activeSession && dateToUse && attendanceCache[cacheKey]) {
-      setAttendanceStatusMap(attendanceCache[cacheKey].statusMap || {});
-      setExistingSessionsForSelectedDate(attendanceCache[cacheKey].sessions || []);
-      setCurrentTopicCovered(attendanceCache[cacheKey].topicCovered || '');
+    if (!bypassCache && !activeSession && dateToUse && attendanceCacheRef.current[cacheKey]) {
+      const cached = attendanceCacheRef.current[cacheKey];
+      setAttendanceStatusMap(cached.statusMap || {});
+      setExistingSessionsForSelectedDate(cached.sessions || []);
+      setCurrentTopicCovered(cached.topicCovered || '');
       return;
     }
 
@@ -97,31 +98,41 @@ export function FacultyAttendanceProvider({ assignment, children }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch attendance status');
 
-      const verifiedIds = new Set(data.verified_ids || []);
+      const verifiedIds = new Set((data.verified_ids || []).map(Number));
       setVerifiedStudentIds(verifiedIds);
 
       const topicFromApi = data.topic_covered || '';
       setCurrentTopicCovered(topicFromApi);
 
       if (dateToUse) {
-        const statusMap = (data.data || []).reduce((acc, r) => {
+        const serverStatusMap = (data.data || []).reduce((acc, r) => {
           acc[r.student_id] = r.status;
           return acc;
         }, {});
 
         verifiedIds.forEach(id => {
-          if (!statusMap[id]) statusMap[id] = 'PRESENT';
+          if (!serverStatusMap[id]) serverStatusMap[id] = 'PRESENT';
         });
 
         const sessions = data.sessions || [];
-        setAttendanceStatusMap(statusMap);
+        setAttendanceStatusMap((prev) => {
+          // If active session or manual refresh on the same date/session, merge with existing state
+          if (activeSession || bypassCache) {
+            return {
+              ...prev,
+              ...serverStatusMap,
+            };
+          }
+          return serverStatusMap;
+        });
         setExistingSessionsForSelectedDate(sessions);
 
         if (!activeSession) {
-          setAttendanceCache((prev) => ({
-            ...prev,
-            [cacheKey]: { statusMap, sessions, topicCovered: topicFromApi },
-          }));
+          attendanceCacheRef.current[cacheKey] = {
+            statusMap: serverStatusMap,
+            sessions,
+            topicCovered: topicFromApi,
+          };
         }
       }
     } catch (error) {
@@ -129,7 +140,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     } finally {
       setStatusLoading(false);
     }
-  }, [assignment, selectedDate, selectedSession, attendanceCache, activeSession]);
+  }, [assignment, selectedDate, selectedSession, activeSession]);
 
   const refreshPendingSyncs = useCallback(async () => {
     try {
@@ -309,39 +320,39 @@ export function FacultyAttendanceProvider({ assignment, children }) {
   const handleSaveAttendance = useCallback(async (explicitTopic = undefined) => {
     if (!assignment?.id) return;
     
+    // 1. Strict topic normalization (defends against React SyntheticMouseEvent from onClick)
+    const topicToSave = typeof explicitTopic === 'string' 
+      ? explicitTopic 
+      : (typeof currentTopicCovered === 'string' ? currentTopicCovered : '');
+    const cleanTopic = topicToSave.trim() || null;
+
+    // 2. Pre-flight validation (Before doing ANY state mutation or rollback tracking)
+    if (!selectedDate || !dateValidation?.isValid) {
+      toast.error('Select a valid WORKING day from the calendar.', { id: 'attendance-save' });
+      return;
+    }
+
+    const attendanceData = baseStudents.map((s) => ({
+      student_id: s.id,
+      status: attendanceStatusMap[s.id] ?? null,
+    }));
+
+    const missing = attendanceData.filter((a) => a.status === null);
+    if (missing.length > 0) {
+      toast.error(`Please set attendance status for all students. (${missing.length} remaining)`, { id: 'attendance-save' });
+      return;
+    }
+
+    // 3. Rollback snapshots only for network / server-side persistence failures
     const previousStatusMap = { ...attendanceStatusMap };
-    const previousCache = { ...attendanceCache };
     const previousActiveSession = activeSession;
-    const topicToSave = (typeof explicitTopic === 'string' ? explicitTopic : currentTopicCovered) || '';
 
     setSubmitting(true);
+    toast.loading('Saving attendance...', { id: 'attendance-save' });
+
     try {
-      if (!selectedDate || !dateValidation.isValid) {
-        throw new Error('Select a valid WORKING day from the calendar.');
-      }
-
-      const attendanceData = baseStudents.map((s) => ({
-        student_id: s.id,
-        status: attendanceStatusMap[s.id] ?? null,
-      }));
-
-      const missing = attendanceData.filter(a => a.status === null);
-      if (missing.length > 0) {
-        throw new Error(`Please set attendance status for all students. (${missing.length} remaining)`);
-      }
-
-      toast.success('Saving attendance...', { id: 'attendance-save' });
-      
-      if (activeSession) {
-        setActiveSession(null);
-      }
-
       const cacheKey = `${selectedDate}-${selectedSession}`;
-      setAttendanceCache((prev) => {
-        const next = { ...prev };
-        delete next[cacheKey];
-        return next;
-      });
+      delete attendanceCacheRef.current[cacheKey];
 
       const res = await fetch('/api/staff/faculty/attendance', {
         method: 'POST',
@@ -350,11 +361,11 @@ export function FacultyAttendanceProvider({ assignment, children }) {
           assignment_id: assignment.id,
           date: selectedDate,
           session: selectedSession,
-          topic_covered: topicToSave.trim() || null,
+          topic_covered: cleanTopic,
           attendance_data: attendanceData,
         }),
       }).catch(async (err) => {
-        if (!navigator.onLine || err.message.includes('Failed to fetch')) {
+        if (!navigator.onLine || err.message?.includes('Failed to fetch')) {
           const payload = {
             assignment_id: assignment.id,
             subject_name: assignment.subject_name,
@@ -378,10 +389,8 @@ export function FacultyAttendanceProvider({ assignment, children }) {
         setCurrentTopicCovered(data.topic_covered);
       }
 
-      if (previousActiveSession && !activeSession) {
-         // Session already handled
-      } else if (activeSession) {
-         await endSession();
+      if (activeSession) {
+        await endSession();
       }
 
       await fetchAttendanceStatus(selectedDate, selectedSession, true);
@@ -389,11 +398,11 @@ export function FacultyAttendanceProvider({ assignment, children }) {
         assignmentId: assignment.id,
         date: selectedDate,
         session: selectedSession,
-        initialTopic: data.topic_covered || topicToSave || ''
+        initialTopic: data.topic_covered || cleanTopic || ''
       });
     } catch (error) {
       if (error.message === 'OFFLINE_SAVED') {
-        toast.success('Offline: Attendance saved to device. It will sync automatically when you are back online.', { duration: 5000 });
+        toast.success('Offline: Attendance saved to device. It will sync automatically when you are back online.', { duration: 5000, id: 'attendance-save' });
         setActiveSession(null);
         setSubmitting(false);
         return;
@@ -401,14 +410,13 @@ export function FacultyAttendanceProvider({ assignment, children }) {
 
       console.error('[AttendanceSaveRollback]', error);
       setAttendanceStatusMap(previousStatusMap);
-      setAttendanceCache(previousCache);
       setActiveSession(previousActiveSession);
       
-      toast.error(error.message, { id: 'attendance-save' });
+      toast.error(error.message || 'Failed to save attendance', { id: 'attendance-save' });
     } finally {
       setSubmitting(false);
     }
-  }, [assignment, baseStudents, attendanceStatusMap, dateValidation.isValid, fetchAttendanceStatus, selectedDate, selectedSession, activeSession, endSession, attendanceCache, refreshPendingSyncs, currentTopicCovered]);
+  }, [assignment, baseStudents, attendanceStatusMap, dateValidation?.isValid, selectedDate, selectedSession, activeSession, endSession, refreshPendingSyncs, currentTopicCovered, fetchAttendanceStatus]);
 
   const handleDeleteAttendance = useCallback(async () => {
     if (!assignment?.id) return;
@@ -435,11 +443,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
       toast.success('Attendance deleted successfully');
 
       const cacheKey = `${selectedDate}-${selectedSession}`;
-      setAttendanceCache((prev) => {
-        const next = { ...prev };
-        delete next[cacheKey];
-        return next;
-      });
+      delete attendanceCacheRef.current[cacheKey];
 
       await fetchAttendanceStatus();
       setSelectedSession(1);
@@ -545,7 +549,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
         isValid: false,
         message: 'Select a WORKING day from the academic calendar.',
       });
-      setAttendanceCache({});
+      attendanceCacheRef.current = {};
       setActiveSession(null);
 
       await fetchBaseStudents();
@@ -566,6 +570,17 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     };
     fetchStatus();
   }, [selectedDate, selectedSession, fetchAttendanceStatus]);
+
+  // Polling fallback: While activeSession is live, refresh verification logs every 5s so attendance works even if Realtime (WebSocket) is offline/degraded.
+  useEffect(() => {
+    if (!activeSession || !selectedDate) return;
+
+    const interval = setInterval(() => {
+      fetchAttendanceStatus(selectedDate, selectedSession, true);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [activeSession, selectedDate, selectedSession, fetchAttendanceStatus]);
 
   // --- DERIVED STATE (useMemo) ---
 
