@@ -141,7 +141,7 @@ export async function POST(req) {
     // Task 3: Verify Hash Rotation / Stale Hash / Grace Period
     if (tokenRecord.revoked_at) {
       const revokedAtTime = new Date(tokenRecord.revoked_at).getTime();
-      const gracePeriodMs = 15000; // 15 seconds grace period for concurrent requests
+      const gracePeriodMs = 120000; // 2 minutes grace period for concurrent/canceled requests
       const isWithinGracePeriod = (now.getTime() - revokedAtTime) < gracePeriodMs;
 
       if (isWithinGracePeriod) {
@@ -201,7 +201,7 @@ export async function POST(req) {
 
         if (!user) {
           logDevValues();
-          return apiError('User not found', 401);
+          return apiError("User not found (Check DB)", 401);
         }
 
         if (type === 'staff' && user.account_status !== 'ACTIVE') {
@@ -329,7 +329,7 @@ export async function POST(req) {
             sql`${refreshTokens.revoked_at} IS NULL`
         ));
       logDevValues();
-      return apiError('Token revoked. Please login again.', 401);
+      return apiError("Token revoked (Outside grace period). Please login again.", 401);
     }
 
     // 4. Check if expired
@@ -390,7 +390,7 @@ export async function POST(req) {
 
     if (!user) {
       logDevValues();
-      return apiError('User not found', 401);
+      return apiError("User not found (Check DB)", 401);
     }
 
     if (type === 'staff' && user.account_status !== 'ACTIVE') {
