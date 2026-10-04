@@ -116,15 +116,26 @@ export default function AddNewStudent() {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Optional: show loading toast for signature processing
+    const toastId = type === 'signature' ? toast.loading('Extracting signature...') : null;
+
     let processedFile = file;
     try {
-      const { compressImage } = await import('@/lib/image-compressor');
-      processedFile = await compressImage(file, 1200, 1200, 0.6);
+      const { processPhoto, processSignature } = await import('@/lib/image-processing');
+      if (type === 'pfp') {
+        processedFile = await processPhoto(file);
+      } else if (type === 'signature') {
+        processedFile = await processSignature(file);
+      }
+      if (toastId) toast.success('Signature extracted successfully', { id: toastId });
     } catch (err) {
-      console.error('Image compression failed:', err);
+      console.error('Image processing failed:', err);
+      toast.error(err.message || 'Image processing failed', { id: toastId });
+      e.target.value = null;
+      return;
     }
 
-    // 1MB limit
+    // 1MB limit check (though processing ensures it's under 1MB)
     if (processedFile.size > 1 * 1024 * 1024) {
       toast.error(`${type === 'pfp' ? 'Photo' : 'Signature'} file is too large. Max limit is 1MB.`);
       e.target.value = null;

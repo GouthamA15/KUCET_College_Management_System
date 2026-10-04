@@ -223,11 +223,22 @@ export default function EditProfilePage() {
 
       let processedFile = file;
       if (file.type.startsWith('image/')) {
+        const toastId = type === 'sig' ? toast.loading('Extracting signature...') : null;
         try {
-          const { compressImage } = await import('@/lib/image-compressor');
-          processedFile = await compressImage(file, 1200, 1200, 0.6);
+          const { processPhoto, processSignature } = await import('@/lib/image-processing');
+          if (type === 'pfp') {
+              processedFile = await processPhoto(file);
+          } else if (type === 'sig') {
+              processedFile = await processSignature(file);
+          } else if (type === 'proof') {
+              const { compressImage } = await import('@/lib/image-compressor');
+              processedFile = await compressImage(file, 1600, 1600, 0.7); // Proof documents can just use simple compression
+          }
+          if (toastId) toast.success('Processed successfully', { id: toastId });
         } catch (err) {
-          console.error('Image compression failed:', err);
+          console.error('Image processing failed:', err);
+          toast.error(err.message || 'Image processing failed', { id: toastId });
+          return;
         }
       }
 
