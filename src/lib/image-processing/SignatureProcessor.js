@@ -76,6 +76,7 @@ export async function processSignature(file) {
                             if (rect.y + rect.height > maxY) maxY = rect.y + rect.height;
                             foundInk = true;
                         }
+                        cnt.delete(); // Critical: prevent Wasm OOM freeze!
                     }
 
                     if (!foundInk) {
@@ -132,11 +133,14 @@ export async function processSignature(file) {
                     // We need to convert the cropped OpenCV Mat back to an ImageData object to draw it
                     let imgData = new ImageData(new Uint8ClampedArray(cropped.data), cropped.cols, cropped.rows);
                     
+                    // Cache the threshold data view (CRITICAL: accessing .data in loop freezes the browser!)
+                    let threshData = croppedThresh.data;
+                    
                     // But we want to apply the threshold mask to make background truly white and remove noise
                     // A simple approach: use the original cropped pixels, but if the threshold is 0 (black ink), keep it.
                     // If threshold is 255 (white bg), set it to pure white to clean it up.
                     for (let i = 0; i < imgData.data.length; i += 4) {
-                        let maskVal = croppedThresh.data[i / 4]; // 255 is ink, 0 is background
+                        let maskVal = threshData[i / 4]; // 255 is ink, 0 is background
                         if (maskVal === 0) {
                             // Background -> force white
                             imgData.data[i] = 255;
