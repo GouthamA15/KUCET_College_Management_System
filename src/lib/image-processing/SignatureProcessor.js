@@ -1,4 +1,4 @@
-﻿import { loadOpenCV } from './OpenCVLoader';
+import { loadOpenCV } from './OpenCVLoader';
 
 const TARGET_RATIO = 3 / 1; // 3:1
 const MAX_BYTES = 1048576; // 1 MB
@@ -21,12 +21,21 @@ export async function processSignature(file) {
 
             img.onload = () => {
                 try {
-                    // 1. Draw to canvas
+                    // 1. Draw to canvas (Scale down to prevent OpenCV Wasm memory crash)
+                    const MAX_DIM = 1200;
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > MAX_DIM || height > MAX_DIM) {
+                        const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+                        width = Math.round(width * ratio);
+                        height = Math.round(height * ratio);
+                    }
+
                     const canvas = document.createElement('canvas');
-                    canvas.width = img.width;
-                    canvas.height = img.height;
+                    canvas.width = width;
+                    canvas.height = height;
                     const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
+                    ctx.drawImage(img, 0, 0, width, height);
 
                     // 2. Read into OpenCV Mat
                     let src = cv.imread(canvas);
