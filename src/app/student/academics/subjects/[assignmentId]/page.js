@@ -70,7 +70,13 @@ export default function SubjectDetailPage({ params }) {
     <div className="w-full max-w-6xl mx-auto space-y-6 text-sm pb-12">
       {/* Header Area aligned with KUCET style */}
       <header className="mb-4">
-        
+        <button 
+          onClick={() => router.push('/student/academics')}
+          className="mb-3 inline-flex items-center text-sm font-medium text-gray-500 hover:text-[#0b3578] transition-colors cursor-pointer"
+        >
+          <ArrowLeft size={16} className="mr-1.5" />
+          Back to Academics
+        </button>
         
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold text-gray-800">{data.subject_name}</h1>
