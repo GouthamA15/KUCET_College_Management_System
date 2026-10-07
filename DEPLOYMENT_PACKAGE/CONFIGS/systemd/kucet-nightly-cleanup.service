@@ -1,0 +1,19 @@
+[Unit]
+Description=KUCET CMS Production Automated Nightly Cleanup
+Documentation=https://github.com/GouthamA15/CMS
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+Nice=19
+IOSchedulingClass=idle
+ExecStart=/var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/nightly-cleanup.sh
+StandardOutput=append:/var/log/kucet/nightly-cleanup.log
+StandardError=append:/var/log/kucet/nightly-cleanup.log
+TimeoutSec=1800
+
+[Install]
+WantedBy=multi-user.target

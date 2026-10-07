@@ -281,6 +281,7 @@ Deployment is fully automated using GitHub Actions workflows (`.github/workflows
 - **Canonical File Mode Tracking**: All shell scripts in `DEPLOYMENT_PACKAGE/SCRIPTS/` are tracked with executable bit `100755` in the Git index (`git update-index --chmod=+x`), preventing runtime `chmod +x` commands from marking files as dirty on Linux.
 - **Server User & Group Ownership**: `/var/www/kucet-cms` is owned by `deployer:users` (UID `1001:100`) with permissions `u+rwX,g+rwX`. This allows both the GitHub Actions runner daemon (`deployer`) and SSH maintenance users (`kucet-dev`) to execute builds, update files, and write logs without permission errors.
 - **Persistent Storage Volumes**: Host directory `/var/www/kucet-storage` is owned by UID `1001:1001` with `755` permissions, mounted inside containers at `/app/storage` to preserve user uploads independently of code checkouts.
+- **Automated Nightly Cleanup Policy**: Disk maintenance is managed via `kucet-nightly-cleanup.timer` running daily at 00:00 IST. Prunes stale Docker build cache (>7d), dangling images (>7d), vacuumed journal archives (>14d / 500MB), and old deployment logs (>14d). Never touches `/var/www/kucet-storage`, `/var/kucet-db-backup`, or production named volumes.
 
 ---
 

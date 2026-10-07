@@ -99,11 +99,17 @@ run_step "4" "Setup cron jobs" \
   "bash '$SCRIPTS_DIR/setup-cron.sh'"
 
 # ---------------------------------------------------------------------------
-# STEP 5: Make ALL .sh files in SCRIPTS/ executable
+# STEP 5: Setup automated nightly cleanup timer (Midnight IST)
+# ---------------------------------------------------------------------------
+run_step "5" "Setup nightly cleanup timer" \
+  "bash '$SCRIPTS_DIR/setup-cleanup-timer.sh'"
+
+# ---------------------------------------------------------------------------
+# STEP 6: Make ALL .sh files in SCRIPTS/ executable
 # ---------------------------------------------------------------------------
 log ""
 log "──────────────────────────────────────────────────────────────"
-log "  STEP 5: Make all shell scripts executable"
+log "  STEP 6: Make all shell scripts executable"
 log "──────────────────────────────────────────────────────────────"
 SCRIPTS_CHMOD=0
 for script in "$SCRIPTS_DIR"/*.sh; do
@@ -114,12 +120,12 @@ for script in "$SCRIPTS_DIR"/*.sh; do
   fi
 done
 STEP_RESULTS["Make scripts executable"]="✅ PASS ($SCRIPTS_CHMOD scripts)"
-log "  ✅ STEP 5 completed: $SCRIPTS_CHMOD scripts made executable"
+log "  ✅ STEP 6 completed: $SCRIPTS_CHMOD scripts made executable"
 
 # ---------------------------------------------------------------------------
-# STEP 6: Run boot-recovery.sh to verify initial state
+# STEP 7: Run boot-recovery.sh to verify initial state
 # ---------------------------------------------------------------------------
-run_step "6" "Run boot recovery verification" \
+run_step "7" "Run boot recovery verification" \
   "bash '$SCRIPTS_DIR/boot-recovery.sh'"
 
 # ---------------------------------------------------------------------------
@@ -146,6 +152,7 @@ log "╠════════════════════════
 log "  AUTONOMOUS DEPLOYMENT CONFIGURED:"
 log "  ✅ GitHub Actions runner managed by systemd (auto-restarts)"
 log "  ✅ Cron jobs installed (monitor every 5min, backups nightly)"
+log "  ✅ Automated nightly cleanup scheduled (systemd timer, midnight IST)"
 log "  ✅ Log rotation configured (daily, 30-day retention)"
 log "  ✅ Boot recovery runs automatically on server restart"
 log "  ✅ Self-healing monitor will restart failed containers"
@@ -153,6 +160,7 @@ log "  ✅ Auto-rollback triggers after 3 consecutive health failures"
 log "╠══════════════════════════════════════════════════════════════╣"
 log "  VERIFY WITH:"
 log "    systemctl status actions.runner.*"
+log "    systemctl status kucet-nightly-cleanup.timer"
 log "    crontab -l"
 log "    systemctl status docker"
 log "    cat /etc/logrotate.d/kucet-cms"

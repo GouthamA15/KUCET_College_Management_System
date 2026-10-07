@@ -718,8 +718,10 @@ This single command runs all setup steps in order and prints a final summary con
 | `monitor.sh` | Every 5 min (cron) | Self-healing: restarts containers/runner; triggers rollback on repeated failure |
 | `boot-recovery.sh` | On reboot (cron @reboot) | Waits for Docker, starts all containers, verifies health |
 | `setup-logrotate.sh` | Once, via setup-all | Logrotate config installation |
-| `nightly-backup.sh` | Daily 02:00 (cron) | MySQL backup to local storage |
-| `offsite-backup.sh` | Daily 04:00 (cron) | Uploads backups to offsite storage |
+| `setup-cleanup-timer.sh` | Once, via setup-all | Installs & enables systemd nightly cleanup timer |
+| `nightly-cleanup.sh` | Daily 00:00 IST (systemd timer) | Automated safe cleanup of build caches, journals, logs, and /tmp |
+| `nightly-backup.sh` | Daily 02:00 IST (cron) | MySQL backup to local storage (manages own 14-day retention) |
+| `offsite-backup.sh` | Daily 04:00 IST (cron) | Uploads backups to offsite storage |
 
 ---
 
@@ -790,9 +792,67 @@ bash /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/health-check.sh --json
 | `/var/log/kucet/boot-recovery.log` | Boot recovery log |
 | `/var/log/kucet/backup.log` | Nightly backup log |
 | `/var/log/kucet/offsite-backup.log` | Offsite backup log |
+| `/var/log/kucet/nightly-cleanup.log` | Automated nightly cleanup execution log |
 | `/var/log/kucet/health-check.log` | Health check history |
 
 All logs are rotated daily, compressed after 1 day delay, and kept for **30 days**.
+
+---
+
+## AUTOMATED NIGHTLY CLEANUP SYSTEM
+
+### Overview & Operational Rationale
+The production server runs a daily automated maintenance job at **00:00:00 Asia/Kolkata (IST)** via systemd timer (`kucet-nightly-cleanup.timer`).
+The job safely reclaims storage without interrupting running workloads or deleting persistent application data.
+
+### Exact Cleanup Targets & Retention Policies
+| Target Category | Tool / Method | Retention Threshold | Rationale |
+|-----------------|---------------|---------------------|-----------|
+| **Docker Build Cache** | `docker builder prune --filter until=168h` | Older than 7 days (168h) | Preserves warm cache for recent builds/rollbacks; reclaims stale build layers. |
+| **Docker Dangling Images** | `docker image prune --filter until=168h` | Older than 7 days (168h) | Removes untagged `<none>:<none>` intermediate layers safely. |
+| **Stopped Containers** | `docker container prune --filter until=48h` | Older than 48 hours | Prunes dead/exited one-off debugging containers. |
+| **Systemd Journal Archives** | `journalctl --vacuum-time=14d --vacuum-size=500M` | 14 days / Max 500 MB | Retains two weeks of complete forensic audit history while bounding log disk usage. |
+| **APT Package Cache** | `apt-get autoclean -y` | Superseded packages | Removes obsolete `.deb` archives from `/var/cache/apt/archives/`. |
+| **Stale Deployment Logs** | `find /var/log/kucet (deploy_*, rollback_*)` | Older than 14 days | Cleans historical one-off timestamped logs without touching continuous active logs. |
+| **Allowlisted /tmp Artifacts**| `find /tmp (cf_quick.log, kucet_health_check_*, tsx-*)` | Older than 7 days | Removes expired build scratch and benchmark files. |
+
+### Inviolable Protected Locations (NEVER Cleaned)
+1. **Persistent Uploads**: `/var/www/kucet-storage` (student/staff photos, signatures, admission drafts, certificates).
+2. **Database Backups**: `/var/kucet-db-backup` (Managed **exclusively** by `nightly-backup.sh` with its own 14-day cycle; the cleanup script **never** touches database backups).
+3. **Docker Named Volumes**: `db-data` (MySQL), `redis-data` (Redis), `uptime-kuma-data` (Uptime Kuma).
+4. **Active Containers & Tagged Images**: `kucet-cms-app`, `kucet-cms-realtime`, `kucet-cms-db`, `kucet-cms-redis`, `kucet-cms-proxy`.
+5. **Active Production Logs**: `monitor.log`, `backup.log`, `health-check.log`, etc.
+6. **Active Locks & Sockets**: `/tmp/kucet_deploy.lock`, `.backup.lock`, Unix domain sockets, and systemd private mount trees.
+
+### Safety Checks & Concurrency Controls
+- **Mutual Exclusion**: Held via non-blocking flock on `/tmp/kucet_cleanup.lock`.
+- **Deployment & Backup Awareness**: Automatically skips execution if a deployment is currently running (holding `/tmp/kucet_deploy.lock`) or if a backup operation is active (`/var/kucet-db-backup/.backup.lock` < 15 min old).
+- **Pre-Flight Health Gate**: Validates Docker daemon, 5 critical containers, MySQL, Redis, and Next.js `/api/health` HTTP 200 before executing any cleanup. If any check fails, cleanup aborts immediately.
+- **Post-Flight Verification**: Re-runs container, DB, Redis, and storage integrity checks after cleanup to guarantee zero unintended disruption.
+
+### Operational Commands
+```bash
+# 1. Preview candidates in dry-run mode (no changes made):
+sudo bash /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/nightly-cleanup.sh --dry-run
+
+# 2. Run manual cleanup:
+sudo bash /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/nightly-cleanup.sh
+
+# 3. Check timer schedule and next run:
+systemctl status kucet-nightly-cleanup.timer
+systemctl list-timers --all | grep kucet-nightly-cleanup
+
+# 4. View cleanup logs:
+tail -f /var/log/kucet/nightly-cleanup.log
+journalctl -u kucet-nightly-cleanup.service -n 50 --no-pager
+
+# 5. Disable the automated timer (if maintenance window requires pause):
+sudo systemctl stop kucet-nightly-cleanup.timer
+sudo systemctl disable kucet-nightly-cleanup.timer
+
+# 6. Re-enable the automated timer:
+sudo systemctl enable --now kucet-nightly-cleanup.timer
+```
 
 ---
 
