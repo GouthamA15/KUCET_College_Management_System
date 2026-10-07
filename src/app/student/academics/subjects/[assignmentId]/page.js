@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, Calendar, XCircle, Info } from 'lucide-react';
+import { ArrowLeft, Clock, Calendar, XCircle, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function SubjectDetailPage({ params }) {
