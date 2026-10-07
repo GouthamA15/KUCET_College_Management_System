@@ -33,7 +33,7 @@ export function formatDate(dateInput, fallback = '') {
       // Check if already in DD-MM-YYYY format
       const ddmmyyyyMatch = str.match(/^(\d{2})-(\d{2})-(\d{4})$/);
       if (ddmmyyyyMatch) {
-        const [, d, m, y] = ddmmyyyyMatch;
+        const [, d, m] = ddmmyyyyMatch;
         const dn = parseInt(d, 10);
         const mn = parseInt(m, 10);
         if (dn >= 1 && dn <= 31 && mn >= 1 && mn <= 12) {

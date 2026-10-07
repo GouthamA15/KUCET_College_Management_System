@@ -35,7 +35,7 @@ export function getExperimentDbConfig() {
       enableKeepAlive: true,
       keepAliveInitialDelay: 10000,
       idleTimeout: 30000,
-      maxIdle: 0,
+      maxIdle: 3,
       typeCast: function (field, next) {
         if (field.type === 'JSON') return field.string('utf8');
         return next();
@@ -68,7 +68,7 @@ export function getExperimentDbConfig() {
     enableKeepAlive: true,
     keepAliveInitialDelay: 10000,
     idleTimeout: 30000,
-    maxIdle: 0,
+    maxIdle: 3,
     typeCast: function (field, next) {
       if (field.type === 'JSON') return field.string('utf8');
       return next();

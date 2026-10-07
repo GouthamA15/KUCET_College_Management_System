@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Clock, BookOpen, User, XCircle, Info, Calendar } from 'lucide-react';
+import { Clock, Calendar, XCircle, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function SubjectDetailPage({ params }) {
@@ -154,7 +154,6 @@ export default function SubjectDetailPage({ params }) {
             <div className="divide-y divide-gray-100">
               {data.timeline.map((session, idx) => {
                 let statusBadge = "bg-gray-100 text-gray-600 border-gray-200";
-                let StatusIcon = Info;
                 
                 if (session.status === 'PRESENT') {
                   statusBadge = "bg-emerald-50 text-emerald-700 border-emerald-200";

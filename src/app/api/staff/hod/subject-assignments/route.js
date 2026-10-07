@@ -101,7 +101,6 @@ export const POST = wrapHandler({
 
     // Validation: Affiliation Boundary Check
     const { staffAcademicAffiliations, academicDepartments, academicPrograms } = await import('@/db/schema');
-    const { inArray } = await import('drizzle-orm');
 
     const affil = await db.select({ 
       dept_id: academicDepartments.id,

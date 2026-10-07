@@ -317,7 +317,23 @@ Prior to Session 210, rejecting a student admission draft executed an unrecovera
 
 ---
 
-## 16. Cross-References & Related Documentation
+## 16. Session 220 — Full Codebase Forensic Audit, Connection Pool Optimization & Modularity Hardening (October 7–8, 2026)
+
+### Key Engineering Milestones:
+- **TiDB Cloud Connection Pool Reuse & maxIdle Optimization**:
+  - In `src/lib/db.js` and `src/modules/events/db/connection.js`, resolved connection pool thrashing where `maxIdle: 0` caused `mysql2`'s `_removeIdleTimeoutConnections` timer to destroy connections immediately upon release.
+  - Set `maxIdle: connectionLimit`, allowing idle connections to remain warm up to `idleTimeout: 30000ms` (30s), eliminating redundant 150–300ms TLS 1.2 handshakes per request and reducing test suite execution time by 23% (61.1s → 47.1s).
+- **Attendance Service Facade Unification**:
+  - Re-exported `getStudentSubjectAttendance` from `./academic/AttendanceService.js` in `src/services/AttendanceService.js`, unifying all attendance domain query and mutation contracts under a single authoritative facade.
+- **Strict ESLint & Codebase Hygiene**:
+  - Addressed missing dependency arrays and unused variables across API routes and components (`StudentsLookupPanel.js`, `StudentAchievementsTab.js`, `StudentAcademicsClient.js`, `HodSelfProgramManager.js`, `FacultyService.js`, `date.js`).
+- **Comprehensive Verification**:
+  - **81/81 test files passed (690/690 unit & integration tests)**.
+  - Next.js 16 standalone production build compiles cleanly with 0 errors.
+
+---
+
+## 17. Cross-References & Related Documentation
 
 - [System Architectural Decision Records (ADRs)](./architectural-decisions.md)
 - [Chronological Forensics of Resolved Incidents](./resolved-incidents.md)

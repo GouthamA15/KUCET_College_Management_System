@@ -51,7 +51,7 @@ export default function HodSelfProgramManager() {
       } else {
         toast.error('Failed to update programs');
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Error saving programs');
     } finally {
       setSaving(false);

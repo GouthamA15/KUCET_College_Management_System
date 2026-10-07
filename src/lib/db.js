@@ -36,7 +36,7 @@ export function getDb() {
         enableKeepAlive: true,
         keepAliveInitialDelay: 10000,
         idleTimeout: 30000,
-        maxIdle: 0,
+        maxIdle: connectionLimit,
         typeCast: function (field, next) {
           if (field.type === 'JSON') {
             return field.string('utf8');
@@ -66,8 +66,8 @@ export function getDb() {
         // PRODUCTION HARDENING (Serverless Optimized):
         enableKeepAlive: true,
         keepAliveInitialDelay: 10000,
-        idleTimeout: 30000, // Reduced to 30s to release connections faster in serverless
-        maxIdle: 0,
+        idleTimeout: 30000,
+        maxIdle: connectionLimit,
         typeCast: function (field, next) {
           if (field.type === 'JSON') {
             return field.string('utf8');

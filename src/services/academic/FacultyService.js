@@ -14,7 +14,7 @@ import {
   attendanceSessions,
   facultySubjectAssignments
 } from '@/db/schema';
-import { eq, and, desc, asc, sql, like, or, inArray } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, like, or } from 'drizzle-orm';
 
 /**
  * Service for Faculty and HOD-related business logic
