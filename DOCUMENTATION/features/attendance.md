@@ -2,7 +2,7 @@
 
 ## 1. Overview & Security Philosophy
 
-The **KUCET Proxy-Free Attendance System** eliminates traditional roll-call proxy attendance through multi-factor cryptographic and physical verification. It enforces spatial geofencing, temporal dynamic PINs, encrypted QR token scanning, device fingerprinting, and IP address logging.
+The **KUCET Proxy-Free Attendance System** eliminates traditional roll-call proxy attendance through multi-factor cryptographic and physical verification. It enforces spatial geofencing, temporal dynamic PINs, encrypted QR token scanning, hardware device fingerprinting, and IP address logging.
 
 Faculty members start live attendance sessions from their mobile or desktop devices. Students within a 50-meter campus geofence scan a dynamic QR code or submit a 4-digit PIN while their device fingerprint and location are verified in real time.
 
@@ -10,24 +10,38 @@ Faculty members start live attendance sessions from their mobile or desktop devi
 flowchart TD
     A[Faculty Starts Attendance Session] --> B[Capture Geolocation Lat/Long & Set Expiry]
     B --> C[Generate Dynamic 4-Digit PIN & 64-Char Session Token]
-    C --> D[Display Live QR Code on Classroom Screen]
+    C --> D[Display Live QR Code / PIN on Screen]
     
-    E[Student Scans QR Code / Enters PIN] --> F[Client Collects GPS Coords + IP + User-Agent]
-    F --> G[POST /api/student/attendance/mark]
+    E[Student Scans QR Code / Enters PIN] --> F[Client Collects GPS Coords + Device Hash + IP]
+    F --> G[POST /api/student/attendance/verify]
     
-    G --> H{1. Session Active & PIN Valid?}
-    H -->|No| I[Reject: Session Expired or Bad PIN]
-    H -->|Yes| J{2. Distance <= 50m?}
+    G --> H{1. Session Active & Not Expired?}
+    H -->|No| I[Reject: 403 Session Closed or Expired]
+    H -->|Yes| J{2. Branch & Semester Eligible?}
     
-    J -->|No| K[Reject: Out of Geofence Bounds]
-    J -->|Yes| L{3. Device / IP Fingerprint Clean?}
+    J -->|No| K[Reject: 403 Branch/Semester Mismatch]
+    J -->|Yes| L{3. Distance <= 50m & Accuracy <= 100m?}
     
-    L -->|Duplicate Device/IP for Session| M[Reject: Multi-Device Proxy Attempt]
-    L -->|Unique Device| N[Record Attendance: PRESENT]
+    L -->|No| M[Reject: 403/400 Out of Geofence Bounds]
+    L -->|Yes| N{4. PIN Matches & Attempts < 3?}
     
-    N --> O[(student_attendance & attendance_session_logs)]
-    O --> P[Trigger React 19 Optimistic UI Update on Faculty Panel]
+    N -->|No| O[Record FAILED_PIN / LOCKED & Reject 403]
+    N -->|Yes| P{5. Device Fingerprint Unique?}
+    
+    P -->|Multi-Student Same Device| Q[PROXY DETECTED: Mark Both ABSENT]
+    P -->|Unique Device| R[Atomic Commit: Log SUCCESS + studentAttendance PRESENT]
+    
+    R --> S[(student_attendance & attendance_session_logs)]
+    S --> T[Realtime SSE Broadcast: STUDENT_VERIFIED]
 ```
+
+### Supported Attendance Recording Modes
+
+The faculty interface exposes **3 active attendance modes** and 1 read-only historical view in `AttendanceModeSelector.js`:
+1. **Manual Entry (`mode = 'manual'`)**: Traditional roster view allowing individual student status toggles (`PRESENT`, `ABSENT`, `NCC`, `MEDICAL`) and bulk actions ("Confirm All", "Follow Previous Session").
+2. **GPS & PIN Based (`mode = 'gps'`)**: Faculty starts a geofenced session (`POST /api/staff/faculty/attendance/session`), capturing faculty GPS coordinates and displaying a dynamic 4-digit PIN. Students within 50m submit the PIN on their portal.
+3. **Zero Trust Attendance (`mode = 'qr'`)**: Continuous QR scanning engine where faculty device or student camera validates dynamic session tokens.
+4. **Attendance History (`mode = 'view'`)**: Read-only timeline view of past conducted sessions, syllabus topics covered, and attendance percentages.
 
 ---
 
@@ -174,9 +188,34 @@ In `POST /api/student/attendance/verify`, student attendance submission via 4-di
 
 ---
 
-## 9. Cross-References
+## 9. Attendance Troubleshooting & Failure Recovery Protocol
+
+When attendance marking or session verification fails in the classroom, follow this verified troubleshooting procedure:
+
+### Common Failure Modes & Diagnostics
+
+1. **`[AttendanceSaveRollback]` ("Please set attendance status for all students")**:
+   - **Cause**: One or more students in the active roster have not been toggled (their status remains `null`).
+   - **Resolution**: Use "Confirm All" to mark all unflagged students as Present or check the bottom of the roster for unassigned rows before clicking Save.
+2. **"Semester has ended. Attendance locked." (HTTP 403)**:
+   - **Cause**: `isSemesterActive` in `src/lib/academic-utils.js` returned false because the semester end date has passed or college info session is inactive.
+   - **Resolution**: HOD or Admin must extend semester instructional days in the academic calendar.
+3. **"3 failed PIN attempts. You are now locked out of this session." (HTTP 403)**:
+   - **Cause**: Student entered an incorrect 4-digit PIN 3 consecutive times. Status is recorded as `LOCKED` in `attendanceSessionLogs`.
+   - **Resolution**: Faculty must mark the student manually via the Manual Entry mode grid.
+4. **"You are not within the allowed radius (50m) of the classroom." (HTTP 403)**:
+   - **Cause**: Haversine distance between faculty session coordinates and student device exceeds 50 meters, or device reported accuracy `> 100m`.
+   - **Resolution**: Student must enable High Accuracy Location / Wi-Fi scanning in device settings.
+5. **Realtime Socket / SSE Disconnect**:
+   - **Cause**: Standalone Node socket server (`:4000`) or Redis pub/sub is unreachable.
+   - **Resolution**: Note that realtime disconnection **does NOT prevent attendance saving**. Faculty can continue marking attendance; data is saved directly over HTTP REST (`POST /api/staff/faculty/attendance`).
+
+---
+
+## 10. Cross-References
 
 - Examinations & Evaluation System: [examinations.md](./examinations.md)
 - Institutional Reports & Attendance Archival: [reports.md](./reports.md)
 - Database Attendance Schema: [schema.md](../database/schema.md)
+- Troubleshooting & Common Errors: [common-errors.md](../troubleshooting/common-errors.md)
 - Student Request System: [requests.md](./requests.md)

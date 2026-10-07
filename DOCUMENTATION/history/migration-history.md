@@ -283,7 +283,41 @@ Prior to Session 210, rejecting a student admission draft executed an unrecovera
 
 ---
 
-## 14. Cross-References & Related Documentation
+## 14. Session 218 — Next.js 16.3.3 Security Upgrade & Auth Cookie Restoration (September 24–28, 2026)
+
+### Key Engineering Milestones:
+- **Next.js Windows RCE Security Patch (GHSA-p293-qw3h-jr36)**:
+  - Upgraded Next.js from `16.3.0` to `16.3.3` across all package references, mitigating critical remote code execution risks on development and staging environments.
+- **Service Worker Root Navigation Redirect Auth Cookie Shield**:
+  - In `public/sw.js`, explicitly exempted root path `/` and all `/api/*` endpoints from Service Worker interception (`if (url.pathname === '/' || url.pathname.startsWith('/api/')) return;`).
+  - Prevented Chromium/WebKit `redirect: 'follow'` from stripping `Set-Cookie` authentication tokens on root redirects, completely eliminating the infinite auth loop trap.
+- **Student Profile Layout & Mobile Timetable Gesture Optimization**:
+  - Refined student profile sections, added skeleton loading states for enhanced mobile UX, and optimized mobile view touch gestures.
+
+---
+
+## 15. Session 219 — Admission Intake Sorting Toggle, Token Refresh Session Restoration & PIN Hardening (October 1–3, 2026)
+
+### Key Engineering Milestones:
+- **Admission Intake Sorting Toggle**:
+  - Implemented dynamic sort mode toggle (`sortMode = 'latest'` [default] vs `sortMode = 'name'` [A-Z]) exclusively within the **Admission Intake / Draft tab** (`/staff/admission/requests?tab=admissions`).
+  - Supported across `All Branches` as well as individual department cohorts (`CSE`, `CSD`, `ECE`, `EEE`, `CIVIL`, `IT`, `MECH`).
+  - State preserved across workspace and branch filter switches.
+  - Strictly isolated from Finalize Admissions (`/staff/admission/finalize`) and Finalized Students directory.
+- **Student Attendance PIN & QR Verification Hardening (`/api/student/attendance/verify`)**:
+  - Granular session lifecycle validation: checks if session exists (404), is active (403), or expired (403).
+  - Enforced student department code and semester eligibility checks against assigned course.
+  - Double duplicate prevention via `attendanceSessionLogs` (409) and `studentAttendance` (409).
+  - Atomic persistence committing verification audit log AND marking student as `PRESENT` in `studentAttendance` in a single `db.transaction()`.
+- **Token Refresh & Long-Lived Session Restoration (`/api/auth/refresh`)**:
+  - Hardened multi-role token refresh endpoint with grace period (15 seconds) for concurrent requests.
+  - Preserved active user sessions in `user_sessions` and companion cookies (`*_session_id`, `*_logged_in`).
+- **Student Academics Hub Consolidation**:
+  - Unified Subjects, Attendance, and Achievements tabs under `/student/academics`.
+
+---
+
+## 16. Cross-References & Related Documentation
 
 - [System Architectural Decision Records (ADRs)](./architectural-decisions.md)
 - [Chronological Forensics of Resolved Incidents](./resolved-incidents.md)

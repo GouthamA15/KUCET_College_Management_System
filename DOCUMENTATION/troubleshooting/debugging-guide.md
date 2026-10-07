@@ -79,6 +79,88 @@ bash DEPLOYMENT_PACKAGE/SCRIPTS/health-check.sh --json
 
 ---
 
+## 2.1 Production Outage Diagnostic Runbook ("Server Online But App Unavailable")
+
+When the VPS/server host is online and pingable but the KUCET application cannot be loaded by end users:
+
+> [!CAUTION]
+> **STRICT NON-DESTRUCTIVE TRIAGE RULE:**
+> NEVER execute destructive commands as a first step:
+> - Do NOT run `docker system prune -a` (wipes build caches and images)
+> - Do NOT run `DROP DATABASE` or `TRUNCATE`
+> - Do NOT perform a blind host hard reboot before capturing diagnostics.
+
+### Step-by-Step Diagnostic Hierarchy
+
+Execute checks in this exact safe order:
+
+```mermaid
+flowchart TD
+    H[1. Host & Memory] --> D[2. Docker Containers]
+    D --> N[3. Nginx Reverse Proxy]
+    N --> A[4. Next.js App Health]
+    A --> DB[5. Database & Redis Health]
+    DB --> T[6. Tailscale & Ingress Tunnel]
+```
+
+1. **Step 1: Check Host Resources**
+   ```bash
+   uptime
+   free -h
+   df -h / /var/www/kucet-storage
+   ```
+   *Action:* If memory is exhausted, check for stalled processes rather than killing MySQL.
+
+2. **Step 2: Check Container Status & Health**
+   ```bash
+   docker compose -f DEPLOYMENT_PACKAGE/docker-compose.yml ps
+   ```
+   *Expect:* All 5 containers (`kucet-cms-app`, `kucet-cms-proxy`, `kucet-cms-db`, `kucet-cms-redis`, `kucet-cms-realtime`) should show `healthy` or `running`.
+
+3. **Step 3: Probe Local Health Endpoints Directly**
+   ```bash
+   # Test internal Next.js app port
+   curl -I http://127.0.0.1:3000/api/health
+
+   # Test local Nginx reverse proxy port
+   curl -I http://127.0.0.1:80/api/health
+   ```
+   *Analysis:*
+   - If `:3000` returns `HTTP 200` but `:80` returns `502 Bad Gateway`, Nginx configuration or docker bridge network resolution failed. Reload Nginx: `docker compose -f DEPLOYMENT_PACKAGE/docker-compose.yml restart nginx`.
+   - If `:3000` returns `HTTP 500` or connection refused, check app logs: `docker logs --tail 100 kucet-cms-app`.
+
+4. **Step 4: Check Database & Redis Connectivity**
+   ```bash
+   # Ping MySQL
+   docker exec -it kucet-cms-db mysqladmin ping -h localhost
+
+   # Ping Redis
+   docker exec -it kucet-cms-redis redis-cli ping
+   ```
+
+5. **Step 5: Check Ingress / Tailscale Funnel Status**
+   ```bash
+   tailscale status
+   tailscale serve status
+   ```
+   *Analysis:* If Tailscale is "Connected" but public URL fails, re-assert Funnel binding:
+   ```bash
+   tailscale serve --bg https / http://127.0.0.1:80
+   ```
+   *Verify:* Test public endpoint from host:
+   ```bash
+   curl -I https://kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net/api/health
+   ```
+
+6. **Safe Recovery Actions:**
+   If a specific container is hung:
+   ```bash
+   # Restart only the affected container without dropping database volumes
+   docker compose -f DEPLOYMENT_PACKAGE/docker-compose.yml restart app
+   ```
+
+---
+
 ## 3. Sentry Tracing & Telemetry
 
 Production error tracking and transaction profiling are integrated via Sentry.

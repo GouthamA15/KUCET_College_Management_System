@@ -144,41 +144,39 @@ The old route `/staff/faculty/attendance` (without parameter) silently redirects
 
 ### Attendance Recording Modes
 
-The attendance module supports 4 multi-modal recording engines to adapt to different classroom settings:
+The faculty interface exposes **3 active attendance modes** and 1 read-only history view, selectable via `AttendanceModeSelector.js` which navigates to `/staff/faculty/attendance/[assignmentId]/take/[mode]`:
 
 ```mermaid
 flowchart TD
-    A[Faculty Launches Attendance Session] --> B{Select Mode}
+    A[Faculty Opens Attendance Session] --> B[AttendanceModeSelector Component]
     
-    B -->|Mode 1: Manual| C[Roster Grid View]
-    C --> C1[Toggle Present/Absent per student roll number]
+    B -->|Mode 1: manual| C[Manual Entry Roster Grid]
+    C --> C1[Toggle Present/Absent/NCC/Medical per student]
     
-    B -->|Mode 2: PIN Code| D[Generate 4-Digit Temp PIN]
-    D --> D1[Display PIN on classroom screen for 3 minutes]
+    B -->|Mode 2: gps| D[GPS & PIN Based Geofenced Session]
+    D --> D1[Display 4-Digit PIN with 50m Haversine Radius]
     
-    B -->|Mode 3: GPS Geofence| E[Capture Faculty Latitude & Longitude]
-    E --> E1[Enforce student submission within 50m radius]
+    B -->|Mode 3: qr| E[Zero Trust QR ID Scanner]
+    E --> E1[Continuous Camera Stream Validating Student QR IDs]
     
-    B -->|Mode 4: Dynamic QR| F[Render Live QR Code]
-    F --> F1[Rotate QR token hash every 15 seconds]
+    B -->|History View: view| F[Read-Only Attendance History]
     
-    C1 --> G[Submit to student_attendance & attendance_sessions]
-    D1 --> G
+    C1 --> G[Submit to /api/staff/faculty/attendance]
+    D1 --> H[POST /api/staff/faculty/attendance/session]
     E1 --> G
-    F1 --> G
 ```
 
-#### 1. Manual Attendance Grid
-Renders the complete class roster sorted by roll number. Includes quick bulk controls ("Mark All Present", "Mark All Absent") and instant statistics counters.
+#### 1. Manual Entry (`mode = 'manual'`)
+Renders the complete class roster sorted by roll number. Includes quick bulk controls ("Confirm All", "Follow Previous Session", "Mark All Absent") and instant statistics counters. Suitable for traditional classrooms or manual overrides.
 
-#### 2. PIN-Based Attendance
-Generates a random 4-digit PIN valid for a short window (e.g. 3-5 minutes). Students enter this PIN on their mobile portal to check in.
+#### 2. GPS & PIN Based (`mode = 'gps'`)
+Initiates a geofenced session (`POST /api/staff/faculty/attendance/session`), capturing faculty GPS coordinates and generating a random 4-digit PIN (`session_pin`) with a 10-minute expiry. Students open `/student/attendance`, enter the PIN, and have their device location and fingerprint validated within a 50m radius.
 
-#### 3. GPS Geo-Fenced Attendance
-Captures the faculty's current device latitude and longitude via the Browser Geolocation API (`navigator.geolocation.getCurrentPosition`). When students check in, the system computes the Haversine distance between student and faculty GPS coordinates; check-ins exceeding the configured radius (e.g. 50 metres) are automatically rejected.
+#### 3. Zero Trust Attendance (`mode = 'qr'`)
+Continuous QR scanning engine (`QRScannerPanel.js`) designed for ID cards or classroom screen projection. Faculty camera scans student QR tokens or displays a session QR code for instant check-in.
 
-#### 4. Dynamic Anti-Proxy QR Code Engine
-Displays an animated QR code modal. To prevent proxy attendance via screenshot sharing over messaging apps, the QR token hash rotates every 15 seconds. Scans are cryptographically validated against active session tokens stored in `attendance_sessions`.
+#### 4. Attendance History (`mode = 'view'`)
+Read-only timeline view of all past sessions, topics covered, and attendance percentages for this course assignment. Faculty navigate here directly from the bottom of the mode selection screen.
 
 ---
 
