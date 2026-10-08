@@ -17,7 +17,8 @@ const UPI_VPA = 'kuengineeringcollege@sbi';
 
 const certificateOptions = [
   { value: 'Bonafide Certificate', label: 'Bonafide Certificate', fee: 100, staffType: 'admission' },
-  { value: 'No Objection Certificate', label: 'No Objection Certificate', fee: 0, staffType: 'admission' },
+  { value: 'Internship Certificate', label: 'Internship Certificate', fee: 0, staffType: 'hod' },
+  { value: 'No Objection Certificate', label: 'No Objection Certificate', fee: 0, staffType: 'hod' },
   { value: 'Course Completion Certificate', label: 'Course Completion Certificate', fee: 100, staffType: 'admission' },
   { value: 'Income Tax (IT) Certificate', label: 'Income Tax (IT) Certificate', fee: 0, staffType: 'scholarship' },
   { value: 'Custodian Certificate', label: 'Custodian Certificate', fee: 100, staffType: 'scholarship' },

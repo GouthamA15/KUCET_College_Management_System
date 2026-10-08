@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentRequests, students, staffAccounts, studentRequestImages } from '@/db/schema';
-import { eq, and, _sql } from 'drizzle-orm';
+import { eq, and, _sql, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
 import crypto from 'crypto';
 
@@ -11,10 +11,14 @@ const roleToTypes = {
         'Transfer Certificate (TC)', 'Migration Certificate', 'Study Conduct Certificate',
     ],
     scholarship: ['Income Tax (IT) Certificate', 'Custodian Certificate'],
+    hod: ['Internship Certificate', 'No Objection Certificate'],
 };
 
 export async function PUT(request, { params }) {
-    const staff = await getAuthUser('staff');
+    const url = new URL(request.url);
+    const staffType = url.searchParams.get('staffType') || 'staff';
+    const staff = await getAuthUser(staffType === 'hod' ? 'hod' : 'staff');
+    
     if (!staff) return apiError('Unauthorized', 401);
     if (!staff.id) return apiError('Staff identity missing. Approval blocked.', 500);
 
@@ -49,8 +53,21 @@ export async function PUT(request, { params }) {
             return apiError('This request has already been processed', 409);
         }
 
-        const allowedTypes = roleToTypes[staff.role] || [];
-        if (!allowedTypes.includes(requestToUpdate.certificate_type)) return apiError('Forbidden', 403);
+        const effectiveRole = staffType === 'hod' && staff.is_hod ? 'hod' : staff.role;
+        const allowedTypes = roleToTypes[effectiveRole] || [];
+        if (!allowedTypes.includes(requestToUpdate.certificate_type)) return apiError('Forbidden: Certificate type not authorized for this role', 403);
+
+        // HOD specific scoping check
+        if (effectiveRole === 'hod') {
+            const branchCodeMap = {
+                'CSE': '09', 'CSD': '30', 'ECE': '15', 'EEE': '12',
+                'CIVIL': '00', 'IT': '18', 'MECH': '03'
+            };
+            const expectedCode = branchCodeMap[staff.branch];
+            if (!expectedCode || !requestToUpdate.roll_no.includes(`567T${expectedCode}`)) {
+                return apiError('Forbidden: Request is outside of your authorized department', 403);
+            }
+        }
 
         let generatedCertId = requestToUpdate.generated_certificate_id;
         if (status === 'APPROVED' && !generatedCertId) {
@@ -69,12 +86,12 @@ export async function PUT(request, { params }) {
             updateData.reject_reason = String(reject_reason).trim();
             updateData.completed_at = now;
             updateData.action_by_staff_id = staff.id;
-            updateData.action_by_role = staff.role;
+            updateData.action_by_role = effectiveRole;
         } else if (status === 'APPROVED') {
             updateData.reject_reason = null;
             updateData.completed_at = now;
             updateData.action_by_staff_id = staff.id;
-            updateData.action_by_role = staff.role;
+            updateData.action_by_role = effectiveRole;
             updateData.generated_certificate_id = generatedCertId;
         }
 
@@ -118,7 +135,10 @@ export async function PUT(request, { params }) {
 }
 
 export async function GET(request, { params }) {
-    const staff = await getAuthUser('staff');
+    const url = new URL(request.url);
+    const staffType = url.searchParams.get('staffType') || 'staff';
+    const staff = await getAuthUser(staffType === 'hod' ? 'hod' : 'staff');
+
     if (!staff) return apiError('Unauthorized', 401);
 
     const resolvedParams = await params;
@@ -154,8 +174,21 @@ export async function GET(request, { params }) {
 
         if (rows.length === 0) return apiError('Request not found', 404);
         
-        const allowedTypes = roleToTypes[staff.role] || [];
+        const effectiveRole = staffType === 'hod' && staff.is_hod ? 'hod' : staff.role;
+        const allowedTypes = roleToTypes[effectiveRole] || [];
         if (!allowedTypes.includes(rows[0].certificate_type)) return apiError('Forbidden', 403);
+
+        // HOD specific scoping check
+        if (effectiveRole === 'hod') {
+            const branchCodeMap = {
+                'CSE': '09', 'CSD': '30', 'ECE': '15', 'EEE': '12',
+                'CIVIL': '00', 'IT': '18', 'MECH': '03'
+            };
+            const expectedCode = branchCodeMap[staff.branch];
+            if (!expectedCode || !rows[0].roll_number.includes(`567T${expectedCode}`)) {
+                return apiError('Forbidden: Request is outside of your authorized department', 403);
+            }
+        }
 
         const { parsePurpose, formatPurpose } = require('@/lib/certificate-utils');
         const parsed = parsePurpose(rows[0].purpose);

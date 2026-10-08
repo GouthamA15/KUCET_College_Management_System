@@ -92,7 +92,7 @@ export const CertificateReviewModal = ({
                     if (!selectedRequestId) return;
                     if (selectedRequestDetails?.status !== 'PENDING') return;
                     setProcessing(true);
-                    const res = await fetch(`/api/staff/requests/${encodeURIComponent(selectedRequestId)}`, {
+                    const res = await fetch(`/api/staff/requests/${encodeURIComponent(selectedRequestId)}${staffType ? `?staffType=${staffType}` : ''}`, {
                       method: 'PUT', 
                       credentials: 'same-origin', 
                       headers: { 'Content-Type': 'application/json' }, 

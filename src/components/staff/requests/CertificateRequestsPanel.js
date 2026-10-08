@@ -2,8 +2,8 @@
 import React from 'react';
 import CertificateDashboard from '@/components/staff/certificates/CertificateDashboard';
 
-const CertificateRequestsPanel = () => {
-    return <CertificateDashboard staffType="admission" />;
+const CertificateRequestsPanel = ({ staffType = 'admission' }) => {
+    return <CertificateDashboard staffType={staffType} />;
 };
 
 export default CertificateRequestsPanel;

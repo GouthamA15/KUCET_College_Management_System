@@ -166,7 +166,7 @@ export default function CertificateDashboard({ staffType }) {
     setSelectedRequestDetails(null);
     try {
       if (!id) throw new Error('Invalid request id');
-      const res = await fetch(`/api/staff/requests/${encodeURIComponent(id)}`, { credentials: 'same-origin' });
+      const res = await fetch(`/api/staff/requests/${encodeURIComponent(id)}${staffType ? `?staffType=${staffType}` : ''}`, { credentials: 'same-origin' });
       if (!res.ok) throw new Error('Failed to load request details');
       const data = await res.json();
       const req = Array.isArray(data) ? data[0] : data;
@@ -335,7 +335,7 @@ export default function CertificateDashboard({ staffType }) {
                       if (selectedRequestDetails?.status !== 'PENDING') return;
                       const reason = String(rejectReason || '').trim();
                       if (!reason) return;
-                      const res = await fetch(`/api/staff/requests/${encodeURIComponent(selectedRequestId)}`, {
+                      const res = await fetch(`/api/staff/requests/${encodeURIComponent(selectedRequestId)}${staffType ? `?staffType=${staffType}` : ''}`, {
                         method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'REJECTED', reject_reason: reason })
                       });
                       if (res.ok) {

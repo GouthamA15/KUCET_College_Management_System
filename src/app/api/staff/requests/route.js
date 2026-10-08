@@ -15,7 +15,12 @@ export async function GET(request) {
   const statusFilterRaw = searchParams.getAll('status');
   const certificateTypeFilterRaw = searchParams.getAll('certificateType') || searchParams.getAll('certificate_type');
 
-  if (!staffType || (staff.role !== staffType && staff.role !== 'admin')) return apiError('Forbidden', 403);
+  if (!staffType) return apiError('Forbidden', 403);
+  
+  const isAuthorizedRole = staff.role === staffType || staff.role === 'admin';
+  const isAuthorizedHod = staffType === 'hod' && staff.role === 'faculty' && staff.is_hod;
+  
+  if (!isAuthorizedRole && !isAuthorizedHod) return apiError('Forbidden', 403);
   if (!staff.id) return apiError('Staff identity missing in token', 401);
 
   try {
@@ -25,6 +30,7 @@ export async function GET(request) {
         'Transfer Certificate (TC)', 'Migration Certificate', 'Study Conduct Certificate',
       ],
       scholarship: ['Income Tax (IT) Certificate', 'Custodian Certificate'],
+      hod: ['Internship Certificate', 'No Objection Certificate'],
     };
 
     const certTypes = roleToTypes[staffType];
@@ -42,6 +48,20 @@ export async function GET(request) {
     });
 
     const baseConditions = [inArray(studentRequests.certificate_type, certTypes)];
+
+    // PHASE 5: HOD Request Scoping
+    if (staffType === 'hod') {
+      const branchCodeMap = {
+        'CSE': '09', 'CSD': '30', 'ECE': '15', 'EEE': '12',
+        'CIVIL': '00', 'IT': '18', 'MECH': '03'
+      };
+      const code = branchCodeMap[staff.branch];
+      if (code) {
+        baseConditions.push(sql`${students.roll_no} LIKE ${'%567T' + code + '%'}`);
+      } else {
+        baseConditions.push(sql`1 = 0`); // Fail-safe if branch is invalid
+      }
+    }
 
     if (workspace === 'history') {
       const historyConditions = [...baseConditions, inArray(studentRequests.status, ['APPROVED', 'REJECTED'])];
@@ -77,9 +97,12 @@ export async function GET(request) {
       .orderBy(desc(studentRequests.completed_at), desc(studentRequests.updated_at));
 
       // Counts
-      const countBase = (conds) => db.select({ count: sql`COUNT(*)` }).from(studentRequests).where(and(...conds));
+      const countBase = (conds) => db.select({ count: sql`COUNT(*)` })
+        .from(studentRequests)
+        .innerJoin(students, eq(studentRequests.student_id, students.id))
+        .where(and(...conds));
       
-      const baseHistoryConds = [inArray(studentRequests.certificate_type, certTypes), inArray(studentRequests.status, ['APPROVED', 'REJECTED'])];
+      const baseHistoryConds = [...baseConditions, inArray(studentRequests.status, ['APPROVED', 'REJECTED'])];
       if (certificateTypeFilter.length > 0) baseHistoryConds.push(inArray(studentRequests.certificate_type, certificateTypeFilter));
       if (statusFilter.length > 0) baseHistoryConds.push(inArray(studentRequests.status, statusFilter));
 
@@ -104,6 +127,14 @@ export async function GET(request) {
       });
     } else {
       const activeConditions = [...baseConditions, eq(studentRequests.status, 'PENDING')];
+      
+      // Admin staff should not see pending requests for NOC / Internship anymore (HOD handles them now)
+      if (staffType === 'admission') {
+        activeConditions.push(
+          sql`${studentRequests.certificate_type} NOT IN ('No Objection Certificate', 'Internship Certificate')`
+        );
+      }
+
       if (certificateTypeFilter.length > 0) activeConditions.push(inArray(studentRequests.certificate_type, certificateTypeFilter));
       if (statusFilter.length > 0) activeConditions.push(inArray(studentRequests.status, statusFilter));
 
