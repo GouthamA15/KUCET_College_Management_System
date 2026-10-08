@@ -48,7 +48,7 @@ export default function HodCertificateRequestsPage() {
                 </p>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden min-h-[500px]">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6 min-h-[500px]">
                 <CertificateRequestsPanel staffType="hod" />
             </div>
         </div>

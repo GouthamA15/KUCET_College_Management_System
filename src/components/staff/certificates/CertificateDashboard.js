@@ -189,14 +189,24 @@ export default function CertificateDashboard({ staffType }) {
     <div className="space-y-6 animate-fadeIn" id="certificate-section">
       <RealtimeListener onUpdate={handleRealtime} enableNotifications={false} />
       
-      {/* Top Header & Search Bar matching StudentUpdateRequestsPanel */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-[#0b2447]">Certificate & ID Queue</h2>
-          <p className="text-sm text-gray-500 mt-1">Approve or reject document requests submitted by students.</p>
+      {/* Top Header Controls */}
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+        
+        <div className="flex items-center gap-4 text-sm w-full xl:w-auto overflow-x-auto pb-1 xl:pb-0">
+          <div className="flex items-center gap-2 bg-blue-50 text-[#0b3578] px-3 py-1.5 rounded-full font-medium border border-blue-100 whitespace-nowrap">
+              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+              {workspaceMode === 'active' ? 'Pending: ' : 'Showing: '} {displayRecords.length}
+          </div>
+          
+          {workspaceMode === 'history' && (
+             <div className="flex bg-gray-50 rounded-md border text-xs whitespace-nowrap">
+                <button onClick={() => setHistoryScope('my')} className={`px-3 py-1.5 rounded-l-md transition-colors cursor-pointer ${historyScope === 'my' ? 'bg-gray-200 font-bold text-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}>My Actions</button>
+                <button onClick={() => setHistoryScope('all')} className={`px-3 py-1.5 rounded-r-md transition-colors cursor-pointer ${historyScope === 'all' ? 'bg-gray-200 font-bold text-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}>All History</button>
+             </div>
+          )}
         </div>
         
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap items-center justify-end gap-3 w-full xl:w-auto">
           {/* Workspace Tabs */}
           <div className="flex bg-gray-100 p-1 rounded-md">
             <button 
@@ -258,20 +268,6 @@ export default function CertificateDashboard({ staffType }) {
             <span className={`${(loadingRecords || _isLoadingRequests) ? 'animate-spin' : ''}`}>↻</span> Sync
           </button>
         </div>
-      </div>
-
-      <div className="flex items-center justify-between gap-4 text-sm">
-        <div className="flex items-center gap-2 bg-blue-50 text-[#0b3578] px-3 py-1.5 rounded-full font-medium border border-blue-100">
-            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-            {workspaceMode === 'active' ? 'Pending: ' : 'Showing: '} {displayRecords.length}
-        </div>
-        
-        {workspaceMode === 'history' && (
-           <div className="flex bg-gray-50 rounded-md border text-xs">
-              <button onClick={() => setHistoryScope('my')} className={`px-3 py-1.5 rounded-l-md transition-colors cursor-pointer ${historyScope === 'my' ? 'bg-gray-200 font-bold text-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}>My Actions</button>
-              <button onClick={() => setHistoryScope('all')} className={`px-3 py-1.5 rounded-r-md transition-colors cursor-pointer ${historyScope === 'all' ? 'bg-gray-200 font-bold text-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}>All History</button>
-           </div>
-        )}
       </div>
 
       <div className="bg-white">
