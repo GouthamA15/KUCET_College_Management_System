@@ -223,18 +223,11 @@ export default function EditProfilePage() {
 
       let processedFile = file;
       if (file.type.startsWith('image/')) {
-        const toastId = type === 'sig' ? toast.loading('Extracting signature...') : null;
+        const toastId = toast.loading(type === 'proof' ? 'Processing document...' : 'Processing image...');
         try {
-          const { processPhoto, processSignature } = await import('@/lib/image-processing');
-          if (type === 'pfp') {
-              processedFile = await processPhoto(file);
-          } else if (type === 'sig') {
-              processedFile = await processSignature(file);
-          } else if (type === 'proof') {
-              const { compressImage } = await import('@/lib/image-compressor');
-              processedFile = await compressImage(file, 1600, 1600, 0.7); // Proof documents can just use simple compression
-          }
-          if (toastId) toast.success('Processed successfully', { id: toastId });
+          const { compressImage } = await import('@/lib/image-compressor');
+          processedFile = await compressImage(file, 1600, 1600, 0.7);
+          toast.success('Processed successfully', { id: toastId });
         } catch (err) {
           console.error('Image processing failed:', err);
           toast.error(err.message || 'Image processing failed', { id: toastId });
@@ -242,10 +235,10 @@ export default function EditProfilePage() {
         }
       }
 
-      const MAX_BYTES = 1048576; // 1 MB = 1,048,576 bytes
+      const MAX_BYTES = type === 'proof' ? 5242880 : 1048576; // 5MB for proof, 1MB for photo/sig
       if (processedFile.size > MAX_BYTES) {
-        toast.error(`File exceeds the 1 MB limit (1,048,576 bytes). Current size: ${(processedFile.size / (1024 * 1024)).toFixed(2)} MB.`);
-        return;
+          toast.error(`File exceeds limit. Current size: ${(processedFile.size / (1024 * 1024)).toFixed(2)} MB.`);
+          return;
       }
       
       const reader = new FileReader();
@@ -255,8 +248,14 @@ export default function EditProfilePage() {
         else if (type === 'proof') setProofDataUrl(reader.result);
       };
       reader.readAsDataURL(processedFile);
+      
+      // reset input value so selecting the same file again works
+      if (type === 'pfp' && fileInputRef.current) fileInputRef.current.value = '';
+      if (type === 'sig' && signatureInputRef.current) signatureInputRef.current.value = '';
+      if (type === 'proof' && proofInputRef.current) proofInputRef.current.value = '';
     }
   };
+
 
   const updateField = (section, field, value) => {
     setFormData(prev => ({
