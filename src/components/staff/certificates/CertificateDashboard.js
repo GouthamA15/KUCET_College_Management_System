@@ -279,7 +279,7 @@ export default function CertificateDashboard({ staffType }) {
           records={displayRecords} 
           onViewDetails={handleViewDetails} 
           groupByDate={workspaceMode === 'history'} 
-          loading={loadingRecords} 
+          loading={workspaceMode === 'active' ? _isLoadingRequests : loadingRecords} 
         />
       </div>
 

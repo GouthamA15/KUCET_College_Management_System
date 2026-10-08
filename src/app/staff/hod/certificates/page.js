@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStaff } from '@/context/StaffContext';
 import CertificateRequestsPanel from '@/components/staff/requests/CertificateRequestsPanel';
@@ -10,14 +10,10 @@ export default function HodCertificateRequestsPage() {
     const router = useRouter();
     const { 
         staffData,
-        loading,
-        pendingCertificateRequests,
-        isLoadingRequests,
-        refreshCertificateRequests
+        loading
     } = useStaff();
 
     const isAuthorized = staffData && ((staffData.role === 'faculty' && staffData.is_hod) || staffData.role === 'admin');
-    const fetchedRef = useRef(false);
 
     useEffect(() => {
         if (!loading) {
@@ -31,13 +27,8 @@ export default function HodCertificateRequestsPage() {
                 router.replace('/staff/faculty/academics');
                 return;
             }
-
-            if (!fetchedRef.current) {
-                fetchedRef.current = true;
-                refreshCertificateRequests('hod');
-            }
         }
-    }, [staffData, loading, router, refreshCertificateRequests, isAuthorized]);
+    }, [staffData, loading, router, isAuthorized]);
 
     if (loading || !isAuthorized) {
         return (
@@ -58,18 +49,7 @@ export default function HodCertificateRequestsPage() {
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden min-h-[500px]">
-                {isLoadingRequests && !pendingCertificateRequests?.length ? (
-                    <div className="flex h-64 items-center justify-center">
-                        <LoadingSpinner />
-                        <span className="ml-3 text-gray-600">Loading requests...</span>
-                    </div>
-                ) : (
-                    <CertificateRequestsPanel 
-                        requests={pendingCertificateRequests} 
-                        staffType="hod" 
-                        onRefresh={() => refreshCertificateRequests('hod')} 
-                    />
-                )}
+                <CertificateRequestsPanel staffType="hod" />
             </div>
         </div>
     );
