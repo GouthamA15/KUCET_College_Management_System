@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -8,7 +8,7 @@ import { getSyllabusUrl } from '@/lib/getSyllabusUrl';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import { AcademicsProvider, useAcademicsCache } from '@/context/AcademicsContext';
 import toast from 'react-hot-toast';
-import { Info, X, ArrowLeft } from 'lucide-react';
+import { Info, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import StudentAchievementsTab from '@/components/student/StudentAchievementsTab';
 

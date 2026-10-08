@@ -69,15 +69,17 @@ graph TD
 ---
 
 ### 2.3 Faculty Portal (`/staff/faculty/*`)
-1. **Multi-Modal Attendance Engine (`/staff/faculty/attendance`)**:
-   - **Mode 1 (Manual)**: Toggle present/absent on complete class roster.
-   - **Mode 2 (Dynamic PIN)**: 4-digit temporary PIN valid for 3 minutes.
-   - **Mode 3 (GPS Geofence)**: 50m Haversine radius validation between faculty coordinates and student check-ins.
-   - **Mode 4 (Dynamic QR)**: Cryptographic 15-second rotating QR token preventing proxy attendance via screenshots.
-2. **Internal Marks Entry (`/staff/faculty/marks`)**:
-   - Mid-term exam marks recording with out-of-range validation and lock/submission workflow.
-3. **Syllabus & Lecture Topic Tracking (`/staff/faculty/syllabus`)**:
-   - Records completed lecture topics linked to individual attendance sessions.
+1. **Academics Hub (`/staff/faculty/academics`)**:
+   - Central console consolidating My Subjects, Attendance, Evaluation, Students lookup, and HOD Syllabus management.
+2. **Multi-Modal Attendance Engine (`/staff/faculty/attendance/[assignmentId]/take/[mode]`)**:
+   - **Mode 1 (Manual Entry)**: Full class roster grid with status toggles (`PRESENT`, `ABSENT`, `NCC`, `MEDICAL`) and "Confirm All" / "Follow Previous Session" shortcuts.
+   - **Mode 2 (GPS & PIN Based)**: 10-minute dynamic 4-digit PIN with 50m Haversine radius validation between faculty coordinates and student submissions.
+   - **Mode 3 (Zero Trust QR)**: Continuous camera scanner for student QR IDs or projected classroom verification codes.
+   - **Mode 4 (Attendance History)**: Read-only audit log of past sessions, topics, and metrics.
+3. **Internal Marks Entry (`/staff/faculty/evaluation/[assignmentId]`)**:
+   - Mid-1, Mid-2, Assignment, and Lab marks recording with lock-after-approval protection.
+4. **Syllabus & Lecture Topic Tracking**:
+   - Inline topic quick-save panel in attendance sheet (`PATCH /api/staff/faculty/attendance/session/topic`) and topic modal upon session conclusion.
 
 ---
 

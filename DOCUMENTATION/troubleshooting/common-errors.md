@@ -135,6 +135,60 @@ sudo chmod -R 755 /var/kucet-db-backup
 
 ---
 
+### 1.9 Attendance Save Rollback (`[AttendanceSaveRollback]`) & Unset Status
+* **Symptom**: Faculty panel logs `[AttendanceSaveRollback]` and displays toast: *"Please set attendance status for all students. (X remaining)"* or rolls back local roster changes.
+* **Root Cause**:
+  1. **Pre-flight validation**: `FacultyAttendanceContext.js` enforces that every student in `baseStudents` must have a non-null attendance status (`PRESENT`, `ABSENT`, `NCC`, or `MEDICAL`) before invoking the API. If any student row is unmarked, save is blocked client-side.
+  2. **Working day calendar validation**: `dateValidation.isValid` verifies the chosen date is an active working day according to the institutional academic calendar.
+  3. **Server-side rollback**: If the API call (`POST /api/staff/faculty/attendance`) fails (e.g. 500 error or closed semester), the context rolls back `attendanceStatusMap` and `activeSession` to snapshots taken prior to the save attempt.
+* **Resolution Protocol**:
+  1. Click **"Confirm All"** or select **"Follow Previous Session"** in the attendance sheet to guarantee all students have an assigned status.
+  2. Check the browser console to identify remaining null indices.
+  3. If the semester has concluded, verify that the academic session has not been locked by HOD or Admin.
+
+---
+
+### 1.10 Topic Normalization & `.trim is not a function` Error
+* **Symptom**: Saving attendance throws `TypeError: explicitTopic.trim is not a function` or crashes on save button click.
+* **Root Cause**: Passing React's SyntheticMouseEvent directly into `handleSaveAttendance(e)` when wired to an `onClick` handler caused an event object rather than a string to reach the topic sanitizer.
+* **Resolution Protocol**:
+  1. The code now strictly type-guards `explicitTopic`:
+```javascript
+const topicToSave = typeof explicitTopic === 'string' 
+  ? explicitTopic 
+  : (typeof currentTopicCovered === 'string' ? currentTopicCovered : '');
+const cleanTopic = topicToSave.trim() || null;
+```
+  2. Always invoke `handleSaveAttendance()` with either a verified string or no arguments (allowing it to default to `currentTopicCovered`).
+
+---
+
+### 1.11 Realtime Socket & SSE Timeout in Attendance
+* **Symptom**: Realtime connection icon shows disconnected, student live verification events (`STUDENT_VERIFIED`) do not update faculty sheet in real time, or console reports `WebSocket connection to 'ws://.../socket.io/' failed`.
+* **Root Cause**: Real-time service (`kucet-cms-realtime`) on port 4000 is stopped, Redis Pub/Sub container is offline, or Nginx WebSocket upgrade headers are missing.
+* **Core Architectural Invariant**:
+  > **REALTIME DEGRADATION INVARIANT:** Realtime connectivity degradation does NOT block core HTTP functionality. Attendance can still be marked, saved, and retrieved via regular REST API endpoints (`/api/staff/faculty/attendance`).
+* **Resolution Protocol**:
+  1. Verify Redis health:
+```bash
+docker exec -it kucet-cms-redis redis-cli ping
+```
+  2. Verify Realtime container status:
+```bash
+docker logs --tail 50 kucet-cms-realtime
+```
+  3. Verify Nginx WebSocket upgrade configuration in `DEPLOYMENT_PACKAGE/nginx/nginx.conf`:
+```nginx
+location /socket.io/ {
+    proxy_pass http://realtime_upstream;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+}
+```
+
+---
+
 ## 2. Diagnostics Matrix Reference Table
 
 | Error Signature | Impacted Layer | Primary Suspect | Direct Remediation Command |

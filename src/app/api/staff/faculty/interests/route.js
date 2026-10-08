@@ -38,7 +38,6 @@ export async function POST(request) {
     }
 
     const { staffAcademicAffiliations, academicDepartments, academicPrograms, collegeInfo: collegeInfoTable } = await import('@/db/schema');
-    const { inArray } = await import('drizzle-orm');
     
     // Resolve academic year if not provided
     let resolvedAcademicYear = academic_year;

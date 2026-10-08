@@ -26,7 +26,7 @@ import { formatDate } from '@/lib/date';
 export default function AddEditRecordInstitutionalModal({
   open,
   year,
-  yearOfStudy,
+  _yearOfStudy,
   student,
   summary,
   formState,

@@ -144,7 +144,9 @@ export default function OfflineClient() {
         if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
           navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_ALL_CACHES' });
         }
-      } catch (_e) {}
+      } catch (_e) {
+        /* ignore SW postMessage error */
+      }
       window.location.replace('/');
     }
   };

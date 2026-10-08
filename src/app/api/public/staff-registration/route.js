@@ -63,7 +63,7 @@ const handler = async (req, { data }) => {
       return apiError('Invalid or inactive department selected.', 400);
     }
     
-    const deptId = deptResult[0].id;
+    const _deptId = deptResult[0].id;
 
     // Verify all programs exist and are active
     for (const progCode of affil.program_codes) {

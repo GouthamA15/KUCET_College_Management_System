@@ -13,10 +13,20 @@ The Student Portal (`/student/*`) is a mobile-first web interface providing stud
 | `/student` | Student Dashboard | `student_auth` | ❌ (Accessible to setup account) |
 | `/student/profile` | Personal Profile Details | `student_auth` | ❌ (Accessible) |
 | `/student/settings/security` | Security Center & Credentials | `student_auth` | ❌ (Accessible) |
+| `/student/academics` | Unified Academics Hub (Subjects, Attendance, Achievements) | `student_auth` | ✅ (Full Verification Required) |
 | `/student/attendance` | Subject-Wise Attendance Breakdown | `student_auth` | ✅ (Full Verification Required) |
 | `/student/marks` | Academic Marks & Grades | `student_auth` | ✅ (Full Verification Required) |
 | `/student/requests` | Certificate Application Portal | `student_auth` | ✅ (Full Verification Required) |
-| `/student/finance` | Fee Ledger & Transaction History | `student_auth` | ✅ (Full Verification Required) |
+| `/student/finances` | Fee Ledger & Transaction History | `student_auth` | ✅ (Full Verification Required) |
+| `/student/timetable` | Weekly Class Timetable | `student_auth` | ✅ (Full Verification Required) |
+
+---
+
+### Student Academics Hub (`/student/academics`)
+Consolidates the student's classroom lifecycle under a responsive 3-tab interface:
+1. **Subjects**: Enrolled syllabus courses, faculty assignments, and mid-exam marks evaluation.
+2. **Attendance**: Subject-wise percentage, conducted classes, attended classes, and 75% condonation margin calculator.
+3. **Achievements**: Extracurricular and technical achievements registry with certificate image upload (strictly capped at 1 MB / 1,048,576 bytes via progressive 3-stage client compression).
 
 ---
 

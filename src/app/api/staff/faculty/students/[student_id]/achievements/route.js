@@ -72,7 +72,7 @@ export async function GET(request, { params }) {
     if (cohortMode) {
       const { getCollegeAcademicYear } = await import('@/lib/academic-utils');
       const activeYear = await getCollegeAcademicYear();
-      const { and, isNotNull, ne } = await import('drizzle-orm');
+      const { isNotNull, ne } = await import('drizzle-orm');
       
       if (activeYear) {
         

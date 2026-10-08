@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, Award, Calendar, Building2, Trash2, Loader2, Image as ImageIcon, Edit2, AlertTriangle, X } from 'lucide-react';
+import { PlusCircle, Award, Trash2, Loader2, Edit2, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { formatDate } from '@/lib/date';
 import { getAssetUrl } from '@/lib/assets';
 import StudentAchievementModal from '@/components/ui/edit-modals/StudentAchievementModal';
 import { createPortal } from 'react-dom';
