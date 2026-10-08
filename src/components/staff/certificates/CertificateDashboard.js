@@ -6,9 +6,8 @@ import { useStaff } from "@/context/StaffContext";
 import RealtimeListener from '@/components/RealtimeListener';
 import CertificateRecordsView from "./CertificateRecordsView";
 import FiltersPopover from "./FiltersPopover";
-import { createPortal } from 'react-dom';
 import { CertificateReviewModal } from '@/components/ui/edit-modals/CertificateReviewModal';
-import { Search, Filter, XCircle } from 'lucide-react';
+import { Search, Filter } from 'lucide-react';
 
 export default function CertificateDashboard({ staffType }) {
   const { pendingCertificateRequests, _isLoadingRequests, refreshCertificateRequests } = useStaff();
@@ -21,8 +20,6 @@ export default function CertificateDashboard({ staffType }) {
   const [records, setRecords] = useState([]);
   const [loadingRecords, setLoadingRecords] = useState(false);
   const [historyScope, setHistoryScope] = useState('my'); // 'my' | 'all'
-  const [rejectReasonOpen, setRejectReasonOpen] = useState(false);
-  const [rejectReason, setRejectReason] = useState("");
   
   // Filter and Search UI state
   const [searchQuery, setSearchQuery] = useState('');
@@ -184,8 +181,6 @@ export default function CertificateDashboard({ staffType }) {
     setSelectedRequestDetails(null);
     setIsDialogLoading(false);
     setDialogError(null);
-    setRejectReason('');
-    setRejectReasonOpen(false);
   };
 
   const activeFilterCount = (appliedFilters.certificateType?.length || 0) + (appliedFilters.status?.length || 0);
@@ -295,66 +290,10 @@ export default function CertificateDashboard({ staffType }) {
         dialogError={dialogError}
         selectedRequestDetails={selectedRequestDetails}
         selectedRequestId={selectedRequestId}
-        setRejectReasonOpen={setRejectReasonOpen}
         refreshCertificateRequests={refreshCertificateRequests}
         fetchRecords={fetchRecords}
         staffType={staffType}
       />
-
-      {rejectReasonOpen && typeof document !== 'undefined' && createPortal(
-        (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-md flex flex-col animate-fadeInUp">
-              <div className="p-4 border-b flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                  <XCircle className="text-rose-500 w-5 h-5" />
-                  Reason for Rejection
-                </h3>
-                <button type="button" className="text-gray-400 hover:text-gray-900 cursor-pointer p-1 rounded-md hover:bg-gray-100 cursor-pointer" onClick={() => setRejectReasonOpen(false)} aria-label="Close">✕</button>
-              </div>
-              <div className="p-4 bg-gray-50">
-                <p className="text-sm text-gray-600 mb-3">Provide a clear reason so the student can re-apply if needed.</p>
-                <textarea 
-                  value={rejectReason} 
-                  onChange={(e) => setRejectReason(e.target.value)} 
-                  rows={4} 
-                  className="w-full p-3 border border-gray-300 rounded-md resize-none text-sm focus:ring-2 focus:ring-rose-200 focus:border-rose-500 outline-none" 
-                  placeholder="e.g., Name mismatch with supporting documents." 
-                  autoFocus
-                />
-              </div>
-              <div className="p-4 border-t bg-white flex items-center justify-end gap-3">
-                <button type="button" className="px-4 py-2 text-sm font-semibold rounded-md border text-gray-700 bg-white hover:bg-gray-50 transition-colors" onClick={() => setRejectReasonOpen(false)}>Cancel</button>
-                <button 
-                  type="button" 
-                  className="px-4 py-2 text-sm font-semibold rounded-md bg-rose-600 text-white hover:bg-rose-700 transition-colors disabled:opacity-50" 
-                  disabled={!rejectReason.trim()}
-                  onClick={async () => {
-                    try {
-                      if (!selectedRequestId) return;
-                      if (selectedRequestDetails?.status !== 'PENDING') return;
-                      const reason = String(rejectReason || '').trim();
-                      if (!reason) return;
-                      const res = await fetch(`/api/staff/requests/${encodeURIComponent(selectedRequestId)}${staffType ? `?staffType=${staffType}` : ''}`, {
-                        method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'REJECTED', reject_reason: reason })
-                      });
-                      if (res.ok) {
-                        setRejectReasonOpen(false);
-                        closeDialog();
-                        await refreshCertificateRequests(staffType);
-                        if (workspaceMode === 'history') await fetchRecords();
-                      }
-                    } catch { /* empty */ }
-                  }}
-                >
-                  Confirm Reject
-                </button>
-              </div>
-            </div>
-          </div>
-        ),
-        document.body
-      )}
     </div>
   );
 }
