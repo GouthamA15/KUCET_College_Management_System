@@ -5,7 +5,7 @@ import { eq, desc, and, or, sql } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { toMySQLDate, formatDate } from '@/lib/date';
 import { Clock } from '@/lib/clock';
-import { sendInstitutionalEmail } from '@/lib/email';
+import { sendInstitutionalEmail, EMAIL_CATEGORIES } from '@/lib/email';
 
 export async function GET(req) {
   const user = await getAuthUser('scholarship');
@@ -158,6 +158,7 @@ export async function POST(req) {
                 { label: 'Academic Year', value: academicYear },
                 { label: 'Student Name', value: s.name || 'Student' },
               ],
+              category: EMAIL_CATEGORIES.SCHOLARSHIP,
             }).catch(() => null)
           )
         );

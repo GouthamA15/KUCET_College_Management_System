@@ -12,6 +12,7 @@ import { eq } from 'drizzle-orm';
 import { wrapHandler, apiError } from '@/lib/api-utils';
 import crypto from 'crypto';
 import { sendInstitutionalEmail, getBaseUrl } from '@/lib/email';
+import { EMAIL_CATEGORIES } from '@/lib/email-categories';
 import logger from '@/lib/logger';
 
 export const POST = wrapHandler({
@@ -272,7 +273,8 @@ export const POST = wrapHandler({
           url: activationLink,
           label: 'Activate Account',
           expiresIn: '48 hours'
-        }
+        },
+        category: EMAIL_CATEGORIES.STAFF_ONBOARDING,
       });
       logger.info({ email: result.email }, '[STAFF_APPROVAL] Activation email sent successfully');
     } catch (err) {

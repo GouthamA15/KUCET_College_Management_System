@@ -5,6 +5,7 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { encrypt } from '@/lib/encryption';
 import { sendInstitutionalEmail, getBaseUrl } from '@/lib/email';
+import { EMAIL_CATEGORIES } from '@/lib/email-categories';
 import { STAFF_CATEGORIES, FACULTY_BRANCHES, isValidStaffCategory } from '@/lib/staff-config';
 import logger from '@/lib/logger';
 
@@ -248,7 +249,8 @@ export class StaffRegistrationService {
         url: loginUrl,
         label: 'Log In Now',
         expiresIn: '7 days'
-      }
+      },
+      category: EMAIL_CATEGORIES.STAFF_ONBOARDING,
     });
 
     logger.info({ requestId, newStaffId, email: request.email, emailSent }, '[STAFF_REGISTRATION] Approved request & sent credentials');
@@ -308,7 +310,8 @@ export class StaffRegistrationService {
         { label: 'Category', value: catInfo.label },
         ...(request.branch ? [{ label: 'Branch', value: request.branch }] : []),
         { label: 'Status', value: 'REJECTED' },
-      ]
+      ],
+      category: EMAIL_CATEGORIES.STAFF_ONBOARDING,
     });
 
     logger.info({ requestId, email: request.email, emailSent }, '[STAFF_REGISTRATION] Rejected request');

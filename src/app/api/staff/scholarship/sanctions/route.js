@@ -5,7 +5,7 @@ import { eq, and, or, desc, sql } from 'drizzle-orm';
 import { toMySQLDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
-import { sendInstitutionalEmail } from '@/lib/email';
+import { sendInstitutionalEmail, EMAIL_CATEGORIES } from '@/lib/email';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import { getYearlyTotalFee } from '@/lib/financial-utils';
 import { calculateExpectedRTF } from '@/lib/scholarship-utils';
@@ -240,7 +240,8 @@ export async function POST(req) {
                     subject,
                     title: subject,
                     bodyHtml: `<p>Dear ${student.name},</p><p>Your scholarship application (${currentApp}) has been recorded. Please submit the hard copy documents to the scholarship office immediately.</p>`,
-                    infoRows: [{ label: 'App No', value: currentApp }, { label: 'Year', value: academic_year }]
+                    infoRows: [{ label: 'App No', value: currentApp }, { label: 'Year', value: academic_year }],
+                    category: EMAIL_CATEGORIES.SCHOLARSHIP
                 });
             } catch (err) { console.error('[Scholarship API] Hardcopy Email Failed:', err); }
         }
@@ -252,7 +253,8 @@ export async function POST(req) {
                     subject,
                     title: subject,
                     bodyHtml: `<p>Dear ${student.name},</p><p>Your application (${currentApp || ''}) requires biometric (thumb) verification. Please visit a Mee-Seva center soon.</p>`,
-                    infoRows: [{ label: 'App No', value: currentApp || 'N/A' }, { label: 'Year', value: academic_year }]
+                    infoRows: [{ label: 'App No', value: currentApp || 'N/A' }, { label: 'Year', value: academic_year }],
+                    category: EMAIL_CATEGORIES.SCHOLARSHIP
                 });
             } catch (err) { console.error('[Scholarship API] Thumb Email Failed:', err); }
         }

@@ -24,20 +24,48 @@ const DEVELOPER_EMAILS = [
 ];
 
 /**
- * Sends failure alert to developer emails via Brevo API if available
+ * Sends failure alert to developer emails via Brevo API if available (Category: SYSTEM_OPERATIONS)
  */
 async function sendFailureEmail(errorMessage) {
-  const apiKey = process.env.BREVO_API_KEY;
-  const senderEmail = process.env.EMAIL_USER;
+  let apiKey = process.env.BREVO_API_KEY_SYSTEM_OPERATIONS?.trim();
+  let senderEmail = process.env.BREVO_SENDER_EMAIL_SYSTEM_OPERATIONS?.trim();
+  let senderName = process.env.BREVO_SENDER_NAME_SYSTEM_OPERATIONS?.trim();
+  const replyTo = process.env.BREVO_REPLY_TO_EMAIL_SYSTEM_OPERATIONS?.trim();
+
+  const allowFallback = process.env.ENABLE_LEGACY_BREVO_KEY_FALLBACK === 'true';
+
+  if (allowFallback) {
+    if (!apiKey && process.env.BREVO_API_KEY) {
+      console.warn('[BACKUP_EMAIL_COMPATIBILITY] Using legacy BREVO_API_KEY for SYSTEM_OPERATIONS because BREVO_API_KEY_SYSTEM_OPERATIONS is not configured.');
+      apiKey = process.env.BREVO_API_KEY.trim();
+    }
+    if (!senderEmail && process.env.EMAIL_USER) {
+      console.warn('[BACKUP_EMAIL_COMPATIBILITY] Using legacy EMAIL_USER for SYSTEM_OPERATIONS because BREVO_SENDER_EMAIL_SYSTEM_OPERATIONS is not configured.');
+      senderEmail = process.env.EMAIL_USER.trim();
+    }
+    if (!senderName) {
+      senderName = 'KUCET Backup System';
+    }
+  } else {
+    if (!senderName) {
+      senderName = 'KUCET Backup System';
+    }
+  }
 
   if (!apiKey || !senderEmail) {
-    console.warn('[BACKUP_EMAIL] Brevo configuration missing. Skipping email notification.');
+    console.warn('[BACKUP_EMAIL] Brevo configuration missing for SYSTEM_OPERATIONS (BREVO_API_KEY_SYSTEM_OPERATIONS or BREVO_SENDER_EMAIL_SYSTEM_OPERATIONS). Skipping email notification.');
+    return;
+  }
+
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!EMAIL_REGEX.test(senderEmail)) {
+    console.warn('[BACKUP_EMAIL] Invalid sender email address configured for SYSTEM_OPERATIONS. Skipping email notification.');
     return;
   }
 
   try {
     const payload = {
-      sender: { email: senderEmail, name: 'KUCET Backup System' },
+      sender: { email: senderEmail, name: senderName },
       to: DEVELOPER_EMAILS.map(email => ({ email })),
       subject: '❌ URGENT: KUCET Database Backup Failed',
       htmlContent: `
@@ -55,6 +83,10 @@ async function sendFailureEmail(errorMessage) {
         </div>
       `
     };
+
+    if (replyTo && EMAIL_REGEX.test(replyTo)) {
+      payload.replyTo = { email: replyTo };
+    }
 
     const response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',

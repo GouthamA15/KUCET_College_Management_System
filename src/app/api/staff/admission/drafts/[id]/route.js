@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { apiError, wrapHandler } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
 import { storage } from '@/lib/providers';
-import { sendInstitutionalEmail } from '@/lib/email';
+import { sendInstitutionalEmail, EMAIL_CATEGORIES } from '@/lib/email';
 import { encrypt, decrypt } from '@/lib/encryption';
 
 export const GET = wrapHandler({
@@ -147,7 +147,8 @@ export const PUT = wrapHandler({
               infoRows: [
                 { label: 'Application ID', value: id },
                 { label: 'Status', value: 'REJECTED' }
-              ]
+              ],
+              category: EMAIL_CATEGORIES.ADMISSIONS,
             }).catch(e => logger.error(e, 'Failed to send rejection email'));
           }
 

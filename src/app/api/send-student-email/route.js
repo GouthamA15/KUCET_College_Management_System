@@ -1,6 +1,7 @@
 import logger from '@/lib/logger';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { sendInstitutionalEmail } from '@/lib/email';
+import { sendInstitutionalEmail, EMAIL_CATEGORIES } from '@/lib/email';
+import { isValidEmailCategory } from '@/lib/email-categories';
 import { db } from '@/db';
 import { students } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -18,11 +19,15 @@ export async function POST(request) {
       return apiError('Unauthorized. Only institutional staff can send emails.', 401);
     }
 
-    const { rollNo, subject, html, title, infoRows } = await request.json();
+    const { rollNo, subject, html, title, infoRows, category } = await request.json();
 
     if (!rollNo || !subject || !html) {
       return apiError('rollNo, subject, and html body are required', 400);
     }
+
+    const resolvedCategory = category && isValidEmailCategory(category)
+      ? category
+      : EMAIL_CATEGORIES.SCHOLARSHIP;
 
     // Fetch student's email and verification status from database
     const student = await db.query.students.findFirst({
@@ -48,7 +53,7 @@ export async function POST(request) {
       return apiError('Student email is not verified. Email not sent.', 403);
     }
 
-    const emailResult = await Queue.enqueueEmail(studentEmail, subject, html, title || 'KUCET Notification', Array.isArray(infoRows) ? infoRows : undefined);
+    const emailResult = await Queue.enqueueEmail(studentEmail, subject, html, title || 'KUCET Notification', Array.isArray(infoRows) ? infoRows : undefined, resolvedCategory);
 
     if (emailResult && emailResult.success) {
       return apiResponse({ success: true, message: 'Email queued for sending.' });
@@ -59,7 +64,8 @@ export async function POST(request) {
         subject,
         title: title || 'KUCET Notification',
         bodyHtml: html,
-        infoRows: Array.isArray(infoRows) ? infoRows : undefined
+        infoRows: Array.isArray(infoRows) ? infoRows : undefined,
+        category: resolvedCategory
       });
       if (directResult.success) {
         return apiResponse({ success: true, message: 'Email sent successfully directly.' });
