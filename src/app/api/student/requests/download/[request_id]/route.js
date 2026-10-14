@@ -71,7 +71,7 @@ export async function GET(request, context) {
         }
 
         const Template = certificateComponents[certRequest.certificate_type];
-        if (!Template || certRequest.status !== 'APPROVED') {
+        if (!Template || certRequest.status !== 'APPROVED' || certRequest.hod_approval_status === 'REJECTED' || (certRequest.certificate_type === 'Bonafide Certificate' && certRequest.hod_approval_status === 'PENDING')) {
             return apiError('Certificate not available for download', 403);
         }
 

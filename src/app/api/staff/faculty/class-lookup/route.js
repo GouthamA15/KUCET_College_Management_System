@@ -43,8 +43,20 @@ export async function GET(request) {
     .leftJoin(academicPrograms, eq(staffAcademicAffiliations.program_id, academicPrograms.id))
     .where(eq(staffAcademicAffiliations.staff_account_id, user.id));
     
-    const allowedPrograms = Array.from(new Set(affil.map(a => a.prog_code).filter(Boolean)));
-    const allowedBranchCodes = allowedPrograms.map(p => Object.keys(branchCodes).find(key => branchCodes[key] === p)).filter(Boolean);
+    let allowedPrograms = [];
+    let allowedBranchCodes = [];
+
+    if (user.role === 'admin') {
+      allowedBranchCodes = Object.keys(branchCodes);
+      allowedPrograms = Object.values(branchCodes);
+    } else {
+      allowedPrograms = Array.from(new Set([
+        ...affil.map(a => a.prog_code).filter(Boolean),
+        ...affil.map(a => a.dept_code).filter(Boolean),
+        ...(user.is_hod && user.branch ? [user.branch] : [])
+      ]));
+      allowedBranchCodes = allowedPrograms.map(p => Object.keys(branchCodes).find(key => branchCodes[key] === p)).filter(Boolean);
+    }
 
     if (allowedBranchCodes.length === 0) {
       return apiError('No teaching programs assigned to your profile', 403);

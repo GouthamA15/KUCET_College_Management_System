@@ -203,3 +203,6 @@ export class StudentService {
     };
   }
 }
+
+export { StudentCertificateService };
+

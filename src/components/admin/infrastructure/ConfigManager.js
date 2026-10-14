@@ -5,18 +5,26 @@ import toast from 'react-hot-toast';
 
 export default function ConfigManager() {
   const [config, setConfig] = useState(null);
+  const [disputeWindowDays, setDisputeWindowDays] = useState(7);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const fetchConfig = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/infrastructure/config');
-      const data = await res.json();
-      if (res.ok) {
-        setConfig(data.config);
+      const [res, disputeRes] = await Promise.allSettled([
+        fetch('/api/admin/infrastructure/config').then(r => r.json()),
+        fetch('/api/admin/config/dispute-window').then(r => r.json())
+      ]);
+
+      if (res.status === 'fulfilled' && res.value?.config) {
+        setConfig(res.value.config);
       } else {
         toast.error('Failed to load institutional configuration');
+      }
+
+      if (disputeRes.status === 'fulfilled' && disputeRes.value?.dispute_window_days) {
+        setDisputeWindowDays(Number(disputeRes.value.dispute_window_days));
       }
     } catch (_error) {
       toast.error('Connection error while fetching settings');
@@ -38,16 +46,24 @@ export default function ConfigManager() {
     setSaving(true);
     const toastId = toast.loading('Synchronizing institutional settings...');
     try {
-      const res = await fetch('/api/admin/infrastructure/config', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config)
-      });
-      if (res.ok) {
-        toast.success('Institutional configuration updated successfully.', { id: toastId });
+      const [res, disputeRes] = await Promise.all([
+        fetch('/api/admin/infrastructure/config', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config)
+        }),
+        fetch('/api/admin/config/dispute-window', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ window_days: Number(disputeWindowDays) })
+        })
+      ]);
+
+      if (res.ok && disputeRes.ok) {
+        toast.success('Institutional and attendance configuration updated.', { id: toastId });
         fetchConfig();
       } else {
-        toast.error('Failed to update configuration.', { id: toastId });
+        toast.error('Failed to update all configurations.', { id: toastId });
       }
     } catch (_error) {
       toast.error('Critical error during synchronization.', { id: toastId });
@@ -163,7 +179,30 @@ export default function ConfigManager() {
         </div>
       </div>
 
-      {/* 4. Safety & Maintenance */}
+      {/* 4. Attendance & Academic Governance */}
+      <div className="bg-white border border-slate-200 shadow-sm rounded-sm overflow-hidden">
+        <div className="bg-slate-50 px-3 sm:px-6 md:px-8 py-3 sm:py-4 border-b border-slate-200">
+           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Attendance & Academic Governance</span>
+        </div>
+        <div className="p-4 sm:p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
+           <div className="space-y-2">
+             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Attendance Dispute Window (Days)</label>
+             <input 
+               type="number" 
+               min="1"
+               max="60"
+               value={disputeWindowDays} 
+               onChange={(e) => setDisputeWindowDays(Math.max(1, parseInt(e.target.value) || 1))}
+               className="w-full h-11 sm:h-12 bg-slate-50 border border-slate-200 rounded-sm px-3 sm:px-4 text-xs font-bold focus:border-blue-500 outline-none transition-all"
+             />
+             <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
+               Students can submit formal attendance disputes within this number of calendar days after an absent session is recorded.
+             </p>
+           </div>
+        </div>
+      </div>
+
+      {/* 5. Safety & Maintenance */}
       <div className="bg-rose-50 border border-rose-100 shadow-sm rounded-sm overflow-hidden">
         <div className="bg-rose-100 px-3 sm:px-6 md:px-8 py-3 sm:py-4 border-b border-rose-200 flex flex-wrap justify-between items-center gap-2">
            <span className="text-[10px] font-black text-rose-700 uppercase tracking-widest">System Governance</span>

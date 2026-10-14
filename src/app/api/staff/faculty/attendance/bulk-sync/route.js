@@ -97,6 +97,24 @@ export async function POST(request) {
           continue;
         }
 
+        // 3b. Calendar & Makeup Class validation
+        try {
+          const { AttendanceService } = await import('@/services/AttendanceService');
+          if (typeof AttendanceService?.validateAttendanceDate === 'function') {
+            await AttendanceService.validateAttendanceDate({
+              assignmentId: assignment_id,
+              date,
+              sessionNumber: session,
+              academicYear: academic_year,
+              semester: course_semester,
+              tx
+            });
+          }
+        } catch (valErr) {
+          errors.push({ id: offlineId, error: valErr.message });
+          continue;
+        }
+
         // Canonical ID
         const canonicalRows = await tx.select({ id: facultySubjectAssignments.id })
           .from(facultySubjectAssignments)

@@ -105,6 +105,23 @@ export async function POST(request) {
       return apiError('Semester has ended. Attendance locked.', 403);
     }
 
+    // --- ACADEMIC CALENDAR & MAKEUP CLASS VALIDATION ---
+    try {
+      const { AttendanceService } = await import('@/services/AttendanceService');
+      if (typeof AttendanceService?.validateAttendanceDate === 'function') {
+        await AttendanceService.validateAttendanceDate({
+          assignmentId: assignment_id,
+          date,
+          sessionNumber: session,
+          academicYear: academic_year,
+          semester: course_semester,
+          tx: db
+        });
+      }
+    } catch (valErr) {
+      return apiError(valErr.message, 403);
+    }
+
     // Transaction
     await db.transaction(async (tx) => {
       const values = attendance_data.map(item => ({

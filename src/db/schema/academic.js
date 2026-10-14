@@ -125,3 +125,16 @@ export const academicPrograms = mysqlTable('academic_programs', {
 }, (table) => ({
   deptIdx: index('idx_academic_programs_dept').on(table.department_id),
 }));
+
+export const makeupClassExceptions = mysqlTable('makeup_class_exceptions', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  assignment_id: int('assignment_id').notNull(),
+  exception_date: date('exception_date').notNull(),
+  session_number: int('session_number'),
+  reason: text('reason').notNull(),
+  authorized_by_staff_id: int('authorized_by_staff_id').notNull(),
+  created_at: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  assignmentDateIdx: index('idx_mce_assignment_date').on(table.assignment_id, table.exception_date),
+  uqException: uniqueIndex('uq_makeup_class_exception').on(table.assignment_id, table.exception_date, table.session_number),
+}));

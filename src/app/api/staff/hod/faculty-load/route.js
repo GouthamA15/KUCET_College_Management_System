@@ -16,11 +16,12 @@ export const GET = wrapHandler({
 
     // Use FacultyService to resolve academic year and load
     const systemYear = await FacultyService.getCurrentAcademicYear();
-    const facultyLoad = await FacultyService.getFacultyLoad(systemYear);
+    const branchFilter = user.role === 'admin' ? null : user.branch;
+    const facultyLoad = await FacultyService.getFacultyLoad(systemYear, branchFilter);
 
     return { 
       data: facultyLoad,
-      meta: { systemYear }
+      meta: { systemYear, branch: branchFilter }
     };
   }
 });

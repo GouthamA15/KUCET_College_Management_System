@@ -175,6 +175,10 @@ export const studentRequests = mysqlTable('student_requests', {
   completed_at: timestamp('completed_at'),
   reject_reason: text('reject_reason'),
   generated_attendance: varchar('generated_attendance', { length: 10 }),
+  hod_approval_status: mysqlEnum('hod_approval_status', ['PENDING', 'APPROVED', 'REJECTED', 'NOT_REQUIRED']).default('NOT_REQUIRED'),
+  hod_staff_id: int('hod_staff_id'),
+  hod_approved_at: timestamp('hod_approved_at'),
+  hod_rejection_reason: text('hod_rejection_reason'),
   action_by_staff_id: int('action_by_staff_id'),
   action_by_role: varchar('action_by_role', { length: 50 }),
   is_flagged: boolean('is_flagged').default(false),
@@ -183,6 +187,7 @@ export const studentRequests = mysqlTable('student_requests', {
 }, (table) => ({
   genCertIdx: index('idx_gen_cert_id').on(table.generated_certificate_id),
   studentIdx: index('idx_sr_student').on(table.student_id),
+  hodStatusIdx: index('idx_sr_hod_status').on(table.hod_approval_status),
   statusIdx: index('idx_sr_status').on(table.status),
   hashIdx: index('idx_sr_payment_hash').on(table.payment_hash),
   transIdx: index('idx_sr_transaction').on(table.transaction_id),

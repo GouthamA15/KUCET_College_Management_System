@@ -55,7 +55,9 @@ export const POST = wrapHandler({
       mobile: students.mobile,
       date_of_birth: students.date_of_birth,
       password_hash: students.password_hash,
-      academic_offset_years: students.academic_offset_years
+      academic_offset_years: students.academic_offset_years,
+      student_status: students.student_status,
+      academic_status: students.academic_status
     })
     .from(students)
     .leftJoin(studentPersonalDetails, eq(students.id, studentPersonalDetails.student_id))
@@ -68,6 +70,21 @@ export const POST = wrapHandler({
     }
 
     const student = rows[0];
+
+    // Enforce Student Account Lifecycle & Inactivity Status
+    if (student.student_status === 'INACTIVE_ATTENDANCE') {
+      logger.warn({ rollno, studentId: student.id }, '[Student Login Blocked] Account deactivated due to inactivity');
+      return apiError('Your student account has been deactivated due to prolonged attendance inactivity. You may submit a reactivation request at /student/reactivate.', 403);
+    }
+    if (student.student_status === 'DISCONTINUED') {
+      logger.warn({ rollno, studentId: student.id }, '[Student Login Blocked] Account discontinued');
+      return apiError('Your student account has been marked as discontinued. Please contact college administration.', 403);
+    }
+    if (['SUSPENDED', 'DROPPED'].includes(student.academic_status)) {
+      logger.warn({ rollno, studentId: student.id, academic_status: student.academic_status }, '[Student Login Blocked] Academic suspension');
+      return apiError(`Your student account is currently ${student.academic_status.toLowerCase()}. Access is restricted.`, 403);
+    }
+
     let isAuthenticated = false;
 
     if (student.password_hash) {

@@ -1,6 +1,6 @@
 import { 
   mysqlTable, varchar, int, boolean, decimal, timestamp, 
-  mysqlEnum, float, index, uniqueIndex, date
+  mysqlEnum, float, index, uniqueIndex, date, text
 } from 'drizzle-orm/mysql-core';
 
 export const studentAttendance = mysqlTable('student_attendance', {
@@ -53,4 +53,64 @@ export const attendanceSessionLogs = mysqlTable('attendance_session_logs', {
 }, (table) => ({
   sessionIpUaIdx: index('idx_session_ip_ua').on(table.session_id, table.ip_address, table.ua_hash),
   studentSessionIdx: index('idx_asl_student_session').on(table.student_id, table.session_id),
+}));
+
+export const studentAttendanceDisputes = mysqlTable('student_attendance_disputes', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  student_id: int('student_id').notNull(),
+  assignment_id: int('assignment_id').notNull(),
+  attendance_date: date('attendance_date').notNull(),
+  session: int('session').notNull(),
+  original_status: mysqlEnum('original_status', ['ABSENT']).default('ABSENT').notNull(),
+  requested_status: mysqlEnum('requested_status', ['PRESENT', 'NCC', 'MEDICAL']).default('PRESENT').notNull(),
+  category: varchar('category', { length: 50 }).default('INCORRECT_MARKING').notNull(),
+  reason: text('reason').notNull(),
+  additional_explanation: text('additional_explanation'),
+  student_declaration: boolean('student_declaration').default(true).notNull(),
+  proof_url: varchar('proof_url', { length: 500 }),
+  status: mysqlEnum('status', ['PENDING', 'APPROVED', 'REJECTED', 'MORE_INFO_REQUIRED']).default('PENDING').notNull(),
+  reviewed_by_staff_id: int('reviewed_by_staff_id'),
+  reviewed_at: timestamp('reviewed_at'),
+  rejection_reason: text('rejection_reason'),
+  reviewer_comments: text('reviewer_comments'),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').onUpdateNow(),
+}, (table) => ({
+  studentIdx: index('idx_sad_student').on(table.student_id),
+  assignmentDateIdx: index('idx_sad_assignment_date').on(table.assignment_id, table.attendance_date),
+  statusIdx: index('idx_sad_status').on(table.status),
+  uqDispute: uniqueIndex('uq_student_dispute_session').on(table.student_id, table.assignment_id, table.attendance_date, table.session),
+}));
+
+export const attendanceDisputeAttachments = mysqlTable('attendance_dispute_attachments', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  dispute_id: int('dispute_id').notNull(),
+  student_id: int('student_id').notNull(),
+  file_key: varchar('file_key', { length: 500 }).notNull(),
+  file_name: varchar('file_name', { length: 255 }).notNull(),
+  file_size: int('file_size').notNull(),
+  mime_type: varchar('mime_type', { length: 100 }).notNull(),
+  created_at: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  disputeIdx: index('idx_ada_dispute').on(table.dispute_id),
+  studentIdx: index('idx_ada_student').on(table.student_id),
+}));
+
+export const attendanceAuditLogs = mysqlTable('attendance_audit_logs', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  student_id: int('student_id').notNull(),
+  assignment_id: int('assignment_id').notNull(),
+  attendance_date: date('attendance_date').notNull(),
+  session: int('session').notNull(),
+  previous_status: varchar('previous_status', { length: 20 }),
+  new_status: varchar('new_status', { length: 20 }).notNull(),
+  modified_by_staff_id: int('modified_by_staff_id').notNull(),
+  change_type: varchar('change_type', { length: 50 }).default('MANUAL_CORRECTION').notNull(), // 'DISPUTE_APPROVAL', 'MANUAL_CORRECTION'
+  dispute_id: int('dispute_id'),
+  reason: text('reason'),
+  created_at: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  studentDateIdx: index('idx_aal_student_date').on(table.student_id, table.attendance_date),
+  assignmentIdx: index('idx_aal_assignment').on(table.assignment_id),
+  disputeIdx: index('idx_aal_dispute').on(table.dispute_id),
 }));
