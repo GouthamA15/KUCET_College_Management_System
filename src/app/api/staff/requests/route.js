@@ -107,10 +107,12 @@ export async function GET(request) {
       });
 
       // Scope HOD history to authorized branches
-      if (staffType === 'hod' && staff.role !== 'admin' && !staff.is_principal) {
+      if (staffType === 'hod' && staff.role !== 'admin') {
         const authorizedBranches = staff.authorized_branches || (staff.branch ? [staff.branch] : []);
         if (authorizedBranches.length > 0) {
           mappedRows = mappedRows.filter(r => authorizedBranches.includes(getBranchFromRoll(r.roll_number)));
+        } else {
+          mappedRows = [];
         }
       }
 
@@ -184,10 +186,12 @@ export async function GET(request) {
       });
 
       // Scope HOD queue to authorized branches
-      if (staffType === 'hod' && staff.role !== 'admin' && !staff.is_principal) {
+      if (staffType === 'hod' && staff.role !== 'admin') {
         const authorizedBranches = staff.authorized_branches || (staff.branch ? [staff.branch] : []);
         if (authorizedBranches.length > 0) {
           mappedRows = mappedRows.filter(r => authorizedBranches.includes(getBranchFromRoll(r.roll_number)));
+        } else {
+          mappedRows = [];
         }
       }
 

@@ -126,19 +126,14 @@ export async function POST(request) {
       const declVal = formData.get('declaration') ?? formData.get('student_declaration');
       student_declaration = declVal === 'true' || declVal === true || declVal === '1';
 
-      // Gather evidence files across all standard form keys and multipart entries
-      const candidateKeys = ['evidence', 'files', 'file', 'attachments', 'documents'];
+      // Gather evidence files across canonical keys
+      const candidateKeys = ['evidence', 'files', 'file'];
       for (const key of candidateKeys) {
         const entries = formData.getAll(key);
         for (const entry of entries) {
-          if (entry && typeof entry === 'object' && entry.size > 0 && !uploadedFiles.includes(entry)) {
+          if (entry && typeof entry === 'object' && typeof entry.arrayBuffer === 'function' && entry.size > 0 && !uploadedFiles.includes(entry)) {
             uploadedFiles.push(entry);
           }
-        }
-      }
-      for (const [key, val] of formData.entries()) {
-        if (val && typeof val === 'object' && typeof val.arrayBuffer === 'function' && val.size > 0 && !uploadedFiles.includes(val)) {
-          uploadedFiles.push(val);
         }
       }
     } else {
@@ -153,9 +148,9 @@ export async function POST(request) {
       student_declaration = !!body.declaration || !!body.student_declaration;
 
       if (body.files && Array.isArray(body.files)) {
-        uploadedFiles.push(...body.files);
+        uploadedFiles.push(...body.files.filter(f => f && typeof f === 'object' && typeof f.arrayBuffer === 'function'));
       } else if (body.evidence && Array.isArray(body.evidence)) {
-        uploadedFiles.push(...body.evidence);
+        uploadedFiles.push(...body.evidence.filter(f => f && typeof f === 'object' && typeof f.arrayBuffer === 'function'));
       }
     }
 
@@ -239,86 +234,103 @@ export async function POST(request) {
         return apiError(`Invalid file format (${file.type || 'unknown'}). Allowed formats: JPEG, PNG, PDF.`, 400);
       }
       if (file.size > MAX_FILE_SIZE) {
-        return apiError(`File "${file.name}" exceeds the maximum allowed size of 5 MB.`, 400);
+        return apiError(`File "${file.name || 'document'}" exceeds the maximum allowed size of 5 MB.`, 400);
       }
     }
 
-    // 6. Upload evidence files securely with safe randomized object names
+    // 6. Upload evidence files securely with safe randomized object names & compensating cleanup
     const uploadedMetadata = [];
-    for (const file of uploadedFiles) {
-      const ext = file.name.split('.').pop()?.toLowerCase() || (file.type === 'application/pdf' ? 'pdf' : 'jpg');
-      const safeFilename = `${crypto.randomUUID()}.${ext}`;
-      
-      const uploadRes = await storage.upload(file, STORAGE_FOLDERS.ATTENDANCE_EVIDENCE, safeFilename);
-      const fileKey = typeof uploadRes === 'string' ? uploadRes : uploadRes?.path;
+    try {
+      for (const file of uploadedFiles) {
+        const rawExt = file.name ? file.name.split('.').pop()?.toLowerCase() : null;
+        const ext = rawExt || (file.type === 'application/pdf' ? 'pdf' : (file.type === 'image/png' ? 'png' : 'jpg'));
+        const safeFilename = `${crypto.randomUUID()}.${ext}`;
+        
+        const uploadRes = await storage.upload(file, STORAGE_FOLDERS.ATTENDANCE_EVIDENCE, safeFilename);
+        const fileKey = typeof uploadRes === 'string' ? uploadRes : uploadRes?.path;
 
-      if (!fileKey) {
-        throw new Error('Failed to save evidence file to storage');
+        if (!fileKey) {
+          throw new Error('Failed to save evidence file to storage');
+        }
+
+        uploadedMetadata.push({
+          file_key: fileKey,
+          file_name: (file.name || 'evidence').slice(0, 250),
+          file_size: file.size,
+          mime_type: file.type
+        });
       }
-
-      uploadedMetadata.push({
-        file_key: fileKey,
-        file_name: file.name.slice(0, 250),
-        file_size: file.size,
-        mime_type: file.type
-      });
+    } catch (uploadError) {
+      for (const meta of uploadedMetadata) {
+        try { await storage.delete(meta.file_key); } catch (_delErr) {}
+      }
+      throw uploadError;
     }
 
     const primaryProofKey = uploadedMetadata[0]?.file_key || null;
 
-    // 7. Atomic Insert / Resubmission
+    // 7. Atomic Insert / Resubmission inside transaction with compensating cleanup
     let disputeId;
+    try {
+      await db.transaction(async (tx) => {
+        if (existing && (existing.status === 'REJECTED' || existing.status === 'PENDING')) {
+          // Re-submit rejected dispute or update pending dispute with new evidence
+          disputeId = existing.id;
+          const updateData = {
+            requested_status,
+            category,
+            reason,
+            additional_explanation: additional_explanation || existing.additional_explanation,
+            student_declaration,
+            status: 'PENDING',
+            reviewed_by_staff_id: null,
+            reviewed_at: null,
+            rejection_reason: null,
+            reviewer_comments: null,
+            updated_at: new Date()
+          };
+          if (primaryProofKey) {
+            updateData.proof_url = primaryProofKey;
+          }
+          await tx.update(studentAttendanceDisputes)
+            .set(updateData)
+            .where(eq(studentAttendanceDisputes.id, disputeId));
+        } else {
+          const [result] = await tx.insert(studentAttendanceDisputes).values({
+            student_id: user.student_id,
+            assignment_id,
+            attendance_date,
+            session,
+            original_status: 'ABSENT',
+            requested_status,
+            category,
+            reason,
+            additional_explanation,
+            student_declaration,
+            proof_url: primaryProofKey,
+            status: 'PENDING'
+          });
+          disputeId = result.insertId;
+        }
 
-    if (existing && (existing.status === 'REJECTED' || existing.status === 'PENDING')) {
-      // Re-submit rejected dispute or update pending dispute with new evidence
-      disputeId = existing.id;
-      const updateData = {
-        requested_status,
-        category,
-        reason,
-        additional_explanation: additional_explanation || existing.additional_explanation,
-        student_declaration,
-        status: 'PENDING',
-        reviewed_by_staff_id: null,
-        reviewed_at: null,
-        rejection_reason: null,
-        reviewer_comments: null,
-        updated_at: new Date()
-      };
-      if (primaryProofKey) {
-        updateData.proof_url = primaryProofKey;
+        // Save attachment records
+        for (const meta of uploadedMetadata) {
+          await tx.insert(attendanceDisputeAttachments).values({
+            dispute_id: disputeId,
+            student_id: user.student_id,
+            file_key: meta.file_key,
+            file_name: meta.file_name,
+            file_size: meta.file_size,
+            mime_type: meta.mime_type
+          });
+        }
+      });
+    } catch (txError) {
+      // Compensating storage cleanup if DB transaction fails
+      for (const meta of uploadedMetadata) {
+        try { await storage.delete(meta.file_key); } catch (_delErr) {}
       }
-      await db.update(studentAttendanceDisputes)
-        .set(updateData)
-        .where(eq(studentAttendanceDisputes.id, disputeId));
-    } else {
-      const [result] = await db.insert(studentAttendanceDisputes).values({
-        student_id: user.student_id,
-        assignment_id,
-        attendance_date,
-        session,
-        original_status: 'ABSENT',
-        requested_status,
-        category,
-        reason,
-        additional_explanation,
-        student_declaration,
-        proof_url: primaryProofKey,
-        status: 'PENDING'
-      });
-      disputeId = result.insertId;
-    }
-
-    // Save attachment records
-    for (const meta of uploadedMetadata) {
-      await db.insert(attendanceDisputeAttachments).values({
-        dispute_id: disputeId,
-        student_id: user.student_id,
-        file_key: meta.file_key,
-        file_name: meta.file_name,
-        file_size: meta.file_size,
-        mime_type: meta.mime_type
-      });
+      throw txError;
     }
 
     logger.info({

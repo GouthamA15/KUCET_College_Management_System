@@ -69,10 +69,13 @@ export async function POST(request) {
 
         // 2. Authorization
         let isAuthorized = false;
-        if (assignment.faculty_id === user.id) {
+        if (assignment.faculty_id === user.id || user.role === 'admin') {
           isAuthorized = true;
-        } else if (user.is_hod && user.branch === assignment.branch) {
-          isAuthorized = true;
+        } else if (user.is_principal || user.is_hod) {
+          const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+          if (authorizedBranches.includes(assignment.branch) || user.branch === assignment.branch) {
+            isAuthorized = true;
+          }
         } else {
           const sub = await tx.select()
             .from(facultySubstitutions)

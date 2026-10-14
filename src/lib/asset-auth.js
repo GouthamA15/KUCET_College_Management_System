@@ -114,9 +114,10 @@ export async function isUserActive(user) {
       });
 
       if (!studentRecord) return false;
+      const isInactiveAttendance = studentRecord.student_status === 'INACTIVE_ATTENDANCE';
       const isDiscontinued = studentRecord.student_status === 'DISCONTINUED';
       const isSuspended = ['SUSPENDED', 'DROPPED'].includes(studentRecord.academic_status);
-      return !isDiscontinued && !isSuspended;
+      return !isInactiveAttendance && !isDiscontinued && !isSuspended;
     }
 
     return false;

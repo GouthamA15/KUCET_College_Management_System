@@ -68,16 +68,16 @@ export async function GET(req, context) {
     // - Super Admin
     let isAuthorized = false;
 
-    if (user.role === 'admin' || user.is_principal) {
+    if (user.role === 'admin') {
       isAuthorized = true;
     } else if (user.student_id && Number(user.student_id) === Number(dispute.student_id)) {
       isAuthorized = true;
     } else if (user.role === 'faculty') {
       if (Number(dispute.faculty_id) === Number(user.id) || Number(dispute.faculty_id) === Number(user.staffId)) {
         isAuthorized = true;
-      } else if (user.is_hod) {
+      } else if (user.is_principal || user.is_hod) {
         const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
-        if (authorizedBranches.length === 0 || authorizedBranches.includes(dispute.branch) || user.branch === dispute.branch) {
+        if (authorizedBranches.length > 0 && (authorizedBranches.includes(dispute.branch) || user.branch === dispute.branch)) {
           isAuthorized = true;
         }
       }
@@ -95,11 +95,7 @@ export async function GET(req, context) {
     });
 
     if (response.status >= 400) {
-      const { storage } = await import('@/lib/providers');
-      const directUrl = storage.getUrl(attachment.file_key);
-      if (directUrl && (directUrl.startsWith('http://') || directUrl.startsWith('https://'))) {
-        return NextResponse.redirect(directUrl, 303);
-      }
+      return new NextResponse('Evidence document not found or inaccessible', { status: 404 });
     }
 
     // Attach headers

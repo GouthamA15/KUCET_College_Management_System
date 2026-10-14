@@ -120,7 +120,7 @@ export async function uploadToCloudinary(file, folder, publicId = null) {
   }
 
   const cleanPublicId = typeof publicId === 'string' && publicId.trim() && !publicId.includes('[object') 
-    ? publicId.trim() 
+    ? publicId.trim().replace(/\.[a-zA-Z0-9]+$/, '') 
     : null;
 
   // Generate a cryptographically random UUID as the filename.

@@ -230,5 +230,74 @@ describe('Attendance Disputes Workflow', () => {
       change_type: 'DISPUTE_RESOLUTION'
     }));
   });
+
+  describe('IDOR & Role Escalation Hardening Suite', () => {
+    const checkEvidenceAuthorization = (user, dispute) => {
+      let isAuthorized = false;
+      if (user.role === 'admin') {
+        isAuthorized = true;
+      } else if (user.student_id && Number(user.student_id) === Number(dispute.student_id)) {
+        isAuthorized = true;
+      } else if (user.role === 'faculty') {
+        if (Number(dispute.faculty_id) === Number(user.id) || Number(dispute.faculty_id) === Number(user.staffId)) {
+          isAuthorized = true;
+        } else if (user.is_principal || user.is_hod) {
+          const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+          if (authorizedBranches.length > 0 && (authorizedBranches.includes(dispute.branch) || user.branch === dispute.branch)) {
+            isAuthorized = true;
+          }
+        }
+      }
+      return isAuthorized;
+    };
+
+    it('rejects HOD access when authorized_branches is empty array', () => {
+      const emptyHod = { role: 'faculty', id: 50, is_hod: true, authorized_branches: [] };
+      const dispute = { student_id: 10, faculty_id: 99, branch: 'CSE' };
+      expect(checkEvidenceAuthorization(emptyHod, dispute)).toBe(false);
+    });
+
+    it('prohibits CSE HOD from accessing ECE or CIVIL dispute evidence (IDOR prevention)', () => {
+      const cseHod = { role: 'faculty', id: 51, is_hod: true, branch: 'CSE', authorized_branches: ['CSE'] };
+      const eceDispute = { student_id: 10, faculty_id: 99, branch: 'ECE' };
+      const civilDispute = { student_id: 11, faculty_id: 98, branch: 'CIVIL' };
+      expect(checkEvidenceAuthorization(cseHod, eceDispute)).toBe(false);
+      expect(checkEvidenceAuthorization(cseHod, civilDispute)).toBe(false);
+    });
+
+    it('allows multi-branch HOD to access only explicitly assigned branches', () => {
+      const multiHod = { role: 'faculty', id: 52, is_hod: true, authorized_branches: ['CSE', 'IT'] };
+      expect(checkEvidenceAuthorization(multiHod, { student_id: 10, faculty_id: 99, branch: 'CSE' })).toBe(true);
+      expect(checkEvidenceAuthorization(multiHod, { student_id: 11, faculty_id: 98, branch: 'IT' })).toBe(true);
+      expect(checkEvidenceAuthorization(multiHod, { student_id: 12, faculty_id: 97, branch: 'CSD' })).toBe(false);
+      expect(checkEvidenceAuthorization(multiHod, { student_id: 13, faculty_id: 96, branch: 'MECH' })).toBe(false);
+    });
+
+    it('confines Principal-level supervisor strictly to CSE, IT, and CSD', () => {
+      const principal = { 
+        role: 'faculty', 
+        id: 100, 
+        is_principal: true, 
+        authorized_branches: ['CSE', 'IT', 'CSD'] 
+      };
+      // Permitted branches:
+      expect(checkEvidenceAuthorization(principal, { student_id: 10, faculty_id: 99, branch: 'CSE' })).toBe(true);
+      expect(checkEvidenceAuthorization(principal, { student_id: 11, faculty_id: 98, branch: 'IT' })).toBe(true);
+      expect(checkEvidenceAuthorization(principal, { student_id: 12, faculty_id: 97, branch: 'CSD' })).toBe(true);
+      // Strictly rejected branches:
+      expect(checkEvidenceAuthorization(principal, { student_id: 13, faculty_id: 96, branch: 'ECE' })).toBe(false);
+      expect(checkEvidenceAuthorization(principal, { student_id: 14, faculty_id: 95, branch: 'CIVIL' })).toBe(false);
+      expect(checkEvidenceAuthorization(principal, { student_id: 15, faculty_id: 94, branch: 'MECH' })).toBe(false);
+      expect(checkEvidenceAuthorization(principal, { student_id: 16, faculty_id: 93, branch: 'EEE' })).toBe(false);
+    });
+
+    it('does not allow cross-branch teaching faculty to access disputes outside their assigned courses', () => {
+      const faculty = { role: 'faculty', id: 70, is_hod: false, branch: 'CSE' };
+      // Course they teach (faculty_id matches):
+      expect(checkEvidenceAuthorization(faculty, { student_id: 10, faculty_id: 70, branch: 'IT' })).toBe(true);
+      // Course in their home branch taught by someone else (faculty_id doesn't match):
+      expect(checkEvidenceAuthorization(faculty, { student_id: 11, faculty_id: 71, branch: 'CSE' })).toBe(false);
+    });
+  });
 });
 

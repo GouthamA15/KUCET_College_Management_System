@@ -384,7 +384,7 @@ export async function getAuthUser(role = null) {
           payload.is_principal = hasPrincipal;
           payload.hod_branches = hodBranches;
           if (hasPrincipal) {
-            payload.authorized_branches = Array.from(new Set([...hodBranches, 'CSE', 'IT', 'CSD', 'ECE', 'CIVIL', 'MECH', 'EEE']));
+            payload.authorized_branches = Array.from(new Set([...hodBranches, 'CSE', 'IT', 'CSD']));
           } else {
             payload.authorized_branches = hodBranches;
           }
@@ -455,7 +455,7 @@ export async function getAuthUser(role = null) {
             payload.is_principal = hasPrincipal;
             payload.hod_branches = hodBranches;
             payload.authorized_branches = hasPrincipal
-              ? Array.from(new Set([...hodBranches, 'CSE', 'IT', 'CSD', 'ECE', 'CIVIL', 'MECH', 'EEE']))
+              ? Array.from(new Set([...hodBranches, 'CSE', 'IT', 'CSD']))
               : hodBranches;
             payload.hod_department_code = hodBranches[0] || (hasPrincipal ? 'CSE' : payload.branch);
           }

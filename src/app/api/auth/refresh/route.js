@@ -213,6 +213,13 @@ export async function POST(req) {
           return apiError('User not found or inactive', 401);
         }
 
+        if (type === 'student') {
+          if (user.student_status === 'INACTIVE_ATTENDANCE' || user.student_status === 'DISCONTINUED' || ['SUSPENDED', 'DROPPED'].includes(user.academic_status)) {
+            logDevValues();
+            return apiError('Student account is inactive, discontinued, or suspended', 403);
+          }
+        }
+
         // Task 6: Ownership validation
         if (type === 'student') {
           ownershipValidationResult = (tokenRecord.user_id === user.roll_no);
@@ -405,6 +412,13 @@ export async function POST(req) {
     if (type === 'staff' && user.account_status !== 'ACTIVE') {
       logDevValues();
       return apiError('User not found or inactive', 401);
+    }
+
+    if (type === 'student') {
+      if (user.student_status === 'INACTIVE_ATTENDANCE' || user.student_status === 'DISCONTINUED' || ['SUSPENDED', 'DROPPED'].includes(user.academic_status)) {
+        logDevValues();
+        return apiError('Student account is inactive, discontinued, or suspended', 403);
+      }
     }
 
     // Task 6: Ownership validation

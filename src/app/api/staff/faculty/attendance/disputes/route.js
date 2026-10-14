@@ -7,7 +7,7 @@ import {
   students,
   staffAccounts 
 } from '@/db/schema';
-import { eq, and, desc, inArray } from 'drizzle-orm';
+import { eq, and, desc, inArray, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { getAssetUrl } from '@/lib/assets';
 
@@ -25,11 +25,13 @@ export async function GET(request) {
     const conditions = [];
 
     // Role-based scope
-    if (user.role !== 'admin' && !user.is_principal) {
-      if (user.is_hod) {
+    if (user.role !== 'admin') {
+      if (user.is_principal || user.is_hod) {
         const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
         if (authorizedBranches.length > 0) {
           conditions.push(inArray(facultySubjectAssignments.branch, authorizedBranches));
+        } else {
+          conditions.push(sql`1 = 0`);
         }
       } else {
         // Normal faculty only sees disputes for their assigned subjects

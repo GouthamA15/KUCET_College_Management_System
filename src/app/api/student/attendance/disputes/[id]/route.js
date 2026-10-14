@@ -50,27 +50,22 @@ export async function PATCH(request, context) {
       const formData = await request.formData();
       additional_explanation = formData.get('additional_explanation')?.toString().trim() || '';
       
-      const candidateKeys = ['evidence', 'files', 'file', 'attachments', 'documents'];
+      const candidateKeys = ['evidence', 'files', 'file'];
       for (const key of candidateKeys) {
         const entries = formData.getAll(key);
         for (const entry of entries) {
-          if (entry && typeof entry === 'object' && entry.size > 0 && !uploadedFiles.includes(entry)) {
+          if (entry && typeof entry === 'object' && typeof entry.arrayBuffer === 'function' && entry.size > 0 && !uploadedFiles.includes(entry)) {
             uploadedFiles.push(entry);
           }
-        }
-      }
-      for (const [key, val] of formData.entries()) {
-        if (val && typeof val === 'object' && typeof val.arrayBuffer === 'function' && val.size > 0 && !uploadedFiles.includes(val)) {
-          uploadedFiles.push(val);
         }
       }
     } else {
       const body = await request.json();
       additional_explanation = body.additional_explanation?.toString().trim() || '';
       if (body.files && Array.isArray(body.files)) {
-        uploadedFiles.push(...body.files);
+        uploadedFiles.push(...body.files.filter(f => f && typeof f === 'object' && typeof f.arrayBuffer === 'function'));
       } else if (body.evidence && Array.isArray(body.evidence)) {
-        uploadedFiles.push(...body.evidence);
+        uploadedFiles.push(...body.evidence.filter(f => f && typeof f === 'object' && typeof f.arrayBuffer === 'function'));
       }
     }
 
@@ -84,38 +79,40 @@ export async function PATCH(request, context) {
         return apiError(`Invalid file format (${file.type}). Allowed: JPEG, PNG, PDF.`, 400);
       }
       if (file.size > MAX_FILE_SIZE) {
-        return apiError(`File "${file.name}" exceeds 5 MB.`, 400);
+        return apiError(`File "${file.name || 'document'}" exceeds 5 MB.`, 400);
       }
     }
 
-    // Upload additional files
+    // Upload additional files with compensating cleanup
     const uploadedMetadata = [];
-    for (const file of uploadedFiles) {
-      const ext = file.name.split('.').pop()?.toLowerCase() || (file.type === 'application/pdf' ? 'pdf' : 'jpg');
-      const safeFilename = `${crypto.randomUUID()}.${ext}`;
-      const uploadRes = await storage.upload(file, STORAGE_FOLDERS.ATTENDANCE_EVIDENCE, safeFilename);
-      const fileKey = typeof uploadRes === 'string' ? uploadRes : uploadRes?.path;
+    try {
+      for (const file of uploadedFiles) {
+        const rawExt = file.name ? file.name.split('.').pop()?.toLowerCase() : null;
+        const ext = rawExt || (file.type === 'application/pdf' ? 'pdf' : (file.type === 'image/png' ? 'png' : 'jpg'));
+        const safeFilename = `${crypto.randomUUID()}.${ext}`;
+        const uploadRes = await storage.upload(file, STORAGE_FOLDERS.ATTENDANCE_EVIDENCE, safeFilename);
+        const fileKey = typeof uploadRes === 'string' ? uploadRes : uploadRes?.path;
 
-      if (fileKey) {
+        if (!fileKey) {
+          throw new Error('Failed to save evidence file to storage');
+        }
+
         uploadedMetadata.push({
           file_key: fileKey,
-          file_name: file.name.slice(0, 250),
+          file_name: (file.name || 'evidence').slice(0, 250),
           file_size: file.size,
           mime_type: file.type
         });
       }
+    } catch (uploadError) {
+      for (const meta of uploadedMetadata) {
+        try { await storage.delete(meta.file_key); } catch (_delErr) {}
+      }
+      throw uploadError;
     }
 
-    // Save attachments
-    for (const meta of uploadedMetadata) {
-      await db.insert(attendanceDisputeAttachments).values({
-        dispute_id: disputeId,
-        student_id: user.student_id,
-        file_key: meta.file_key,
-        file_name: meta.file_name,
-        file_size: meta.file_size,
-        mime_type: meta.mime_type
-      });
+    if (uploadedFiles.length > 0 && uploadedMetadata.length === 0) {
+      return apiError('Failed to store any evidence files. Update aborted.', 500);
     }
 
     // Combine explanation and ensure proof_url is set if empty
@@ -136,9 +133,30 @@ export async function PATCH(request, context) {
       updateFields.proof_url = uploadedMetadata[0].file_key;
     }
 
-    await db.update(studentAttendanceDisputes)
-      .set(updateFields)
-      .where(eq(studentAttendanceDisputes.id, disputeId));
+    try {
+      await db.transaction(async (tx) => {
+        // Save attachments
+        for (const meta of uploadedMetadata) {
+          await tx.insert(attendanceDisputeAttachments).values({
+            dispute_id: disputeId,
+            student_id: user.student_id,
+            file_key: meta.file_key,
+            file_name: meta.file_name,
+            file_size: meta.file_size,
+            mime_type: meta.mime_type
+          });
+        }
+
+        await tx.update(studentAttendanceDisputes)
+          .set(updateFields)
+          .where(eq(studentAttendanceDisputes.id, disputeId));
+      });
+    } catch (txError) {
+      for (const meta of uploadedMetadata) {
+        try { await storage.delete(meta.file_key); } catch (_delErr) {}
+      }
+      throw txError;
+    }
 
     logger.info({ disputeId, studentId: user.student_id, newAttachmentsCount: uploadedMetadata.length }, '[ATTENDANCE_DISPUTE_UPDATED_WITH_EVIDENCE]');
 

@@ -70,8 +70,8 @@ export async function PUT(request, { params }) {
             const { getBranchFromRoll } = await import('@/lib/rollNumber');
             const studentBranch = getBranchFromRoll(requestToUpdate.roll_no);
             const authorizedBranches = staff.authorized_branches || (staff.branch ? [staff.branch] : []);
-            if (staff.role !== 'admin' && authorizedBranches.length > 0 && !authorizedBranches.includes(studentBranch)) {
-                return apiError(`Forbidden. You can only review requests for ${authorizedBranches.join(', ')} department.`, 403);
+            if (staff.role !== 'admin' && (authorizedBranches.length === 0 || !authorizedBranches.includes(studentBranch))) {
+                return apiError(`Forbidden. You can only review requests for ${authorizedBranches.join(', ') || 'your assigned'} department.`, 403);
             }
         }
 
