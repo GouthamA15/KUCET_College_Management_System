@@ -4,6 +4,7 @@ import { studentRequests, students, studentRequestImages } from '@/db/schema';
 import { eq, and, inArray, sql, desc, or } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { getBranchFromRoll } from '@/lib/rollNumber';
+import { parsePurpose, formatPurpose } from '@/lib/certificate-utils';
 
 export async function GET(request) {
   const staff = await getAuthUser('staff');
@@ -16,7 +17,7 @@ export async function GET(request) {
   const statusFilterRaw = searchParams.getAll('status');
   const certificateTypeFilterRaw = searchParams.getAll('certificateType') || searchParams.getAll('certificate_type');
 
-  const isHodUser = Boolean(staff.is_hod || staff.role === 'hod');
+  const isHodUser = Boolean(staff.is_hod || staff.is_principal || staff.role === 'hod');
   const isPermitted = (staffType === 'hod' && isHodUser) || 
                       (staff.role === staffType) || 
                       (staff.role === 'admin');
@@ -95,7 +96,6 @@ export async function GET(request) {
       .where(and(...historyConditions))
       .orderBy(desc(studentRequests.completed_at), desc(studentRequests.updated_at));
 
-      const { parsePurpose, formatPurpose } = require('@/lib/certificate-utils');
       let mappedRows = rows.map(r => {
         const parsed = parsePurpose(r.purpose);
         return {
@@ -107,7 +107,7 @@ export async function GET(request) {
       });
 
       // Scope HOD history to authorized branches
-      if (staffType === 'hod' && staff.role !== 'admin') {
+      if (staffType === 'hod' && staff.role !== 'admin' && !staff.is_principal) {
         const authorizedBranches = staff.authorized_branches || (staff.branch ? [staff.branch] : []);
         if (authorizedBranches.length > 0) {
           mappedRows = mappedRows.filter(r => authorizedBranches.includes(getBranchFromRoll(r.roll_number)));
@@ -173,7 +173,6 @@ export async function GET(request) {
       .where(and(...activeConditions))
       .orderBy(desc(studentRequests.created_at));
 
-      const { parsePurpose, formatPurpose } = require('@/lib/certificate-utils');
       let mappedRows = rows.map(r => {
         const parsed = parsePurpose(r.purpose);
         return {
@@ -185,7 +184,7 @@ export async function GET(request) {
       });
 
       // Scope HOD queue to authorized branches
-      if (staffType === 'hod' && staff.role !== 'admin') {
+      if (staffType === 'hod' && staff.role !== 'admin' && !staff.is_principal) {
         const authorizedBranches = staff.authorized_branches || (staff.branch ? [staff.branch] : []);
         if (authorizedBranches.length > 0) {
           mappedRows = mappedRows.filter(r => authorizedBranches.includes(getBranchFromRoll(r.roll_number)));

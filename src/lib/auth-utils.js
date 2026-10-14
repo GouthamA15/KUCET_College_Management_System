@@ -208,6 +208,7 @@ export async function issueStaffAuthCookie(response, staff, rememberMe = false, 
     email: staff.email,
     role: staff.role,
     is_hod: !!staff.is_hod,
+    is_principal: !!staff.is_principal,
     branch: staff.branch,
   })
     .setProtectedHeader({ alg: 'HS256' })

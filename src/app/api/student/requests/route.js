@@ -14,6 +14,8 @@ import IdempotencyService from '@/services/IdempotencyService';
 import { FinanceService } from '@/services/FinanceService';
 import crypto from 'crypto';
 
+import { parsePurpose, formatPurpose } from '@/lib/certificate-utils';
+
 export async function GET() {
   const user = await getAuthUser("student");
   if (!user || !user.student_id) return apiError("Unauthorized", 401);
@@ -24,7 +26,6 @@ export async function GET() {
       orderBy: [desc(studentRequests.created_at)]
     });
 
-    const { parsePurpose, formatPurpose } = require('@/lib/certificate-utils');
     const mappedRequests = requests.map(r => {
       const parsed = parsePurpose(r.purpose);
       return {
@@ -94,8 +95,6 @@ export async function POST(request) {
     const isBonafide = certificateType === 'Bonafide Certificate';
     const isTC = certificateType === 'Transfer Certificate (TC)';
     const isNOC = certificateType === 'No Objection Certificate';
-
-    const { parsePurpose } = require('@/lib/certificate-utils');
 
     // --- PHASE 4: MODULAR CERTIFICATE ELIGIBILITY VALIDATION ---
     if (isBonafide || isTC || isNOC) {

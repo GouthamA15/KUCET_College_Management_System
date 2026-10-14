@@ -18,6 +18,7 @@ import { decrypt } from '@/lib/encryption';
 import { _studentImages } from '@/db/schema';
 import { resolveLocalFilePath } from '@/app/api/assets/view/[...path]/route';
 import { InstitutionAssetService } from '@/services/institution/InstitutionAssetService';
+import { formatPurpose, formatCertificateName } from '@/lib/certificate-utils';
 
 // React-PDF templates
 import BonafideCertificatePDF from '@/pdf/templates/BonafideCertificatePDF';
@@ -226,7 +227,6 @@ export async function GET(request, context) {
         let data = { ...commonData };
         switch (certRequest.certificate_type) {
             case 'Bonafide Certificate': {
-                const { formatPurpose } = require('@/lib/certificate-utils');
                 data.year = yearWords[yearOfStudy - 1] || 'N/A';
                 data.semester = semesterWords[currentSemester - 1] || 'N/A';
                 data.attendancePercentage = attendanceValue || '';
@@ -270,7 +270,6 @@ export async function GET(request, context) {
         const pdfBuffer = await pdf(<Template {...data} />).toBuffer();
         const headers = new Headers();
         headers.set('Content-Type', 'application/pdf');
-        const { formatCertificateName } = require('@/lib/certificate-utils');
         const formattedCertName = formatCertificateName(certRequest.certificate_type, certRequest.purpose);
         const filename = `${formattedCertName.replace(/ /g, '_')}_${student.roll_no}.pdf`;
         headers.set('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);

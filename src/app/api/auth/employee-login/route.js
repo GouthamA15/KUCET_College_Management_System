@@ -84,27 +84,29 @@ export async function POST(request) {
           return apiError('Your account is not active. Please contact the administrator.', 403);
         }
 
-        // Fetch Role
-        const roleRecords = await db.select({ role_code: staffRoles.role_code })
+        // Fetch Roles (all assigned roles to preserve supervisor/principal status)
+        const roleRecordsQuery = db.select({ role_code: staffRoles.role_code })
           .from(staffAccountRoles)
           .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
-          .where(eq(staffAccountRoles.staff_account_id, staff.id))
-          .limit(1);
+          .where(eq(staffAccountRoles.staff_account_id, staff.id));
           
+        const roleRecordsRaw = (typeof roleRecordsQuery?.then === 'function')
+          ? await roleRecordsQuery
+          : (typeof roleRecordsQuery?.limit === 'function' ? await roleRecordsQuery.limit(50) : await roleRecordsQuery);
+        const roleRecords = Array.isArray(roleRecordsRaw) ? roleRecordsRaw : [];
+          
+        const roleCodes = roleRecords.map(r => r.role_code);
+        const isPrincipal = roleCodes.includes('PRINCIPAL');
+
         let resolvedRole = 'faculty';
-        if (roleRecords.length > 0) {
-            const rCode = roleRecords[0].role_code;
-            if (rCode === 'ADMISSION_STAFF') resolvedRole = 'admission';
-            else if (rCode === 'SCHOLARSHIP_STAFF') resolvedRole = 'scholarship';
-            else resolvedRole = 'faculty';
-        }
+        if (roleCodes.includes('ADMISSION_STAFF')) resolvedRole = 'admission';
+        else if (roleCodes.includes('SCHOLARSHIP_STAFF')) resolvedRole = 'scholarship';
+        else resolvedRole = 'faculty';
 
         // Fetch HOD & Branch
-        let isHod = false;
+        let isHod = isPrincipal;
         let branch = null;
         if (resolvedRole === 'faculty') {
-            const isPrincipal = roleRecords.some(r => r.role_code === 'PRINCIPAL');
-
             const affil = await db.select({ branch_code: academicDepartments.department_code })
                 .from(staffAcademicAffiliations)
                 .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
@@ -112,6 +114,8 @@ export async function POST(request) {
                 .limit(1);
             if (affil.length > 0) {
               branch = affil[0].branch_code;
+            } else if (isPrincipal) {
+              branch = 'CSE';
             }
 
             const { facultyHodAssignments } = await import('@/db/schema');
@@ -151,6 +155,7 @@ export async function POST(request) {
            email: staff.email,
            role: resolvedRole,
            is_hod: isHod,
+           is_principal: isPrincipal,
            branch: branch
         };
         await issueStaffAuthCookie(response, adaptedStaff, rememberMe, ip, userAgent);

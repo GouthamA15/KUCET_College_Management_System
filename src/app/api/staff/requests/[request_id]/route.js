@@ -4,6 +4,7 @@ import { studentRequests, students, staffAccounts, studentRequestImages } from '
 import { eq, and, _sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
 import crypto from 'crypto';
+import { parsePurpose, formatPurpose } from '@/lib/certificate-utils';
 
 const roleToTypes = {
     hod: [
@@ -21,7 +22,7 @@ export async function PUT(request, { params }) {
     if (!staff) return apiError('Unauthorized', 401);
     if (!staff.id) return apiError('Staff identity missing. Approval blocked.', 500);
 
-    const isHodUser = Boolean(staff.is_hod || staff.role === 'hod');
+    const isHodUser = Boolean(staff.is_hod || staff.is_principal || staff.role === 'hod');
     let effectiveRole = staff.role;
     if (isHodUser && (staff.role === 'faculty' || staff.role === 'hod')) {
         effectiveRole = 'hod';
@@ -314,7 +315,6 @@ export async function GET(request, { params }) {
             : (roleToTypes[effectiveRole] || []);
         if (!allowedTypes.includes(rows[0].certificate_type)) return apiError('Forbidden', 403);
 
-        const { parsePurpose, formatPurpose } = require('@/lib/certificate-utils');
         const parsed = parsePurpose(rows[0].purpose);
         const mappedRequest = {
             ...rows[0],

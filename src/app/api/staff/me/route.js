@@ -40,16 +40,13 @@ export const GET = wrapHandler({
     const roleRecords = await db.select({ role_code: staffRoles.role_code })
       .from(staffAccountRoles)
       .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
-      .where(eq(staffAccountRoles.staff_account_id, staff.id))
-      .limit(1);
+      .where(eq(staffAccountRoles.staff_account_id, staff.id));
       
+    const roleCodes = roleRecords.map(r => r.role_code);
     let resolvedRole = 'faculty';
-    if (roleRecords.length > 0) {
-        const rCode = roleRecords[0].role_code;
-        if (rCode === 'ADMISSION_STAFF') resolvedRole = 'admission';
-        else if (rCode === 'SCHOLARSHIP_STAFF') resolvedRole = 'scholarship';
-        else resolvedRole = 'faculty';
-    }
+    if (roleCodes.includes('ADMISSION_STAFF')) resolvedRole = 'admission';
+    else if (roleCodes.includes('SCHOLARSHIP_STAFF')) resolvedRole = 'scholarship';
+    else resolvedRole = 'faculty';
 
     // Fetch HOD & Branch
     let isHod = false;
@@ -117,7 +114,7 @@ export const GET = wrapHandler({
         hodBranches = activeHodRows.map(r => r.dept);
         isHod = isPrincipal || hodBranches.length > 0;
         authorizedBranches = isPrincipal
-          ? Array.from(new Set([...hodBranches, 'CSE', 'IT', 'CSD']))
+          ? Array.from(new Set([...hodBranches, 'CSE', 'IT', 'CSD', 'ECE', 'CIVIL', 'MECH', 'EEE']))
           : hodBranches;
     }
     let decryptedMobile = '';
@@ -140,7 +137,7 @@ export const GET = wrapHandler({
       hod_branches: hodBranches,
       authorized_branches: authorizedBranches,
       hod_department_code: hodBranches[0] || (isPrincipal ? 'CSE' : branch),
-      branch: branch || hodBranches[0],
+      branch: branch || hodBranches[0] || (isPrincipal ? 'CSE' : null),
       branches: branches,
       department: departments.length > 0 ? departments[0] : null,
       departments: departments,

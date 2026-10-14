@@ -1,6 +1,6 @@
 // KUCET CMS - Production Service Worker
-// Version: v7 (True Navigation Redirect Follow & Outage Trap Liberation Release)
-const CACHE_VERSION = 'v7';
+// Version: v8 (Redirected Navigation Follow & Supervisor Role Trapping Resolution)
+const CACHE_VERSION = 'v8';
 const CACHE_NAME = `kucet-cms-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline';
 
@@ -114,7 +114,11 @@ self.addEventListener('fetch', (event) => {
             cache: 'no-cache',
             redirect: 'follow',
           });
-          return await fetch(fetchRequest);
+          const response = await fetch(fetchRequest);
+          if (response.redirected) {
+            return Response.redirect(response.url, 303);
+          }
+          return response;
         } catch (_error) {
           // Network request failed — try serving cached offline page
           const offlineResponse = await caches.match(OFFLINE_URL);

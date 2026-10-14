@@ -160,17 +160,19 @@ export async function POST(req) {
             const roleRecords = await db.select({ role_code: staffRoles.role_code })
               .from(staffAccountRoles)
               .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
-              .where(eq(staffAccountRoles.staff_account_id, user.id))
-              .limit(1);
+              .where(eq(staffAccountRoles.staff_account_id, user.id));
+
+            const roleCodes = roleRecords.map(r => r.role_code);
+            const isPrincipal = roleCodes.includes('PRINCIPAL');
+
             let resolvedRole = 'faculty';
-            if (roleRecords.length > 0) {
-                const rCode = roleRecords[0].role_code;
-                if (rCode === 'ADMISSION_STAFF') resolvedRole = 'admission';
-                else if (rCode === 'SCHOLARSHIP_STAFF') resolvedRole = 'scholarship';
-                else resolvedRole = 'faculty';
-            }
+            if (roleCodes.includes('ADMISSION_STAFF')) resolvedRole = 'admission';
+            else if (roleCodes.includes('SCHOLARSHIP_STAFF')) resolvedRole = 'scholarship';
+            else resolvedRole = 'faculty';
+
             user.role = resolvedRole;
-            user.is_hod = false;
+            user.is_principal = isPrincipal;
+            user.is_hod = isPrincipal;
             user.branch = null;
             if (resolvedRole === 'faculty') {
                 const affil = await db.select({ branch_code: academicDepartments.department_code })
@@ -180,9 +182,10 @@ export async function POST(req) {
                     .limit(1);
                 if (affil.length > 0) {
                     user.branch = affil[0].branch_code;
+                } else if (isPrincipal) {
+                    user.branch = 'CSE';
                 }
 
-                const isPrincipal = roleRecords.some(r => r.role_code === 'PRINCIPAL');
                 const { facultyHodAssignments } = await import('@/db/schema');
                 const hodRow = await db.select({ id: facultyHodAssignments.id })
                     .from(facultyHodAssignments)
@@ -282,6 +285,7 @@ export async function POST(req) {
             email: user.email,
             role: user.role,
             is_hod: !!user.is_hod,
+            is_principal: !!user.is_principal,
             branch: user.branch,
           })
             .setProtectedHeader({ alg: 'HS256' })
@@ -350,17 +354,19 @@ export async function POST(req) {
         const roleRecords = await db.select({ role_code: staffRoles.role_code })
           .from(staffAccountRoles)
           .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
-          .where(eq(staffAccountRoles.staff_account_id, user.id))
-          .limit(1);
+          .where(eq(staffAccountRoles.staff_account_id, user.id));
+
+        const roleCodes = roleRecords.map(r => r.role_code);
+        const isPrincipal = roleCodes.includes('PRINCIPAL');
+
         let resolvedRole = 'faculty';
-        if (roleRecords.length > 0) {
-            const rCode = roleRecords[0].role_code;
-            if (rCode === 'ADMISSION_STAFF') resolvedRole = 'admission';
-            else if (rCode === 'SCHOLARSHIP_STAFF') resolvedRole = 'scholarship';
-            else resolvedRole = 'faculty';
-        }
+        if (roleCodes.includes('ADMISSION_STAFF')) resolvedRole = 'admission';
+        else if (roleCodes.includes('SCHOLARSHIP_STAFF')) resolvedRole = 'scholarship';
+        else resolvedRole = 'faculty';
+
         user.role = resolvedRole;
-        user.is_hod = false;
+        user.is_principal = isPrincipal;
+        user.is_hod = isPrincipal;
         user.branch = null;
         if (resolvedRole === 'faculty') {
             const affil = await db.select({ branch_code: academicDepartments.department_code })
@@ -370,9 +376,10 @@ export async function POST(req) {
                 .limit(1);
             if (affil.length > 0) {
                 user.branch = affil[0].branch_code;
+            } else if (isPrincipal) {
+                user.branch = 'CSE';
             }
 
-            const isPrincipal = roleRecords.some(r => r.role_code === 'PRINCIPAL');
             const { facultyHodAssignments } = await import('@/db/schema');
             const hodRow = await db.select({ id: facultyHodAssignments.id })
                 .from(facultyHodAssignments)
