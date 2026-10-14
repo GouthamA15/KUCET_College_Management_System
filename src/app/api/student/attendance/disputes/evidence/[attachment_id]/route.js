@@ -63,19 +63,23 @@ export async function GET(req, context) {
     // 2. Strict authorization verification:
     // - Owner student
     // - Assigned course faculty
-    // - Department HOD
+    // - Department HOD (or authorized branches)
+    // - Principal / Academic Supervisor
     // - Super Admin
     let isAuthorized = false;
 
-    if (user.role === 'admin') {
+    if (user.role === 'admin' || user.is_principal) {
       isAuthorized = true;
-    } else if (user.student_id && user.student_id === dispute.student_id) {
+    } else if (user.student_id && Number(user.student_id) === Number(dispute.student_id)) {
       isAuthorized = true;
     } else if (user.role === 'faculty') {
-      if (dispute.faculty_id === user.id) {
+      if (Number(dispute.faculty_id) === Number(user.id) || Number(dispute.faculty_id) === Number(user.staffId)) {
         isAuthorized = true;
-      } else if (user.is_hod && user.branch === dispute.branch) {
-        isAuthorized = true;
+      } else if (user.is_hod) {
+        const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+        if (authorizedBranches.length === 0 || authorizedBranches.includes(dispute.branch) || user.branch === dispute.branch) {
+          isAuthorized = true;
+        }
       }
     }
 
@@ -89,6 +93,14 @@ export async function GET(req, context) {
       req,
       cacheControl: 'private, no-cache, no-store, must-revalidate'
     });
+
+    if (response.status >= 400) {
+      const { storage } = await import('@/lib/providers');
+      const directUrl = storage.getUrl(attachment.file_key);
+      if (directUrl && (directUrl.startsWith('http://') || directUrl.startsWith('https://'))) {
+        return NextResponse.redirect(directUrl, 303);
+      }
+    }
 
     // Attach headers
     response.headers.set('Content-Type', attachment.mime_type || 'application/octet-stream');

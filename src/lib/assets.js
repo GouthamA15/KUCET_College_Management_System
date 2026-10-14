@@ -212,7 +212,8 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto', options = {
         ? finalCleanPath
         : `kucet/${finalCleanPath}`;
 
-      resolvedUrl = `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformations}/${cloudinaryPath}`;
+      const transformSegment = (resourceType === 'raw' || !transformations) ? '' : `${transformations}/`;
+      resolvedUrl = `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformSegment}${cloudinaryPath}`;
     } else {
       // Secure Private Storage (Local Mode): All non-static asset keys are served through /api/assets/view/
       resolvedUrl = `/api/assets/view/${finalCleanPath}`;

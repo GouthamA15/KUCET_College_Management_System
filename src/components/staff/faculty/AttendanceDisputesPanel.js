@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { ExternalLink, Paperclip, MessageSquare } from 'lucide-react';
+import { ExternalLink, Paperclip, MessageSquare, Eye, X, Download, AlertCircle } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 const CATEGORY_LABELS = {
@@ -11,6 +11,63 @@ const CATEGORY_LABELS = {
   AUTHORIZED_ACTIVITY: 'Authorized Activity',
   OTHER: 'Other'
 };
+
+function DisputesTableSkeleton() {
+  return (
+    <div className="bg-white border border-gray-200 rounded shadow-xs overflow-x-auto">
+      <table className="w-full text-left text-xs border-collapse">
+        <thead>
+          <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold uppercase tracking-wider text-[10px]">
+            <th className="p-3">Student</th>
+            <th className="p-3">Subject & Branch</th>
+            <th className="p-3">Session</th>
+            <th className="p-3">Category & Request</th>
+            <th className="p-3">Details & Evidence</th>
+            <th className="p-3">Status</th>
+            <th className="p-3 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <tr key={i} className="animate-pulse">
+              <td className="p-3 space-y-1.5">
+                <div className="h-3.5 bg-gray-200 rounded w-20"></div>
+                <div className="h-2.5 bg-gray-100 rounded w-28"></div>
+              </td>
+              <td className="p-3 space-y-1.5">
+                <div className="h-3.5 bg-gray-200 rounded w-36"></div>
+                <div className="h-2.5 bg-gray-100 rounded w-24"></div>
+              </td>
+              <td className="p-3 space-y-1.5">
+                <div className="h-3.5 bg-gray-200 rounded w-20"></div>
+                <div className="h-2.5 bg-gray-100 rounded w-16"></div>
+              </td>
+              <td className="p-3 space-y-1.5">
+                <div className="h-4 bg-indigo-100/70 rounded w-24"></div>
+                <div className="h-5 bg-blue-100/70 rounded w-16"></div>
+              </td>
+              <td className="p-3 space-y-1.5 max-w-sm">
+                <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-3 bg-gray-100 rounded w-1/2"></div>
+                <div className="h-4 bg-gray-100 rounded w-28 mt-2"></div>
+              </td>
+              <td className="p-3">
+                <div className="h-5 bg-amber-100/70 rounded-full w-20"></div>
+              </td>
+              <td className="p-3 text-right">
+                <div className="flex items-center justify-end gap-1.5">
+                  <div className="h-6 w-14 bg-gray-200 rounded"></div>
+                  <div className="h-6 w-14 bg-gray-200 rounded"></div>
+                  <div className="h-6 w-14 bg-gray-200 rounded"></div>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export default function AttendanceDisputesPanel() {
   const [disputes, setDisputes] = useState([]);
@@ -21,6 +78,7 @@ export default function AttendanceDisputesPanel() {
   const [requestingInfoDispute, setRequestingInfoDispute] = useState(null);
   const [infoComment, setInfoComment] = useState('');
   const [processingId, setProcessingId] = useState(null);
+  const [previewAttachment, setPreviewAttachment] = useState(null);
 
   const fetchDisputes = useCallback(async () => {
     try {
@@ -37,9 +95,16 @@ export default function AttendanceDisputesPanel() {
     }
   }, [statusFilter]);
 
+  const handleTabChange = (newStatus) => {
+    if (newStatus === statusFilter) return;
+    setLoading(true);
+    setStatusFilter(newStatus);
+  };
+
   useEffect(() => {
     let isMounted = true;
     async function load() {
+      setLoading(true);
       try {
         const url = statusFilter ? `/api/staff/faculty/attendance/disputes?status=${statusFilter}` : '/api/staff/faculty/attendance/disputes';
         const res = await fetch(url);
@@ -162,7 +227,7 @@ export default function AttendanceDisputesPanel() {
           ].map((tab) => (
             <button
               key={tab.label}
-              onClick={() => setStatusFilter(tab.val)}
+              onClick={() => handleTabChange(tab.val)}
               className={`px-3 py-1 text-xs font-medium rounded transition-colors cursor-pointer ${
                 statusFilter === tab.val ? 'bg-white text-[#0b3578] shadow-xs' : 'text-gray-600 hover:text-gray-900'
               }`}
@@ -173,11 +238,16 @@ export default function AttendanceDisputesPanel() {
         </div>
       </div>
 
-      {/* Disputes Table */}
-      {loading ? (
-        <div className="py-12 flex justify-center">
-          <LoadingSpinner />
+      {/* Top Indeterminate Loading Bar */}
+      {loading && (
+        <div className="h-1 w-full bg-blue-100/60 overflow-hidden rounded">
+          <div className="h-full bg-gradient-to-r from-[#0b3578] via-blue-500 to-indigo-600 animate-pulse w-full"></div>
         </div>
+      )}
+
+      {/* Disputes Table or Skeleton */}
+      {loading ? (
+        <DisputesTableSkeleton />
       ) : disputes.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded p-8 text-center text-sm text-gray-500">
           No attendance disputes found {statusFilter ? `with status ${statusFilter}` : ''}.
@@ -239,17 +309,29 @@ export default function AttendanceDisputesPanel() {
                         </div>
                         <div className="flex flex-wrap gap-1.5 mt-1">
                           {d.attachments.map((att) => (
-                            <a
+                            <div
                               key={att.id}
-                              href={att.download_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2 py-0.5 rounded transition-colors"
+                              className="inline-flex items-center gap-1.5 text-[11px] font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2 py-0.5 rounded transition-colors"
                               title={`${att.file_name} (${Math.round(att.file_size / 1024)} KB)`}
                             >
-                              <span className="truncate max-w-[140px]">{att.file_name}</span>
-                              <ExternalLink size={10} className="shrink-0" />
-                            </a>
+                              <button
+                                type="button"
+                                onClick={() => setPreviewAttachment(att)}
+                                className="inline-flex items-center gap-1 hover:underline cursor-pointer"
+                              >
+                                <Eye size={12} className="text-blue-600 shrink-0" />
+                                <span className="truncate max-w-[130px]">{att.file_name}</span>
+                              </button>
+                              <a
+                                href={att.download_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-blue-500 hover:text-blue-800 p-0.5 rounded cursor-pointer"
+                                title="Open in new window"
+                              >
+                                <ExternalLink size={10} className="shrink-0" />
+                              </a>
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -416,6 +498,57 @@ export default function AttendanceDisputesPanel() {
           </div>
         </div>
       )}
+
+      {/* Preview Attachment Modal */}
+      {previewAttachment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full p-5 border border-gray-200 animate-slideDown flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-200">
+              <div className="flex items-center gap-2">
+                <Paperclip size={18} className="text-blue-600" />
+                <div>
+                  <h3 className="text-sm font-bold text-gray-800 truncate max-w-md">{previewAttachment.file_name}</h3>
+                  <span className="text-[11px] text-gray-500">{previewAttachment.mime_type} • {Math.round(previewAttachment.file_size / 1024)} KB</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewAttachment.download_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  download={previewAttachment.file_name}
+                  className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded transition-colors"
+                >
+                  <Download size={13} /> Download
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewAttachment(null)}
+                  className="text-gray-400 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto p-4 bg-gray-50 rounded-lg mt-3 flex items-center justify-center min-h-[300px]">
+              {previewAttachment.mime_type?.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif)$/i.test(previewAttachment.file_name) ? (
+                <img
+                  src={previewAttachment.download_url}
+                  alt={previewAttachment.file_name}
+                  className="max-h-[70vh] max-w-full object-contain rounded shadow-xs"
+                />
+              ) : (
+                <iframe
+                  src={previewAttachment.download_url}
+                  className="w-full h-[70vh] rounded border border-gray-200 bg-white"
+                  title="Document Viewer"
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

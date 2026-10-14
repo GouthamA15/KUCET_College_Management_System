@@ -24,10 +24,12 @@ export async function GET(request) {
     const conditions = [];
 
     // Role-based scope
-    if (user.role !== 'admin') {
-      if (user.is_hod && user.branch) {
-        // HOD sees disputes for their entire department
-        conditions.push(eq(facultySubjectAssignments.branch, user.branch));
+    if (user.role !== 'admin' && !user.is_principal) {
+      if (user.is_hod) {
+        const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+        if (authorizedBranches.length > 0) {
+          conditions.push(inArray(facultySubjectAssignments.branch, authorizedBranches));
+        }
       } else {
         // Normal faculty only sees disputes for their assigned subjects
         conditions.push(eq(facultySubjectAssignments.staff_account_id, user.id));

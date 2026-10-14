@@ -70,10 +70,15 @@ export async function PUT(request, { params }) {
     }
 
     let isAuthorized = false;
-    if (user.role === 'admin' || dispute.faculty_id === user.id) {
+    if (user.role === 'admin' || user.is_principal) {
       isAuthorized = true;
-    } else if (user.is_hod && user.branch === dispute.branch) {
+    } else if (Number(dispute.faculty_id) === Number(user.id) || Number(dispute.faculty_id) === Number(user.staffId)) {
       isAuthorized = true;
+    } else if (user.is_hod) {
+      const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+      if (authorizedBranches.length === 0 || authorizedBranches.includes(dispute.branch) || user.branch === dispute.branch) {
+        isAuthorized = true;
+      }
     }
 
     if (!isAuthorized) {

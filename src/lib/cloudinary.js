@@ -77,20 +77,23 @@ export async function uploadToCloudinary(file, folder, publicId = null) {
   }
 
   let fileToUpload = file;
+  const isEvidenceUpload = typeof folder === 'string' && (folder.includes('attendance') || folder.includes('evidence') || folder.includes('dispute'));
+  const MAX_SIZE = isEvidenceUpload ? (5 * 1024 * 1024) : (1 * 1024 * 1024);
+  const MAX_LABEL = isEvidenceUpload ? '5MB' : '1MB';
 
   // Handle browser File objects (from formData)
   if (file instanceof File || (typeof file === 'object' && typeof file.arrayBuffer === 'function')) {
-    // SECURITY: Enforce 1MB limit
-    const MAX_SIZE = 1 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
-      throw new Error(`File too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1MB.`);
+      throw new Error(`File too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum allowed is ${MAX_LABEL}.`);
     }
 
     if (file.size === 0) return null;
 
-    // SECURITY: Ensure it's an image
+    // SECURITY: Ensure it's an image (or PDF for dispute evidence)
     if (file.type && !file.type.startsWith('image/')) {
-      throw new Error('Only image files are allowed.');
+      if (!isEvidenceUpload || file.type !== 'application/pdf') {
+        throw new Error('Only image files are allowed.');
+      }
     }
 
     const bytes = await file.arrayBuffer();
@@ -100,9 +103,8 @@ export async function uploadToCloudinary(file, folder, publicId = null) {
   }
   // Handle Buffers
   else if (Buffer.isBuffer(file)) {
-    const MAX_SIZE = 1 * 1024 * 1024;
     if (file.length > MAX_SIZE) {
-      throw new Error(`File too large (${(file.length / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1MB.`);
+      throw new Error(`File too large (${(file.length / 1024 / 1024).toFixed(2)}MB). Maximum allowed is ${MAX_LABEL}.`);
     }
     const base64 = file.toString('base64');
     fileToUpload = `data:image/jpeg;base64,${base64}`;
@@ -112,9 +114,8 @@ export async function uploadToCloudinary(file, folder, publicId = null) {
     const matches = file.match(/^data:([A-Za-z-+/0-9]+);base64,(.+)$/);
     const base64Content = matches ? matches[2] : (file.split(',')[1] || file);
     const byteLength = Buffer.byteLength(base64Content, 'base64');
-    const MAX_SIZE = 1 * 1024 * 1024;
     if (byteLength > MAX_SIZE) {
-      throw new Error(`File too large (${(byteLength / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1MB.`);
+      throw new Error(`File too large (${(byteLength / 1024 / 1024).toFixed(2)}MB). Maximum allowed is ${MAX_LABEL}.`);
     }
   }
 
