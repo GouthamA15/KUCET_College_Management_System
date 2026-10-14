@@ -112,6 +112,18 @@ const BASELINE_RULES = [
     },
     getReason: () => 'student_attendance_disputes table and student_requests.hod_approval_status already exist',
   },
+  {
+    id: 23,
+    description: '0023_principal_staff_role',
+    getEntries: (entries) => entries.filter((e) => e.idx === 23),
+    isSatisfied: async (conn) => {
+      const [r] = await conn.query(
+        'SELECT COUNT(*) as count FROM staff_roles WHERE role_code = "PRINCIPAL"'
+      );
+      return Number(r?.[0]?.count || 0) > 0;
+    },
+    getReason: () => 'PRINCIPAL role already exists in staff_roles',
+  },
 ];
 
 module.exports = {

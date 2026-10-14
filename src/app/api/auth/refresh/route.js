@@ -182,6 +182,7 @@ export async function POST(req) {
                     user.branch = affil[0].branch_code;
                 }
 
+                const isPrincipal = roleRecords.some(r => r.role_code === 'PRINCIPAL');
                 const { facultyHodAssignments } = await import('@/db/schema');
                 const hodRow = await db.select({ id: facultyHodAssignments.id })
                     .from(facultyHodAssignments)
@@ -190,7 +191,7 @@ export async function POST(req) {
                       eq(facultyHodAssignments.is_active, true)
                     ))
                     .limit(1);
-                if (hodRow.length > 0) {
+                if (hodRow.length > 0 || isPrincipal) {
                     user.is_hod = true;
                 }
             }
@@ -371,6 +372,7 @@ export async function POST(req) {
                 user.branch = affil[0].branch_code;
             }
 
+            const isPrincipal = roleRecords.some(r => r.role_code === 'PRINCIPAL');
             const { facultyHodAssignments } = await import('@/db/schema');
             const hodRow = await db.select({ id: facultyHodAssignments.id })
                 .from(facultyHodAssignments)
@@ -379,7 +381,7 @@ export async function POST(req) {
                   eq(facultyHodAssignments.is_active, true)
                 ))
                 .limit(1);
-            if (hodRow.length > 0) {
+            if (hodRow.length > 0 || isPrincipal) {
                 user.is_hod = true;
             }
         }

@@ -160,6 +160,7 @@ export const staffAccounts = mysqlTable('staff_accounts', {
 export const staffRoles = mysqlTable('staff_roles', {
   id: int('id').autoincrement().primaryKey().notNull(),
   role_code: varchar('role_code', { length: 50 }).notNull().unique('uq_staff_roles_code'),
+  role_name: varchar('role_name', { length: 100 }),
   description: text('description'),
   created_at: timestamp('created_at').defaultNow(),
 });

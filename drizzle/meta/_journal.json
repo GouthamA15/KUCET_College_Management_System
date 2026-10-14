@@ -162,6 +162,13 @@
                         "when":  1790000000000,
                         "version":  "5",
                         "tag":  "0022_academic_calendar_attendance_disputes_and_workflows"
+                    },
+                    {
+                        "idx":  23,
+                        "breakpoints":  true,
+                        "when":  1790100000000,
+                        "version":  "5",
+                        "tag":  "0023_principal_staff_role"
                     }
                 ]
 }

@@ -11,12 +11,20 @@ import { apiResponse, apiError, wrapHandler } from '@/lib/api-utils';
 
 export const GET = wrapHandler({
   auth: 'hod',
-  handler: async (_request, { user }) => {
-    if (!user.hod_department_code) {
+  handler: async (request, { user }) => {
+    const requestedDept = request.nextUrl?.searchParams?.get('branch') || request.nextUrl?.searchParams?.get('department');
+    const targetDept = requestedDept || user.hod_department_code || user.branch;
+
+    if (!targetDept) {
       return apiError('Unauthorized - Active HOD Assignment Required', 403);
     }
 
-    // 1. Fetch eligible Faculty Staff IDs in the HOD's department
+    const authorizedBranches = user.authorized_branches || (user.hod_department_code ? [user.hod_department_code] : [user.branch]);
+    if (user.role !== 'admin' && authorizedBranches.length > 0 && !authorizedBranches.includes(targetDept)) {
+      return apiError(`Forbidden - Not authorized for ${targetDept} department`, 403);
+    }
+
+    // 1. Fetch eligible Faculty Staff IDs in the target department
     const eligibleFaculty = await db.select({
       staff_id: staffAccounts.id
     })
@@ -27,7 +35,7 @@ export const GET = wrapHandler({
     .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
     .where(and(
       eq(staffRoles.role_code, 'FACULTY'),
-      eq(academicDepartments.department_code, user.hod_department_code)
+      eq(academicDepartments.department_code, targetDept)
     ));
 
     const eligibleStaffIds = [...new Set(eligibleFaculty.map(f => f.staff_id))];
@@ -51,7 +59,7 @@ export const GET = wrapHandler({
     // Append department code manually to maintain output contract
     const data = activeFaculty.map(f => ({
       ...f,
-      department_code: user.hod_department_code
+      department_code: targetDept
     }));
 
     return apiResponse({ data });

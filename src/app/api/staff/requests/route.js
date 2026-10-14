@@ -106,9 +106,12 @@ export async function GET(request) {
         };
       });
 
-      // Scope HOD history to branch
-      if (staffType === 'hod' && staff.branch && staff.role !== 'admin') {
-        mappedRows = mappedRows.filter(r => getBranchFromRoll(r.roll_number) === staff.branch);
+      // Scope HOD history to authorized branches
+      if (staffType === 'hod' && staff.role !== 'admin') {
+        const authorizedBranches = staff.authorized_branches || (staff.branch ? [staff.branch] : []);
+        if (authorizedBranches.length > 0) {
+          mappedRows = mappedRows.filter(r => authorizedBranches.includes(getBranchFromRoll(r.roll_number)));
+        }
       }
 
       return apiResponse({ 
@@ -181,9 +184,12 @@ export async function GET(request) {
         };
       });
 
-      // Scope HOD queue to their specific department
-      if (staffType === 'hod' && staff.branch && staff.role !== 'admin') {
-        mappedRows = mappedRows.filter(r => getBranchFromRoll(r.roll_number) === staff.branch);
+      // Scope HOD queue to authorized branches
+      if (staffType === 'hod' && staff.role !== 'admin') {
+        const authorizedBranches = staff.authorized_branches || (staff.branch ? [staff.branch] : []);
+        if (authorizedBranches.length > 0) {
+          mappedRows = mappedRows.filter(r => authorizedBranches.includes(getBranchFromRoll(r.roll_number)));
+        }
       }
 
       return apiResponse({ records: mappedRows });

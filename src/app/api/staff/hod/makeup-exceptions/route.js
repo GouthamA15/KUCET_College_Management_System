@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { makeupClassExceptions, facultySubjectAssignments } from '@/db/schema';
-import { eq, and, desc, or, isNull } from 'drizzle-orm';
+import { eq, and, desc, isNull } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { z } from 'zod';
 
@@ -44,9 +44,10 @@ export async function GET(request) {
     .where(and(...conditions))
     .orderBy(desc(makeupClassExceptions.created_at));
 
-    // Branch scoping for HOD
-    const filtered = (user.role !== 'admin' && user.branch)
-      ? exceptions.filter(e => e.branch === user.branch)
+    // Branch scoping for HOD / Principal
+    const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+    const filtered = (user.role !== 'admin' && authorizedBranches.length > 0)
+      ? exceptions.filter(e => authorizedBranches.includes(e.branch))
       : exceptions;
 
     return apiResponse({ data: filtered });
@@ -67,7 +68,7 @@ export async function POST(request) {
     const validated = createExceptionSchema.parse(body);
     const { assignment_id, exception_date, session_number, reason } = validated;
 
-    // Verify assignment exists and belongs to HOD branch
+    // Verify assignment exists and belongs to authorized branch
     const [assignment] = await db.select({
       id: facultySubjectAssignments.id,
       branch: facultySubjectAssignments.branch
@@ -80,8 +81,9 @@ export async function POST(request) {
       return apiError('Assignment not found', 404);
     }
 
-    if (user.role !== 'admin' && user.branch && assignment.branch !== user.branch) {
-      return apiError(`Forbidden. You can only authorize exceptions for ${user.branch} branch.`, 403);
+    const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+    if (user.role !== 'admin' && authorizedBranches.length > 0 && !authorizedBranches.includes(assignment.branch)) {
+      return apiError(`Forbidden. You can only authorize exceptions for ${authorizedBranches.join(', ')} branch.`, 403);
     }
 
     // Check duplicate

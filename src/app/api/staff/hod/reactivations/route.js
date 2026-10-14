@@ -2,10 +2,9 @@ import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   studentReactivationRequests, 
-  students,
-  studentPersonalDetails
+  students
 } from '@/db/schema';
-import { eq, and, desc, inArray } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 
@@ -49,9 +48,10 @@ export async function GET(request) {
     .where(and(...conditions))
     .orderBy(desc(studentReactivationRequests.created_at));
 
-    // Department branch isolation
-    const filtered = (user.role !== 'admin' && user.branch)
-      ? rows.filter(r => getBranchFromRoll(r.roll_no) === user.branch)
+    // Department branch isolation for HOD / Principal
+    const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+    const filtered = (user.role !== 'admin' && authorizedBranches.length > 0)
+      ? rows.filter(r => authorizedBranches.includes(getBranchFromRoll(r.roll_no)))
       : rows;
 
     return apiResponse({ data: filtered });

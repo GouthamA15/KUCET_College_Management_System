@@ -5,8 +5,7 @@ import {
   staffAccountRoles,
   staffRoles,
   collegeInfo as collegeInfoTable,
-  staffAcademicAffiliations,
-  academicDepartments
+  syllabusStructure
 } from '@/db/schema';
 import { eq, and, asc, desc, inArray } from 'drizzle-orm';
 import { apiResponse, apiError, wrapHandler } from '@/lib/api-utils';
@@ -15,28 +14,20 @@ import { getCollegeAcademicYear } from '@/lib/academic-utils';
 export const GET = wrapHandler({
   auth: 'hod',
   handler: async (_request, { user }) => {
-    if (!user.hod_department_code) {
-      return apiError('Unauthorized - Active HOD Assignment Required', 403);
+    const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+    const requestedBranch = _request.nextUrl?.searchParams?.get('branch');
+
+    if (user.role !== 'admin' && requestedBranch && authorizedBranches.length > 0 && !authorizedBranches.includes(requestedBranch)) {
+      return apiError(`Forbidden - Not authorized for ${requestedBranch} branch.`, 403);
     }
 
-    // 1. Fetch eligible Faculty Staff IDs in the HOD's department
-    const eligibleFaculty = await db.select({
-      staff_id: staffAccounts.id
-    })
-    .from(staffAccounts)
-    .innerJoin(staffAccountRoles, eq(staffAccountRoles.staff_account_id, staffAccounts.id))
-    .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
-    .innerJoin(staffAcademicAffiliations, eq(staffAcademicAffiliations.staff_account_id, staffAccounts.id))
-    .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
-    .where(and(
-      eq(staffRoles.role_code, 'FACULTY'),
-      eq(academicDepartments.department_code, user.hod_department_code)
-    ));
+    const branchFilter = requestedBranch 
+      ? [requestedBranch] 
+      : (authorizedBranches.length > 0 ? authorizedBranches : (user.branch ? [user.branch] : []));
 
-    const eligibleStaffIds = [...new Set(eligibleFaculty.map(f => f.staff_id))];
-
-    if (eligibleStaffIds.length === 0) {
-      return apiResponse({ data: [] });
+    const conditions = [];
+    if (user.role !== 'admin' && branchFilter.length > 0) {
+      conditions.push(inArray(facultySubjectAssignments.branch, branchFilter));
     }
 
     const assignments = await db.select({
@@ -52,7 +43,7 @@ export const GET = wrapHandler({
     })
     .from(facultySubjectAssignments)
     .innerJoin(staffAccounts, eq(facultySubjectAssignments.staff_account_id, staffAccounts.id))
-    .where(inArray(facultySubjectAssignments.staff_account_id, eligibleStaffIds))
+    .where(and(...conditions))
     .orderBy(desc(facultySubjectAssignments.is_active), desc(facultySubjectAssignments.course_semester), asc(facultySubjectAssignments.subject_name));
 
     return apiResponse({ data: assignments });
@@ -62,25 +53,32 @@ export const GET = wrapHandler({
 export const POST = wrapHandler({
   auth: 'hod',
   handler: async (request, { user }) => {
-    const { subject_code, subject_name, branch, semester, academic_year, faculty_id } = await request.json();
+    const body = await request.json();
+    const { 
+      faculty_id, 
+      subject_code, 
+      subject_name, 
+      branch, 
+      semester, 
+      academic_year 
+    } = body;
 
-    if (!subject_code || !semester || !branch) {
-      return apiError('Missing required fields', 400);
+    if (!subject_code || !subject_name || !branch || !semester) {
+      return apiError('Missing required fields: subject_code, subject_name, branch, semester are required.', 400);
     }
     
     if (academic_year && !academic_year.match(/^\d{4}-\d{2}$/)) {
       return apiError('Invalid academic_year format. Expected YYYY-YY', 400);
     }
 
+    const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+    if (user.role !== 'admin' && authorizedBranches.length > 0 && !authorizedBranches.includes(branch)) {
+      return apiError(`Unauthorized: You are not authorized to assign subjects for ${branch} branch.`, 403);
+    }
+
     const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1)).limit(1);
     const collegeInfo = collegeRows[0] || null;
     const currentAcademicYear = await getCollegeAcademicYear(collegeInfo);
-
-    if (!user.hod_department_code) {
-      return apiError('Unauthorized - Active HOD Assignment Required', 403);
-    }
-
-    const { syllabusStructure } = await import('@/db/schema');
 
     // Validate subject exists in the specified branch
     const subjectCheck = await db.select({ subject_code: syllabusStructure.subject_code })
@@ -92,34 +90,27 @@ export const POST = wrapHandler({
       .limit(1);
 
     if (subjectCheck.length === 0) {
-      return apiError('Subject does not exist in the specified branch.', 400);
+      return apiError('Subject does not exist in the specified branch syllabus.', 400);
     }
 
     const target_faculty_id = faculty_id || user.id;
     const resolvedAcademicYear = academic_year || currentAcademicYear || '2025-26';
     const parsedSemester = parseInt(semester);
 
-    // Validation: Affiliation Boundary Check
-    const { staffAcademicAffiliations, academicDepartments, academicPrograms } = await import('@/db/schema');
+    // Verify target faculty is an active faculty member (can teach across any branch/year)
+    const facultyCheck = await db.select({ id: staffAccounts.id })
+      .from(staffAccounts)
+      .innerJoin(staffAccountRoles, eq(staffAccountRoles.staff_account_id, staffAccounts.id))
+      .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
+      .where(and(
+        eq(staffAccounts.id, target_faculty_id),
+        eq(staffAccounts.account_status, 'ACTIVE'),
+        eq(staffRoles.role_code, 'FACULTY')
+      ))
+      .limit(1);
 
-    const affil = await db.select({ 
-      dept_id: academicDepartments.id,
-      dept_code: academicDepartments.department_code, 
-      prog_code: academicPrograms.program_code 
-    })
-    .from(staffAcademicAffiliations)
-    .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
-    .leftJoin(academicPrograms, eq(staffAcademicAffiliations.program_id, academicPrograms.id))
-    .where(eq(staffAcademicAffiliations.staff_account_id, target_faculty_id));
-
-    if (affil.length === 0) {
-      return apiError('No academic affiliations found for your account', 403);
-    }
-
-    const allocatedProgramCodes = Array.from(new Set(affil.map(a => a.prog_code).filter(Boolean)));
-
-    if (!allocatedProgramCodes.includes(branch)) {
-      return apiError(`Unauthorized: Cannot assign subjects outside of the faculty's allocated teaching programs: ${allocatedProgramCodes.join(', ')}`, 403);
+    if (facultyCheck.length === 0) {
+      return apiError('Target staff member is not an active faculty member.', 400);
     }
 
     // Duplicate Check
@@ -136,7 +127,7 @@ export const POST = wrapHandler({
 
     if (existingAssignment.length > 0) {
       if (existingAssignment[0].is_active) {
-        return apiError('You are already assigned to this subject for this semester.', 409);
+        return apiError('This instructor is already assigned to this subject for this semester.', 409);
       } else {
         // Reactivate
         await db.update(facultySubjectAssignments)
@@ -169,30 +160,26 @@ export const DELETE = wrapHandler({
 
     if (!id) return apiError('Missing assignment ID', 400);
 
-    if (!user.hod_department_code) {
-      return apiError('Unauthorized - Active HOD Assignment Required', 403);
-    }
-
-    // Verify the assignment belongs to a faculty in the HOD's department
-    const assignmentCheck = await db.select({ id: facultySubjectAssignments.id })
-      .from(facultySubjectAssignments)
-      .innerJoin(staffAccounts, eq(facultySubjectAssignments.staff_account_id, staffAccounts.id))
-      .innerJoin(staffAcademicAffiliations, eq(staffAcademicAffiliations.staff_account_id, staffAccounts.id))
-      .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
-      .where(and(
-        eq(facultySubjectAssignments.id, id),
-        eq(academicDepartments.department_code, user.hod_department_code)
-      ))
-      .limit(1);
+    // Verify the assignment exists and belongs to HOD's authorized branch
+    const assignmentCheck = await db.select({ 
+      id: facultySubjectAssignments.id,
+      branch: facultySubjectAssignments.branch
+    })
+    .from(facultySubjectAssignments)
+    .where(eq(facultySubjectAssignments.id, id))
+    .limit(1);
 
     if (assignmentCheck.length === 0) {
-        return apiError('Assignment not found or does not belong to your department.', 404);
+      return apiError('Assignment not found.', 404);
     }
 
-    await db.update(facultySubjectAssignments)
-      .set({ is_active: false })
-      .where(eq(facultySubjectAssignments.id, id));
+    const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+    if (user.role !== 'admin' && authorizedBranches.length > 0 && !authorizedBranches.includes(assignmentCheck[0].branch)) {
+      return apiError(`Unauthorized: Assignment belongs to ${assignmentCheck[0].branch} branch which is outside your authorized scope.`, 403);
+    }
 
-    return apiResponse({ message: 'Assignment revoked' });
+    await db.delete(facultySubjectAssignments).where(eq(facultySubjectAssignments.id, id));
+
+    return apiResponse({ message: 'Subject assignment removed successfully' });
   }
 });

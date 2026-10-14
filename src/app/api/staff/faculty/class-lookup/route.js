@@ -49,11 +49,10 @@ export async function GET(request) {
     if (user.role === 'admin') {
       allowedBranchCodes = Object.keys(branchCodes);
       allowedPrograms = Object.values(branchCodes);
-    } else {
       allowedPrograms = Array.from(new Set([
         ...affil.map(a => a.prog_code).filter(Boolean),
         ...affil.map(a => a.dept_code).filter(Boolean),
-        ...(user.is_hod && user.branch ? [user.branch] : [])
+        ...(user.authorized_branches || (user.is_hod && user.branch ? [user.branch] : []))
       ]));
       allowedBranchCodes = allowedPrograms.map(p => Object.keys(branchCodes).find(key => branchCodes[key] === p)).filter(Boolean);
     }

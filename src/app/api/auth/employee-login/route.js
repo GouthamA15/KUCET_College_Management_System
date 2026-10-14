@@ -103,6 +103,8 @@ export async function POST(request) {
         let isHod = false;
         let branch = null;
         if (resolvedRole === 'faculty') {
+            const isPrincipal = roleRecords.some(r => r.role_code === 'PRINCIPAL');
+
             const affil = await db.select({ branch_code: academicDepartments.department_code })
                 .from(staffAcademicAffiliations)
                 .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
@@ -120,7 +122,7 @@ export async function POST(request) {
                   eq(facultyHodAssignments.is_active, true)
                 ))
                 .limit(1);
-            if (hodRow.length > 0) {
+            if (hodRow.length > 0 || isPrincipal) {
               isHod = true;
             }
         }

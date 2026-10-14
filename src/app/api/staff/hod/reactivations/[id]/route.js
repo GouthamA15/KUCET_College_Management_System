@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentReactivationRequests, students } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import { z } from 'zod';
@@ -52,10 +52,11 @@ export async function PUT(request, { params }) {
       return apiError(`Request has already been processed at the HOD stage (current status: ${reqRow.status}).`, 409);
     }
 
-    // Branch check
+    // Branch check for HOD / Principal
     const studentBranch = getBranchFromRoll(reqRow.roll_no);
-    if (user.role !== 'admin' && user.branch && studentBranch !== user.branch) {
-      return apiError(`Forbidden. You can only review requests for ${user.branch} department.`, 403);
+    const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+    if (user.role !== 'admin' && authorizedBranches.length > 0 && !authorizedBranches.includes(studentBranch)) {
+      return apiError(`Forbidden. You can only review requests for ${authorizedBranches.join(', ')} department.`, 403);
     }
 
     const now = new Date();

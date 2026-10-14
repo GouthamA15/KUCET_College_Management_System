@@ -1,11 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { 
-  facultySubstitutions, 
-  facultySubjectAssignments, 
-  staffAccounts 
-} from '@/db/schema';
-import { eq, and, desc, _sql } from 'drizzle-orm';
+import { facultySubstitutions, facultySubjectAssignments, staffAccounts } from '@/db/schema';
+import { eq, and, desc, inArray } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
@@ -17,8 +13,26 @@ export async function GET(req) {
 
     const { searchParams } = new URL(req.url);
     const date = searchParams.get('date');
+    const requestedBranch = searchParams.get('branch');
+    const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
 
-    const query = db.select({
+    if (user.role !== 'admin' && requestedBranch && authorizedBranches.length > 0 && !authorizedBranches.includes(requestedBranch)) {
+      return apiError(`Forbidden - Not authorized for ${requestedBranch} branch.`, 403);
+    }
+
+    const branchFilter = requestedBranch 
+      ? [requestedBranch] 
+      : (authorizedBranches.length > 0 ? authorizedBranches : (user.branch ? [user.branch] : []));
+
+    const conditions = [];
+    if (user.role !== 'admin' && branchFilter.length > 0) {
+      conditions.push(inArray(facultySubjectAssignments.branch, branchFilter));
+    }
+    if (date) {
+      conditions.push(eq(facultySubstitutions.substitution_date, date));
+    }
+
+    const results = await db.select({
       id: facultySubstitutions.id,
       original_assignment_id: facultySubstitutions.original_assignment_id,
       substitute_faculty_id: facultySubstitutions.substitute_faculty_id,
@@ -32,13 +46,8 @@ export async function GET(req) {
     .from(facultySubstitutions)
     .innerJoin(staffAccounts, eq(facultySubstitutions.substitute_faculty_id, staffAccounts.id))
     .innerJoin(facultySubjectAssignments, eq(facultySubstitutions.original_assignment_id, facultySubjectAssignments.id))
-    .where(eq(facultySubjectAssignments.branch, user.branch));
-
-    if (date) {
-      query.where(eq(facultySubstitutions.substitution_date, date));
-    }
-
-    const results = await query.orderBy(desc(facultySubstitutions.substitution_date));
+    .where(and(...conditions))
+    .orderBy(desc(facultySubstitutions.substitution_date));
 
     return apiResponse({ data: results });
   } catch (error) {
@@ -60,17 +69,19 @@ export async function POST(req) {
       return apiError('Missing required fields', 400);
     }
 
-    // Verify assignment belongs to HOD's branch
+    // Verify assignment exists
     const asgn = await db.select()
       .from(facultySubjectAssignments)
-      .where(and(
-        eq(facultySubjectAssignments.id, assignment_id),
-        eq(facultySubjectAssignments.branch, user.branch)
-      ))
+      .where(eq(facultySubjectAssignments.id, assignment_id))
       .limit(1);
 
     if (asgn.length === 0) {
-      return apiError('Assignment not found in your branch', 404);
+      return apiError('Assignment not found', 404);
+    }
+
+    const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+    if (user.role !== 'admin' && authorizedBranches.length > 0 && !authorizedBranches.includes(asgn[0].branch)) {
+      return apiError(`Forbidden. You can only manage substitutions for your authorized branches: ${authorizedBranches.join(', ')}`, 403);
     }
 
     // Create substitution
@@ -103,17 +114,22 @@ export async function DELETE(req) {
     }
 
     // Verify ownership via branch
-    const subst = await db.select()
-      .from(facultySubstitutions)
-      .innerJoin(facultySubjectAssignments, eq(facultySubstitutions.original_assignment_id, facultySubjectAssignments.id))
-      .where(and(
-        eq(facultySubstitutions.id, id),
-        eq(facultySubjectAssignments.branch, user.branch)
-      ))
-      .limit(1);
+    const subst = await db.select({
+      id: facultySubstitutions.id,
+      branch: facultySubjectAssignments.branch
+    })
+    .from(facultySubstitutions)
+    .innerJoin(facultySubjectAssignments, eq(facultySubstitutions.original_assignment_id, facultySubjectAssignments.id))
+    .where(eq(facultySubstitutions.id, id))
+    .limit(1);
 
     if (subst.length === 0) {
-      return apiError('Substitution not found or unauthorized', 404);
+      return apiError('Substitution not found', 404);
+    }
+
+    const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+    if (user.role !== 'admin' && authorizedBranches.length > 0 && !authorizedBranches.includes(subst[0].branch)) {
+      return apiError('Forbidden. You do not have authorization to remove this substitution.', 403);
     }
 
     await db.delete(facultySubstitutions).where(eq(facultySubstitutions.id, id));

@@ -53,6 +53,9 @@ export const GET = wrapHandler({
 
     // Fetch HOD & Branch
     let isHod = false;
+    let isPrincipal = false;
+    let hodBranches = [];
+    let authorizedBranches = [];
     let branch = null;
     let branches = [];
     let departments = [];
@@ -86,35 +89,36 @@ export const GET = wrapHandler({
         const now = new Date();
         const nowStr = now.toISOString().split('T')[0];
 
-        // 1. Check if they have the HOD role code
-        const hasHodRole = await db.select({ role_code: staffRoles.role_code })
+        // 1. Check if they have the PRINCIPAL role
+        const principalCheck = await db.select({ role_code: staffRoles.role_code })
             .from(staffAccountRoles)
             .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
             .where(
                 and(
                     eq(staffAccountRoles.staff_account_id, staff.id),
-                    eq(staffRoles.role_code, 'HOD')
+                    eq(staffRoles.role_code, 'PRINCIPAL')
                 )
             ).limit(1);
+        isPrincipal = principalCheck.length > 0;
 
-        if (hasHodRole.length > 0) {
-            // 2. Check if they have an active assignment
-            const hodRow = await db.select({ id: facultyHodAssignments.id })
-                .from(facultyHodAssignments)
-                .where(and(
-                  eq(facultyHodAssignments.staff_account_id, staff.id),
-                  eq(facultyHodAssignments.is_active, true),
-                  lte(facultyHodAssignments.start_date, nowStr),
-                  or(
-                    isNull(facultyHodAssignments.end_date),
-                    gte(facultyHodAssignments.end_date, nowStr)
-                  )
-                ))
-                .limit(1);
-            if (hodRow.length > 0) {
-              isHod = true;
-            }
-        }
+        // 2. Fetch active HOD assignments
+        const activeHodRows = await db.select({ dept: facultyHodAssignments.department_code })
+            .from(facultyHodAssignments)
+            .where(and(
+              eq(facultyHodAssignments.staff_account_id, staff.id),
+              eq(facultyHodAssignments.is_active, true),
+              lte(facultyHodAssignments.start_date, nowStr),
+              or(
+                isNull(facultyHodAssignments.end_date),
+                gte(facultyHodAssignments.end_date, nowStr)
+              )
+            ));
+
+        hodBranches = activeHodRows.map(r => r.dept);
+        isHod = isPrincipal || hodBranches.length > 0;
+        authorizedBranches = isPrincipal
+          ? Array.from(new Set([...hodBranches, 'CSE', 'IT', 'CSD']))
+          : hodBranches;
     }
     let decryptedMobile = '';
     if (staff.mobile_hash) {
@@ -132,7 +136,11 @@ export const GET = wrapHandler({
       mobile: decryptedMobile,
       role: resolvedRole,
       is_hod: isHod,
-      branch: branch,
+      is_principal: Boolean(isPrincipal),
+      hod_branches: hodBranches,
+      authorized_branches: authorizedBranches,
+      hod_department_code: hodBranches[0] || (isPrincipal ? 'CSE' : branch),
+      branch: branch || hodBranches[0],
       branches: branches,
       department: departments.length > 0 ? departments[0] : null,
       departments: departments,

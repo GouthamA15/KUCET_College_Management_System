@@ -64,12 +64,13 @@ export async function PUT(request, { params }) {
             : (roleToTypes[effectiveRole] || []);
         if (!allowedTypes.includes(requestToUpdate.certificate_type)) return apiError('Forbidden', 403);
 
-        // Branch isolation for HOD
+        // Branch isolation for HOD / Principal
         if (effectiveRole === 'hod') {
             const { getBranchFromRoll } = await import('@/lib/rollNumber');
             const studentBranch = getBranchFromRoll(requestToUpdate.roll_no);
-            if (staff.branch && studentBranch !== staff.branch && staff.role !== 'admin') {
-                return apiError(`Forbidden. You can only review requests for ${staff.branch} department.`, 403);
+            const authorizedBranches = staff.authorized_branches || (staff.branch ? [staff.branch] : []);
+            if (staff.role !== 'admin' && authorizedBranches.length > 0 && !authorizedBranches.includes(studentBranch)) {
+                return apiError(`Forbidden. You can only review requests for ${authorizedBranches.join(', ')} department.`, 403);
             }
         }
 
@@ -125,7 +126,9 @@ export async function PUT(request, { params }) {
                                 certificate_type: requestToUpdate.certificate_type,
                                 staffType: 'admission'
                             });
-                        } catch (_e) {}
+                        } catch (err) {
+                            logger.warn({ err: err?.message }, '[SSE_BROADCAST_WARNING]');
+                        }
 
                         return apiResponse({ 
                             success: true, 
@@ -173,7 +176,9 @@ export async function PUT(request, { params }) {
                                 request_id: requestIdNum,
                                 certificate_type: requestToUpdate.certificate_type
                             });
-                        } catch (_e) {}
+                        } catch (err) {
+                            logger.warn({ err: err?.message }, '[SSE_BROADCAST_WARNING]');
+                        }
 
                         return apiResponse({ success: true });
                     }
