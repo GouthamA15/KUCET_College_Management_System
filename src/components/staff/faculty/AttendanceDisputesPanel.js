@@ -338,14 +338,28 @@ export default function AttendanceDisputesPanel() {
                     )}
 
                     {d.proof_url && (!d.attachments || d.attachments.length === 0) && (
-                      <a
-                        href={d.proof_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline mt-1.5"
-                      >
-                        View External Proof <ExternalLink size={10} />
-                      </a>
+                      <div className="mt-2">
+                        <button
+                          type="button"
+                          onClick={() => setPreviewAttachment({
+                            id: 'direct-proof',
+                            file_name: 'Supporting_Evidence',
+                            download_url: d.proof_url,
+                            mime_type: 'image/jpeg',
+                            file_size: 0
+                          })}
+                          className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded transition-colors cursor-pointer"
+                        >
+                          <Eye size={12} className="text-blue-600" />
+                          <span>View Evidence Document</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {(!d.attachments || d.attachments.length === 0) && !d.proof_url && (
+                      <div className="text-[11px] text-gray-400 italic mt-1.5">
+                        No evidence attached
+                      </div>
                     )}
 
                     {d.reviewer_comments && (

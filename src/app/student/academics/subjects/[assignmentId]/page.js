@@ -151,6 +151,7 @@ export default function SubjectDetailPage({ params }) {
       formData.append('student_declaration', 'true');
 
       disputeForm.files.forEach(file => {
+        formData.append('evidence', file);
         formData.append('files', file);
       });
 
@@ -177,17 +178,20 @@ export default function SubjectDetailPage({ params }) {
   const handleSubmitResponse = async (e) => {
     e.preventDefault();
     if (!respondingDispute) return;
-    if (!responseForm.additional_explanation || responseForm.additional_explanation.trim().length < 5) {
-      toast.error('Please enter additional explanation (minimum 5 characters).');
+    if (!responseForm.additional_explanation?.trim() && responseForm.files.length === 0) {
+      toast.error('Please enter additional explanation or attach evidence files.');
       return;
     }
 
     setIsSubmittingResponse(true);
     try {
       const formData = new FormData();
-      formData.append('additional_explanation', responseForm.additional_explanation.trim());
+      if (responseForm.additional_explanation?.trim()) {
+        formData.append('additional_explanation', responseForm.additional_explanation.trim());
+      }
 
       responseForm.files.forEach(file => {
+        formData.append('evidence', file);
         formData.append('files', file);
       });
 
@@ -379,7 +383,7 @@ export default function SubjectDetailPage({ params }) {
                               existingDispute.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                               existingDispute.status === 'REJECTED' ? 'bg-rose-50 text-rose-700 border-rose-200' :
                               existingDispute.status === 'MORE_INFO_REQUIRED' ? 'bg-amber-50 text-amber-800 border-amber-300 font-bold' :
-                              'bg-sky-50 text-sky-700 border-sky-200 animate-pulse'
+                              'bg-sky-50 text-sky-700 border-sky-200'
                             }`}>
                               {existingDispute.status === 'MORE_INFO_REQUIRED' ? 'Info Requested' : `Dispute ${existingDispute.status.toLowerCase()}`}
                             </span>
@@ -392,6 +396,17 @@ export default function SubjectDetailPage({ params }) {
                                 className="text-[10px] font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-2 py-0.5 rounded transition-colors cursor-pointer"
                               >
                                 Respond
+                              </button>
+                            )}
+                            {existingDispute.status === 'PENDING' && (
+                              <button
+                                onClick={() => {
+                                  setRespondingDispute(existingDispute);
+                                  setResponseForm({ additional_explanation: '', files: [] });
+                                }}
+                                className="text-[10px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2 py-0.5 rounded transition-colors cursor-pointer"
+                              >
+                                Add Evidence
                               </button>
                             )}
                           </div>
@@ -560,14 +575,16 @@ export default function SubjectDetailPage({ params }) {
         </div>
       )}
 
-      {/* Respond to More Info Modal */}
+      {/* Respond / Add Evidence Modal */}
       {respondingDispute && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 border border-gray-200 animate-slideDown my-8">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100 text-amber-800">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 text-blue-900">
               <div className="flex items-center gap-2">
-                <MessageSquare size={18} />
-                <h3 className="text-base font-semibold text-gray-800">Provide Additional Information</h3>
+                <Paperclip size={18} className="text-[#0b3578]" />
+                <h3 className="text-base font-semibold text-gray-800">
+                  {respondingDispute.status === 'PENDING' ? 'Upload Supporting Evidence' : 'Provide Additional Information'}
+                </h3>
               </div>
               <button 
                 onClick={() => setRespondingDispute(null)}
@@ -578,17 +595,20 @@ export default function SubjectDetailPage({ params }) {
             </div>
 
             <form onSubmit={handleSubmitResponse} className="mt-4 space-y-4">
-              <div className="bg-amber-50 border border-amber-200 p-3 rounded text-xs space-y-1">
-                <div className="font-bold text-amber-900">Reviewer Instructions:</div>
-                <div className="text-amber-800 leading-relaxed">{respondingDispute.reviewer_comments || 'Please provide additional clarification or evidence.'}</div>
-              </div>
+              {respondingDispute.reviewer_comments && (
+                <div className="bg-amber-50 border border-amber-200 p-3 rounded text-xs space-y-1">
+                  <div className="font-bold text-amber-900">Reviewer Instructions:</div>
+                  <div className="text-amber-800 leading-relaxed">{respondingDispute.reviewer_comments}</div>
+                </div>
+              )}
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Additional Explanation *</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  {respondingDispute.status === 'PENDING' ? 'Additional Notes / Explanation (Optional)' : 'Additional Explanation *'}
+                </label>
                 <textarea
                   rows={3}
-                  required
-                  placeholder="Provide the requested details or context..."
+                  placeholder={respondingDispute.status === 'PENDING' ? 'Add any extra context regarding your evidence documents...' : 'Provide the requested details or context...'}
                   value={responseForm.additional_explanation}
                   onChange={(e) => setResponseForm(prev => ({ ...prev, additional_explanation: e.target.value }))}
                   className="w-full text-xs p-2 border border-gray-300 rounded focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578] outline-none"

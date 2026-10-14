@@ -38,8 +38,8 @@ export async function PATCH(request, context) {
       return apiError('Dispute not found', 404);
     }
 
-    if (dispute.status !== 'MORE_INFO_REQUIRED') {
-      return apiError(`Cannot update dispute in '${dispute.status}' status. Only disputes requiring more information can be updated.`, 400);
+    if (!['PENDING', 'MORE_INFO_REQUIRED'].includes(dispute.status)) {
+      return apiError(`Cannot update dispute in '${dispute.status}' status. Only disputes that are pending or requiring more information can be updated.`, 400);
     }
 
     let additional_explanation = '';
@@ -49,19 +49,33 @@ export async function PATCH(request, context) {
     if (contentType.includes('multipart/form-data')) {
       const formData = await request.formData();
       additional_explanation = formData.get('additional_explanation')?.toString().trim() || '';
-      const evidenceEntries = formData.getAll('evidence');
-      for (const entry of evidenceEntries) {
-        if (entry && typeof entry === 'object' && entry.size > 0) {
-          uploadedFiles.push(entry);
+      
+      const candidateKeys = ['evidence', 'files', 'file', 'attachments', 'documents'];
+      for (const key of candidateKeys) {
+        const entries = formData.getAll(key);
+        for (const entry of entries) {
+          if (entry && typeof entry === 'object' && entry.size > 0 && !uploadedFiles.includes(entry)) {
+            uploadedFiles.push(entry);
+          }
+        }
+      }
+      for (const [key, val] of formData.entries()) {
+        if (val && typeof val === 'object' && typeof val.arrayBuffer === 'function' && val.size > 0 && !uploadedFiles.includes(val)) {
+          uploadedFiles.push(val);
         }
       }
     } else {
       const body = await request.json();
       additional_explanation = body.additional_explanation?.toString().trim() || '';
+      if (body.files && Array.isArray(body.files)) {
+        uploadedFiles.push(...body.files);
+      } else if (body.evidence && Array.isArray(body.evidence)) {
+        uploadedFiles.push(...body.evidence);
+      }
     }
 
-    if (!additional_explanation || additional_explanation.length < 5) {
-      return apiError('Please provide additional explanation (min 5 characters).', 400);
+    if (!additional_explanation && uploadedFiles.length === 0) {
+      return apiError('Please provide additional explanation or attach evidence files.', 400);
     }
 
     // Validate uploaded files
@@ -104,24 +118,33 @@ export async function PATCH(request, context) {
       });
     }
 
-    // Combine explanation and reset status to PENDING
-    const updatedExplanation = dispute.additional_explanation 
-      ? `${dispute.additional_explanation}\n---\n[Update ${new Date().toISOString().split('T')[0]}]: ${additional_explanation}`
-      : additional_explanation;
+    // Combine explanation and ensure proof_url is set if empty
+    let updatedExplanation = dispute.additional_explanation;
+    if (additional_explanation) {
+      updatedExplanation = dispute.additional_explanation 
+        ? `${dispute.additional_explanation}\n---\n[Update ${new Date().toISOString().split('T')[0]}]: ${additional_explanation}`
+        : additional_explanation;
+    }
+
+    const updateFields = {
+      additional_explanation: updatedExplanation,
+      status: 'PENDING',
+      updated_at: new Date()
+    };
+
+    if (!dispute.proof_url && uploadedMetadata.length > 0) {
+      updateFields.proof_url = uploadedMetadata[0].file_key;
+    }
 
     await db.update(studentAttendanceDisputes)
-      .set({
-        additional_explanation: updatedExplanation,
-        status: 'PENDING',
-        updated_at: new Date()
-      })
+      .set(updateFields)
       .where(eq(studentAttendanceDisputes.id, disputeId));
 
-    logger.info({ disputeId, studentId: user.student_id }, '[ATTENDANCE_DISPUTE_RESUBMITTED_MORE_INFO]');
+    logger.info({ disputeId, studentId: user.student_id, newAttachmentsCount: uploadedMetadata.length }, '[ATTENDANCE_DISPUTE_UPDATED_WITH_EVIDENCE]');
 
     return apiResponse({
       success: true,
-      message: 'Additional information and evidence submitted. Dispute is now back in review.'
+      message: 'Additional information and evidence submitted successfully. Dispute is queued for review.'
     });
 
   } catch (err) {

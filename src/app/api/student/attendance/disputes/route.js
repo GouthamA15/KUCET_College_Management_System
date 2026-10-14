@@ -126,11 +126,19 @@ export async function POST(request) {
       const declVal = formData.get('declaration') ?? formData.get('student_declaration');
       student_declaration = declVal === 'true' || declVal === true || declVal === '1';
 
-      // Gather evidence files
-      const evidenceEntries = formData.getAll('evidence');
-      for (const entry of evidenceEntries) {
-        if (entry && typeof entry === 'object' && entry.size > 0) {
-          uploadedFiles.push(entry);
+      // Gather evidence files across all standard form keys and multipart entries
+      const candidateKeys = ['evidence', 'files', 'file', 'attachments', 'documents'];
+      for (const key of candidateKeys) {
+        const entries = formData.getAll(key);
+        for (const entry of entries) {
+          if (entry && typeof entry === 'object' && entry.size > 0 && !uploadedFiles.includes(entry)) {
+            uploadedFiles.push(entry);
+          }
+        }
+      }
+      for (const [key, val] of formData.entries()) {
+        if (val && typeof val === 'object' && typeof val.arrayBuffer === 'function' && val.size > 0 && !uploadedFiles.includes(val)) {
+          uploadedFiles.push(val);
         }
       }
     } else {
@@ -143,6 +151,12 @@ export async function POST(request) {
       reason = body.reason?.toString().trim() || '';
       additional_explanation = body.additional_explanation?.toString().trim() || null;
       student_declaration = !!body.declaration || !!body.student_declaration;
+
+      if (body.files && Array.isArray(body.files)) {
+        uploadedFiles.push(...body.files);
+      } else if (body.evidence && Array.isArray(body.evidence)) {
+        uploadedFiles.push(...body.evidence);
+      }
     }
 
     // 1. Validation
@@ -211,7 +225,7 @@ export async function POST(request) {
       )
     });
 
-    if (existing && ['PENDING', 'MORE_INFO_REQUIRED', 'APPROVED'].includes(existing.status)) {
+    if (existing && ['MORE_INFO_REQUIRED', 'APPROVED'].includes(existing.status)) {
       return apiError(`A dispute is already ${existing.status.toLowerCase().replace('_', ' ')} for this session.`, 409);
     }
 
@@ -255,24 +269,27 @@ export async function POST(request) {
     // 7. Atomic Insert / Resubmission
     let disputeId;
 
-    if (existing && existing.status === 'REJECTED') {
-      // Re-submit rejected dispute
+    if (existing && (existing.status === 'REJECTED' || existing.status === 'PENDING')) {
+      // Re-submit rejected dispute or update pending dispute with new evidence
       disputeId = existing.id;
+      const updateData = {
+        requested_status,
+        category,
+        reason,
+        additional_explanation: additional_explanation || existing.additional_explanation,
+        student_declaration,
+        status: 'PENDING',
+        reviewed_by_staff_id: null,
+        reviewed_at: null,
+        rejection_reason: null,
+        reviewer_comments: null,
+        updated_at: new Date()
+      };
+      if (primaryProofKey) {
+        updateData.proof_url = primaryProofKey;
+      }
       await db.update(studentAttendanceDisputes)
-        .set({
-          requested_status,
-          category,
-          reason,
-          additional_explanation,
-          student_declaration,
-          proof_url: primaryProofKey,
-          status: 'PENDING',
-          reviewed_by_staff_id: null,
-          reviewed_at: null,
-          rejection_reason: null,
-          reviewer_comments: null,
-          updated_at: new Date()
-        })
+        .set(updateData)
         .where(eq(studentAttendanceDisputes.id, disputeId));
     } else {
       const [result] = await db.insert(studentAttendanceDisputes).values({

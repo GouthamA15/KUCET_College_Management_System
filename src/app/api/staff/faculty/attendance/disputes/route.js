@@ -9,6 +9,7 @@ import {
 } from '@/db/schema';
 import { eq, and, desc, inArray } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
+import { getAssetUrl } from '@/lib/assets';
 
 export async function GET(request) {
   try {
@@ -107,6 +108,7 @@ export async function GET(request) {
 
     const result = rows.map(r => ({
       ...r,
+      proof_url: r.proof_url ? getAssetUrl(r.proof_url) : null,
       attachments: attachmentsByDispute[r.id] || []
     }));
 
