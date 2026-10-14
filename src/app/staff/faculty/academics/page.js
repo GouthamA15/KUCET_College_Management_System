@@ -178,7 +178,7 @@ function AcademicsContent() {
       { id: 'requests', label: 'Request Subjects' }
     ]),
     { id: 'roster', label: 'Students' },
-    { id: 'disputes', label: 'Attendance Disputes' },
+    { id: 'disputes', label: 'Disputes' },
     { id: 'hod', label: 'HOD Access' },
   ];
 
