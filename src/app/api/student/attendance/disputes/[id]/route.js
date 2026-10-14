@@ -7,7 +7,7 @@ import {
 import { eq, and } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { STORAGE_FOLDERS } from '@/lib/storage-config';
-import storage from '@/lib/storage';
+import { storage } from '@/lib/providers';
 import crypto from 'crypto';
 
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'application/pdf']);
