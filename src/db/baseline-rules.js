@@ -97,6 +97,21 @@ const BASELINE_RULES = [
     },
     getReason: () => 'student_achievements table already exists',
   },
+  {
+    id: 22,
+    description: '0022_academic_calendar_attendance_disputes_and_workflows',
+    getEntries: (entries) => entries.filter((e) => e.idx === 22),
+    isSatisfied: async (conn) => {
+      const [sad] = await conn.query(
+        'SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = "student_attendance_disputes"'
+      );
+      const [sr] = await conn.query(
+        'SELECT COUNT(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = "student_requests" AND column_name = "hod_approval_status"'
+      );
+      return Number(sad?.[0]?.count || 0) > 0 && Number(sr?.[0]?.count || 0) > 0;
+    },
+    getReason: () => 'student_attendance_disputes table and student_requests.hod_approval_status already exist',
+  },
 ];
 
 module.exports = {
