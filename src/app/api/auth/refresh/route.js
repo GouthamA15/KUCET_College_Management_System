@@ -141,7 +141,7 @@ export async function POST(req) {
     // Task 3: Verify Hash Rotation / Stale Hash / Grace Period
     if (tokenRecord.revoked_at) {
       const revokedAtTime = new Date(tokenRecord.revoked_at).getTime();
-      const gracePeriodMs = 15000; // 15 seconds grace period for concurrent requests
+      const gracePeriodMs = 120000; // 2 minutes grace period for concurrent/canceled requests
       const isWithinGracePeriod = (now.getTime() - revokedAtTime) < gracePeriodMs;
 
       if (isWithinGracePeriod) {
@@ -160,17 +160,19 @@ export async function POST(req) {
             const roleRecords = await db.select({ role_code: staffRoles.role_code })
               .from(staffAccountRoles)
               .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
-              .where(eq(staffAccountRoles.staff_account_id, user.id))
-              .limit(1);
+              .where(eq(staffAccountRoles.staff_account_id, user.id));
+
+            const roleCodes = roleRecords.map(r => r.role_code);
+            const isPrincipal = roleCodes.includes('PRINCIPAL');
+
             let resolvedRole = 'faculty';
-            if (roleRecords.length > 0) {
-                const rCode = roleRecords[0].role_code;
-                if (rCode === 'ADMISSION_STAFF') resolvedRole = 'admission';
-                else if (rCode === 'SCHOLARSHIP_STAFF') resolvedRole = 'scholarship';
-                else resolvedRole = 'faculty';
-            }
+            if (roleCodes.includes('ADMISSION_STAFF')) resolvedRole = 'admission';
+            else if (roleCodes.includes('SCHOLARSHIP_STAFF')) resolvedRole = 'scholarship';
+            else resolvedRole = 'faculty';
+
             user.role = resolvedRole;
-            user.is_hod = false;
+            user.is_principal = isPrincipal;
+            user.is_hod = isPrincipal;
             user.branch = null;
             if (resolvedRole === 'faculty') {
                 const affil = await db.select({ branch_code: academicDepartments.department_code })
@@ -180,6 +182,8 @@ export async function POST(req) {
                     .limit(1);
                 if (affil.length > 0) {
                     user.branch = affil[0].branch_code;
+                } else if (isPrincipal) {
+                    user.branch = 'CSE';
                 }
 
                 const { facultyHodAssignments } = await import('@/db/schema');
@@ -190,7 +194,7 @@ export async function POST(req) {
                       eq(facultyHodAssignments.is_active, true)
                     ))
                     .limit(1);
-                if (hodRow.length > 0) {
+                if (hodRow.length > 0 || isPrincipal) {
                     user.is_hod = true;
                 }
             }
@@ -201,12 +205,19 @@ export async function POST(req) {
 
         if (!user) {
           logDevValues();
-          return apiError('User not found', 401);
+          return apiError("User not found (Check DB)", 401);
         }
 
         if (type === 'staff' && user.account_status !== 'ACTIVE') {
           logDevValues();
           return apiError('User not found or inactive', 401);
+        }
+
+        if (type === 'student') {
+          if (user.student_status === 'INACTIVE_ATTENDANCE' || user.student_status === 'DISCONTINUED' || ['SUSPENDED', 'DROPPED'].includes(user.academic_status)) {
+            logDevValues();
+            return apiError('Student account is inactive, discontinued, or suspended', 403);
+          }
         }
 
         // Task 6: Ownership validation
@@ -281,6 +292,7 @@ export async function POST(req) {
             email: user.email,
             role: user.role,
             is_hod: !!user.is_hod,
+            is_principal: !!user.is_principal,
             branch: user.branch,
           })
             .setProtectedHeader({ alg: 'HS256' })
@@ -329,7 +341,7 @@ export async function POST(req) {
             sql`${refreshTokens.revoked_at} IS NULL`
         ));
       logDevValues();
-      return apiError('Token revoked. Please login again.', 401);
+      return apiError("Token revoked (Outside grace period). Please login again.", 401);
     }
 
     // 4. Check if expired
@@ -349,17 +361,19 @@ export async function POST(req) {
         const roleRecords = await db.select({ role_code: staffRoles.role_code })
           .from(staffAccountRoles)
           .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
-          .where(eq(staffAccountRoles.staff_account_id, user.id))
-          .limit(1);
+          .where(eq(staffAccountRoles.staff_account_id, user.id));
+
+        const roleCodes = roleRecords.map(r => r.role_code);
+        const isPrincipal = roleCodes.includes('PRINCIPAL');
+
         let resolvedRole = 'faculty';
-        if (roleRecords.length > 0) {
-            const rCode = roleRecords[0].role_code;
-            if (rCode === 'ADMISSION_STAFF') resolvedRole = 'admission';
-            else if (rCode === 'SCHOLARSHIP_STAFF') resolvedRole = 'scholarship';
-            else resolvedRole = 'faculty';
-        }
+        if (roleCodes.includes('ADMISSION_STAFF')) resolvedRole = 'admission';
+        else if (roleCodes.includes('SCHOLARSHIP_STAFF')) resolvedRole = 'scholarship';
+        else resolvedRole = 'faculty';
+
         user.role = resolvedRole;
-        user.is_hod = false;
+        user.is_principal = isPrincipal;
+        user.is_hod = isPrincipal;
         user.branch = null;
         if (resolvedRole === 'faculty') {
             const affil = await db.select({ branch_code: academicDepartments.department_code })
@@ -369,6 +383,8 @@ export async function POST(req) {
                 .limit(1);
             if (affil.length > 0) {
                 user.branch = affil[0].branch_code;
+            } else if (isPrincipal) {
+                user.branch = 'CSE';
             }
 
             const { facultyHodAssignments } = await import('@/db/schema');
@@ -379,7 +395,7 @@ export async function POST(req) {
                   eq(facultyHodAssignments.is_active, true)
                 ))
                 .limit(1);
-            if (hodRow.length > 0) {
+            if (hodRow.length > 0 || isPrincipal) {
                 user.is_hod = true;
             }
         }
@@ -390,12 +406,19 @@ export async function POST(req) {
 
     if (!user) {
       logDevValues();
-      return apiError('User not found', 401);
+      return apiError("User not found (Check DB)", 401);
     }
 
     if (type === 'staff' && user.account_status !== 'ACTIVE') {
       logDevValues();
       return apiError('User not found or inactive', 401);
+    }
+
+    if (type === 'student') {
+      if (user.student_status === 'INACTIVE_ATTENDANCE' || user.student_status === 'DISCONTINUED' || ['SUSPENDED', 'DROPPED'].includes(user.academic_status)) {
+        logDevValues();
+        return apiError('Student account is inactive, discontinued, or suspended', 403);
+      }
     }
 
     // Task 6: Ownership validation

@@ -157,7 +157,51 @@ export const getEmailLogoUrl = () => {
 };
 ```
 
+### Categorized Brevo Email Routing & Sender Identity Isolation
+
+To provide granular operational control, fault isolation, distinct sender identities, and simplified credential rotation, all transactional emails are separated into seven distinct categories. Each category routes through its own server-side Brevo API key, sender email address, sender display name, and optional reply-to address:
+
+| Category | API Key Variable | Sender Email Variable | Sender Display Name Variable | Assigned Workflows |
+|---|---|---|---|---|
+| `AUTH_OTP` | `BREVO_API_KEY_AUTH_OTP` | `BREVO_SENDER_EMAIL_AUTH_OTP` | `BREVO_SENDER_NAME_AUTH_OTP` | Student activation OTP, Student email-update OTP, Staff email-update OTP, Prospective staff onboarding email OTP |
+| `PASSWORD_RECOVERY` | `BREVO_API_KEY_PASSWORD_RECOVERY` | `BREVO_SENDER_EMAIL_PASSWORD_RECOVERY` | `BREVO_SENDER_NAME_PASSWORD_RECOVERY` | Student password reset links, Staff password reset links, Super Admin password reset links |
+| `SECURITY_ALERTS` | `BREVO_API_KEY_SECURITY_ALERTS` | `BREVO_SENDER_EMAIL_SECURITY_ALERTS` | `BREVO_SENDER_NAME_SECURITY_ALERTS` | New device login alerts, Password updated alerts, Email updated alerts, Single session revoked, Other sessions revoked |
+| `STAFF_ONBOARDING` | `BREVO_API_KEY_STAFF_ONBOARDING` | `BREVO_SENDER_EMAIL_STAFF_ONBOARDING` | `BREVO_SENDER_NAME_STAFF_ONBOARDING` | Staff account approval & activation link, Staff activation link resend |
+| `ADMISSIONS` | `BREVO_API_KEY_ADMISSIONS` | `BREVO_SENDER_EMAIL_ADMISSIONS` | `BREVO_SENDER_NAME_ADMISSIONS` | Admission finalization & welcome email, Admission application rejection notice |
+| `SCHOLARSHIP` | `BREVO_API_KEY_SCHOLARSHIP` | `BREVO_SENDER_EMAIL_SCHOLARSHIP` | `BREVO_SENDER_NAME_SCHOLARSHIP` | Scholarship hardcopy submission required, Scholarship biometric/thumb verification required, Scholarship application window opened, Scholarship application deadline extended |
+| `SYSTEM_OPERATIONS` | `BREVO_API_KEY_SYSTEM_OPERATIONS` | `BREVO_SENDER_EMAIL_SYSTEM_OPERATIONS` | `BREVO_SENDER_NAME_SYSTEM_OPERATIONS` | Automated database-backup failure alert (`src/db/backup.js`) |
+
+#### Optional Category Reply-To Addresses
+
+Each category can optionally configure a category-specific reply-to address via:
+- `BREVO_REPLY_TO_EMAIL_AUTH_OTP`
+- `BREVO_REPLY_TO_EMAIL_PASSWORD_RECOVERY`
+- `BREVO_REPLY_TO_EMAIL_SECURITY_ALERTS`
+- `BREVO_REPLY_TO_EMAIL_STAFF_ONBOARDING`
+- `BREVO_REPLY_TO_EMAIL_ADMISSIONS`
+- `BREVO_REPLY_TO_EMAIL_SCHOLARSHIP`
+- `BREVO_REPLY_TO_EMAIL_SYSTEM_OPERATIONS`
+
+#### Credential and Sender Identity Resolution Rules (`src/lib/email-categories.js`)
+
+1. **Explicit Category Enforcement**: Every application dispatch via `sendInstitutionalEmail({ ..., category })` must provide a category from `EMAIL_CATEGORIES`.
+2. **Strict Configuration Validation**: In strict mode (default in production):
+   - Missing category API key throws `[EMAIL_CREDENTIAL_ERROR]`.
+   - Missing category sender email throws `[EMAIL_CONFIGURATION_ERROR]`.
+   - Invalid sender email address format throws `[EMAIL_CONFIGURATION_ERROR]`.
+   - Missing category sender display name throws `[EMAIL_CONFIGURATION_ERROR]`.
+   - No silent fallback to another category's credentials or sender addresses.
+3. **Controlled Migration Fallback**: During transition, `ENABLE_LEGACY_BREVO_KEY_FALLBACK=true` allows temporary fallback to `BREVO_API_KEY`, `EMAIL_USER`, and `DEFAULT_SENDER_NAMES[category]` while emitting an observable `[EMAIL_COMPATIBILITY_FALLBACK]` warning log with the category name (without leaking secrets).
+4. **Isolated Circuit Breakers**: `BrevoEmailProvider` uses per-category circuit breaker instances (`BrevoEmail_${category}`). Failures in bulk broadcast communications (e.g., scholarship announcements) cannot trip the breaker for high-priority authentication OTPs.
+5. **Standalone DB Backup Execution**: `src/db/backup.js` runs in an independent CLI/cron environment and directly checks `process.env.BREVO_API_KEY_SYSTEM_OPERATIONS`, `process.env.BREVO_SENDER_EMAIL_SYSTEM_OPERATIONS`, and `process.env.BREVO_SENDER_NAME_SYSTEM_OPERATIONS` before executing failure alerts.
+6. **Queue Payload Safety**: Asynchronous QStash jobs carry the category string and optional reply-to address, never API keys. Key resolution occurs strictly on the trusted server when the queue worker processes the job.
+7. **Sender Verification & DNS Requirements**: Every configured sender email address must be verified and authorized in the Brevo account prior to enabling the category. The application does not automatically configure DNS, DKIM, SPF, or Brevo sender records.
+
+#### Operational Note: Quota vs Credential Separation
+Multiple Brevo API keys belonging to the same Brevo account share the same account-level sending volume allowance and monthly plan limits. While API key and sender identity separation provides attribution, separate logs, and credential isolation, account-wide quota exhaustion will still impact all categories across the account. True quota isolation requires separate Brevo sub-accounts or independent Brevo accounts.
+
 ---
+
 
 ## 4. Upstash QStash Asynchronous Queues
 

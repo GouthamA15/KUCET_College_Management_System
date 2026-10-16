@@ -112,6 +112,7 @@ test.describe('Admission Draft Sorting Toggle E2E', () => {
     // Wait for initial render
     await expect(page.getByText('Sort by Name')).toBeVisible();
     await expect(page.getByText('Latest')).toBeVisible();
+    await expect(page.locator('h3.font-medium').first()).toBeVisible();
 
     // Toggle Sort by Name ON
     await page.getByText('Sort by Name').click();

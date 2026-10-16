@@ -19,12 +19,20 @@ export const GET = wrapHandler({
     }
 
     const { searchParams } = new URL(req.url);
+    const requestedBranch = searchParams.get('branch');
+    const targetBranch = requestedBranch || user.branch || user.hod_department_code;
+
+    const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+    if (user.role !== 'admin' && requestedBranch && authorizedBranches.length > 0 && !authorizedBranches.includes(requestedBranch)) {
+      return apiError(`Forbidden - Not authorized for ${requestedBranch} branch.`, 403);
+    }
+
     const semester = searchParams.get('semester') ? parseInt(searchParams.get('semester')) : 1;
     const section = searchParams.get('section') || 'A';
 
     const systemYear = await FacultyService.getCurrentAcademicYear();
     const timetable = await FacultyService.getBranchTimetable({
-      branch: user.branch,
+      branch: targetBranch,
       semester,
       section,
       academicYear: systemYear
@@ -47,6 +55,7 @@ export async function POST(req) {
     const validationSchema = timetableSlotSchema.extend({
       id: z.number().int().positive().optional(),
       version: z.number().int().min(0).optional(),
+      branch: z.string().optional(),
       section: z.string().trim().max(1).toUpperCase().default('A'),
       academic_year: z.string().regex(/^\d{4}-\d{2}$/, "Format: YYYY-YY").default('2025-26'),
       semester: z.number().int().min(1).max(8),
@@ -58,15 +67,36 @@ export async function POST(req) {
 
     const validatedData = validationSchema.parse(json);
     const { 
-      id, version, semester, section, day_of_week, period_number, 
-      subject_code, faculty_id, academic_year, room_no 
+      id, version, semester, section, day_of_week, 
+      period_number, subject_code, faculty_id, academic_year, room_no 
     } = validatedData;
 
+    const targetBranch = validatedData.branch || req.nextUrl?.searchParams?.get('branch') || user.branch || user.hod_department_code;
+    const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+    if (user.role !== 'admin' && authorizedBranches.length > 0 && !authorizedBranches.includes(targetBranch)) {
+      return apiError(`Forbidden - Not authorized for ${targetBranch} branch.`, 403);
+    }
+
+    // Verify subject exists in this branch/semester
+    const subjectExists = await db.query.syllabusSubjects.findFirst({
+      where: and(
+        eq(syllabusSubjects.branch, targetBranch),
+        eq(syllabusSubjects.semester, semester),
+        eq(syllabusSubjects.subject_code, subject_code)
+      )
+    });
+
+    if (!subjectExists) {
+      return apiError(`Subject ${subject_code} is not registered for ${targetBranch} Sem ${semester}`, 400);
+    }
+
+    // FACULTY CONFLICT CHECK ACROSS BRANCHES
     if (faculty_id) {
-      const yearPrefix = academic_year.substring(0, 7);
       const isEvenSem = semester % 2 === 0;
-      
+      const yearPrefix = academic_year.substring(0, 4);
+
       const conflictRows = await db.select({
+        id: branchTimetable.id,
         branch: branchTimetable.branch,
         semester: branchTimetable.semester,
         section: branchTimetable.section,
@@ -74,7 +104,10 @@ export async function POST(req) {
         subject_name: syllabusSubjects.subject_name
       })
       .from(branchTimetable)
-      .leftJoin(syllabusSubjects, eq(branchTimetable.subject_code, syllabusSubjects.subject_code))
+      .leftJoin(syllabusSubjects, and(
+        eq(branchTimetable.subject_code, syllabusSubjects.subject_code),
+        eq(branchTimetable.branch, branchTimetable.branch)
+      ))
       .where(and(
         eq(branchTimetable.faculty_id, faculty_id),
         eq(branchTimetable.day_of_week, day_of_week),
@@ -86,7 +119,7 @@ export async function POST(req) {
         // Term Parity Check: Only conflict if both are Odd or both are Even
         sql`(${branchTimetable.semester} % 2 = 0) = ${isEvenSem}`,
         // Don't conflict with itself
-        id ? ne(branchTimetable.id, id) : sql`NOT (${eq(branchTimetable.branch, user.branch)} AND ${eq(branchTimetable.semester, semester)} AND ${eq(branchTimetable.section, section)})`
+        id ? ne(branchTimetable.id, id) : sql`NOT (${eq(branchTimetable.branch, targetBranch)} AND ${eq(branchTimetable.semester, semester)} AND ${eq(branchTimetable.section, section)})`
       ))
       .limit(1);
 
@@ -97,7 +130,7 @@ export async function POST(req) {
     }
 
     const slotData = {
-      branch: user.branch,
+      branch: targetBranch,
       semester: semester,
       section: section,
       day_of_week: day_of_week,
@@ -130,7 +163,7 @@ export async function POST(req) {
     // REAL-TIME
     try {
       const { broadcastUpdate } = await import('@/lib/sse');
-      broadcastUpdate('TIMETABLE_CHANGED', { branch: user.branch, semester });
+      broadcastUpdate('TIMETABLE_CHANGED', { branch: targetBranch, semester });
     } catch (_e) { /* empty */ }
 
     return apiResponse({ success: true, message: 'Slot updated successfully' });
@@ -138,7 +171,7 @@ export async function POST(req) {
     if (error instanceof z.ZodError) {
       return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
     }
-    logger.error('Timetable Save Error:', error);
+    logger.error('Timetable Slot Save Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -151,6 +184,14 @@ export async function DELETE(req) {
     }
 
     const { searchParams } = new URL(req.url);
+    const requestedBranch = searchParams.get('branch');
+    const targetBranch = requestedBranch || user.branch || user.hod_department_code;
+
+    const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+    if (user.role !== 'admin' && authorizedBranches.length > 0 && !authorizedBranches.includes(targetBranch)) {
+      return apiError(`Forbidden - Not authorized for ${targetBranch} branch.`, 403);
+    }
+
     const action = searchParams.get('action'); // 'clearSemester' or 'clearAll'
     const semester = searchParams.get('semester');
     const section = searchParams.get('section') || 'A';
@@ -161,14 +202,14 @@ export async function DELETE(req) {
       if (!semester) return apiError('Missing semester', 400);
       await db.delete(branchTimetable)
         .where(and(
-          eq(branchTimetable.branch, user.branch),
+          eq(branchTimetable.branch, targetBranch),
           eq(branchTimetable.semester, parseInt(semester)),
           eq(branchTimetable.section, section)
         ));
     } 
     else if (action === 'clearAll') {
       await db.delete(branchTimetable)
-        .where(eq(branchTimetable.branch, user.branch));
+        .where(eq(branchTimetable.branch, targetBranch));
     }
     else {
       // Single slot deletion
@@ -178,7 +219,7 @@ export async function DELETE(req) {
 
       await db.delete(branchTimetable)
         .where(and(
-          eq(branchTimetable.branch, user.branch),
+          eq(branchTimetable.branch, targetBranch),
           eq(branchTimetable.semester, parseInt(semester)),
           eq(branchTimetable.section, section),
           eq(branchTimetable.day_of_week, day_of_week),
@@ -189,7 +230,7 @@ export async function DELETE(req) {
     // REAL-TIME
     try {
       const { broadcastUpdate } = await import('@/lib/sse');
-      broadcastUpdate('TIMETABLE_CHANGED', { branch: user.branch, semester: semester ? parseInt(semester) : 'ALL' });
+      broadcastUpdate('TIMETABLE_CHANGED', { branch: targetBranch, semester: semester ? parseInt(semester) : 'ALL' });
     } catch (_e) { /* empty */ }
 
     return apiResponse({ success: true, message: 'Timetable data updated successfully' });

@@ -76,7 +76,28 @@ export class HealthService {
 
   static checkEmailConfig() {
     try {
-      if (process.env.BREVO_API_KEY && process.env.EMAIL_USER) {
+      const hasCategorizedKeys = !!(
+        process.env.BREVO_API_KEY_AUTH_OTP ||
+        process.env.BREVO_API_KEY_PASSWORD_RECOVERY ||
+        process.env.BREVO_API_KEY_SECURITY_ALERTS ||
+        process.env.BREVO_API_KEY_STAFF_ONBOARDING ||
+        process.env.BREVO_API_KEY_ADMISSIONS ||
+        process.env.BREVO_API_KEY_SCHOLARSHIP ||
+        process.env.BREVO_API_KEY_SYSTEM_OPERATIONS
+      );
+      const hasCategorizedSenders = !!(
+        process.env.BREVO_SENDER_EMAIL_AUTH_OTP ||
+        process.env.BREVO_SENDER_EMAIL_PASSWORD_RECOVERY ||
+        process.env.BREVO_SENDER_EMAIL_SECURITY_ALERTS ||
+        process.env.BREVO_SENDER_EMAIL_STAFF_ONBOARDING ||
+        process.env.BREVO_SENDER_EMAIL_ADMISSIONS ||
+        process.env.BREVO_SENDER_EMAIL_SCHOLARSHIP ||
+        process.env.BREVO_SENDER_EMAIL_SYSTEM_OPERATIONS
+      );
+      const hasSender = !!(process.env.EMAIL_USER || hasCategorizedSenders);
+      const hasKey = !!(process.env.BREVO_API_KEY || hasCategorizedKeys);
+
+      if (hasKey && hasSender) {
         return { status: 'configured', provider: 'Brevo/SMTP', error: null };
       }
       return { status: 'missing_credentials', provider: 'unconfigured', error: 'Email credentials not configured' };

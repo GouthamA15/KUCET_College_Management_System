@@ -93,7 +93,12 @@ export const studentCreateSchema = z.object({
     .optional()
     .or(z.literal('')),
   blood_group: z.preprocess(
-    (v) => (v === '' || v === 'Not available') ? null : v,
+    (v) => {
+      if (v === null || v === undefined) return null;
+      const s = String(v).trim();
+      if (s === '' || s.toLowerCase() === 'not available' || s.toUpperCase() === 'UNKNOWN' || s.toLowerCase() === 'n/a') return null;
+      return s;
+    },
     z.enum(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']).nullable().optional()
   ),
   seat_allotted_category: z.string().trim().max(100).optional().or(z.literal('')),

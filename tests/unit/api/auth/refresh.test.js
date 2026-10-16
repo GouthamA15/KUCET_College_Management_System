@@ -243,14 +243,14 @@ describe('/api/auth/refresh API Route', () => {
       }),
     });
 
-    // Revoked 20 seconds ago
+    // Revoked 150 seconds ago (outside 120s grace period)
     const tokenRecord = {
       id: 1,
       token_hash: 'hash',
       user_id: 'STUDENT001',
       user_type: 'student',
       expires_at: new Date('2026-06-10T10:00:00Z'),
-      revoked_at: new Date('2026-06-02T09:59:40Z'), // 20s before mock clock 10:00:00
+      revoked_at: new Date('2026-06-02T09:57:30Z'), // 150s before mock clock 10:00:00
     };
     db.query.refreshTokens.findFirst.mockResolvedValue(tokenRecord);
 
@@ -266,6 +266,6 @@ describe('/api/auth/refresh API Route', () => {
     const res = await POST(req);
     expect(res.status).toBe(401);
     const data = await res.json();
-    expect(data.error).toBe('Token revoked. Please login again.');
+    expect(data.error).toBe('Token revoked (Outside grace period). Please login again.');
   });
 });

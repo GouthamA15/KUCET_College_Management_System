@@ -9,6 +9,8 @@ import HodAccessManager from '@/components/staff/faculty/HodAccessManager';
 import StudentsLookupPanel from '@/components/staff/faculty/StudentsLookupPanel';
 import SubjectAssignmentsList from '@/components/staff/faculty/SubjectAssignmentsList';
 import SyllabusManager from '@/components/staff/faculty/SyllabusManager';
+import AttendanceDisputesPanel from '@/components/staff/faculty/AttendanceDisputesPanel';
+import StudentReactivationsPanel from '@/components/staff/faculty/StudentReactivationsPanel';
 
 import { Info, X, Search, ChevronDown } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -170,12 +172,14 @@ function AcademicsContent() {
     { id: 'subjects', label: 'My Subjects' },
     ...(staffData?.is_hod ? [
       { id: 'assign-subjects', label: 'Assign Subjects' },
-      { id: 'syllabus', label: 'Syllabus Management' }
+      { id: 'syllabus', label: 'Syllabus Management' },
+      { id: 'reactivations', label: 'Reactivations' }
     ] : [
       { id: 'requests', label: 'Request Subjects' }
     ]),
     { id: 'roster', label: 'Students' },
-          { id: 'hod', label: 'HOD Access' },
+    { id: 'disputes', label: 'Disputes' },
+    { id: 'hod', label: 'HOD Access' },
   ];
 
   const [activeTab, setActiveTab] = useState('subjects');
@@ -440,9 +444,22 @@ function AcademicsContent() {
         <StudentsLookupPanel />
       )}
 
+      {/* ── Attendance Disputes ── */}
+      {activeTab === 'disputes' && (
+        <div className="bg-white border border-gray-300 rounded-sm p-4 sm:p-6 shadow-sm">
+          <AttendanceDisputesPanel />
+        </div>
+      )}
+
+      {/* ── Student Reactivations (HOD) ── */}
+      {staffData?.is_hod && activeTab === 'reactivations' && (
+        <div className="bg-white border border-gray-300 rounded-sm p-4 sm:p-6 shadow-sm">
+          <StudentReactivationsPanel />
+        </div>
+      )}
+
       {/* ── HOD Access ── */}
-      
-        {activeTab === 'hod' && (
+      {activeTab === 'hod' && (
         <HodAccessManager />
       )}
 

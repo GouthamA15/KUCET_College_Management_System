@@ -14,6 +14,8 @@ import IdempotencyService from '@/services/IdempotencyService';
 import { FinanceService } from '@/services/FinanceService';
 import crypto from 'crypto';
 
+import { parsePurpose, formatPurpose } from '@/lib/certificate-utils';
+
 export async function GET() {
   const user = await getAuthUser("student");
   if (!user || !user.student_id) return apiError("Unauthorized", 401);
@@ -24,7 +26,6 @@ export async function GET() {
       orderBy: [desc(studentRequests.created_at)]
     });
 
-    const { parsePurpose, formatPurpose } = require('@/lib/certificate-utils');
     const mappedRequests = requests.map(r => {
       const parsed = parsePurpose(r.purpose);
       return {
@@ -94,8 +95,6 @@ export async function POST(request) {
     const isBonafide = certificateType === 'Bonafide Certificate';
     const isTC = certificateType === 'Transfer Certificate (TC)';
     const isNOC = certificateType === 'No Objection Certificate';
-
-    const { parsePurpose } = require('@/lib/certificate-utils');
 
     // --- PHASE 4: MODULAR CERTIFICATE ELIGIBILITY VALIDATION ---
     if (isBonafide || isTC || isNOC) {
@@ -236,6 +235,10 @@ export async function POST(request) {
           return apiError(`You have already received a Bonafide Certificate for ${purposeType} in the current academic year (${academicYear}). Cannot re-submit rejected request.`, 403);
         }
       }
+      // Determine approval workflow routing
+      const { StudentCertificateService } = await import('@/services/StudentService');
+      const routing = await StudentCertificateService.determineCertificateRouting(certificateType, user.roll_no);
+
       // Update the rejected one to PENDING again (original behavior)
       requestId = existing.request_id;
       await db.update(studentRequests)
@@ -246,6 +249,11 @@ export async function POST(request) {
           from_date: fromDateStr ? new Date(fromDateStr) : null,
           to_date: toDateStr ? new Date(toDateStr) : null,
           status: 'PENDING',
+          hod_approval_status: routing.hodApprovalStatus,
+          hod_staff_id: null,
+          hod_approved_at: null,
+          hod_rejection_reason: null,
+          reject_reason: null,
           updated_at: new Date(),
           completed_at: null,
           is_flagged: isFlagged,
@@ -254,6 +262,10 @@ export async function POST(request) {
         })
         .where(eq(studentRequests.request_id, requestId));
     } else {
+      // Determine approval workflow routing
+      const { StudentCertificateService } = await import('@/services/StudentService');
+      const routing = await StudentCertificateService.determineCertificateRouting(certificateType, user.roll_no);
+
       // Insert new request
       const result = await db.insert(studentRequests).values({
         student_id: user.student_id,
@@ -265,6 +277,7 @@ export async function POST(request) {
         from_date: fromDateStr ? new Date(fromDateStr) : null,
         to_date: toDateStr ? new Date(toDateStr) : null,
         status: 'PENDING',
+        hod_approval_status: routing.hodApprovalStatus,
         is_flagged: isFlagged,
         flag_details: flagDetails,
         payment_hash: paymentHash,
@@ -277,7 +290,7 @@ export async function POST(request) {
       try {
         const { broadcastUpdate } = await import('@/lib/sse');
         broadcastUpdate('REQUEST_CREATED', {
-          staffType,
+          staffType: routing.staffType,
           certificateType,
           student_id: user.student_id,
           roll_no: user.roll_no,

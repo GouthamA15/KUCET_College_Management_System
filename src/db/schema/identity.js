@@ -22,7 +22,7 @@ export const students = mysqlTable('students', {
   added_by_staff_id: int('added_by_staff_id'),
   updated_at: timestamp('updated_at').onUpdateNow(),
   updated_by_staff_id: int('updated_by_staff_id'),
-  student_status: mysqlEnum('student_status', ['ACTIVE', 'DISCONTINUED']).default('ACTIVE'),
+  student_status: mysqlEnum('student_status', ['ACTIVE', 'DISCONTINUED', 'INACTIVE_ATTENDANCE']).default('ACTIVE'),
   academic_status: mysqlEnum('academic_status', ['REGULAR', 'ACTIVE', 'GRADUATED', 'DETAINED', 'SUSPENDED', 'DROPPED']).default('ACTIVE'),
   academic_offset_years: int('academic_offset_years').default(0),
   last_login_at: timestamp('last_login_at'),
@@ -160,6 +160,7 @@ export const staffAccounts = mysqlTable('staff_accounts', {
 export const staffRoles = mysqlTable('staff_roles', {
   id: int('id').autoincrement().primaryKey().notNull(),
   role_code: varchar('role_code', { length: 50 }).notNull().unique('uq_staff_roles_code'),
+  role_name: varchar('role_name', { length: 100 }),
   description: text('description'),
   created_at: timestamp('created_at').defaultNow(),
 });
@@ -196,4 +197,39 @@ export const staffAccountActivationTokens = mysqlTable('staff_account_activation
 }, (table) => ({
   tokenHashIdx: uniqueIndex('idx_staff_activation_token').on(table.token_hash),
   staffIdIdx: index('idx_staff_activation_staff').on(table.staff_account_id),
+}));
+
+export const studentInactivityLogs = mysqlTable('student_inactivity_logs', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  student_id: int('student_id').notNull(),
+  academic_year: varchar('academic_year', { length: 9 }).notNull(),
+  last_attendance_date: date('last_attendance_date'),
+  inactivity_days: int('inactivity_days').notNull(),
+  action_taken: mysqlEnum('action_taken', ['WARNING_SENT', 'DEACTIVATED', 'REACTIVATED']).notNull(),
+  authorized_by_id: int('authorized_by_id'),
+  remarks: text('remarks'),
+  created_at: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  studentIdx: index('idx_sil_student').on(table.student_id),
+  actionIdx: index('idx_sil_action').on(table.action_taken),
+}));
+
+export const studentReactivationRequests = mysqlTable('student_reactivation_requests', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  student_id: int('student_id').notNull(),
+  reason: text('reason').notNull(),
+  status: mysqlEnum('status', ['PENDING_HOD', 'PENDING_ADMIN', 'APPROVED', 'REJECTED']).default('PENDING_HOD').notNull(),
+  hod_reviewer_id: int('hod_reviewer_id'),
+  hod_reviewed_at: timestamp('hod_reviewed_at'),
+  hod_decision: mysqlEnum('hod_decision', ['APPROVED', 'REJECTED']),
+  hod_remarks: text('hod_remarks'),
+  admin_reviewer_id: int('admin_reviewer_id'),
+  admin_reviewed_at: timestamp('admin_reviewed_at'),
+  admin_decision: mysqlEnum('admin_decision', ['APPROVED', 'REJECTED']),
+  admin_remarks: text('admin_remarks'),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').onUpdateNow(),
+}, (table) => ({
+  studentIdx: index('idx_srr_student').on(table.student_id),
+  statusIdx: index('idx_srr_status').on(table.status),
 }));

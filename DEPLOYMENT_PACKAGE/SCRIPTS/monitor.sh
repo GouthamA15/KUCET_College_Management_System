@@ -106,6 +106,63 @@ rotate_log_if_needed
 ALERTS_TRIGGERED=false
 
 # ---
+# CHECK 0: Docker Daemon Availability & Bounded Self-Healing
+# ---
+log "Checking Docker daemon availability ..."
+DOCKER_AVAILABLE=true
+if ! docker info >/dev/null 2>&1; then
+  DOCKER_AVAILABLE=false
+  log "  [ALERT] Docker daemon is unreachable! Attempting bounded self-healing ..."
+
+  # 1. Validate daemon.json
+  if ! dockerd --validate >/dev/null 2>&1; then
+    log "  [SELF-HEAL] dockerd --validate detected configuration error! Checking /etc/docker/daemon.json ..."
+    if [[ -f /etc/docker/daemon.json ]]; then
+      corrupt_bak="/etc/docker/daemon.json.corrupt-$(date +%Y%m%d_%H%M%S)"
+      log "  [SELF-HEAL] Preserving corrupted daemon.json -> $corrupt_bak"
+      cp -p /etc/docker/daemon.json "$corrupt_bak" 2>/dev/null || sudo cp -p /etc/docker/daemon.json "$corrupt_bak" 2>/dev/null || true
+      cat << 'EOF_DAEMON' > /tmp/daemon.json.canonical
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "20m",
+    "max-file": "3"
+  }
+}
+EOF_DAEMON
+      cp /tmp/daemon.json.canonical /etc/docker/daemon.json 2>/dev/null || sudo cp /tmp/daemon.json.canonical /etc/docker/daemon.json 2>/dev/null || true
+      chmod 644 /etc/docker/daemon.json 2>/dev/null || sudo chmod 644 /etc/docker/daemon.json 2>/dev/null || true
+      rm -f /tmp/daemon.json.canonical
+      log "  [SELF-HEAL] Restored canonical valid daemon.json."
+    fi
+  fi
+
+  # 2. Reset failed systemd units and attempt restart
+  systemctl reset-failed docker.service docker.socket 2>/dev/null || sudo systemctl reset-failed docker.service docker.socket 2>/dev/null || true
+  systemctl start containerd 2>/dev/null || sudo systemctl start containerd 2>/dev/null || true
+  systemctl start docker.socket docker.service 2>/dev/null || sudo systemctl start docker.socket docker.service 2>/dev/null || true
+
+  # 3. Wait up to 15s for recovery
+  for i in {1..3}; do
+    sleep 5
+    if docker info >/dev/null 2>&1; then
+      DOCKER_AVAILABLE=true
+      log "  [OK] Docker daemon recovered and is now active."
+      break
+    fi
+  done
+
+  if ! $DOCKER_AVAILABLE; then
+    log "  [CRITICAL] Docker daemon recovery failed! Docker remains offline."
+    send_webhook "🚨 KUCET CMS Monitor: Docker daemon is down and self-healing failed on $(hostname). Container restarts and auto-rollback SUPPRESSED."
+    ALERTS_TRIGGERED=true
+    # SUPPRESS container restarts and auto-rollback when Docker itself is dead
+    log "--- monitor.sh run aborted due to Docker daemon unavailability (Auto-rollback suppressed) ---"
+    exit 1
+  fi
+fi
+
+# ---
 # CHECK 1: Docker containers
 # ---
 log "Checking Docker containers ..."
@@ -242,6 +299,22 @@ except Exception:
 ' 2>/dev/null || echo "")
 
     if [[ -n "$LAST_GOOD_COMMIT" ]]; then
+      # SAFETY GUARD: Never rollback if Docker daemon itself is dead or container is missing/stopped
+      if ! docker info >/dev/null 2>&1; then
+        log "  [SAFETY GUARD] Docker daemon is offline — auto-rollback SUPPRESSED."
+        ALERTS_TRIGGERED=true
+        rm -f "$HEALTH_FAILURES_FILE"
+        exit 1
+      fi
+      local app_state
+      app_state=$(docker inspect --format='{{.State.Status}}' kucet-cms-app 2>/dev/null || echo "missing")
+      if [[ "$app_state" != "running" ]]; then
+        log "  [SAFETY GUARD] kucet-cms-app container is not running (state=$app_state) — auto-rollback SUPPRESSED. Docker compose restart should handle this."
+        ALERTS_TRIGGERED=true
+        rm -f "$HEALTH_FAILURES_FILE"
+        exit 0
+      fi
+
       log "  Rolling back to last known good commit: $LAST_GOOD_COMMIT"
       date +%s > "$COOLDOWN_FILE" 2>/dev/null || true
       send_webhook "🚨 KUCET CMS Monitor: Health endpoint failed $NEW_FAILURES times. Triggering auto-rollback to ${LAST_GOOD_COMMIT:0:8}."

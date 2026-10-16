@@ -159,12 +159,13 @@ describe('Admin Authentication & Routing Audit', () => {
         }),
       });
       // 3. Role query returns admission
+      const roleResult = [{ role_code: 'ADMISSION_STAFF' }];
+      const roleQuery = Promise.resolve(roleResult);
+      roleQuery.limit = vi.fn().mockResolvedValue(roleResult);
       db.select.mockReturnValueOnce({
         from: vi.fn().mockReturnValueOnce({
           innerJoin: vi.fn().mockReturnValueOnce({
-            where: vi.fn().mockReturnValueOnce({
-              limit: vi.fn().mockResolvedValueOnce([{ role_code: 'ADMISSION_STAFF' }])
-            })
+            where: vi.fn().mockReturnValueOnce(roleQuery)
           }),
         }),
       });

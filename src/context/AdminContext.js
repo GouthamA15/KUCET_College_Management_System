@@ -15,6 +15,7 @@ export function AdminProvider({ children }) {
   const [adminData, setAdminData] = useState(null);
   const [collegeInfo, setCollegeInfo] = useState(cachedCollegeInfo);
   const [staffList, setStaffList] = useState([]);
+  const [activeHodDirectory, setActiveHodDirectory] = useState({});
   const [studentStats, setStudentStats] = useState(null);
   const [facultyInterests, setFacultyInterests] = useState([]);
   const [isLoadingFaculty, setIsLoadingFaculty] = useState(false);
@@ -47,6 +48,9 @@ export function AdminProvider({ children }) {
         const json = await res.json();
         const payload = json?.data ?? json ?? [];
         setStaffList(payload);
+        if (json?.active_hod_directory) {
+          setActiveHodDirectory(json.active_hod_directory);
+        }
         return payload;
       }
     } catch (e) {
@@ -125,6 +129,8 @@ export function AdminProvider({ children }) {
             roles: updatedStaff.roles !== undefined ? updatedStaff.roles : s.roles,
             branches: updatedStaff.branches !== undefined ? updatedStaff.branches : s.branches,
             is_hod: updatedStaff.is_hod !== undefined ? updatedStaff.is_hod : s.is_hod,
+            hod_branches: updatedStaff.hod_branches !== undefined ? updatedStaff.hod_branches : s.hod_branches,
+            is_principal: updatedStaff.is_principal !== undefined ? updatedStaff.is_principal : s.is_principal,
             is_active: updatedStaff.is_active !== undefined ? updatedStaff.is_active : s.is_active
           };
         }
@@ -300,6 +306,8 @@ export function AdminProvider({ children }) {
       adminData, 
       collegeInfo,
       staffList, 
+      activeHodDirectory,
+      setActiveHodDirectory,
       studentStats, 
       loading, 
       error, 

@@ -59,8 +59,11 @@ export async function POST(request) {
 
     if (assignment.faculty_id === user.id || user.role === 'admin') {
       isAuthorized = true;
-    } else if (user.is_hod && user.branch === assignment.branch) {
-      isAuthorized = true;
+    } else if (user.is_principal || user.is_hod) {
+      const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+      if (authorizedBranches.includes(assignment.branch) || user.branch === assignment.branch) {
+        isAuthorized = true;
+      }
     } else {
       // Check for active substitution on this date
       const substitution = await db.select()
@@ -103,6 +106,23 @@ export async function POST(request) {
 
     if (!await isSemesterActive(course_semester, academic_year, collegeInfo)) {
       return apiError('Semester has ended. Attendance locked.', 403);
+    }
+
+    // --- ACADEMIC CALENDAR & MAKEUP CLASS VALIDATION ---
+    try {
+      const { AttendanceService } = await import('@/services/AttendanceService');
+      if (typeof AttendanceService?.validateAttendanceDate === 'function') {
+        await AttendanceService.validateAttendanceDate({
+          assignmentId: assignment_id,
+          date,
+          sessionNumber: session,
+          academicYear: academic_year,
+          semester: course_semester,
+          tx: db
+        });
+      }
+    } catch (valErr) {
+      return apiError(valErr.message, 403);
     }
 
     // Transaction

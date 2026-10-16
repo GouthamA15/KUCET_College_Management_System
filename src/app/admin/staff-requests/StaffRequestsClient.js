@@ -1,18 +1,22 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { formatDateTime } from '@/lib/date';
 import RealtimeListener from '@/components/RealtimeListener';
 import { 
   CheckCircle2, XCircle, Search, Clock, 
-  AlertTriangle, ShieldCheck
+  AlertTriangle, ShieldCheck, UserCheck
 } from 'lucide-react';
 
 export default function StaffRequestsClient() {
-  const [activeTab, setActiveTab] = useState('registration'); // 'registration' or 'hod'
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'registration';
+  const [activeTab, setActiveTab] = useState(initialTab); // 'registration' | 'hod' | 'reactivations'
   const [requests, setRequests] = useState([]);
   const [hodRequests, setHodRequests] = useState([]);
+  const [reactivations, setReactivations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -26,7 +30,7 @@ export default function StaffRequestsClient() {
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      const [regRes, hodRes] = await Promise.allSettled([
+      const [regRes, hodRes, reactRes] = await Promise.allSettled([
         fetch('/api/admin/staff-requests').then(async (res) => {
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Failed to fetch registration requests');
@@ -35,6 +39,11 @@ export default function StaffRequestsClient() {
         fetch('/api/admin/hod-requests').then(async (res) => {
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Failed to fetch HOD requests');
+          return data.requests || [];
+        }),
+        fetch('/api/admin/reactivations').then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to fetch reactivations');
           return data.requests || [];
         })
       ]);
@@ -49,6 +58,12 @@ export default function StaffRequestsClient() {
         setHodRequests(hodRes.value);
       } else {
         toast.error(hodRes.reason?.message || 'Failed to load HOD requests');
+      }
+
+      if (reactRes.status === 'fulfilled') {
+        setReactivations(reactRes.value);
+      } else {
+        toast.error(reactRes.reason?.message || 'Failed to load reactivations');
       }
     } catch (err) {
       toast.error(err.message || 'Error loading requests');
@@ -103,13 +118,31 @@ export default function StaffRequestsClient() {
     }
   }, []);
 
-  const currentRequests = activeTab === 'registration' ? requests : hodRequests;
+  const currentRequests = activeTab === 'registration' 
+    ? requests 
+    : activeTab === 'hod' 
+      ? hodRequests 
+      : reactivations;
 
   const filteredRequests = useMemo(() => {
     return currentRequests.filter(req => {
-      if (statusFilter !== 'ALL' && req.status !== statusFilter) return false;
+      if (statusFilter !== 'ALL') {
+        if (activeTab === 'reactivations') {
+          if (statusFilter === 'PENDING' && !['PENDING_ADMIN', 'PENDING_HOD'].includes(req.status)) return false;
+          if (statusFilter !== 'PENDING' && req.status !== statusFilter) return false;
+        } else if (req.status !== statusFilter) {
+          return false;
+        }
+      }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
+        if (activeTab === 'reactivations') {
+          return (
+            req.student_name?.toLowerCase().includes(q) ||
+            req.roll_no?.toLowerCase().includes(q) ||
+            req.branch?.toLowerCase().includes(q)
+          );
+        }
         return (
           req.name?.toLowerCase().includes(q) || 
           req.email?.toLowerCase().includes(q) ||
@@ -122,11 +155,15 @@ export default function StaffRequestsClient() {
 
   const stats = useMemo(() => {
     return {
-      pending: currentRequests.filter(r => r.status === 'PENDING').length,
+      pending: currentRequests.filter(r => 
+        activeTab === 'reactivations'
+          ? (r.status === 'PENDING_ADMIN' || r.status === 'PENDING_HOD')
+          : r.status === 'PENDING'
+      ).length,
       approved: currentRequests.filter(r => r.status === 'APPROVED').length,
       rejected: currentRequests.filter(r => r.status === 'REJECTED').length,
     };
-  }, [currentRequests]);
+  }, [currentRequests, activeTab]);
 
   const handleApprove = async () => {
     if (!selectedRequest) return;
@@ -153,7 +190,7 @@ export default function StaffRequestsClient() {
           )
         );
         toast.success('Staff account created and activation email sent!', { id: toastId });
-      } else {
+      } else if (activeTab === 'hod') {
         const res = await fetch(`/api/admin/hod-requests/${selectedRequest.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -174,6 +211,27 @@ export default function StaffRequestsClient() {
           )
         );
         toast.success('HOD request approved successfully!', { id: toastId });
+      } else if (activeTab === 'reactivations') {
+        const res = await fetch(`/api/admin/reactivations/${selectedRequest.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ decision: 'APPROVED', notes: 'Reactivated by Super Admin' })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to reactivate student');
+        
+        setReactivations((prev) =>
+          prev.map((r) =>
+            r.id === selectedRequest.id
+              ? {
+                  ...r,
+                  status: 'APPROVED',
+                  updated_at: new Date().toISOString()
+                }
+              : r
+          )
+        );
+        toast.success('Student account reactivated and restored to ACTIVE!', { id: toastId });
       }
       setIsApproveModalOpen(false);
       setSelectedRequest(null);
@@ -214,7 +272,7 @@ export default function StaffRequestsClient() {
           )
         );
         toast.success('Request rejected.', { id: toastId });
-      } else {
+      } else if (activeTab === 'hod') {
         const res = await fetch(`/api/admin/hod-requests/${selectedRequest.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -236,6 +294,28 @@ export default function StaffRequestsClient() {
           )
         );
         toast.success('HOD request rejected.', { id: toastId });
+      } else if (activeTab === 'reactivations') {
+        const res = await fetch(`/api/admin/reactivations/${selectedRequest.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ decision: 'REJECTED', notes: rejectionReason })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to reject');
+        
+        setReactivations((prev) =>
+          prev.map((r) =>
+            r.id === selectedRequest.id
+              ? {
+                  ...r,
+                  status: 'REJECTED',
+                  admin_notes: rejectionReason,
+                  updated_at: new Date().toISOString()
+                }
+              : r
+          )
+        );
+        toast.success('Reactivation request rejected.', { id: toastId });
       }
 
       setIsRejectModalOpen(false);
@@ -320,6 +400,16 @@ export default function StaffRequestsClient() {
         >
           HOD Requests
         </button>
+        <button
+          onClick={() => { setActiveTab('reactivations'); setStatusFilter('ALL'); }}
+          className={`px-3 py-2 rounded-md text-sm whitespace-nowrap transition-colors cursor-pointer ${
+            activeTab === 'reactivations'
+              ? 'bg-[#0b3578] text-white'
+              : 'bg-white border hover:bg-gray-50'
+          }`}
+        >
+          Student Reactivations
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -379,16 +469,23 @@ export default function StaffRequestsClient() {
           <table className="w-full divide-y divide-slate-200">
             <thead className="bg-slate-50 sticky top-0 z-10">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-full">Applicant</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-full">
+                  {activeTab === 'reactivations' ? 'Student' : 'Applicant'}
+                </th>
                 {activeTab === 'registration' ? (
                   <>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Role & Category</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Email Status</th>
                   </>
-                ) : (
+                ) : activeTab === 'hod' ? (
                   <>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Department</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Academic Year</th>
+                  </>
+                ) : (
+                  <>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Department</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">HOD Recommendation</th>
                   </>
                 )}
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
@@ -411,11 +508,11 @@ export default function StaffRequestsClient() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-[#0b3578] font-bold">
-                          {req.name.charAt(0)}
+                          {(req.name || req.student_name || 'S').charAt(0)}
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-slate-900">{req.name}</div>
-                          <div className="text-sm text-slate-500">{req.email}</div>
+                          <div className="text-sm font-medium text-slate-900">{req.name || req.student_name}</div>
+                          <div className="text-sm text-slate-500 font-mono">{req.email || req.roll_no}</div>
                         </div>
                       </div>
                     </td>
@@ -438,13 +535,35 @@ export default function StaffRequestsClient() {
                           )}
                         </td>
                       </>
-                    ) : (
+                    ) : activeTab === 'hod' ? (
                       <>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-slate-900 font-medium">{req.department_name || req.department_code}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-slate-500">{req.academic_year}</div>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-slate-900 font-medium">{req.branch} Engineering</div>
+                          <div className="text-xs text-rose-600 font-semibold">{req.inactivity_days || '150+'} days inactive</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {req.hod_recommendation === 'RECOMMENDED' ? (
+                            <span className="inline-flex items-center text-xs font-medium text-green-700 bg-green-50 px-2 py-1 rounded-md border border-green-200">
+                              <CheckCircle2 className="w-3 h-3 mr-1" /> Endorsed by HOD
+                            </span>
+                          ) : req.hod_recommendation === 'NOT_RECOMMENDED' ? (
+                            <span className="inline-flex items-center text-xs font-medium text-rose-700 bg-rose-50 px-2 py-1 rounded-md border border-rose-200">
+                              <XCircle className="w-3 h-3 mr-1" /> Not Recommended
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded-md border border-amber-200">
+                              <Clock className="w-3 h-3 mr-1" /> Awaiting HOD Review
+                            </span>
+                          )}
                         </td>
                       </>
                     )}
@@ -545,13 +664,17 @@ export default function StaffRequestsClient() {
 
                     <div className="bg-slate-50 rounded-lg p-5 grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 border border-slate-100 mb-6">
                       <div>
-                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Full Name</p>
-                        <p className="text-sm font-semibold text-slate-900">{selectedRequest.name}</p>
+                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">
+                          {activeTab === 'reactivations' ? 'Student Name' : 'Full Name'}
+                        </p>
+                        <p className="text-sm font-semibold text-slate-900">{selectedRequest.student_name || selectedRequest.name}</p>
                       </div>
                       <div>
-                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Official Email</p>
+                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">
+                          {activeTab === 'reactivations' ? 'Roll Number' : 'Official Email'}
+                        </p>
                         <div className="flex items-center">
-                          <p className="text-sm font-semibold text-slate-900 mr-2">{selectedRequest.email}</p>
+                          <p className="text-sm font-semibold text-slate-900 mr-2">{selectedRequest.roll_no || selectedRequest.email}</p>
                           {activeTab === 'registration' && (
                             selectedRequest.email_verified_at ? (
                               <ShieldCheck className="w-4 h-4 text-green-600" title="Verified Email" />
@@ -581,7 +704,7 @@ export default function StaffRequestsClient() {
                             <p className="text-sm text-slate-900">{selectedRequest.address || 'N/A'}</p>
                           </div>
                         </>
-                      ) : (
+                      ) : activeTab === 'hod' ? (
                         <>
                           <div>
                             <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Department</p>
@@ -596,6 +719,38 @@ export default function StaffRequestsClient() {
                             <p className="text-sm text-slate-900">{selectedRequest.employee_id || 'N/A'}</p>
                           </div>
                         </>
+                      ) : (
+                        <>
+                          <div>
+                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Department</p>
+                            <p className="text-sm text-slate-900 font-medium">{selectedRequest.branch} Engineering</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Absence Duration</p>
+                            <p className="text-sm text-rose-600 font-bold">{selectedRequest.inactivity_days || '150+'} days</p>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Student Justification</p>
+                            <p className="text-sm text-slate-800 bg-white p-3 rounded border border-slate-200 italic leading-relaxed">
+                              &quot;{selectedRequest.reason}&quot;
+                            </p>
+                          </div>
+                          <div className="sm:col-span-2 bg-blue-50/60 p-3 rounded border border-blue-100">
+                            <div className="flex justify-between items-center mb-1">
+                              <p className="text-xs font-bold text-[#0b3578] uppercase tracking-wider">Stage 1 HOD Endorsement</p>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                selectedRequest.hod_recommendation === 'RECOMMENDED' ? 'bg-emerald-100 text-emerald-800' :
+                                selectedRequest.hod_recommendation === 'NOT_RECOMMENDED' ? 'bg-rose-100 text-rose-800' :
+                                'bg-amber-100 text-amber-800'
+                              }`}>
+                                {selectedRequest.hod_recommendation || 'Awaiting HOD Review'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-600 font-medium">
+                              {selectedRequest.hod_comments || 'No comments recorded yet by HOD.'}
+                            </p>
+                          </div>
+                        </>
                       )}
                     </div>
 
@@ -606,10 +761,10 @@ export default function StaffRequestsClient() {
                       </div>
                     )}
 
-                    {selectedRequest.status === 'REJECTED' && selectedRequest.rejection_reason && (
+                    {selectedRequest.status === 'REJECTED' && (selectedRequest.rejection_reason || selectedRequest.admin_notes) && (
                       <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
                         <h4 className="text-sm font-medium text-red-800">Rejection Reason</h4>
-                        <p className="text-sm text-red-700 mt-1">{selectedRequest.rejection_reason}</p>
+                        <p className="text-sm text-red-700 mt-1">{selectedRequest.rejection_reason || selectedRequest.admin_notes}</p>
                       </div>
                     )}
                   </div>
@@ -619,7 +774,7 @@ export default function StaffRequestsClient() {
               {/* ACTION AREA - BOTTOM */}
               {!isApproveModalOpen && !isRejectModalOpen ? (
                 <div className="bg-slate-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-slate-200">
-                  {selectedRequest.status === 'PENDING' ? (
+                  {(selectedRequest.status === 'PENDING' || selectedRequest.status === 'PENDING_ADMIN' || selectedRequest.status === 'PENDING_HOD') ? (
                     <>
                       <button
                         type="button"
@@ -634,7 +789,7 @@ export default function StaffRequestsClient() {
                               : ""
                         }
                       >
-                        Approve Request
+                        {activeTab === 'reactivations' ? 'Clear & Reactivate' : 'Approve Request'}
                       </button>
                       <button
                         type="button"
@@ -684,8 +839,10 @@ export default function StaffRequestsClient() {
                       <div className="mt-2 text-sm text-green-700">
                         {activeTab === 'registration' ? (
                           <p>This will automatically generate a unique Employee ID, create the staff account, assign the requested role (<span className="font-semibold text-green-900">{selectedRequest?.requested_role}</span>), and send an activation email.</p>
-                        ) : (
+                        ) : activeTab === 'hod' ? (
                           <p>This will grant HOD access for this department and academic year. The staff member will immediately receive HOD privileges in the system.</p>
+                        ) : (
+                          <p>This will grant Super Admin clearance, restore the student status to <span className="font-semibold text-green-900">ACTIVE</span>, and allow the student to access the portal and classes again.</p>
                         )}
                       </div>
                       <div className="mt-4 flex flex-col sm:flex-row gap-3">

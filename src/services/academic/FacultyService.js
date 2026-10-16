@@ -14,7 +14,7 @@ import {
   attendanceSessions,
   facultySubjectAssignments
 } from '@/db/schema';
-import { eq, and, desc, asc, sql, like, or, inArray } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, like, or } from 'drizzle-orm';
 
 /**
  * Service for Faculty and HOD-related business logic
@@ -63,10 +63,20 @@ export class FacultyService {
   /**
    * Fetch detailed workload metrics for all faculty members in a branch
    * @param {string} academicYear The academic year to filter by
+   * @param {string|null} [branch=null] Optional department branch code
    * @returns {Promise<Array>} List of faculty with their workload metrics
    */
-  static async getFacultyLoad(academicYear) {
+  static async getFacultyLoad(academicYear, branch = null) {
     const yearPattern = `${academicYear.substring(0, 4)}%`;
+
+    const facultyConditions = [
+      or(eq(staffRoles.role_code, 'FACULTY'), eq(staffRoles.role_code, 'faculty')),
+      eq(staffAccounts.account_status, 'ACTIVE')
+    ];
+
+    if (branch) {
+      facultyConditions.push(eq(academicDepartments.department_code, branch));
+    }
 
     const [facultyList, scheduledRows, conductedRows, subjectsRows] = await Promise.all([
       db.select({
@@ -80,10 +90,7 @@ export class FacultyService {
       .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
       .leftJoin(staffAcademicAffiliations, eq(staffAcademicAffiliations.staff_account_id, staffAccounts.id))
       .leftJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
-      .where(and(
-        or(eq(staffRoles.role_code, 'FACULTY'), eq(staffRoles.role_code, 'faculty')),
-        eq(staffAccounts.account_status, 'ACTIVE')
-      )),
+      .where(and(...facultyConditions)),
 
       db.select({
         faculty_id: branchTimetable.faculty_id,

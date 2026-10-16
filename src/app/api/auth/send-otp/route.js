@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { sendInstitutionalEmail } from '@/lib/email';
+import { sendInstitutionalEmail, EMAIL_CATEGORIES } from '@/lib/email';
 import { getStudentEmail } from '@/lib/student-utils';
 import { checkRateLimit } from '@/lib/rate-limit';
 
@@ -103,10 +103,10 @@ export async function POST(request) {
     `;
 
     const { Queue } = await import('@/lib/queue');
-    const emailResult = await Queue.enqueueEmail(targetEmail, subject, bodyHtml);
+    const emailResult = await Queue.enqueueEmail(targetEmail, subject, bodyHtml, 'OTP for Verification', undefined, EMAIL_CATEGORIES.AUTH_OTP);
 
     if (!emailResult || emailResult.success === false) {
-      await sendInstitutionalEmail({ to: targetEmail, subject, bodyHtml });
+      await sendInstitutionalEmail({ to: targetEmail, subject, bodyHtml, category: EMAIL_CATEGORIES.AUTH_OTP });
     }
 
     return apiResponse({ success: true, message: 'OTP sent successfully to your email.' });

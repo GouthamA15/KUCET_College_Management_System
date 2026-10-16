@@ -109,7 +109,13 @@ export const CertificateReviewModal = ({
                 }}
               >
                 {processing ? <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" /> : <CheckCircle className="w-4 h-4" />} 
-                Authorize & Approve
+                {staffType === 'hod' && selectedRequestDetails?.certificate_type === 'Bonafide Certificate'
+                  ? 'Endorse Request (Stage 1)'
+                  : selectedRequestDetails?.certificate_type === 'No Objection Certificate'
+                    ? 'Authorize & Issue NOC'
+                    : selectedRequestDetails?.certificate_type === 'Bonafide Certificate'
+                      ? 'Final Approval & Issue (Stage 2)'
+                      : 'Authorize & Approve'}
               </button>
             </>
           )}

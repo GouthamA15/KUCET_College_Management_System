@@ -28,6 +28,7 @@ export const STORAGE_FOLDERS = Object.freeze({
 
   // Certificate Verification & Evidence
   CERTIFICATES_PAYMENTS: 'certificates/payments',
+  ATTENDANCE_EVIDENCE: 'attendance/evidence',
 
   // Admission Pipeline Staging
   ADMISSION_DRAFTS_PFP: 'admission_drafts/pfp',

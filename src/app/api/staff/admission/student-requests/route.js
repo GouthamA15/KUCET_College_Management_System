@@ -223,7 +223,11 @@ export async function PUT(req) {
           const spd_data = { /* empty */ };
           spd_fields.forEach(f => { 
               if (Object.prototype.hasOwnProperty.call(data, f)) {
-                  spd_data[f] = data[f];
+                  if (f === 'blood_group') {
+                      spd_data[f] = (data[f] && ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].includes(String(data[f]).trim())) ? String(data[f]).trim() : null;
+                  } else {
+                      spd_data[f] = data[f];
+                  }
                   if (f === 'aadhaar_no' && data[f]) {
                       const plainAadhaar = decrypt(data[f]);
                       spd_data['aadhaar_hash'] = hashForIndex(plainAadhaar);

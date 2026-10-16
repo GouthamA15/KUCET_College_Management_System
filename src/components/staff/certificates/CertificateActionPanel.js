@@ -103,6 +103,35 @@ export default function CertificateActionPanel({ request }) {
                   </div>
                 </div>
               ) : null}
+              {/* HOD Endorsement Stage */}
+              {request?.hod_approval_status && request?.hod_approval_status !== 'NOT_REQUIRED' ? (
+                <div className="mt-2 pt-2 border-t border-gray-100 space-y-2">
+                  <div className="flex items-start gap-3">
+                    <div className="w-36 text-sm text-gray-500">HOD Status</div>
+                    <div>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${
+                        request.hod_approval_status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                        request.hod_approval_status === 'REJECTED' ? 'bg-rose-100 text-rose-800 border-rose-200' :
+                        'bg-amber-100 text-amber-800 border-amber-200'
+                      }`}>
+                        {request.hod_approval_status}
+                      </span>
+                    </div>
+                  </div>
+                  {request.hod_approved_at && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-36 text-sm text-gray-500">HOD Endorsed On</div>
+                      <div className="font-semibold text-gray-800">{toDmy(request.hod_approved_at)}</div>
+                    </div>
+                  )}
+                  {request.hod_rejection_reason && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-36 text-sm text-gray-500">HOD Reason</div>
+                      <div className="font-semibold text-rose-700">{request.hod_rejection_reason}</div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
             </div>
           </div>
 

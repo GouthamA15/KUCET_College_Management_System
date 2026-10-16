@@ -118,7 +118,7 @@ export const POST = wrapHandler({
       // Send Welcome Email asynchronously
       if (result.studentEmail) {
         try {
-          const { sendInstitutionalEmail, getBaseUrl } = require('@/lib/email');
+          const { sendInstitutionalEmail, getBaseUrl, EMAIL_CATEGORIES } = require('@/lib/email');
           const emailHtml = `
             <p>Dear <strong>${result.studentName}</strong>,</p>
             <p>Congratulations! Your admission has been finalized and your KUCET student account is now institutionally active.</p>
@@ -136,7 +136,8 @@ export const POST = wrapHandler({
               label: 'Login to Student Portal',
               url: `${getBaseUrl()}/student`,
               expiresIn: 'unlimited time. Please set your new password upon first login'
-            }
+            },
+            category: EMAIL_CATEGORIES.ADMISSIONS,
           }).catch(e => logger.error(e, 'Failed to send welcome email'));
         } catch (e) {
           logger.error(e, 'Failed to initialize welcome email');

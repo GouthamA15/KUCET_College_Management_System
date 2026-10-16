@@ -47,9 +47,10 @@ export default function StudentTimetablePage() {
       <RealtimeListener onUpdate={handleRealtimeUpdate} />
 
       <header className="mb-4">
-        <div className="relative flex min-h-9 items-center justify-center">
-          <h1 className="text-2xl font-bold tracking-tight text-[#0b3578]">Time table</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold text-gray-800">Timetable</h1>
         </div>
+        <p className="text-sm text-gray-600 mt-1">Overview of your current semester weekly schedule.</p>
       </header>
 
       {/* Loading */}

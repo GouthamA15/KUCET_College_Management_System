@@ -2,7 +2,7 @@ import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students, otpCodes } from '@/db/schema';
 import { eq, and, ne } from 'drizzle-orm';
-import { sendInstitutionalEmail } from '@/lib/email';
+import { sendInstitutionalEmail, EMAIL_CATEGORIES } from '@/lib/email';
 import crypto from 'crypto';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -88,6 +88,7 @@ export async function POST(req) {
           subject,
           title: isActivating ? 'Account Activation' : 'Email Verification',
           bodyHtml: bodyHtml,
+          category: EMAIL_CATEGORIES.AUTH_OTP,
         });
       } catch (mailError) {
         logger.error(mailError, '[MAIL EXCEPTION] Failed during sendEmail');

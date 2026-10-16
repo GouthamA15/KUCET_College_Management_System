@@ -1,0 +1,12 @@
+[Unit]
+Description=Run KUCET CMS Nightly Cleanup at Midnight IST Daily
+Documentation=https://github.com/GouthamA15/CMS
+
+[Timer]
+OnCalendar=*-*-* 00:00:00
+Persistent=true
+RandomizedDelaySec=60
+Unit=kucet-nightly-cleanup.service
+
+[Install]
+WantedBy=timers.target

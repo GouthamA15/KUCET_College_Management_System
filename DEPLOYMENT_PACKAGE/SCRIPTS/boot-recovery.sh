@@ -62,11 +62,39 @@ if command -v systemctl >/dev/null 2>&1; then
 fi
 
 # ---------------------------------------------------------------------------
-# STEP 2: Wait for Docker daemon to be ready
+# STEP 2: Wait for Docker daemon to be ready & Self-heal if needed
 # ---------------------------------------------------------------------------
 log "STEP 2: Waiting for Docker daemon to become ready (max ${DOCKER_WAIT_MAX}s) ..."
 WAITED=0
 DOCKER_READY=false
+
+heal_docker_daemon() {
+  log "  [SELF-HEAL] Validating Docker daemon configuration..."
+  if ! dockerd --validate >/dev/null 2>&1; then
+    log "  [SELF-HEAL] dockerd --validate failed! Checking /etc/docker/daemon.json ..."
+    if [[ -f /etc/docker/daemon.json ]]; then
+      local corrupt_bak="/etc/docker/daemon.json.corrupt-$(date +%Y%m%d_%H%M%S)"
+      log "  [SELF-HEAL] Backing up corrupted daemon.json to $corrupt_bak"
+      cp -p /etc/docker/daemon.json "$corrupt_bak" 2>/dev/null || true
+      cat << 'EOF_DAEMON' > /etc/docker/daemon.json
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "20m",
+    "max-file": "3"
+  }
+}
+EOF_DAEMON
+      chmod 644 /etc/docker/daemon.json
+      log "  [SELF-HEAL] Restored canonical valid daemon.json."
+    fi
+  fi
+
+  log "  [SELF-HEAL] Resetting systemd failed state for docker & containerd..."
+  systemctl reset-failed docker.service docker.socket 2>/dev/null || true
+  systemctl start containerd 2>/dev/null || true
+  systemctl start docker.socket docker.service 2>/dev/null || true
+}
 
 while [[ $WAITED -lt $DOCKER_WAIT_MAX ]]; do
   if docker info > /dev/null 2>&1; then
@@ -74,6 +102,13 @@ while [[ $WAITED -lt $DOCKER_WAIT_MAX ]]; do
     log "  Docker daemon is ready after ${WAITED}s."
     break
   fi
+
+  # Attempt self-healing at 15s mark if still not ready
+  if [[ $WAITED -eq 15 ]]; then
+    log "  [WARN] Docker daemon not responding at 15s — triggering self-healing recovery ..."
+    heal_docker_daemon
+  fi
+
   log "  [${WAITED}s] Docker daemon not ready yet — waiting ..."
   sleep 5
   WAITED=$((WAITED + 5))
@@ -81,7 +116,8 @@ done
 
 if ! $DOCKER_READY; then
   log "CRITICAL: Docker daemon did not become ready within ${DOCKER_WAIT_MAX}s!"
-  log "          Check: systemctl status docker"
+  log "          Status: $(systemctl is-active docker 2>/dev/null || echo unknown)"
+  systemctl status docker --no-pager -l 2>&1 | tee -a "$LOG_FILE" || true
   exit 1
 fi
 

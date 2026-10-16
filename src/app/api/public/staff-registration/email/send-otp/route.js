@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { otpCodes } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { sendInstitutionalEmail } from '@/lib/email';
+import { sendInstitutionalEmail, EMAIL_CATEGORIES } from '@/lib/email';
 
 export async function POST(req) {
   try {
@@ -39,6 +39,7 @@ export async function POST(req) {
                    ${otp}
                  </div>`,
       bodyText: `Your OTP for staff registration is: ${otp}. It will expire in 15 minutes.`,
+      category: EMAIL_CATEGORIES.AUTH_OTP,
     });
 
     return NextResponse.json({ success: true, message: 'OTP sent successfully.' });

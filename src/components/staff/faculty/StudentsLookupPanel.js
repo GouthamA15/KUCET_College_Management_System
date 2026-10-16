@@ -81,14 +81,14 @@ export default function StudentsLookupPanel() {
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Failed to fetch achievements');
         setAchievements(json.data || []);
-      } catch (err) {
+      } catch (_err) {
         setAchievementsError('Unable to load achievements.');
       } finally {
         setLoadingAchievements(false);
       }
     };
     fetchAchievements();
-  }, [selectedStudent]);
+  }, [selectedStudent, certificatesOnly]);
   
   // Set default program if only one is available
   useEffect(() => {
@@ -217,7 +217,7 @@ export default function StudentsLookupPanel() {
          const student = studentMap[ach.student_id];
          if (!student) return;
          
-         const config = ACHIEVEMENT_CONFIG[ach.achievement_type] || {};
+         const _config = ACHIEVEMENT_CONFIG[ach.achievement_type] || {};
          
          achWsData.push([
            student.roll_no,
@@ -642,7 +642,9 @@ export default function StudentsLookupPanel() {
                         if (ach.additional_data) {
                           try {
                             additionalParsed = typeof ach.additional_data === 'string' ? JSON.parse(ach.additional_data) : ach.additional_data;
-                          } catch (e) {}
+                          } catch (_e) {
+                            /* ignore invalid JSON */
+                          }
                         }
                         
                         const allConfigFields = Object.values(config.groups).flat();

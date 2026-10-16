@@ -65,7 +65,8 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
     const academicsIdx = menuItemsRaw.findIndex(i => i.label === 'ACADEMICS');
     let insertIdx = academicsIdx > -1 ? academicsIdx + 1 : 1;
     
-    // Insert backwards so they appear in order
+    // Insert backwards so they appear in order: ACADEMICS -> ACADEMIC CALENDAR -> STAFF MANAGEMENT -> STUDENT REQUESTS
+    menuItemsRaw.splice(insertIdx, 0, { label: 'STUDENT REQUESTS', route: '/staff/hod/requests' });
     menuItemsRaw.splice(insertIdx, 0, { label: 'STAFF MANAGEMENT', route: '/staff/hod/staff-management' });
     menuItemsRaw.splice(insertIdx, 0, { label: 'ACADEMIC CALENDAR', route: '/staff/academic-calendar' });
   }

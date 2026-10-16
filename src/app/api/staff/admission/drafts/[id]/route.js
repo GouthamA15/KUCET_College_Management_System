@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { apiError, wrapHandler } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
 import { storage } from '@/lib/providers';
-import { sendInstitutionalEmail } from '@/lib/email';
+import { sendInstitutionalEmail, EMAIL_CATEGORIES } from '@/lib/email';
 import { encrypt, decrypt } from '@/lib/encryption';
 
 export const GET = wrapHandler({
@@ -147,7 +147,8 @@ export const PUT = wrapHandler({
               infoRows: [
                 { label: 'Application ID', value: id },
                 { label: 'Status', value: 'REJECTED' }
-              ]
+              ],
+              category: EMAIL_CATEGORIES.ADMISSIONS,
             }).catch(e => logger.error(e, 'Failed to send rejection email'));
           }
 
@@ -251,6 +252,20 @@ export const PUT = wrapHandler({
                 const num = parseFloat(value);
                 if (isNaN(num) || num < 0 || num > 1000) {
                     return apiError('Intermediate/Diploma marks must be between 0 and 1000.', 400);
+                }
+            }
+            else if (field === 'blood_group') {
+                if (value === null || value === undefined) {
+                    value = null;
+                } else {
+                    const s = String(value).trim();
+                    if (s === '' || s.toLowerCase() === 'not available' || s.toUpperCase() === 'UNKNOWN' || s.toLowerCase() === 'n/a') {
+                        value = null;
+                    } else if (['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].includes(s)) {
+                        value = s;
+                    } else {
+                        return apiError('Invalid blood group value', 400);
+                    }
                 }
             }
             // Encrypt sensitive fields before saving

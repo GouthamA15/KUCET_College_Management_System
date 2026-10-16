@@ -35,6 +35,9 @@ jobs:
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
           BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          BREVO_API_KEY_SYSTEM_OPERATIONS: ${{ secrets.BREVO_API_KEY_SYSTEM_OPERATIONS || secrets.BREVO_API_KEY }}
+          BREVO_SENDER_EMAIL_SYSTEM_OPERATIONS: ${{ secrets.BREVO_SENDER_EMAIL_SYSTEM_OPERATIONS || secrets.EMAIL_USER }}
+          BREVO_SENDER_NAME_SYSTEM_OPERATIONS: ${{ secrets.BREVO_SENDER_NAME_SYSTEM_OPERATIONS || 'KUCET Backup System' }}
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
 
       - name: Run Database Pruning (Garbage Collection)

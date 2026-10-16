@@ -61,12 +61,19 @@ const SessionControlPanel = () => {
     setBatchAttendanceStatus
   } = useFacultyAttendance();
 
-  const verifiedList = (students || []).filter((s) => verifiedStudentIds?.has?.(s.id));
+  const isStudentVerified = (id) =>
+    Boolean(
+      verifiedStudentIds?.has?.(id) ||
+      verifiedStudentIds?.has?.(Number(id)) ||
+      verifiedStudentIds?.has?.(String(id))
+    );
+
+  const verifiedList = (students || []).filter((s) => isStudentVerified(s.id));
 
   const handleConfirmAll = () => {
     const updates = {};
     (students || []).forEach((s) => {
-      if (verifiedStudentIds?.has?.(s.id)) {
+      if (isStudentVerified(s.id)) {
         updates[s.id] = 'PRESENT';
       } else if (s.status === null) {
         updates[s.id] = 'ABSENT';
@@ -106,10 +113,11 @@ const SessionControlPanel = () => {
                     <svg className="w-3.5 h-3.5 text-indigo-500 group-active:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                   </button>
                 </div>
-                {verifiedList.length > 0 && (
+                {(activeSession || verifiedList.length > 0) && (
                   <button 
                     onClick={handleConfirmAll}
                     className="text-[10px] bg-indigo-600 text-white px-2 py-1 rounded font-bold hover:bg-indigo-700 active:scale-95 transition-all"
+                    title="Mark verified students as PRESENT and unverified students as ABSENT"
                   >
                     Confirm All
                   </button>
@@ -212,7 +220,7 @@ const SaveControls = () => {
         <>
           <button
             type="button"
-            onClick={handleSaveAttendance}
+            onClick={() => handleSaveAttendance()}
             disabled={submitting || !students.length || !dateValidation.isValid || !assignment.is_active}
             className="px-4 py-2 bg-gray-900 text-white text-xs font-bold uppercase tracking-wide border border-gray-900 disabled:opacity-60"
           >

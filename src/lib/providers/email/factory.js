@@ -19,3 +19,7 @@ export function getEmailProvider() {
 
   return instance;
 }
+
+export function resetEmailProvider() {
+  instance = null;
+}

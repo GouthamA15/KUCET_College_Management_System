@@ -56,7 +56,15 @@ export async function POST(req) {
           message: "Intermediate/Diploma marks must be a valid number between 0 and 1000"
       }),
       nationality: z.string().trim().max(100).default('Indian'),
-      blood_group: z.string().trim().max(20).nullable().optional(),
+      blood_group: z.preprocess(
+        (v) => {
+          if (v === null || v === undefined) return null;
+          const s = String(v).trim();
+          if (s === '' || s.toLowerCase() === 'not available' || s.toUpperCase() === 'UNKNOWN' || s.toLowerCase() === 'n/a') return null;
+          return s;
+        },
+        z.enum(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']).nullable().optional()
+      ),
       place_of_birth: z.string().trim().max(255).nullable().optional(),
       father_occupation: z.string().trim().max(255).nullable().optional(),
       annual_income: z.string().trim().max(50).nullable().optional(),

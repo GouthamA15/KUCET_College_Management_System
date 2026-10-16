@@ -69,10 +69,13 @@ export async function POST(request) {
 
         // 2. Authorization
         let isAuthorized = false;
-        if (assignment.faculty_id === user.id) {
+        if (assignment.faculty_id === user.id || user.role === 'admin') {
           isAuthorized = true;
-        } else if (user.is_hod && user.branch === assignment.branch) {
-          isAuthorized = true;
+        } else if (user.is_principal || user.is_hod) {
+          const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+          if (authorizedBranches.includes(assignment.branch) || user.branch === assignment.branch) {
+            isAuthorized = true;
+          }
         } else {
           const sub = await tx.select()
             .from(facultySubstitutions)
@@ -94,6 +97,24 @@ export async function POST(request) {
         const { subject_code, branch, course_semester, academic_year } = assignment;
         if (!await isSemesterActive(course_semester, academic_year, collegeInfo)) {
           errors.push({ id: offlineId, error: `Semester ended for assignment #${assignment_id}` });
+          continue;
+        }
+
+        // 3b. Calendar & Makeup Class validation
+        try {
+          const { AttendanceService } = await import('@/services/AttendanceService');
+          if (typeof AttendanceService?.validateAttendanceDate === 'function') {
+            await AttendanceService.validateAttendanceDate({
+              assignmentId: assignment_id,
+              date,
+              sessionNumber: session,
+              academicYear: academic_year,
+              semester: course_semester,
+              tx
+            });
+          }
+        } catch (valErr) {
+          errors.push({ id: offlineId, error: valErr.message });
           continue;
         }
 

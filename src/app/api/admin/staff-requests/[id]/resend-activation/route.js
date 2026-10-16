@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { wrapHandler, apiError } from '@/lib/api-utils';
 import crypto from 'crypto';
 import { sendInstitutionalEmail, getBaseUrl } from '@/lib/email';
+import { EMAIL_CATEGORIES } from '@/lib/email-categories';
 import logger from '@/lib/logger';
 
 export const POST = wrapHandler({
@@ -60,12 +61,12 @@ export const POST = wrapHandler({
       });
 
       await tx.insert(auditLogs).values({
-        user_id: adminId.toString(),
+        user_id: adminId,
         user_type: 'admin',
         action: 'RESEND_ACTIVATION_EMAIL',
-        entity_type: 'staff_accounts',
-        entity_id: account.id.toString(),
-        metadata: { requestId: request.id },
+        target_type: 'staff_accounts',
+        target_id: String(account.id),
+        payload_after: { requestId: request.id },
         ip_address: context?.ip || '127.0.0.1'
       });
 
@@ -94,7 +95,8 @@ export const POST = wrapHandler({
           url: activationLink,
           label: 'Activate Account',
           expiresIn: '48 hours'
-        }
+        },
+        category: EMAIL_CATEGORIES.STAFF_ONBOARDING,
       });
       logger.info({ email: result.email }, '[STAFF_APPROVAL] Resent activation email successfully');
     } catch (err) {

@@ -168,7 +168,10 @@ function buildMenuItems({ effectiveRole, studentData, staffData, hasActiveEvents
       insertIdx = settingsIdx > -1 ? settingsIdx : enhancedMenu.length;
     }
 
-    // Insert backwards so they appear in order: ACADEMICS -> ACADEMIC CALENDAR -> STAFF MANAGEMENT
+    // Insert backwards so they appear in order: ACADEMICS -> ACADEMIC CALENDAR -> STAFF MANAGEMENT -> STUDENT REQUESTS
+    enhancedMenu.splice(insertIdx, 0,
+      { label: 'STUDENT REQUESTS', route: '/staff/hod/requests' }
+    );
     enhancedMenu.splice(insertIdx, 0,
       { label: 'STAFF MANAGEMENT', route: '/staff/hod/staff-management' }
     );

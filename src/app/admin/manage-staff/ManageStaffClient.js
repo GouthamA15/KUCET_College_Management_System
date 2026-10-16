@@ -1,18 +1,20 @@
 "use client";
 
 import { useState, useMemo } from 'react';
+import Link from 'next/link';
 import { useAdmin } from '@/context/AdminContext';
 import toast from 'react-hot-toast';
 import { formatDate } from '@/lib/date';
 
 import { FACULTY_BRANCHES } from '@/lib/staff-config';
 import { 
-  Users, CheckCircle2, XCircle, Search, 
-  AlertTriangle, UserX, UserCheck, Save
+  Users, CheckCircle2, Search, 
+  AlertTriangle, UserX, UserCheck, Save,
+  ShieldCheck, BookOpen, ExternalLink, Award
 } from 'lucide-react';
 
 export default function ManageStaffClient() {
-  const { staffList, loading, updateStaffInList, setStaffActiveStatus } = useAdmin();
+  const { staffList, activeHodDirectory = {}, loading, updateStaffInList, setStaffActiveStatus, refreshStaff } = useAdmin();
   const [activeTab, setActiveTab] = useState('faculty');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('ALL');
@@ -22,7 +24,13 @@ export default function ManageStaffClient() {
   const [staffRequestsHistory, setStaffRequestsHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [hodConfirmModal, setHodConfirmModal] = useState({ isOpen: false, targetState: false });
+  const [reassignConfirmModal, setReassignConfirmModal] = useState({
+    isOpen: false,
+    branch: '',
+    currentHod: '',
+    academicYear: '',
+    newHodName: ''
+  });
   const [processing, setProcessing] = useState(false);
 
   // Filter staffList based on active tab, search query, and branch filter
@@ -64,13 +72,19 @@ export default function ManageStaffClient() {
       facultyTotal: facultystaffList.length,
       scholarshipTotal: scholarshipstaffList.length,
       admissionTotal: admissionstaffList.length,
-      hodCount: facultystaffList.filter(c => c.is_hod).length
+      hodCount: facultystaffList.filter(c => c.is_hod || (c.hod_branches && c.hod_branches.length > 0)).length,
+      principalCount: facultystaffList.filter(c => c.is_principal).length
     };
   }, [staffList]);
 
   const openDetails = async (staffMember) => {
     setSelectedStaff(staffMember);
-    setEditedStaff({ ...staffMember });
+    setEditedStaff({
+      ...staffMember,
+      branches: Array.isArray(staffMember.branches) ? [...staffMember.branches] : [],
+      hod_branches: Array.isArray(staffMember.hod_branches) ? [...staffMember.hod_branches] : (staffMember.is_hod && staffMember.branches ? [...staffMember.branches] : []),
+      is_principal: !!staffMember.is_principal
+    });
     
     // Fetch their latest requests
     setLoadingHistory(true);
@@ -97,60 +111,84 @@ export default function ManageStaffClient() {
     }));
   };
 
-  const handleToggleHOD = (e) => {
-    setEditedStaff(prev => ({
+  const handleToggleHodBranch = (branchCode) => {
+    setEditedStaff((prev) => {
+      const current = prev.hod_branches || [];
+      const updated = current.includes(branchCode)
+        ? current.filter(b => b !== branchCode)
+        : [...current, branchCode];
+      return {
+        ...prev,
+        hod_branches: updated,
+        is_hod: updated.length > 0
+      };
+    });
+  };
+
+  const handleTogglePrincipal = (e) => {
+    const checked = e.target.checked;
+    setEditedStaff((prev) => ({
       ...prev,
-      is_hod: e.target.checked
+      is_principal: checked
     }));
   };
 
-  const handleSave = async (skipConfirmation = false) => {
+  const handleSave = async (confirmedReassignBranches = null) => {
     if (!selectedStaff) return;
 
-    // Check if HOD status changed and needs confirmation
-    if (selectedStaff.is_hod !== editedStaff.is_hod && !skipConfirmation) {
-      setHodConfirmModal({ isOpen: true, targetState: editedStaff.is_hod });
-      return;
-    }
-
     setProcessing(true);
-    const toastId = toast.loading('Saving changes...');
+    const toastId = toast.loading('Saving staff changes...');
     try {
+      const payload = {
+        ...editedStaff,
+        is_hod: (editedStaff.hod_branches && editedStaff.hod_branches.length > 0) || !!editedStaff.is_hod,
+        ...(confirmedReassignBranches && confirmedReassignBranches.length > 0 
+          ? { reassign_branches: confirmedReassignBranches } 
+          : {})
+      };
+
       const res = await fetch(`/api/admin/staff/${selectedStaff.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editedStaff),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
       if (!res.ok) {
+        if (res.status === 409 && data.conflictDetails) {
+          toast.dismiss(toastId);
+          setReassignConfirmModal({
+            isOpen: true,
+            branch: data.conflictDetails.branch,
+            currentHod: data.conflictDetails.current_hod,
+            academicYear: data.conflictDetails.academic_year,
+            newHodName: editedStaff.name || selectedStaff.name
+          });
+          return;
+        }
         throw new Error(data.error || 'Failed to update staff record');
       }
 
-      const fetchRes = await fetch('/api/admin/staff');
-      const fetchData = await fetchRes.json();
-      if (fetchRes.ok && fetchData.data) {
-        const updatedStaff = fetchData.data.find(s => s.id === selectedStaff.id);
-        if (updatedStaff) {
-          updateStaffInList(updatedStaff);
-          setSelectedStaff(updatedStaff);
-          setEditedStaff(updatedStaff);
-        }
+      // Refresh list to update all states & HOD directory
+      if (typeof refreshStaff === 'function') {
+        await refreshStaff();
       } else {
-          updateStaffInList({
-            ...selectedStaff,
-            ...editedStaff,
-            updated_at: new Date().toISOString()
-          });
+        const fetchRes = await fetch('/api/admin/staff');
+        const fetchData = await fetchRes.json();
+        if (fetchRes.ok && fetchData.data) {
+          const updatedStaff = fetchData.data.find(s => s.id === selectedStaff.id);
+          if (updatedStaff) {
+            updateStaffInList(updatedStaff);
+          }
+        }
       }
 
       toast.success('Staff record updated successfully!', { id: toastId });
-      setHodConfirmModal({ isOpen: false, targetState: false });
+      setReassignConfirmModal({ isOpen: false, branch: '', currentHod: '', academicYear: '', newHodName: '' });
       setSelectedStaff(null);
       setEditedStaff({});
     } catch (error) {
       toast.error(error.message, { id: toastId });
-      setHodConfirmModal({ isOpen: false, targetState: false });
     } finally {
       setProcessing(false);
     }
@@ -180,18 +218,26 @@ export default function ManageStaffClient() {
     }
   };
 
-  const hasChanges = selectedStaff && JSON.stringify(selectedStaff) !== JSON.stringify(editedStaff);
+  const hasChanges = selectedStaff && (
+    selectedStaff.name !== editedStaff.name ||
+    selectedStaff.employee_id !== editedStaff.employee_id ||
+    selectedStaff.is_active !== editedStaff.is_active ||
+    selectedStaff.is_principal !== editedStaff.is_principal ||
+    JSON.stringify((selectedStaff.branches || []).sort()) !== JSON.stringify((editedStaff.branches || []).sort()) ||
+    JSON.stringify((selectedStaff.hod_branches || []).sort()) !== JSON.stringify((editedStaff.hod_branches || []).sort()) ||
+    JSON.stringify((selectedStaff.roles || []).sort()) !== JSON.stringify((editedStaff.roles || []).sort())
+  );
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
       <header className="mb-4 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-gray-800">Staff & Role Management</h1>
-          <p className="text-sm text-gray-600 mt-1">Manage institutional staff accounts, roles, and status.</p>
+          <p className="text-sm text-gray-600 mt-1">Manage institutional staff accounts, branch HOD appointments, academic affiliations, and supervisory roles.</p>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
           <div className="flex items-center text-[#0b3578] mb-2">
             <Users className="w-5 h-5 mr-2" />
@@ -207,11 +253,18 @@ export default function ManageStaffClient() {
           <p className="text-3xl font-bold text-slate-900">{stats.active}</p>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-          <div className="flex items-center text-red-600 mb-2">
-            <XCircle className="w-5 h-5 mr-2" />
-            <h3 className="font-semibold">Deactivated</h3>
+          <div className="flex items-center text-amber-600 mb-2">
+            <Award className="w-5 h-5 mr-2" />
+            <h3 className="font-semibold">Branch HODs</h3>
           </div>
-          <p className="text-3xl font-bold text-slate-900">{stats.inactive}</p>
+          <p className="text-3xl font-bold text-slate-900">{stats.hodCount}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+          <div className="flex items-center text-purple-600 mb-2">
+            <ShieldCheck className="w-5 h-5 mr-2" />
+            <h3 className="font-semibold">Principal Supervisors</h3>
+          </div>
+          <p className="text-3xl font-bold text-slate-900">{stats.principalCount}</p>
         </div>
       </div>
 
@@ -222,7 +275,7 @@ export default function ManageStaffClient() {
               onClick={() => { setActiveTab('faculty'); setSelectedBranch('ALL'); }}
               className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === 'faculty'
-                  ? 'bg-blue-50 text-[#0b3578] shadow-sm'
+                  ? 'bg-blue-50 text-[#0b3578] shadow-sm font-semibold'
                   : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
               }`}
             >
@@ -232,7 +285,7 @@ export default function ManageStaffClient() {
               onClick={() => setActiveTab('scholarship')}
               className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === 'scholarship'
-                  ? 'bg-emerald-50 text-emerald-800 shadow-sm'
+                  ? 'bg-emerald-50 text-emerald-800 shadow-sm font-semibold'
                   : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
               }`}
             >
@@ -242,7 +295,7 @@ export default function ManageStaffClient() {
               onClick={() => setActiveTab('admission')}
               className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === 'admission'
-                  ? 'bg-cyan-50 text-cyan-800 shadow-sm'
+                  ? 'bg-cyan-50 text-cyan-800 shadow-sm font-semibold'
                   : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
               }`}
             >
@@ -280,10 +333,10 @@ export default function ManageStaffClient() {
           <table className="w-full divide-y divide-slate-200">
             <thead className="bg-slate-50 sticky top-0 z-10">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-full">Staff Member</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-2/5">Staff Member</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Emp ID</th>
                 {activeTab === 'faculty' && (
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Branch & Role</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Branch & Roles</th>
                 )}
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
@@ -317,30 +370,37 @@ export default function ManageStaffClient() {
                     </td>
                     {activeTab === 'faculty' && (
                       <td className="px-6 py-4">
-                        <div className="flex flex-row items-center gap-1.5 flex-nowrap overflow-x-auto pb-1 scrollbar-hide">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {/* Academic Affiliation Chips */}
                           {staffMember.branches && staffMember.branches.length > 0 ? (
-                            [...staffMember.branches]
-                              .sort((a, b) => {
-                                const idxA = FACULTY_BRANCHES.indexOf(a);
-                                const idxB = FACULTY_BRANCHES.indexOf(b);
-                                if (idxA === -1 && idxB === -1) return a.localeCompare(b);
-                                if (idxA === -1) return 1;
-                                if (idxB === -1) return -1;
-                                return idxA - idxB;
-                              })
-                              .map(b => (
-                                <span key={b} className="font-bold text-[#0b3578] bg-blue-50 border border-blue-200 px-2 py-0.5 rounded text-[11px] whitespace-nowrap inline-flex shrink-0">
-                                  {b}
-                                </span>
-                              ))
+                            staffMember.branches.map(b => (
+                              <span key={b} className="font-semibold text-[#0b3578] bg-blue-50 border border-blue-200 px-2 py-0.5 rounded text-[11px] whitespace-nowrap inline-flex shrink-0">
+                                {b}
+                              </span>
+                            ))
                           ) : (
-                            <span className="font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded text-[11px] shrink-0">
+                            <span className="font-semibold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded text-[11px] shrink-0">
                               Unassigned
                             </span>
                           )}
-                          {staffMember.is_hod && (
+
+                          {/* Branch-Specific HOD Badges */}
+                          {staffMember.hod_branches && staffMember.hod_branches.length > 0 ? (
+                            staffMember.hod_branches.map(b => (
+                              <span key={`hod-${b}`} className="bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs whitespace-nowrap inline-flex items-center gap-0.5 shrink-0">
+                                👑 HOD ({b})
+                              </span>
+                            ))
+                          ) : staffMember.is_hod ? (
                             <span className="bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs whitespace-nowrap inline-flex shrink-0">
                               👑 HOD
+                            </span>
+                          ) : null}
+
+                          {/* Principal Supervisor Badge */}
+                          {staffMember.is_principal && (
+                            <span className="bg-purple-100 text-purple-900 border border-purple-300 font-extrabold text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs whitespace-nowrap inline-flex items-center gap-0.5 shrink-0">
+                              🏛️ Principal Supervisor
                             </span>
                           )}
                         </div>
@@ -378,133 +438,285 @@ export default function ManageStaffClient() {
         <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" aria-hidden="true" onClick={() => {
-              if (!processing && !isDeleteModalOpen) setSelectedStaff(null);
+              if (!processing && !isDeleteModalOpen && !reassignConfirmModal.isOpen) setSelectedStaff(null);
             }}></div>
             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="relative z-10 inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl w-full border border-slate-200">
+            <div className="relative z-10 inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl w-full border border-slate-200">
               
-              {!isDeleteModalOpen && !hodConfirmModal.isOpen && (
+              {!isDeleteModalOpen && (
                 <>
-                  <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 max-h-[85vh] overflow-y-auto">
                     <div className="sm:flex sm:items-start">
-                      <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                        <h3 className="text-xl leading-6 font-semibold text-slate-900 mb-6 flex justify-between items-center" id="modal-title">
-                          Manage Staff Account
+                      <div className="mt-3 text-center sm:mt-0 sm:text-left w-full space-y-6">
+                        <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+                          <h3 className="text-xl font-bold text-slate-900" id="modal-title">
+                            Manage Staff Account & Assignments
+                          </h3>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs px-2 py-1 bg-slate-100 text-slate-600 rounded border border-slate-200 font-mono">
-                              ID: #{selectedStaff.id}
+                            <span className="text-xs px-2.5 py-1 bg-slate-100 text-slate-600 rounded-md border border-slate-200 font-mono">
+                              Staff ID: #{selectedStaff.id}
                             </span>
                           </div>
-                        </h3>
-                        
-                        <div className="bg-slate-50 rounded-lg p-5 grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 border border-slate-100 mb-6">
-                          <div>
-                            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Full Name</label>
-                            <input
-                              type="text"
-                              name="name"
-                              value={editedStaff.name ?? ''}
-                              onChange={handleChange}
-                              className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-[#0b3578] outline-none bg-white"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Official Email</label>
-                            <input
-                              type="email"
-                              name="email"
-                              value={editedStaff.email ?? ''}
-                              readOnly
-                              disabled
-                              className="w-full border border-slate-200 rounded px-3 py-2 text-sm bg-slate-100 text-slate-500 cursor-not-allowed outline-none"
-                            />
-                            <p className="text-[10px] text-slate-500 mt-1">Email cannot be edited directly.</p>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Employee ID</label>
-                            <input
-                              type="text"
-                              name="employee_id"
-                              value={editedStaff.employee_id ?? ''}
-                              onChange={handleChange}
-                              className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-[#0b3578] outline-none bg-white font-mono"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Account Status</label>
-                            <div className="flex items-center h-[38px]">
-                              <label className="relative inline-flex items-center cursor-pointer">
-                                <input 
-                                  type="checkbox" 
-                                  name="is_active" 
-                                  checked={editedStaff.is_active || false} 
-                                  onChange={handleChange}
-                                  className="sr-only peer" 
-                                />
-                                <div className="w-11 h-6 bg-red-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                                <span className="ml-3 text-sm font-medium text-slate-700">
-                                  {editedStaff.is_active ? 'Active' : 'Disabled'}
-                                </span>
-                              </label>
-                            </div>
-                            {!editedStaff.is_active && (
-                              <p className="text-[10px] text-red-600 mt-1 flex items-center">
-                                <AlertTriangle className="w-3 h-3 mr-1 inline" /> Account disabled. User cannot log in.
-                              </p>
-                            )}
-                          </div>
                         </div>
-
-                        {activeTab === 'faculty' && (
-                          <div className="bg-slate-50 rounded-lg p-5 border border-slate-100 mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="w-full">
-                              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Academic Branches</label>
-                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                {FACULTY_BRANCHES.map(b => (
-                                  <label key={b} className="flex items-center gap-2 cursor-pointer bg-white border border-slate-200 rounded px-3 py-2 hover:bg-slate-50">
-                                    <input
-                                      type="checkbox"
-                                      className="rounded border-slate-300 text-[#0b3578] focus:ring-[#0b3578]"
-                                      checked={editedStaff.branches?.includes(b) || false}
-                                      onChange={(e) => {
-                                        const checked = e.target.checked;
-                                        setEditedStaff(prev => {
-                                          const currentBranches = prev.branches || [];
-                                          if (checked) {
-                                            return { ...prev, branches: [...currentBranches, b] };
-                                          } else {
-                                            return { ...prev, branches: currentBranches.filter(branch => branch !== b) };
-                                          }
-                                        });
-                                      }}
-                                    />
-                                    <span className="text-sm font-medium text-slate-700">{b}</span>
-                                  </label>
-                                ))}
-                              </div>
+                        
+                        {/* Section 1: Staff Account & Activation Status */}
+                        <div>
+                          <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                            1. Account Information & Status
+                          </h4>
+                          <div className="bg-slate-50 rounded-lg p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 border border-slate-200">
+                            <div>
+                              <label className="block text-xs font-medium text-slate-600 mb-1">Full Name</label>
+                              <input
+                                type="text"
+                                name="name"
+                                value={editedStaff.name ?? ''}
+                                onChange={handleChange}
+                                className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-[#0b3578] outline-none bg-white font-medium"
+                              />
                             </div>
-                            <div className="w-full">
-                              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">HOD Status</label>
+                            <div>
+                              <label className="block text-xs font-medium text-slate-600 mb-1">Official Email</label>
+                              <input
+                                type="email"
+                                name="email"
+                                value={editedStaff.email ?? ''}
+                                readOnly
+                                disabled
+                                className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm bg-slate-100 text-slate-500 cursor-not-allowed outline-none"
+                              />
+                              <p className="text-[10px] text-slate-400 mt-1">Official email is fixed to login identity.</p>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-slate-600 mb-1">Employee ID</label>
+                              <input
+                                type="text"
+                                name="employee_id"
+                                value={editedStaff.employee_id ?? ''}
+                                onChange={handleChange}
+                                className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-[#0b3578] outline-none bg-white font-mono"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-slate-600 mb-1">Account Active Status</label>
                               <div className="flex items-center h-[38px]">
                                 <label className="relative inline-flex items-center cursor-pointer">
                                   <input 
                                     type="checkbox" 
-                                    checked={editedStaff.is_hod || false} 
-                                    onChange={handleToggleHOD}
+                                    name="is_active" 
+                                    checked={editedStaff.is_active || false} 
+                                    onChange={handleChange}
                                     className="sr-only peer" 
                                   />
-                                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
-                                  <span className="ml-3 text-sm font-medium text-slate-700">
-                                    {editedStaff.is_hod ? 'Head of Department' : 'Regular Faculty'}
+                                  <div className="w-11 h-6 bg-red-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                                  <span className="ml-3 text-sm font-semibold text-slate-700">
+                                    {editedStaff.is_active ? 'Active' : 'Disabled'}
                                   </span>
                                 </label>
                               </div>
                             </div>
                           </div>
+                        </div>
+
+                        {activeTab === 'faculty' && (
+                          <>
+                            {/* Section 2: Academic Branch Affiliations */}
+                            <div>
+                              <div className="flex justify-between items-baseline mb-1">
+                                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                  2. Academic Branch Affiliations (Home Department)
+                                </h4>
+                              </div>
+                              <p className="text-xs text-slate-500 mb-2.5">
+                                Academic affiliations denote the faculty member&apos;s home department. Teaching assignments are managed independently and faculty can teach across any department or semester.
+                              </p>
+                              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                                <div className="grid grid-cols-3 gap-3">
+                                  {FACULTY_BRANCHES.map(b => {
+                                    const isAffiliated = editedStaff.branches?.includes(b) || false;
+                                    return (
+                                      <label 
+                                        key={b} 
+                                        className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
+                                          isAffiliated 
+                                            ? 'bg-blue-50/70 border-blue-300 text-[#0b3578]' 
+                                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2.5">
+                                          <input
+                                            type="checkbox"
+                                            className="rounded border-slate-300 text-[#0b3578] focus:ring-[#0b3578]"
+                                            checked={isAffiliated}
+                                            onChange={(e) => {
+                                              const checked = e.target.checked;
+                                              setEditedStaff(prev => {
+                                                const currentBranches = prev.branches || [];
+                                                if (checked) {
+                                                  return { ...prev, branches: [...currentBranches, b] };
+                                                } else {
+                                                  return { ...prev, branches: currentBranches.filter(branch => branch !== b) };
+                                                }
+                                              });
+                                            }}
+                                          />
+                                          <span className="font-bold text-sm">{b}</span>
+                                        </div>
+                                        <span className="text-[10px] text-slate-500 uppercase font-semibold">
+                                          {isAffiliated ? 'Affiliated' : 'Optional'}
+                                        </span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Section 3: Teaching Assignments */}
+                            <div>
+                              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                                3. Faculty Teaching Assignments
+                              </h4>
+                              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2 bg-blue-100 rounded-lg text-[#0b3578]">
+                                    <BookOpen className="w-5 h-5" />
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-semibold text-slate-800">
+                                      Cross-Branch Teaching Eligibility
+                                    </p>
+                                    <p className="text-xs text-slate-500">
+                                      Active faculty are eligible to teach courses across any department (CSE, IT, CSD) without requiring HOD assignment or affiliation change.
+                                    </p>
+                                  </div>
+                                </div>
+                                <Link
+                                  href="/staff/faculty/academics"
+                                  target="_blank"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 hover:text-slate-900 rounded-md text-xs font-semibold shadow-xs whitespace-nowrap"
+                                >
+                                  View Subject Assignments <ExternalLink className="w-3.5 h-3.5" />
+                                </Link>
+                              </div>
+                            </div>
+
+                            {/* Section 4: Branch-HOD Appointments */}
+                            <div>
+                              <div className="flex justify-between items-baseline mb-1">
+                                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                  4. Branch-Specific HOD Appointments
+                                </h4>
+                              </div>
+                              <p className="text-xs text-slate-500 mb-2.5">
+                                Select branches where this faculty member serves as the active Head of Department. A faculty member can hold multiple HOD appointments if authorized.
+                              </p>
+                              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-3">
+                                {FACULTY_BRANCHES.map(b => {
+                                  const isAssignedHod = (editedStaff.hod_branches || []).includes(b);
+                                  const currentActive = activeHodDirectory[b];
+                                  const isSelfActive = currentActive && currentActive.staff_id === selectedStaff.id;
+                                  const isOtherActive = currentActive && currentActive.staff_id !== selectedStaff.id;
+
+                                  return (
+                                    <div
+                                      key={b}
+                                      className={`p-3 rounded-lg border transition-all ${
+                                        isAssignedHod 
+                                          ? 'bg-amber-50/70 border-amber-300' 
+                                          : 'bg-white border-slate-200'
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <label className="flex items-center gap-3 cursor-pointer">
+                                          <input
+                                            type="checkbox"
+                                            className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                                            checked={isAssignedHod}
+                                            onChange={() => handleToggleHodBranch(b)}
+                                          />
+                                          <div>
+                                            <span className="font-bold text-sm text-slate-900">
+                                              Head of Department — {b}
+                                            </span>
+                                            <p className="text-[11px] text-slate-500">
+                                              {b === 'CSE' && 'Computer Science & Engineering'}
+                                              {b === 'IT' && 'Information Technology'}
+                                              {b === 'CSD' && 'Computer Science and Design'}
+                                            </p>
+                                          </div>
+                                        </label>
+
+                                        {/* Status Tag */}
+                                        <div>
+                                          {isSelfActive ? (
+                                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                                              <CheckCircle2 className="w-3.5 h-3.5" /> Current Active HOD
+                                            </span>
+                                          ) : isOtherActive ? (
+                                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
+                                              Active: <strong className="text-slate-800">{currentActive.name}</strong> ({currentActive.academic_year})
+                                            </span>
+                                          ) : (
+                                            <span className="text-[11px] text-slate-400 italic">
+                                              Vacant
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Conflict Warning Preview */}
+                                      {isAssignedHod && isOtherActive && !isSelfActive && (
+                                        <div className="mt-2.5 pt-2 border-t border-amber-200/60 flex items-center gap-2 text-xs text-amber-800">
+                                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                                          <span>
+                                            Saving will prompt confirmation to reassign <strong>{b} HOD</strong> from <strong>{currentActive.name}</strong> to <strong>{editedStaff.name}</strong>. Previous HOD remains an active faculty member.
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Section 5: Principal-Level Supervisory Designation */}
+                            <div>
+                              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                                5. Principal-Level Supervisory Designation
+                              </h4>
+                              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                                <label className="flex items-start gap-3 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    className="mt-1 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+                                    checked={editedStaff.is_principal || false}
+                                    onChange={handleTogglePrincipal}
+                                  />
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-bold text-sm text-slate-900">
+                                        Principal / Multi-Branch Academic Supervisor
+                                      </span>
+                                      <span className="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded border border-purple-200">
+                                        CSE + IT + CSD
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-slate-600 mt-1">
+                                      Grants cross-departmental supervisory authority across all three branches (CSE, IT, CSD) for timetable, faculty load, attendance analytics, student requests, and academic exceptions.
+                                    </p>
+                                    <p className="text-[11px] text-slate-500 mt-1 italic">
+                                      Note: This supervisory role operates within the Staff Portal without granting institution-wide Super Admin access or requiring a separate login.
+                                    </p>
+                                  </div>
+                                </label>
+                              </div>
+                            </div>
+                          </>
                         )}
 
                         {activeTab !== 'faculty' && (
-                          <div className="bg-slate-50 rounded-lg p-5 border border-slate-100 mb-6">
+                          <div className="bg-slate-50 rounded-lg p-5 border border-slate-100">
                             <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Administrative Role</label>
                             <select
                                className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-[#0b3578] outline-none bg-white"
@@ -524,46 +736,47 @@ export default function ManageStaffClient() {
                           </div>
                         )}
                           
-                          {/* HOD Requests History Section */}
-                          {selectedStaff?.role === 'faculty' && (
-                            <div className="mt-6 mb-6">
-                              <h4 className="text-sm font-semibold text-slate-800 mb-3 border-b border-slate-200 pb-2">HOD Request History</h4>
-                              {loadingHistory ? (
-                                <p className="text-xs text-slate-500">Loading history...</p>
-                              ) : staffRequestsHistory.length === 0 ? (
-                                <p className="text-xs text-slate-500 italic">No previous HOD requests found for this staff member.</p>
-                              ) : (
-                                <div className="space-y-3">
-                                  {staffRequestsHistory.map(req => (
-                                    <div key={req.id} className="bg-white border border-slate-200 rounded p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 shadow-sm">
-                                      <div>
-                                        <div className="flex items-center gap-2 mb-1">
-                                          <span className="font-semibold text-sm text-slate-800">{req.department_code}</span>
-                                          <span className="text-xs text-slate-500 font-mono bg-slate-100 px-1.5 py-0.5 rounded">{req.academic_year}</span>
-                                        </div>
-                                        <p className="text-xs text-slate-500">
-                                          Submitted: {formatDate(req.created_at)}
-                                        </p>
-                                        {req.status === 'REJECTED' && req.rejection_reason && (
-                                          <p className="text-xs text-red-600 mt-1">Reason: {req.rejection_reason}</p>
-                                        )}
+                        {/* HOD Requests History Section */}
+                        {selectedStaff?.roles?.includes('faculty') && (
+                          <div className="mt-6">
+                            <h4 className="text-sm font-semibold text-slate-800 mb-3 border-b border-slate-200 pb-2">HOD Request History</h4>
+                            {loadingHistory ? (
+                              <p className="text-xs text-slate-500">Loading history...</p>
+                            ) : staffRequestsHistory.length === 0 ? (
+                              <p className="text-xs text-slate-500 italic">No previous HOD requests found for this staff member.</p>
+                            ) : (
+                              <div className="space-y-3">
+                                {staffRequestsHistory.map(req => (
+                                  <div key={req.id} className="bg-white border border-slate-200 rounded p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 shadow-sm">
+                                    <div>
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="font-semibold text-sm text-slate-800">{req.department_code}</span>
+                                        <span className="text-xs text-slate-500 font-mono bg-slate-100 px-1.5 py-0.5 rounded">{req.academic_year}</span>
                                       </div>
-                                      <div className="flex flex-col items-end">
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                                          req.status === 'PENDING' ? 'bg-amber-100 text-amber-800' :
-                                          req.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                                          'bg-red-100 text-red-800'
-                                        }`}>
-                                          {req.status}
-                                        </span>
-                                      </div>
+                                      <p className="text-xs text-slate-500">
+                                        Submitted: {formatDate(req.created_at)}
+                                      </p>
+                                      {req.status === 'REJECTED' && req.rejection_reason && (
+                                        <p className="text-xs text-red-600 mt-1">Reason: {req.rejection_reason}</p>
+                                      )}
                                     </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
+                                    <div className="flex flex-col items-end">
+                                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                        req.status === 'PENDING' ? 'bg-amber-100 text-amber-800' :
+                                        req.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                                        'bg-red-100 text-red-800'
+                                      }`}>
+                                        {req.status}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                         
+                        {/* Section 6: Account Access Control */}
                         <div className="border border-slate-200 bg-slate-50 rounded-lg p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
                           <div>
                             <h4 className="text-sm font-semibold text-slate-800 flex items-center">
@@ -602,7 +815,7 @@ export default function ManageStaffClient() {
                   <div className="bg-slate-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-slate-200">
                     <button
                       type="button"
-                      onClick={handleSave}
+                      onClick={() => handleSave()}
                       disabled={processing || !hasChanges}
                       className="w-full inline-flex justify-center items-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-[#0b3578] text-base font-medium text-white hover:bg-blue-900 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
@@ -654,48 +867,78 @@ export default function ManageStaffClient() {
                 </div>
               )}
 
-              {hodConfirmModal.isOpen && (
-                <div className="bg-white px-4 py-5 sm:p-6 border-t border-slate-200">
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0">
-                      <AlertTriangle className={`h-6 w-6 ${hodConfirmModal.targetState ? 'text-blue-600' : 'text-amber-600'}`} aria-hidden="true" />
-                    </div>
-                    <div className="ml-3 w-full">
-                      <h3 className="text-lg font-medium text-slate-900">
-                        {hodConfirmModal.targetState ? 'Enable HOD Access?' : 'Disable HOD Access?'}
-                      </h3>
-                      <div className="mt-2 text-sm text-slate-600 space-y-2">
-                        {hodConfirmModal.targetState ? (
-                          <p>This will grant HOD privileges for the valid HOD appointment.</p>
-                        ) : (
-                          <p>This will remove HOD privileges from this Staff account and deactivate the current HOD assignment. Historical records will be preserved.</p>
-                        )}
-                      </div>
-                      <div className="mt-5 flex flex-col sm:flex-row-reverse gap-3">
-                        <button
-                          type="button"
-                          onClick={() => handleSave(true)}
-                          disabled={processing}
-                          className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white sm:w-auto sm:text-sm disabled:opacity-50 cursor-pointer ${
-                            hodConfirmModal.targetState ? 'bg-blue-600 hover:bg-blue-700' : 'bg-amber-600 hover:bg-amber-700'
-                          }`}
-                        >
-                          {processing ? 'Processing...' : hodConfirmModal.targetState ? 'Enable HOD Access' : 'Disable HOD Access'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setHodConfirmModal({ isOpen: false, targetState: false })}
-                          disabled={processing}
-                          className="w-full inline-flex justify-center rounded-md border border-slate-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 sm:w-auto sm:text-sm disabled:opacity-50 cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Safe Reassignment Confirmation Modal */}
+      {reassignConfirmModal.isOpen && (
+        <div className="fixed inset-0 z-[60] overflow-y-auto" aria-labelledby="reassign-modal-title" role="dialog" aria-modal="true">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" onClick={() => !processing && setReassignConfirmModal({ isOpen: false, branch: '', currentHod: '', academicYear: '', newHodName: '' })}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div className="relative z-10 inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full border border-amber-300">
+              <div className="bg-amber-50 px-6 pt-5 pb-4 border-b border-amber-200">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 p-2 bg-amber-100 rounded-full text-amber-600">
+                    <AlertTriangle className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900" id="reassign-modal-title">
+                      Confirm HOD Branch Reassignment
+                    </h3>
+                    <p className="text-xs text-amber-800 mt-1">
+                      An active HOD appointment already exists for this branch in the current academic year.
+                    </p>
                   </div>
                 </div>
-              )}
-
+              </div>
+              <div className="p-6 space-y-4 text-sm text-slate-700 bg-white">
+                <div className="bg-slate-50 rounded-lg p-3.5 border border-slate-200 space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-medium">Department / Branch:</span>
+                    <span className="font-bold text-[#0b3578] text-sm">{reassignConfirmModal.branch}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-medium">Current Active HOD:</span>
+                    <span className="font-semibold text-slate-900">{reassignConfirmModal.currentHod} ({reassignConfirmModal.academicYear})</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-medium">New Appointed HOD:</span>
+                    <span className="font-bold text-emerald-700">{reassignConfirmModal.newHodName}</span>
+                  </div>
+                </div>
+                <div className="text-xs text-slate-600 space-y-1.5 bg-blue-50 border border-blue-100 rounded-md p-3">
+                  <p className="font-semibold text-[#0b3578] flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Safe Transactional Reassignment
+                  </p>
+                  <p>
+                    Confirming will retire <strong>{reassignConfirmModal.currentHod}</strong>&apos;s active HOD assignment for <strong>{reassignConfirmModal.branch}</strong>.
+                  </p>
+                  <p>
+                    Their staff account will <strong>remain active</strong>, all previous historical records, audit logs, and any other assigned duties are safely preserved.
+                  </p>
+                </div>
+              </div>
+              <div className="bg-slate-50 px-6 py-3 border-t border-slate-200 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                <button
+                  type="button"
+                  disabled={processing}
+                  onClick={() => setReassignConfirmModal({ isOpen: false, branch: '', currentHod: '', academicYear: '', newHodName: '' })}
+                  className="w-full sm:w-auto px-4 py-2 bg-white border border-slate-300 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={processing}
+                  onClick={() => handleSave([reassignConfirmModal.branch])}
+                  className="w-full sm:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md text-sm font-semibold shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  {processing ? 'Reassigning...' : 'Confirm Reassignment'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

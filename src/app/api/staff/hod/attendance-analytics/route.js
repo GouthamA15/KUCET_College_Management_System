@@ -12,11 +12,19 @@ export async function GET(req) {
       return apiError('Unauthorized', 401);
     }
 
-    if (!user.branch) {
+    const { searchParams } = new URL(req.url);
+    const requestedBranch = searchParams.get('branch');
+    const targetBranch = requestedBranch || user.branch || user.hod_department_code;
+
+    const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+    if (user.role !== 'admin' && requestedBranch && authorizedBranches.length > 0 && !authorizedBranches.includes(requestedBranch)) {
+      return apiError(`Forbidden - Not authorized for ${requestedBranch} branch.`, 403);
+    }
+
+    if (!targetBranch && user.role !== 'admin') {
       return apiError('Branch not assigned to your profile', 400);
     }
 
-    const { searchParams } = new URL(req.url);
     const semester = parseInt(searchParams.get('semester') || '6', 10);
 
     // Resolve system year
@@ -38,7 +46,7 @@ export async function GET(req) {
           JOIN students s2 ON sa2.student_id = s2.id
           WHERE sa2.student_id = ${students.id} 
           AND fsa2.course_semester = ${semester} 
-          AND fsa2.branch = ${user.branch}
+          AND fsa2.branch = ${targetBranch}
           AND sa2.date >= COALESCE(s2.admission_date, '1900-01-01')
         )`.mapWith(Number),
         percentage: percentageExpr.mapWith(Number)
@@ -48,7 +56,7 @@ export async function GET(req) {
     .innerJoin(facultySubjectAssignments, eq(studentAttendance.assignment_id, facultySubjectAssignments.id))
     .where(and(
         eq(students.student_status, 'ACTIVE'),
-        eq(facultySubjectAssignments.branch, user.branch),
+        eq(facultySubjectAssignments.branch, targetBranch),
         eq(facultySubjectAssignments.course_semester, semester),
         or(
             like(facultySubjectAssignments.academic_year, `%${systemYear.substring(0, 4)}%`),
@@ -62,11 +70,11 @@ export async function GET(req) {
     return apiResponse({ 
       data: risks,
       threshold: 75,
-      branch: user.branch,
-      semester 
+      branch: targetBranch,
+      semester: semester
     });
   } catch (error) {
-    logger.error({ err: error, user: user?.email, branch: user?.branch }, 'Attendance Analytics API Error');
-    return apiError('Internal Server Error', 500, error.message);
+    logger.error('Attendance Analytics API Error:', error);
+    return apiError('Internal Server Error', 500);
   }
 }

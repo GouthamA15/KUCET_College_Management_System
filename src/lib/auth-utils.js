@@ -208,6 +208,7 @@ export async function issueStaffAuthCookie(response, staff, rememberMe = false, 
     email: staff.email,
     role: staff.role,
     is_hod: !!staff.is_hod,
+    is_principal: !!staff.is_principal,
     branch: staff.branch,
   })
     .setProtectedHeader({ alg: 'HS256' })
@@ -357,6 +358,7 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
             branch = affil[0].branch_code;
           }
 
+          const isPrincipal = roleRecords.some(r => r.role_code === 'PRINCIPAL');
           const { facultyHodAssignments } = await import('@/db/schema');
           const hodRow = await db.select({ id: facultyHodAssignments.id })
               .from(facultyHodAssignments)
@@ -365,7 +367,7 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
                 eq(facultyHodAssignments.is_active, true)
               ))
               .limit(1);
-          if (hodRow.length > 0) {
+          if (hodRow.length > 0 || isPrincipal) {
             isHod = true;
           }
       }
