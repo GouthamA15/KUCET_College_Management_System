@@ -92,7 +92,7 @@ if [[ -f "$ENV_FILE" ]]; then
   log "Loading environment from $ENV_FILE ..."
   set -a
   # shellcheck disable=SC1090
-  source <(tr -d '\r' < "$ENV_FILE")
+  source <(tr -d '\r' < "$ENV_FILE" | sed -E 's/^([A-Za-z0-9_]+)=([^"'\''].*[[:space:]].*)$/\1="\2"/')
   set +a
   log "Environment loaded."
 else
