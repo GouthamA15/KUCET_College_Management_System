@@ -187,29 +187,29 @@ export async function canUserAccessAsset(user, rawPath) {
         if (studentId) {
           const studentRecord = await db.query.students.findFirst({
             where: eq(students.id, studentId),
-            columns: { pfp: true }
+            columns: { id: true, pfp: true }
           });
-          if (studentRecord && studentRecord.pfp) {
+          if (studentRecord && Number(studentRecord.id) === Number(studentId) && studentRecord.pfp) {
             const pfpClean = normalizeAssetPath(studentRecord.pfp);
-            if (pfpClean === cleanPath || pfpClean.endsWith(filename)) return true;
+            if (pfpClean === cleanPath) return true;
           }
 
           const imgRecord = await db.query.studentImages.findFirst({
             where: eq(studentImages.student_id, studentId),
-            columns: { pfp: true }
+            columns: { student_id: true, pfp: true }
           });
           if (imgRecord && imgRecord.pfp) {
             const pfpClean = normalizeAssetPath(imgRecord.pfp);
-            if (pfpClean === cleanPath || pfpClean.endsWith(filename)) return true;
+            if (Number(imgRecord.student_id) === Number(studentId) && pfpClean === cleanPath) return true;
           }
 
           const sigRecord = await db.query.studentSignatures.findFirst({
             where: eq(studentSignatures.student_id, studentId),
-            columns: { signature: true }
+            columns: { student_id: true, signature: true }
           });
           if (sigRecord && sigRecord.signature) {
             const sigClean = normalizeAssetPath(sigRecord.signature);
-            if (sigClean === cleanPath || sigClean.endsWith(filename)) return true;
+            if (Number(sigRecord.student_id) === Number(studentId) && sigClean === cleanPath) return true;
           }
         }
       }

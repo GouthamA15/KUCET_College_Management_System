@@ -184,6 +184,14 @@ export async function deleteFromCloudinary(pathOrUrl) {
   // Skip data URIs and [object Object] garbage
   if (pathOrUrl.startsWith('data:') || pathOrUrl.includes('[object')) return;
 
+  const missingConfig = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET']
+    .filter((name) => !process.env[name]);
+  if (missingConfig.length > 0) {
+    const error = new Error(`Cloudinary deletion is unavailable: missing ${missingConfig.join(', ')}`);
+    logger.error({ missingConfig }, '[CLOUDINARY_DELETE_NOT_CONFIGURED]');
+    throw error;
+  }
+
   try {
     let keyPath;
     if (pathOrUrl.includes('cloudinary.com')) {
@@ -206,7 +214,8 @@ export async function deleteFromCloudinary(pathOrUrl) {
     const result = await cloudinary.uploader.destroy(publicId);
     return result;
   } catch (error) {
-    console.error('Cloudinary Delete Error:', error);
+    logger.error({ err: error }, '[CLOUDINARY_DELETE_ERROR]');
+    throw error;
   }
 }
 

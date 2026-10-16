@@ -132,6 +132,8 @@ export async function PUT(req, context) {
             personalUpdate.guardian_mobile = encrypt(val);
           } else if (col === 'is_current_same_as_permanent') {
             personalUpdate.is_current_same_as_permanent = val === null ? null : !!val;
+          } else if (col === 'blood_group') {
+            personalUpdate.blood_group = (val && ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].includes(String(val).trim())) ? String(val).trim() : null;
           } else {
             personalUpdate[col] = val;
           }

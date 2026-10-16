@@ -121,6 +121,7 @@ export class StudentProfileService {
 
     return uniqueResults.map(row => ({
       ...row,
+      dob: row.date_of_birth,
       mobile: row.mobile ? decrypt(row.mobile) : null,
       aadhaar_no: row.aadhaar_no ? decrypt(row.aadhaar_no) : null,
       guardian_mobile: row.guardian_mobile ? decrypt(row.guardian_mobile) : null,
@@ -216,7 +217,7 @@ export class StudentProfileService {
       aadhaar_hash: normAadhaar ? hashForIndex(normAadhaar) : null,
       ...addressFields,
       seat_allotted_category: seat_allotted_category || null,
-      blood_group: blood_group || null,
+      blood_group: (blood_group && ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].includes(String(blood_group).trim())) ? String(blood_group).trim() : null,
       identification_marks: identification_marks || null
     };
 

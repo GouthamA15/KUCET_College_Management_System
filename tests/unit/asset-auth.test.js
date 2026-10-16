@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { db } from '@/db';
 import { 
   normalizeAssetPath, 
   isStaticPublicAsset, 
@@ -132,6 +133,26 @@ describe('Asset Authorization & Path Normalization Engine', () => {
 
       // Other student's photo
       expect(await canUserAccessAsset(studentUser, 'kucet/students/pfp/other_student_photo.webp')).toBe(false);
+    });
+
+    it('selects the student identifier explicitly and denies missing ownership records', async () => {
+      db.query.students.findFirst.mockResolvedValueOnce({ id: 100, pfp: 'kucet/students/pfp/stu100_photo.webp' });
+      expect(await canUserAccessAsset(studentUser, 'kucet/students/pfp/stu100_photo.webp')).toBe(true);
+      expect(db.query.students.findFirst).toHaveBeenLastCalledWith(expect.objectContaining({
+        columns: { id: true, pfp: true }
+      }));
+
+      db.query.students.findFirst.mockResolvedValueOnce(null);
+      db.query.studentImages.findFirst.mockResolvedValueOnce(null);
+      db.query.studentSignatures.findFirst.mockResolvedValueOnce(null);
+      expect(await canUserAccessAsset(studentUser, 'kucet/students/pfp/stu100_photo.webp')).toBe(false);
+    });
+
+    it('does not authorize a same-named asset through filename-only matching', async () => {
+      db.query.students.findFirst.mockResolvedValueOnce({ id: 100, pfp: 'kucet/students/pfp/another/stu100_photo.webp' });
+      db.query.studentImages.findFirst.mockResolvedValueOnce(null);
+      db.query.studentSignatures.findFirst.mockResolvedValueOnce(null);
+      expect(await canUserAccessAsset(studentUser, 'kucet/students/pfp/stu100_photo.webp')).toBe(false);
     });
 
     it('should ALLOW Student to access their own draft, profile request proof, and payment screenshots', async () => {

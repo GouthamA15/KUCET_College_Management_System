@@ -11,6 +11,7 @@ const ExportStudents = () => {
   const [branch, setBranch] = useState('');
   const [year, setYear] = useState('');
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [previewData, setPreviewData] = useState(null);
 
   // Generate admission years as Batches (e.g., 2023 - 2027)
@@ -55,27 +56,58 @@ const ExportStudents = () => {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!previewData || previewData.length === 0) {
       toast.error('No data available to export');
       return;
     }
-    exportToExcel(previewData, branch, year);
-    toast.success(`Successfully exported ${previewData.length} student records.`);
+    const branchName = branchCodes[branch] || branch;
+    setExporting(true);
+    const toastId = toast.loading('Generating Excel workbook with embedded photographs...');
+    try {
+      const params = new URLSearchParams({
+        branch: branch,
+        year: year,
+        format: 'excel'
+      });
+      const response = await fetch(`/api/staff/admission/export-students?${params.toString()}`);
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to generate Excel workbook');
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `KUCET_Students_${branchName}_Batch_${year}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(downloadUrl);
+      document.body.removeChild(a);
+      toast.success(`Successfully exported ${previewData.length} student records.`, { id: toastId });
+    } catch (err) {
+      // Fallback to client-side generation if server stream fails
+      try {
+        exportToExcel(previewData, branch, year);
+        toast.success(`Successfully exported ${previewData.length} student records (fallback).`, { id: toastId });
+      } catch (_fallbackErr) {
+        toast.error(err.message || 'Failed to export Excel workbook', { id: toastId });
+      }
+    } finally {
+      setExporting(false);
+    }
   };
-
-  const maskAadhaar = (value) => {
-    if (!value || typeof value !== 'string' || value.length < 4) return 'N/A';
-    return `XXXX-XXXX-${value.slice(-4)}`;
-  };
-
-
 
   const isValidImageUrl = (url) => {
-    if (!url) return false;
+    if (!url || typeof url !== 'string') return false;
+    const clean = url.trim();
+    if (clean === '' || clean === 'N/A' || clean === 'NA' || clean === 'None') return false;
+    if (clean.startsWith('data:image/')) return true;
+    if (clean.startsWith('/api/assets/view/') || clean.startsWith('/assets/')) return true;
     try {
-      const urlObj = new URL(url);
-      return urlObj.hostname.includes('cloudinary.com');
+      const urlObj = new URL(clean, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+      return !!urlObj.pathname;
     } catch {
       return false;
     }
@@ -85,41 +117,44 @@ const ExportStudents = () => {
     const branchName = branchCodes[branchCode] || branchCode;
     
     // Flatten and format data for Excel
-    const worksheetData = students.map(s => ({
-      'Roll Number': s.roll_no,
-      'Admission Number': s.admission_no,
-      'Batch': getBatchFromRoll(s.roll_no),
-      'Full Name': s.name,
-      'Gender': s.gender,
-      'Date of Birth': s.dob ? formatDate(s.dob) : 'N/A',
-      'Email': s.email,
-      'Mobile Number': s.mobile,
-      'Father Name': s.father_name,
-      'Mother Name': s.mother_name,
-      'Nationality': s.nationality,
-      'Religion': s.religion,
-      'Category': s.category,
-      'Sub-Caste': s.sub_caste,
-      'Area Status': s.area_status,
-      'Mother Tongue': s.mother_tongue,
-      'Place of Birth': s.place_of_birth,
-      'Father Occupation': s.father_occupation,
-      'Annual Income': s.annual_income,
-      'Aadhaar Number': maskAadhaar(s.aadhaar_no),
-      'Guardian Mobile': s.guardian_mobile || 'N/A',
-      'Permanent Address': s.permanent_address ? s.permanent_address.split(',')[0] : 'N/A',
-      'Identification Marks': s.identification_marks,
-      'Seat Allotted Category': s.seat_allotted_category,
-      'Blood Group': s.blood_group,
-      'Fee Reimbursement': s.fee_reimbursement,
-      'Qualifying Exam': s.qualifying_exam,
-      'SSC Marks': s.ssc_marks,
-      'Inter/Diploma Marks': s.inter_marks,
-      'Entrance Exam Rank': s.entrance_exam_rank,
-      'Previous College': s.previous_college,
-      'Photo URL': s.photo ? getAssetUrl(s.photo) : 'N/A',
-      'Signature URL': s.signature ? getAssetUrl(s.signature) : 'N/A'
-    }));
+    const worksheetData = students.map(s => {
+      const dobVal = s.date_of_birth || s.dob;
+      return {
+        'Roll Number': s.roll_no,
+        'Admission Number': s.admission_no,
+        'Batch': getBatchFromRoll(s.roll_no) || batch,
+        'Full Name': s.name,
+        'Gender': s.gender,
+        'Date of Birth': dobVal ? formatDate(dobVal, 'N/A') : 'N/A',
+        'Email': s.email,
+        'Mobile Number': s.mobile,
+        'Father Name': s.father_name,
+        'Mother Name': s.mother_name,
+        'Nationality': s.nationality,
+        'Religion': s.religion,
+        'Category': s.category,
+        'Sub-Caste': s.sub_caste,
+        'Area Status': s.area_status,
+        'Mother Tongue': s.mother_tongue,
+        'Place of Birth': s.place_of_birth,
+        'Father Occupation': s.father_occupation,
+        'Annual Income': s.annual_income,
+        'Aadhaar Number': s.aadhaar_no || 'N/A',
+        'Guardian Mobile': s.guardian_mobile || 'N/A',
+        'Permanent Address': s.permanent_address ? s.permanent_address.split(',')[0] : 'N/A',
+        'Identification Marks': s.identification_marks,
+        'Seat Allotted Category': s.seat_allotted_category,
+        'Blood Group': s.blood_group || 'Not available',
+        'Fee Reimbursement': s.fee_reimbursement,
+        'Qualifying Exam': s.qualifying_exam,
+        'SSC Marks': s.ssc_marks,
+        'Inter/Diploma Marks': s.inter_marks,
+        'Entrance Exam Rank': s.entrance_exam_rank,
+        'Previous College': s.previous_college,
+        'Photo URL': s.photo ? getAssetUrl(s.photo) : 'N/A',
+        'Signature URL': s.signature ? getAssetUrl(s.signature) : 'N/A'
+      };
+    });
 
     const worksheet = XLSX.utils.json_to_sheet(worksheetData);
     
@@ -130,18 +165,18 @@ const ExportStudents = () => {
       if (!worksheet[address]) continue;
       worksheet[address].s = {
         font: { bold: true, color: { rgb: "FFFFFF" } },
-        fill: { fgColor: { rgb: "4F46E5" } }, // Indigo-600
+        fill: { fgColor: { rgb: "0B3578" } },
         alignment: { horizontal: "center" }
       };
     }
 
     // Setting column widths
     const columnWidths = [
-      { wch: 15 }, { wch: 18 }, { wch: 12 }, { wch: 25 }, { wch: 10 }, { wch: 12 }, { wch: 25 }, { wch: 15 },
-      { wch: 25 }, { wch: 25 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 15 }, { wch: 12 },
-      { wch: 15 }, { wch: 12 }, { wch: 20 }, { wch: 15 }, { wch: 18 }, { wch: 15 }, { wch: 40 },
-      { wch: 30 }, { wch: 20 }, { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 15 },
-      { wch: 15 }, { wch: 30 }, { wch: 50 }, { wch: 50 }
+      { wch: 16 }, { wch: 18 }, { wch: 14 }, { wch: 28 }, { wch: 12 }, { wch: 16 }, { wch: 30 }, { wch: 16 },
+      { wch: 26 }, { wch: 26 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 14 },
+      { wch: 16 }, { wch: 20 }, { wch: 22 }, { wch: 18 }, { wch: 20 }, { wch: 16 }, { wch: 40 },
+      { wch: 32 }, { wch: 22 }, { wch: 14 }, { wch: 18 }, { wch: 16 }, { wch: 14 }, { wch: 18 },
+      { wch: 18 }, { wch: 30 }, { wch: 16 }, { wch: 20 }
     ];
     worksheet['!cols'] = columnWidths;
 
@@ -230,12 +265,22 @@ const ExportStudents = () => {
              
              <button 
                 onClick={handleExport}
-                className="h-10 px-5 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-all flex items-center gap-2 shadow-sm"
+                disabled={exporting}
+                className="h-10 px-5 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-all flex items-center gap-2 shadow-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-                Download Excel
+                {exporting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <span>Generating Excel...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                    <span>Download Excel</span>
+                  </>
+                )}
              </button>
           </div>
           

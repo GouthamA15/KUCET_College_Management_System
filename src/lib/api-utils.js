@@ -72,14 +72,22 @@ export function getPaginationParams(params, defaultLimit = 20, maxLimit = 100) {
  * @param {Object} data Audit data (userId, userType, action, targetId, targetType, before, after)
  */
 export async function logAudit(req, { userId, userType, action, targetId, targetType, before, after }) {
-  try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
-    const userAgent = req.headers.get('user-agent') || 'Unknown Device';
+  const normalizedUserType = String(userType || 'system').toLowerCase();
+  const supportedUserTypes = new Set(['admin', 'staff', 'student', 'system']);
+  if (!supportedUserTypes.has(normalizedUserType)) {
+    const error = new Error(`Unsupported audit actor type: ${normalizedUserType}`);
+    logger.error({ userType: normalizedUserType }, '[AUDIT_LOG_INVALID_ACTOR]');
+    throw error;
+  }
 
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
+  const userAgent = req.headers.get('user-agent') || 'Unknown Device';
+
+  try {
     await db.insert(auditLogs).values({
       user_id: userId || null,
-      user_type: userType || 'system',
-      action: action,
+      user_type: normalizedUserType,
+      action,
       target_id: targetId ? String(targetId) : null,
       target_type: targetType || null,
       payload_before: before || null,
@@ -87,9 +95,13 @@ export async function logAudit(req, { userId, userType, action, targetId, target
       ip_address: ip,
       user_agent: userAgent,
     });
-  } catch (error) {
-    // We log the error but don't fail the main request if audit fails
-    logger.error(error, '[AUDIT_LOG_ERROR]');
+  } catch (cause) {
+    // Persistence is part of a successful audited operation. Propagate failure
+    // so callers cannot report success while the mandatory record is missing.
+    logger.error({ err: cause, action, userType: normalizedUserType }, '[AUDIT_LOG_ERROR]');
+    const error = new Error('Audit record could not be persisted');
+    error.cause = cause;
+    throw error;
   }
 }
 
@@ -182,21 +194,20 @@ export function wrapHandler(optionsOrHandler, maybeHandler) {
 
         // 6. Audit Logging (If successful and configured)
         if (audit && response.status >= 200 && response.status < 300) {
-          // Normalize role for enum compliance (STUDENT, STAFF, ADMIN, SYSTEM)
+          // Normalize to the lowercase values in audit_logs.user_type.
           const rawRole = user?.role || 'student';
-          let normalizedType = 'STUDENT';
-          if (rawRole === 'admin') normalizedType = 'ADMIN';
-          else if (['faculty', 'hod', 'admission', 'scholarship', 'staff'].some(r => rawRole.toLowerCase().includes(r))) normalizedType = 'STAFF';
+          let normalizedType = 'student';
+          if (rawRole === 'admin') normalizedType = 'admin';
+          else if (['faculty', 'hod', 'admission', 'scholarship', 'staff'].some(r => rawRole.toLowerCase().includes(r))) normalizedType = 'staff';
 
-          // Run audit in background to not block response
-          logAudit(req, {
+          await logAudit(req, {
             userId: user?.id || user?.student_id || user?.staffId ,
             userType: normalizedType,
             action: audit.action,
             targetId: audit.getTargetId ? audit.getTargetId(validatedData, result) : null,
             before: audit.getBefore ? await audit.getBefore(validatedData) : null,
             after: audit.getAfter ? await audit.getAfter(validatedData, result) : null
-          }).catch(err => logger.error(err, '[AUDIT_FAILED]'));
+          });
         }
 
         // 6. Success Telemetry & Performance Profiling

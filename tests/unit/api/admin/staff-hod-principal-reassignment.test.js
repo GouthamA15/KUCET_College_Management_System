@@ -70,6 +70,9 @@ vi.mock('@/db', () => {
   return {
     db: {
       select: vi.fn(() => makeQuery([])),
+      insert: vi.fn(() => ({
+        values: vi.fn(() => Promise.resolve([{ insertId: 1 }]))
+      })),
       query: {
         staffAccounts: {
           findFirst: vi.fn(() => {

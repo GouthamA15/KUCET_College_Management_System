@@ -254,6 +254,20 @@ export const PUT = wrapHandler({
                     return apiError('Intermediate/Diploma marks must be between 0 and 1000.', 400);
                 }
             }
+            else if (field === 'blood_group') {
+                if (value === null || value === undefined) {
+                    value = null;
+                } else {
+                    const s = String(value).trim();
+                    if (s === '' || s.toLowerCase() === 'not available' || s.toUpperCase() === 'UNKNOWN' || s.toLowerCase() === 'n/a') {
+                        value = null;
+                    } else if (['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].includes(s)) {
+                        value = s;
+                    } else {
+                        return apiError('Invalid blood group value', 400);
+                    }
+                }
+            }
             // Encrypt sensitive fields before saving
             else if (value && (field === 'student_mobile' || field === 'guardian_mobile' || field === 'aadhaar_no')) {
                 value = encrypt(value);

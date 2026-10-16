@@ -32,6 +32,28 @@ describe('Admission Workflow, Decimal SSC Marks & Draft Restoration Audits', () 
         expect(parsed.success).toBe(true);
       }
     });
+
+    it('preprocesses "Not available" and empty blood_group to null, while validating valid blood groups', () => {
+      const bloodGroupSchema = z.preprocess(
+        (v) => (v === '' || v === 'Not available' || v === 'UNKNOWN' || v === null || v === undefined) ? null : v,
+        z.enum(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']).nullable().optional()
+      );
+
+      // 'Not available' -> null
+      expect(bloodGroupSchema.parse('Not available')).toBe(null);
+      expect(bloodGroupSchema.parse('')).toBe(null);
+      expect(bloodGroupSchema.parse(null)).toBe(null);
+      expect(bloodGroupSchema.parse(undefined)).toBe(null);
+
+      // Valid enum values preserved
+      expect(bloodGroupSchema.parse('A+')).toBe('A+');
+      expect(bloodGroupSchema.parse('O-')).toBe('O-');
+      expect(bloodGroupSchema.parse('B+')).toBe('B+');
+
+      // Invalid blood group rejected
+      const invalid = bloodGroupSchema.safeParse('XYZ');
+      expect(invalid.success).toBe(false);
+    });
   });
 
   describe('Draft Restoration State Structure', () => {
