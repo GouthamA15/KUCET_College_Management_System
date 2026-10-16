@@ -124,6 +124,23 @@ const BASELINE_RULES = [
     },
     getReason: () => 'PRINCIPAL role already exists in staff_roles',
   },
+  {
+    id: 24,
+    description: '0024_canonical_gender_enum',
+    getEntries: (entries) => entries.filter((e) => e.idx === 24),
+    isSatisfied: async (conn) => {
+      const [colStudents] = await conn.query(
+        'SELECT COLUMN_TYPE FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = "students" AND column_name = "gender"'
+      );
+      const [colDrafts] = await conn.query(
+        'SELECT COLUMN_TYPE FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = "student_admission_drafts" AND column_name = "gender"'
+      );
+      const isStudentsEnum = colStudents?.[0]?.COLUMN_TYPE?.toLowerCase()?.includes('enum');
+      const isDraftsEnum = colDrafts?.[0]?.COLUMN_TYPE?.toLowerCase()?.includes('enum');
+      return Boolean(isStudentsEnum && isDraftsEnum);
+    },
+    getReason: () => 'students and student_admission_drafts gender columns are already canonical ENUM',
+  },
 ];
 
 module.exports = {
