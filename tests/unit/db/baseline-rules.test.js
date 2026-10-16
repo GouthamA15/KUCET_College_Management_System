@@ -115,4 +115,37 @@ describe('Multi-Environment Drizzle Baseline Rules Registry', () => {
     };
     expect(await rule0021.isSatisfied(mockConnFalse)).toBe(false);
   });
+
+  it('resolves and evaluates 0024_canonical_gender_enum baseline rule', async () => {
+    const rule0024 = BASELINE_RULES.find((r) => r.id === 24);
+    expect(rule0024).toBeDefined();
+
+    const mockEntries = [
+      { idx: 23, tag: '0023_principal_staff_role', when: 230 },
+      { idx: 24, tag: '0024_canonical_gender_enum', when: 240 },
+    ];
+
+    const matched = rule0024.getEntries(mockEntries);
+    expect(matched.length).toBe(1);
+    expect(matched[0].idx).toBe(24);
+    expect(rule0024.getReason(matched[0])).toContain('canonical ENUM');
+
+    // Both tables have ENUM columns
+    const mockBothEnum = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce([[{ COLUMN_TYPE: "enum('MALE','FEMALE')" }]])
+        .mockResolvedValueOnce([[{ COLUMN_TYPE: "enum('MALE','FEMALE')" }]]),
+    };
+    expect(await rule0024.isSatisfied(mockBothEnum)).toBe(true);
+
+    // One table has varchar
+    const mockVarcharStudents = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce([[{ COLUMN_TYPE: 'varchar(50)' }]])
+        .mockResolvedValueOnce([[{ COLUMN_TYPE: "enum('MALE','FEMALE')" }]]),
+    };
+    expect(await rule0024.isSatisfied(mockVarcharStudents)).toBe(false);
+  });
 });

@@ -112,7 +112,20 @@ async function runMigrations() {
       }
     }
 
-    // 4. Run Drizzle ORM official migration runner
+    // 4. Clean up legacy contradictory check constraint if left over from partial migration attempts
+    try {
+      const [chkRows] = await connection.query(
+        "SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND CONSTRAINT_NAME = 'chk_student_gender'"
+      );
+      if (chkRows && chkRows.length > 0) {
+        console.info("ℹ️ Cleaning up legacy chk_student_gender check constraint from students table...");
+        await connection.query('ALTER TABLE `students` DROP CHECK `chk_student_gender`');
+      }
+    } catch (chkErr) {
+      console.warn("⚠️ Legacy check constraint cleanup skipped:", chkErr.message);
+    }
+
+    // 5. Run Drizzle ORM official migration runner
     await migrate(db, {
       migrationsFolder: path.join(__dirname, '../../drizzle'),
     });
@@ -120,6 +133,9 @@ async function runMigrations() {
     console.info(`✅ Migrations verified and executed successfully in ${elapsed}ms!`);
   } catch (error) {
     console.error('❌ Migration failed:', error.message);
+    if (error.cause) {
+      console.error('   Underlying cause:', error.cause.code || error.cause.message, error.cause.sqlMessage || '');
+    }
     if (error.stack) console.error(error.stack);
     process.exit(1);
   } finally {
