@@ -74,6 +74,11 @@ const envSchema = z.object({
   // Supabase (Real-time Messaging - Optional for VPS)
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+
+  // Real-time Provider Configuration (socketio | redis | supabase | hybrid)
+  REALTIME_PROVIDER: z.enum(['socketio', 'redis', 'supabase', 'hybrid']).default('socketio').optional(),
+  NEXT_PUBLIC_REALTIME_PROVIDER: z.enum(['socketio', 'redis', 'supabase', 'hybrid']).optional(),
 
   // VPS Real-time (Socket.io)
   NEXT_PUBLIC_SOCKET_URL: z.string().url().optional(),
@@ -83,7 +88,7 @@ const envSchema = z.object({
   STORAGE_PROVIDER: z.enum(['cloudinary', 'local', 's3', 'r2']).optional(),
   STORAGE_TYPE: z.enum(['cloudinary', 'local', 's3', 'r2']).optional(),
   NEXT_PUBLIC_STORAGE_PROVIDER: z.enum(['cloudinary', 'local', 's3', 'r2']).optional(),
-  NEXT_PUBLIC_STORAGE_TYPE: z.enum(['cloudinary', 'local', 's3', 'r2']).default('cloudinary'),
+  NEXT_PUBLIC_STORAGE_TYPE: z.enum(['cloudinary', 'local', 's3', 'r2']).default('local'),
   LOCAL_STORAGE_PATH: z.string().optional(),
 
   // Public URLs

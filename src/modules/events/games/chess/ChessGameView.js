@@ -72,10 +72,9 @@ export default function ChessGameView({ matchId, currentUser = null }) {
   }, []);
 
   // Multi-tier Real-time Synchronizer:
-  // 1. Socket.IO (Direct low-latency push from server)
-  // 2. Supabase Realtime Broadcast channel (fallback in dev/hybrid)
-  // 3. Browser BroadcastChannel (cross-tab local zero-latency sync)
-  // 4. Background safety poll (every 5s instead of 2.5s)
+  // 1. Socket.IO (Direct low-latency push from self-hosted server)
+  // 2. Browser BroadcastChannel (cross-tab local zero-latency sync)
+  // 3. Background safety poll (every 5s fallback)
   useEffect(() => {
     // Initial fetch
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -112,49 +111,13 @@ export default function ChessGameView({ matchId, currentUser = null }) {
       // BroadcastChannel unavailable
     }
 
-    // 3. Supabase Realtime client listener (if credentials exist)
-    let isMounted = true;
-    let supabaseChannel = null;
-    const subUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const subKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (subUrl && subKey) {
-      import('@supabase/supabase-js')
-        .then(({ createClient }) => {
-          if (!isMounted) return;
-          const supabase = createClient(subUrl, subKey);
-          supabaseChannel = supabase.channel('kucet-updates');
-          supabaseChannel
-            .on('broadcast', { event: REALTIME_EVENTS.CHESS_MOVE_PLAYED }, (event) => {
-              if (String(event?.payload?.matchId) === String(matchId)) {
-                fetchGameState();
-              }
-            })
-            .on('broadcast', { event: REALTIME_EVENTS.CHESS_GAME_OVER }, (event) => {
-              if (String(event?.payload?.matchId) === String(matchId)) {
-                fetchGameState();
-              }
-            })
-            .on('broadcast', { event: REALTIME_EVENTS.CHESS_ACTION }, (event) => {
-              if (String(event?.payload?.matchId) === String(matchId)) {
-                fetchGameState();
-              }
-            })
-            .subscribe();
-        })
-        .catch((_err) => {
-          // ignore Supabase load error
-        });
-    }
-
-    // 4. Background safety poll interval (fallback)
+    // 3. Background safety poll interval (fallback)
     const interval = setInterval(fetchGameState, 5000);
 
     return () => {
-      isMounted = false;
       unsubscribeSocket();
       clearInterval(interval);
       if (localChannel) localChannel.close();
-      if (supabaseChannel) supabaseChannel.unsubscribe();
     };
   }, [fetchGameState, matchId]);
 

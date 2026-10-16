@@ -169,6 +169,13 @@
                         "when":  1790100000000,
                         "version":  "5",
                         "tag":  "0023_principal_staff_role"
+                    },
+                    {
+                        "idx":  24,
+                        "breakpoints":  true,
+                        "when":  1790200000000,
+                        "version":  "5",
+                        "tag":  "0024_canonical_gender_enum"
                     }
                 ]
 }

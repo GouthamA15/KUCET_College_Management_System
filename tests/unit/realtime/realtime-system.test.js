@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { REALTIME_EVENTS, REALTIME_ROOMS, normalizeEventName } from '@/lib/events/realtime-events';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { REALTIME_EVENTS, REALTIME_ROOMS, normalizeEventName, resolveEventRooms } from '@/lib/events/realtime-events';
 import { SignJWT, jwtVerify } from 'jose';
 
 describe('Real-Time Event Architecture & Room Isolation', () => {
@@ -49,6 +49,43 @@ describe('Real-Time Event Architecture & Room Isolation', () => {
       expect(REALTIME_ROOMS.userStudent(101)).toBe('user:student:101');
       expect(REALTIME_ROOMS.studentRoll('22016401')).toBe('student:22016401');
       expect(REALTIME_ROOMS.dept('cse')).toBe('dept:CSE');
+    });
+
+    it('should resolve correct target rooms for student requests and profile updates', () => {
+      const rooms = resolveEventRooms('REQUEST_CREATED', {
+        student_id: 88,
+        roll_no: '22016401',
+        staffType: 'scholarship'
+      });
+      expect(rooms).toContain('role:admin');
+      expect(rooms).toContain('channel:requests');
+      expect(rooms).toContain('role:scholarship');
+      expect(rooms).toContain('user:student:88');
+      expect(rooms).toContain('student:22016401');
+      expect(rooms).not.toContain('role:student'); // Never leak to all students!
+    });
+
+    it('should resolve correct target rooms for timetable updates by branch', () => {
+      const rooms = resolveEventRooms('TIMETABLE_CHANGED', { branch: 'ECE' });
+      expect(rooms).toContain('role:admin');
+      expect(rooms).toContain('dept:ECE');
+      expect(rooms).not.toContain('role:student');
+    });
+
+    it('should resolve correct target rooms for admissions drafts', () => {
+      const rooms = resolveEventRooms('ADMISSION_DRAFT_CREATED', { id: 12 });
+      expect(rooms).toContain('role:admin');
+      expect(rooms).toContain('channel:admissions');
+      expect(rooms).toContain('role:admission');
+      expect(rooms).not.toContain('role:student');
+    });
+
+    it('should honor explicit options.rooms or options.isPublic', () => {
+      const explicit = resolveEventRooms('CUSTOM_EVENT', {}, { rooms: ['custom:room:1'] });
+      expect(explicit).toEqual(['custom:room:1']);
+
+      const publicEvt = resolveEventRooms('ANNOUNCEMENT', {}, { isPublic: true });
+      expect(publicEvt).toEqual([]);
     });
   });
 
@@ -123,4 +160,76 @@ describe('Real-Time Event Architecture & Room Isolation', () => {
       await expect(jwtVerify(token, testSecret)).rejects.toThrow();
     });
   });
+
+  describe('Real-Time Provider Factory & Environment Configuration', () => {
+    const originalEnv = { ...process.env };
+
+    beforeEach(() => {
+      process.env = { ...originalEnv };
+    });
+
+    afterEach(async () => {
+      process.env = originalEnv;
+      const { resetRealtimeProvider } = await import('@/lib/providers/realtime/factory');
+      resetRealtimeProvider();
+    });
+
+    it('should default to RedisRealtimeProvider when REALTIME_PROVIDER is unset or socketio', async () => {
+      delete process.env.REALTIME_PROVIDER;
+      delete process.env.NEXT_PUBLIC_REALTIME_PROVIDER;
+      const { getRealtimeProvider, resetRealtimeProvider } = await import('@/lib/providers/realtime/factory');
+      resetRealtimeProvider();
+
+      const provider = getRealtimeProvider();
+      expect(provider.constructor.name).toBe('RedisRealtimeProvider');
+    });
+
+    it('should throw clear error when REALTIME_PROVIDER=supabase but credentials are missing', async () => {
+      process.env.REALTIME_PROVIDER = 'supabase';
+      delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+      delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+      delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+      const { getRealtimeProvider, resetRealtimeProvider } = await import('@/lib/providers/realtime/factory');
+      resetRealtimeProvider();
+
+      expect(() => getRealtimeProvider()).toThrow(/REALTIME_PROVIDER is set to "supabase" but required configuration is missing/);
+    });
+
+    it('should initialize SupabaseRealtimeProvider when REALTIME_PROVIDER=supabase and config is present', async () => {
+      process.env.REALTIME_PROVIDER = 'supabase';
+      process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://xyzcompany.supabase.co';
+      process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
+
+      const { getRealtimeProvider, resetRealtimeProvider } = await import('@/lib/providers/realtime/factory');
+      resetRealtimeProvider();
+
+      const provider = getRealtimeProvider();
+      expect(provider.constructor.name).toBe('SupabaseRealtimeProvider');
+    });
+
+    it('should initialize HybridRealtimeProvider when REALTIME_PROVIDER=hybrid', async () => {
+      process.env.REALTIME_PROVIDER = 'hybrid';
+      process.env.REDIS_URL = 'redis://127.0.0.1:6379';
+      process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://xyzcompany.supabase.co';
+      process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
+
+      const { getRealtimeProvider, resetRealtimeProvider } = await import('@/lib/providers/realtime/factory');
+      resetRealtimeProvider();
+
+      const provider = getRealtimeProvider();
+      expect(provider.constructor.name).toBe('HybridRealtimeProvider');
+      expect(provider.providers).toHaveLength(2);
+    });
+
+    it('should throw clear error on unsupported REALTIME_PROVIDER value', async () => {
+      process.env.REALTIME_PROVIDER = 'unsupported_engine';
+
+      const { getRealtimeProvider, resetRealtimeProvider } = await import('@/lib/providers/realtime/factory');
+      resetRealtimeProvider();
+
+      expect(() => getRealtimeProvider()).toThrow(/Unsupported REALTIME_PROVIDER: "unsupported_engine"/);
+    });
+  });
 });
+

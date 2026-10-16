@@ -270,13 +270,18 @@ export class InstitutionAssetService {
     }
 
     // 3. Cloudinary Strategy
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME || 'djs0ry74r';
-    const transformations = options.transformations || 'f_auto,q_auto';
-    return `https://res.cloudinary.com/${cloudName}/image/upload/${transformations}/${filename}`;
+    if (storageType === 'cloudinary') {
+      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME || 'djs0ry74r';
+      const transformations = options.transformations || 'f_auto,q_auto';
+      return `https://res.cloudinary.com/${cloudName}/image/upload/${transformations}/${filename}`;
+    }
+
+    // Default to local institutional asset path
+    return `/assets/${filename}`;
   }
 
   /**
-   * Reads asset as Buffer (server-side). Tries local repository files, VPS disk storage, or remote Cloudinary fetch.
+   * Reads asset as Buffer (server-side). Tries local repository files and VPS disk storage.
    * Caches in memory for fast performance.
    * @param {string} keyOrAlias 
    * @returns {Promise<Buffer|null>}
@@ -327,27 +332,11 @@ export class InstitutionAssetService {
       }
     }
 
-    // Candidate 3: Remote Cloudinary / S3 fallback
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME || 'djs0ry74r';
-    const remoteCandidates = [
-      `https://res.cloudinary.com/${cloudName}/image/upload/${filename}`,
-      `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/${filename}`,
-      `https://res.cloudinary.com/${cloudName}/image/upload/kucet/${filename}`,
-      `https://res.cloudinary.com/${cloudName}/image/upload/kucet/institution/${filename}`,
-      `https://res.cloudinary.com/${cloudName}/image/upload/kucet/public/${filename}`,
-      `https://res.cloudinary.com/${cloudName}/image/upload/kucet/public/assets/${filename}`,
-      `https://res.cloudinary.com/${cloudName}/image/upload/assets/${filename}`
-    ];
+    // Remote S3 / HTTP fallback if configured
     const remoteUrl = this.getAssetUrl(keyOrAlias);
-    if (remoteUrl && (remoteUrl.startsWith('http://') || remoteUrl.startsWith('https://'))) {
-      if (!remoteCandidates.includes(remoteUrl)) {
-        remoteCandidates.unshift(remoteUrl);
-      }
-    }
-
-    for (const url of remoteCandidates) {
+    if (remoteUrl && (remoteUrl.startsWith('http://') || remoteUrl.startsWith('https://')) && !remoteUrl.includes('cloudinary.com')) {
       try {
-        const res = await fetch(url);
+        const res = await fetch(remoteUrl);
         if (res.ok) {
           const arrayBuf = await res.arrayBuffer();
           const buf = Buffer.from(arrayBuf);
@@ -357,7 +346,7 @@ export class InstitutionAssetService {
           }
         }
       } catch (err) {
-        logger.error({ err: err.message, keyOrAlias, remoteUrl: url }, '[INSTITUTION_ASSET_FETCH_ERROR]');
+        logger.error({ err: err.message, keyOrAlias, remoteUrl }, '[INSTITUTION_ASSET_FETCH_ERROR]');
       }
     }
 

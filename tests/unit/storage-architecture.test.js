@@ -653,6 +653,10 @@ describe('Archive System - Storage keys must remain valid after archive', () => 
 // =============================================================================
 
 describe('Provider Switch - Only env vars should control storage backend', () => {
+  beforeEach(() => {
+    vi.doUnmock('../../src/lib/providers/storage/factory.js');
+  });
+
   it('FailoverStorageProvider should have all required contract methods (getUrl, delete, copyFile, upload)', async () => {
     const { default: FailoverStorageProvider } = await import('../../src/lib/providers/storage/FailoverStorageProvider.js');
     const provider = new FailoverStorageProvider([]);
@@ -680,6 +684,52 @@ describe('Provider Switch - Only env vars should control storage backend', () =>
     expect(typeof provider.getUrl).toBe('function');
     const url = provider.getUrl('kucet/students/pfp/test.jpg');
     expect(url).toContain('/api/assets/view/');
+  });
+
+  it('getStorageProvider should return LocalStorageProvider when STORAGE_PROVIDER is local or default', async () => {
+    const { getStorageProvider, resetStorageProvider } = await import('../../src/lib/providers/storage/factory.js');
+    const prev = process.env.STORAGE_PROVIDER;
+    delete process.env.STORAGE_PROVIDER;
+    delete process.env.NEXT_PUBLIC_STORAGE_PROVIDER;
+    resetStorageProvider();
+
+    const provider = getStorageProvider();
+    expect(provider.constructor.name).toBe('LocalStorageProvider');
+
+    if (prev) process.env.STORAGE_PROVIDER = prev;
+    resetStorageProvider();
+  });
+
+  it('getStorageProvider should throw when STORAGE_PROVIDER=cloudinary but CLOUDINARY_CLOUD_NAME is absent', async () => {
+    const { getStorageProvider, resetStorageProvider } = await import('../../src/lib/providers/storage/factory.js');
+    const prev = process.env.STORAGE_PROVIDER;
+    const prevCloud = process.env.CLOUDINARY_CLOUD_NAME;
+    process.env.STORAGE_PROVIDER = 'cloudinary';
+    delete process.env.CLOUDINARY_CLOUD_NAME;
+    delete process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    resetStorageProvider();
+
+    expect(() => getStorageProvider()).toThrow(/STORAGE_PROVIDER is set to "cloudinary" but CLOUDINARY_CLOUD_NAME is missing/);
+
+    if (prev) process.env.STORAGE_PROVIDER = prev;
+    if (prevCloud) process.env.CLOUDINARY_CLOUD_NAME = prevCloud;
+    resetStorageProvider();
+  });
+
+  it('getStorageProvider should return CloudinaryStorageProvider when STORAGE_PROVIDER=cloudinary and cloud name is provided', async () => {
+    const { getStorageProvider, resetStorageProvider } = await import('../../src/lib/providers/storage/factory.js');
+    const prev = process.env.STORAGE_PROVIDER;
+    const prevCloud = process.env.CLOUDINARY_CLOUD_NAME;
+    process.env.STORAGE_PROVIDER = 'cloudinary';
+    process.env.CLOUDINARY_CLOUD_NAME = 'kucet-cloud';
+    resetStorageProvider();
+
+    const provider = getStorageProvider();
+    expect(provider.constructor.name).toBe('CloudinaryStorageProvider');
+
+    if (prev) process.env.STORAGE_PROVIDER = prev;
+    if (prevCloud) process.env.CLOUDINARY_CLOUD_NAME = prevCloud;
+    resetStorageProvider();
   });
 });
 

@@ -139,7 +139,24 @@ io.on('connection', (socket) => {
     }
   }
 
-  // 2. Disconnect Handler
+  // 2. Interactive Match Room Subscriptions (Mind Sports / Chess)
+  socket.on('join_match', (matchId) => {
+    if (matchId && (typeof matchId === 'string' || typeof matchId === 'number')) {
+      const cleanMatchId = String(matchId).trim();
+      if (/^[a-zA-Z0-9_-]+$/.test(cleanMatchId)) {
+        socket.join(`match:${cleanMatchId}`);
+      }
+    }
+  });
+
+  socket.on('leave_match', (matchId) => {
+    if (matchId && (typeof matchId === 'string' || typeof matchId === 'number')) {
+      const cleanMatchId = String(matchId).trim();
+      socket.leave(`match:${cleanMatchId}`);
+    }
+  });
+
+  // 3. Disconnect Handler
   socket.on('disconnect', (_reason) => {
     // Clean socket unmount
   });
@@ -185,10 +202,12 @@ redis.on('message', (channel, message) => {
         io.to(room).emit(eventName, data);
         io.to(room).emit('live-session-update', data);
       });
-    } else {
-      // Broadcast to all authenticated connections
+    } else if (data.isPublic || data.broadcastAll) {
+      // Broadcast to all authenticated connections strictly when explicitly marked public
       io.emit(eventName, data);
       io.emit('live-session-update', data);
+    } else {
+      console.warn(`[RedisPubSub] Event "${eventName}" had no target rooms and is not marked public. Suppressed broadcast to prevent leak.`);
     }
   } catch (err) {
     console.error('[RedisPubSub] Failed to dispatch message:', err.message);

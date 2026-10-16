@@ -115,7 +115,7 @@ export class HealthService {
       return {
         status: isAvailable ? 'ok' : 'error',
         latencyMs: Date.now() - start,
-        type: process.env.NEXT_PUBLIC_STORAGE_TYPE || 'cloudinary',
+        type: process.env.NEXT_PUBLIC_STORAGE_TYPE || 'local',
       };
     } catch (error) {
       logger.error({ err: error }, '[HEALTH_CHECK] Storage provider check failed');

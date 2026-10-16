@@ -1,6 +1,7 @@
 import RealtimeProvider from './RealtimeProvider';
 import logger from '@/lib/logger';
 import { getBreaker } from '@/lib/utils/CircuitBreaker';
+import { resolveEventRooms, normalizeEventName } from '@/lib/events/realtime-events';
 
 export default class RedisRealtimeProvider extends RealtimeProvider {
   constructor(url) {
@@ -19,7 +20,7 @@ export default class RedisRealtimeProvider extends RealtimeProvider {
     if (this.url) {
       try {
         const { default: Redis } = await import('ioredis');
-        const isDev = process.env.NODE_ENV === 'development';
+        const isDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'testing';
 
         this.redis = new Redis(this.url, {
           maxRetriesPerRequest: isDev ? 0 : 3,
@@ -49,17 +50,25 @@ export default class RedisRealtimeProvider extends RealtimeProvider {
     return await this.breaker.execute(async () => {
       await this.init();
       if (!this.redis) {
-        logger.warn('[REDIS_BROADCAST_SKIPPED] Redis not configured');
+        logger.warn({ type }, '[REDIS_BROADCAST_SKIPPED] Redis not configured');
         return;
       }
 
       try {
-        const rooms = options.rooms || (options.room ? [options.room] : []);
+        const canonicalType = normalizeEventName(type);
+        const rooms = resolveEventRooms(type, payload, options);
+        const isPublic = Boolean(options.isPublic || options.broadcastAll);
+
+        if (process.env.NODE_ENV === 'test' && this.redis.status !== 'ready') {
+          logger.info({ type: canonicalType, roomsCount: rooms.length }, '[REDIS_BROADCAST_TEST_SKIPPED]');
+          return;
+        }
         const data = {
           ...payload,
-          event: type,
-          type,
+          event: canonicalType,
+          type: canonicalType,
           rooms,
+          isPublic,
           timestamp: Date.now(),
         };
 
@@ -69,7 +78,15 @@ export default class RedisRealtimeProvider extends RealtimeProvider {
         // 2. Publish to legacy attendance-sync channel for backward compatibility
         await this.redis.publish('attendance-sync', JSON.stringify(data));
 
-        logger.info({ type, rooms }, '[REDIS_BROADCAST_SUCCESS]');
+        logger.info(
+          {
+            type: canonicalType,
+            roomsCount: rooms.length,
+            rooms,
+            isPublic,
+          },
+          '[REDIS_BROADCAST_SUCCESS]'
+        );
       } catch (err) {
         logger.error(err, '[REDIS_BROADCAST_EXCEPTION]');
         throw err;

@@ -148,44 +148,11 @@ export async function GET(request, { params }) {
     );
   }
 
-  const storageType = (
-    process.env.STORAGE_PROVIDER ||
-    process.env.NEXT_PUBLIC_STORAGE_PROVIDER ||
-    process.env.NEXT_PUBLIC_STORAGE_TYPE ||
-    process.env.STORAGE_TYPE ||
-    'local'
-  ).toLowerCase();
-
-  // If file is not present on local disk (e.g. Render environment) or storageType is cloudinary, redirect to Cloudinary CDN URL
-  if (!existingStat || storageType === 'cloudinary') {
-    const cloudName =
-      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
-      process.env.CLOUDINARY_CLOUD_NAME ||
-      'djs0ry74r';
-    const extension = filename.split('.').pop()?.toLowerCase() || '';
-    let resourceType = 'image';
-    if (['mp3', 'wav', 'ogg', 'mp4', 'webm', 'mov', 'm4a'].includes(extension)) {
-      resourceType = 'video';
-    } else if (['pdf', 'docx', 'xlsx', 'csv'].includes(extension)) {
-      resourceType = 'raw';
-    }
-    const cleanCloudinaryKey = (filename.startsWith('kucet/') || filename.startsWith('archive/'))
-      ? filename
-      : `kucet/${filename}`;
-    
-    const { searchParams } = new URL(request.url);
-    const forceDownload = searchParams.get('download') === 'true';
-    let requestedFilename = searchParams.get('filename') || filename.split('/').pop();
-    const sanitizedFilename = requestedFilename.replace(/[\r\n"'\\/]/g, '_');
-    const finalName = sanitizedFilename.includes('.') ? sanitizedFilename : `${sanitizedFilename}.${extension}`;
-    
-    const transformations = ['f_auto', 'q_auto'];
-    if (forceDownload) {
-      transformations.push(`fl_attachment:${finalName.replace(/\.[^/.]+$/, "")}`); // Cloudinary fl_attachment takes name without ext
-    }
-
-    const cdnUrl = `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformations.join(',')}/${cleanCloudinaryKey}`;
-    return NextResponse.redirect(cdnUrl, 307);
+  if (!existingStat) {
+    return NextResponse.json(
+      { error: 'File not found' },
+      { status: 404, headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
+    );
   }
 
   try {
