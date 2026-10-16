@@ -16,7 +16,8 @@ export const studentCreateSchema = z.object({
     .trim()
     .min(3, "Full name must be at least 3 characters")
     .max(255)
-    .regex(/^[a-zA-Z\s.]+$/, "Name should only contain letters, spaces, and dots"),
+    .regex(/^[a-zA-Z\s.]+$/, "Name should only contain letters, spaces, and dots")
+    .transform((val) => val.toUpperCase()),
   email: z.string()
     .trim()
     .email("Invalid email address")
@@ -46,7 +47,7 @@ export const studentCreateSchema = z.object({
   ).optional(),
   gender: z.preprocess(
     (v) => typeof v === 'string' ? v.toUpperCase() : v,
-    z.enum(['MALE', 'FEMALE', 'OTHER']).optional()
+    z.enum(['MALE', 'FEMALE']).optional()
   ),
   father_name: z.string().trim().max(255).optional().or(z.literal('')),
   mother_name: z.string().trim().max(255).optional().or(z.literal('')),

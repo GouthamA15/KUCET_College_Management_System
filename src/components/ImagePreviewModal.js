@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useRef } from 'react';
-import Image from 'next/image';
 import { createPortal } from 'react-dom';
+import ImageWithLoading from '@/components/ui/ImageWithLoading';
 
 export default function ImagePreviewModal({ src, alt = '', open, onClose }) {
   const overlayRef = useRef(null);
@@ -37,23 +37,36 @@ export default function ImagePreviewModal({ src, alt = '', open, onClose }) {
       tabIndex={-1}
       aria-modal="true"
       role="dialog"
-      className="fixed inset-0 z-[9998] flex items-center justify-center"
+      className="fixed inset-0 z-[9998] flex items-center justify-center animate-fadeIn"
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose && onClose();
       }}
       style={{ outline: 'none' }}
     >
-      <div className="absolute inset-0 bg-black/70" />
-      <div className="relative max-w-[98vw] max-h-[98vh] p-2">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+      <div className="relative max-w-[96vw] max-h-[96vh] p-2 z-10 flex flex-col items-center">
         <button
           onClick={() => onClose && onClose()}
           aria-label="Close preview"
-          className="absolute right-2 top-2 z-50 text-white bg-black/40 rounded-full p-1"
+          className="absolute right-4 top-4 z-50 text-white bg-black/60 hover:bg-black/90 rounded-full p-2 border border-white/20 transition-colors cursor-pointer"
         >
-          ✕
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
-        <div className="max-w-full max-h-full rounded shadow-lg overflow-hidden">
-          <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={src} alt={alt} width={800} height={800} onClick={(e)=>e.stopPropagation()} className="block max-w-[90vw] max-h-[90vh] object-contain bg-black" />
+        <div 
+          onClick={(e) => e.stopPropagation()}
+          className="max-w-[90vw] max-h-[90vh] rounded-lg shadow-2xl overflow-hidden bg-black/40 flex items-center justify-center min-w-[280px] min-h-[200px]"
+        >
+          <ImageWithLoading
+            src={src}
+            alt={alt || "Image Preview"}
+            width={900}
+            height={900}
+            variant="document"
+            className="block max-w-[90vw] max-h-[85vh] object-contain"
+            errorText="Unable to display preview directly."
+          />
         </div>
       </div>
     </div>

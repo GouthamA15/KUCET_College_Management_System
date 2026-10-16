@@ -82,9 +82,8 @@ function buildHeaderMapping(originalHeaders) {
 function normalizeGender(value) {
   const v = String(value || '').trim().toLowerCase();
   if (!v) return null;
-  if (['male', 'm', 'boy'].includes(v)) return 'Male';
-  if (['female', 'f', 'girl'].includes(v)) return 'Female';
-  if (['other', 'o', 'others'].includes(v)) return 'Other';
+  if (['male', 'm', 'boy'].includes(v)) return 'MALE';
+  if (['female', 'f', 'girl'].includes(v)) return 'FEMALE';
   return null;
 }
 
@@ -205,7 +204,7 @@ export const POST = wrapHandler({
       // Simple Inline Validation
       const gender = normalizeGender(student.gender);
       const dob = normalizeDateToMySQL(student.date_of_birth);
-      const name = String(student.name || '').trim();
+      const name = String(student.name || '').trim().toUpperCase();
       const fatherName = String(personal.father_name || '').trim();
       let category = String(personal.category || '').trim().replace(/\s*-\s*/g, '-').toUpperCase();
       if (category === 'OC-EWS' || category === 'O-EWS') category = 'EWS';

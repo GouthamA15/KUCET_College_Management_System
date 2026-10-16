@@ -557,15 +557,15 @@ export default function EditProfilePage() {
                         <input disabled={isPending} value={formData.personal.curr_house_no || ''} onChange={e => handleAddressChange('curr_house_no', e.target.value)} className="w-full border border-gray-300 px-2.5 py-1.5 text-xs rounded focus:ring-1 focus:ring-blue-500 outline-none disabled:bg-gray-50 disabled:text-gray-400" />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[11px] text-gray-500 font-medium">Street</label>
+                        <label className="text-[11px] text-gray-500 font-medium">Street Name</label>
                         <input disabled={isPending} value={formData.personal.curr_street || ''} onChange={e => handleAddressChange('curr_street', e.target.value)} className="w-full border border-gray-300 px-2.5 py-1.5 text-xs rounded focus:ring-1 focus:ring-blue-500 outline-none disabled:bg-gray-50 disabled:text-gray-400" />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[11px] text-gray-500 font-medium">Apartment</label>
+                        <label className="text-[11px] text-gray-500 font-medium">Apartment / Area Name</label>
                         <input disabled={isPending} value={formData.personal.curr_apartment || ''} onChange={e => handleAddressChange('curr_apartment', e.target.value)} className="w-full border border-gray-300 px-2.5 py-1.5 text-xs rounded focus:ring-1 focus:ring-blue-500 outline-none disabled:bg-gray-50 disabled:text-gray-400" />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[11px] text-gray-500 font-medium">City</label>
+                        <label className="text-[11px] text-gray-500 font-medium">City / Town / Village </label>
                         <input disabled={isPending} value={formData.personal.curr_city || ''} onChange={e => handleAddressChange('curr_city', e.target.value)} className="w-full border border-gray-300 px-2.5 py-1.5 text-xs rounded focus:ring-1 focus:ring-blue-500 outline-none disabled:bg-gray-50 disabled:text-gray-400" />
                       </div>
                       <div className="space-y-1">

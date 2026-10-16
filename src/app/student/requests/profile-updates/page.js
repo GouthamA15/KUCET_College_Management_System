@@ -3,34 +3,26 @@
 
 import { useEffect, useState } from 'react';
 import { useStudent } from '@/context/StudentContext';
-import Image from 'next/image';
 import Link from 'next/link';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import { getAssetUrl } from '@/lib/assets';
 import { formatDate, formatDateTime } from '@/lib/date';
+import ImageWithLoading from '@/components/ui/ImageWithLoading';
 
 const FallbackImage = ({ src, alt, width, height, className, type = 'photo' }) => {
-  const [error, setError] = useState(false);
-  const resolvedSrc = getAssetUrl(src);
-
-  if (error || !src) {
-    return (
-      <div className={`flex flex-col items-center justify-center bg-slate-50 text-slate-400 border border-dashed border-slate-200 ${className}`}>
-        <span className="text-xl mb-1">{type === 'photo' ? '👤' : '🖋️'}</span>
-        <span className="text-[9px] font-black uppercase tracking-widest opacity-60">No Record</span>
-      </div>
-    );
-  }
-
   return (
-    <Image 
-      src={resolvedSrc} 
-      alt={alt} 
-      width={width} 
-      height={height} 
+    <ImageWithLoading
+      src={src}
+      alt={alt}
+      width={width}
+      height={height}
+      variant={type === 'signature' ? 'signature' : 'avatar'}
       className={className}
-      unoptimized
-      onError={() => setError(true)}
+      fallbackAvatar={
+        <div className={`flex flex-col items-center justify-center bg-slate-50 text-slate-400 border border-dashed border-slate-200 ${className}`}>
+          <span className="text-xl mb-1">{type === 'photo' ? '👤' : '🖋️'}</span>
+          <span className="text-[9px] font-black uppercase tracking-widest opacity-60">No Record</span>
+        </div>
+      }
     />
   );
 };

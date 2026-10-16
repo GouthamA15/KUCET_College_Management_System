@@ -10,7 +10,7 @@ export const students = mysqlTable('students', {
   fee_reimbursement: mysqlEnum('fee_reimbursement', ['YES', 'NO', 'GOV']).default('NO').notNull(),
   name: varchar('name', { length: 255 }),
   date_of_birth: date('date_of_birth'),
-  gender: varchar('gender', { length: 50 }),
+  gender: mysqlEnum('gender', ['MALE', 'FEMALE']),
   mobile: varchar('mobile', { length: 255 }), // Encrypted
   mobile_hash: varchar('mobile_hash', { length: 64 }), // Searchable Blind Index
   email: varchar('email', { length: 255 }),

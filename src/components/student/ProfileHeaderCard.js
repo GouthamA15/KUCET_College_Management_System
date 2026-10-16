@@ -1,10 +1,11 @@
-/* eslint-disable @next/next/no-img-element */
+ 
 'use client';
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { getAssetUrl } from '@/lib/assets';
+import ImageWithLoading from '@/components/ui/ImageWithLoading';
 
 // Default User Avatar SVG
 const DefaultAvatarSVG = () => (
@@ -25,46 +26,11 @@ const DefaultAvatarSVG = () => (
 export default function ProfileHeaderCard({ student }) {
   const [showFullViewModal, setShowFullViewModal] = useState(false);
 
-  // Image load state trackers
-  const [imageLoading, setImageLoading] = useState(true);
-  const [imageError, setImageError] = useState(false);
-
-  // Previous image URL tracking state to detect when the URL changes
-  const [lastUrl, setLastUrl] = useState('');
-
   const resolvedPhotoUrl = useMemo(() => {
     const pfp = student?.pfp;
     if (!pfp) return '';
-    const base = getAssetUrl(pfp);
-    return base || '';
+    return getAssetUrl(pfp) || '';
   }, [student?.pfp]);
-
-  const imageRef = useRef(null);
-
-  // Fix: Handle cached images where the native load event fires before React's synthetic onLoad is attached
-  useEffect(() => {
-    if (resolvedPhotoUrl && imageRef.current && imageRef.current.complete) {
-      if (imageRef.current.naturalWidth === 0) {
-        // Image failed to load or is broken
-        setImageError(true);
-        setImageLoading(false);
-      } else {
-        // Image successfully loaded from cache
-        setImageLoading(false);
-        setImageError(false);
-      }
-    }
-  }, [resolvedPhotoUrl]);
-
-  // Adjust state synchronously during render if target resolved URL has updated
-  if (resolvedPhotoUrl !== lastUrl) {
-    setLastUrl(resolvedPhotoUrl);
-    setImageLoading(!!resolvedPhotoUrl);
-    setImageError(false);
-  }
-
-  const isImageLoadingActive = resolvedPhotoUrl && imageLoading && !imageError;
-  const showLoaderOverlay = isImageLoadingActive;
 
   return (
     <div className="flex flex-row items-center gap-3 select-none relative w-full overflow-visible xl:flex-col xl:items-start xl:gap-0 xl:overflow-hidden xl:rounded-[24px] xl:border xl:border-[#dfeafc] xl:bg-[linear-gradient(180deg,#ffffff_0%,#f6faff_100%)] xl:p-2.5 xl:sm:p-4 xl:shadow-[0_18px_42px_rgba(11,53,120,0.1)]">
@@ -73,42 +39,27 @@ export default function ProfileHeaderCard({ student }) {
           <div className="absolute inset-0 rounded-[24px] bg-gradient-to-br from-[#0b3578] via-[#103d8a] to-[#6e9ef5] opacity-55 blur-sm -top-0.5" />
           <div 
             onClick={() => {
-              if (resolvedPhotoUrl && !showLoaderOverlay && !imageError) {
+              if (resolvedPhotoUrl) {
                 setShowFullViewModal(true);
               }
             }}
             className={`relative w-full h-full rounded-[30px] border-4 border-white/80 overflow-hidden flex items-center justify-center bg-white shadow-[0_8px_18px_rgba(11,53,120,0.1)] ${
-              resolvedPhotoUrl && !showLoaderOverlay && !imageError ? 'cursor-zoom-in' : ''
+              resolvedPhotoUrl ? 'cursor-zoom-in' : ''
             }`}
           >
-            {showLoaderOverlay && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 z-10">
-                <div className="animate-spin h-7 w-7 border-4 border-[#0b3578] border-t-transparent rounded-full"></div>
-                <span className="text-[9px] text-gray-500 font-bold mt-1.5 uppercase tracking-wider">Loading...</span>
-              </div>
-            )}
-
-            {resolvedPhotoUrl && !imageError ? (
-              <img 
-                ref={imageRef}
-                src={resolvedPhotoUrl}
-                alt="Profile Photo"
-                className={`object-cover w-full h-full transition-opacity duration-300 ${
-                  isImageLoadingActive ? 'opacity-0' : 'opacity-100'
-                }`}
-                onLoad={() => {
-                  setImageLoading(false);
-                }}
-                onError={() => {
-                  setImageError(true);
-                  setImageLoading(false);
-                }}
-              />
-            ) : (
-              <div className="bg-gradient-to-br from-slate-100 via-blue-50 to-slate-100 w-full h-full flex items-center justify-center">
-                <DefaultAvatarSVG />
-              </div>
-            )}
+            <ImageWithLoading
+              src={resolvedPhotoUrl}
+              alt="Profile Photo"
+              fill
+              sizes="(max-width: 640px) 112px, 144px"
+              variant="avatar"
+              className="object-cover w-full h-full"
+              fallbackAvatar={
+                <div className="bg-gradient-to-br from-slate-100 via-blue-50 to-slate-100 w-full h-full flex items-center justify-center">
+                  <DefaultAvatarSVG />
+                </div>
+              }
+            />
           </div>
         </div>
       </div>
@@ -141,17 +92,18 @@ export default function ProfileHeaderCard({ student }) {
             <button
               type="button"
               onClick={() => setShowFullViewModal(false)}
-              className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white rounded-full p-2.5 transition-colors cursor-pointer border border-white/10"
+              className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white rounded-full p-2.5 transition-colors cursor-pointer border border-white/10 z-10"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
 
-            <img
+            <ImageWithLoading
               src={resolvedPhotoUrl}
               alt="Profile Photo Full View"
               className="object-contain w-full h-full max-h-[85vh] rounded-md shadow-2xl"
+              variant="avatar"
             />
           </div>
         </div>,

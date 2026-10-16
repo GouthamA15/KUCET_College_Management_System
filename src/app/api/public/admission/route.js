@@ -22,7 +22,7 @@ export async function POST(req) {
 
     // --- ZERO TRUST VALIDATION ---
     const admissionSchema = z.object({
-      name: z.string().trim().min(3).max(255).regex(/^[a-zA-Z\s.]+$/),
+      name: z.string().trim().min(3).max(255).regex(/^[a-zA-Z\s.]+$/).transform(val => val.toUpperCase()),
       admission_year: z.string().regex(/^\d{4}-\d{2,4}$/),
       entrance_exam: z.enum(['TG EAPCET', 'TG ECET', 'PGECET', 'Other']),
       branch: z.string().trim().min(2).max(50),
@@ -34,7 +34,7 @@ export async function POST(req) {
       guardian_mobile: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v === '' || v.length === 10).nullable().optional(),
       aadhaar_no: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v === '' || v.length === 12).nullable().optional(),
       dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      gender: z.enum(['MALE', 'FEMALE', 'OTHER', 'Male', 'Female', 'Other']).transform(val => val.toUpperCase()),
+      gender: z.enum(['MALE', 'FEMALE', 'Male', 'Female']).transform(val => val.toUpperCase()),
       father_name: z.string().trim().max(255).nullable().optional(),
       mother_name: z.string().trim().max(255).nullable().optional(),
       exam_rank: z.preprocess(v => v === '' ? null : Number(v), z.number().int().positive().nullable().optional()),

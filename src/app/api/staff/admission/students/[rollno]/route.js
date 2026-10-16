@@ -74,6 +74,10 @@ export async function PUT(req, context) {
       const fr = updatedData.fee_reimbursement == null ? null : String(updatedData.fee_reimbursement).trim().toUpperCase();
       if (fr && !['YES', 'NO', 'GOV'].includes(fr)) return apiError('Invalid fee_reimbursement value', 400);
     }
+    if (updatedData.gender !== undefined) {
+      const g = updatedData.gender == null ? null : String(updatedData.gender).trim().toUpperCase();
+      if (g && !COLLEGE_CONFIG.genders.includes(g)) return apiError('Invalid gender value. Must be MALE or FEMALE', 400);
+    }
 
     const studentRows = await db.select({ id: studentsTable.id })
       .from(studentsTable)
@@ -85,14 +89,14 @@ export async function PUT(req, context) {
     await db.transaction(async (tx) => {
       // 1. Update Core Students
       const studentUpdate = { /* empty */ };
-      if (updatedData.name !== undefined) studentUpdate.name = toNull(updatedData.name);
+      if (updatedData.name !== undefined) studentUpdate.name = toNull(updatedData.name ? String(updatedData.name).trim().toUpperCase() : null);
       if (updatedData.admission_no !== undefined) studentUpdate.admission_no = toNull(updatedData.admission_no);
       if (updatedData.admission_date !== undefined) studentUpdate.admission_date = toMySQLDate(updatedData.admission_date) ? new Date(toMySQLDate(updatedData.admission_date)) : null;
       if (updatedData.academic_status !== undefined) studentUpdate.academic_status = toNull(String(updatedData.academic_status).trim().toUpperCase());
       if (updatedData.academic_offset_years !== undefined) studentUpdate.academic_offset_years = parseInt(updatedData.academic_offset_years) || 0;
       if (updatedData.fee_reimbursement !== undefined) studentUpdate.fee_reimbursement = toNull(String(updatedData.fee_reimbursement).trim().toUpperCase());
       if (updatedData.date_of_birth !== undefined) studentUpdate.date_of_birth = toMySQLDate(updatedData.date_of_birth) ? new Date(toMySQLDate(updatedData.date_of_birth)) : null;
-      if (updatedData.gender !== undefined) studentUpdate.gender = toNull(updatedData.gender);
+      if (updatedData.gender !== undefined) studentUpdate.gender = toNull(updatedData.gender ? String(updatedData.gender).trim().toUpperCase() : null);
       
       if (updatedData.mobile !== undefined) {
           const val = toNull(updatedData.mobile);

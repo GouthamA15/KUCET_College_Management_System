@@ -1,14 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
 import { getStatusStyles } from "@/lib/ui-utils";
 import { formatCertificateName } from '@/lib/certificate-utils';
 import { formatDate } from '@/lib/date';
+import ImageWithLoading from '@/components/ui/ImageWithLoading';
 
 export default function CertificateActionPanel({ request }) {
-  const [imageLoading, setImageLoading] = useState(true);
-
   const toDmy = (val) => formatDate(val, '—');
 
   const currency = (amt) => {
@@ -179,27 +176,16 @@ export default function CertificateActionPanel({ request }) {
             )}
           </div>
           <div className="flex-1 min-h-[180px] w-full rounded-md border bg-gray-50 grid place-items-center relative overflow-hidden">
-            {screenshotSrc ? (
-              <>
-                {imageLoading && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 z-10 space-y-1">
-                        <div className="animate-spin h-6 w-6 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
-                        <span className="text-xs text-gray-500 font-medium">Image is loading...</span>
-                    </div>
-                )}
-                <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-                    src={screenshotSrc} 
-                    alt="Payment Screenshot" 
-                    width={500} 
-                    height={500} 
-                    unoptimized
-                    className={`max-w-full max-h-[48vh] object-contain rounded-md transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
-                    onLoad={() => setImageLoading(false)}
-                />
-              </>
-            ) : (
-              <span className="text-sm text-gray-400">No screenshot provided.</span>
-            )}
+            <ImageWithLoading
+              src={screenshotSrc}
+              alt="Payment Screenshot"
+              width={500}
+              height={500}
+              variant="document"
+              className="max-w-full max-h-[48vh] object-contain rounded-md"
+              emptyText="No screenshot provided."
+              errorText="Payment screenshot unavailable or could not be loaded"
+            />
           </div>
         </div>
       </div>

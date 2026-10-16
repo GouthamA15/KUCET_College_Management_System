@@ -14,7 +14,7 @@ function clampNumber(value, min, max) {
   return Math.min(max, Math.max(min, n));
 }
 
-function toTitleCase(str) {
+function _toTitleCase(str) {
   if (!str) return '';
   return str
     .toLowerCase()
@@ -194,10 +194,10 @@ export default function StudentDashboardClient() {
               </div>
             </div>
 
-            {/* Desktop Welcome Layout - Title case name with metadata under it */}
+            {/* Desktop Welcome Layout - Authoritative student name with metadata under it */}
             <div className="hidden lg:block text-left text-white">
               <h1 className="text-2xl font-bold tracking-tight text-white select-none">
-                Welcome back, {toTitleCase(student.name)}
+                Welcome back, {student.name}
               </h1>
               <div className="mt-2 text-xs font-medium text-blue-100/90 space-y-0.5 select-none">
                 <div>B.Tech ({branch})</div>

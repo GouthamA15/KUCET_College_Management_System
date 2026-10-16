@@ -21,7 +21,7 @@ const AdmissionPage = () => {
         sub_caste: '',
         seat_allotted_category: '',
         dob: '',
-        gender: 'Male',
+        gender: 'MALE',
         nationality: 'Indian',
         religion: '',
         mother_tongue: '',
@@ -438,8 +438,8 @@ const AdmissionPage = () => {
                         <div className="space-y-1">
                             <label htmlFor="gender" className={labelClasses}>11. Gender <span className="text-red-500">*</span></label>
                             <select id="gender" required value={form.gender} onChange={e => setForm({...form, gender: e.target.value})} className={inputClasses}>
-                                <option value="Male">Male</option>
-                                <option value="Female">Female</option>
+                                <option value="MALE">Male</option>
+                                <option value="FEMALE">Female</option>
                             </select>
                         </div>
 

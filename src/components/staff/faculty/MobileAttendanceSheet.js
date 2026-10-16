@@ -1,5 +1,4 @@
 'use client';
-/* eslint-disable @next/next/no-img-element */
 import { useState, _useEffect } from 'react';
 import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
@@ -7,8 +6,8 @@ import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
 import { canonicalizeRollNo } from '@/lib/rollNumber';
 import dynamic from 'next/dynamic';
 import LectureTopicModal from './LectureTopicModal';
-import { getAssetUrl } from '@/lib/assets';
 import { formatDate } from '@/lib/date';
+import ImageWithLoading from '@/components/ui/ImageWithLoading';
 
 const QRScannerPanel = dynamic(() => import('./QRScannerPanel'), {
   ssr: false,
@@ -498,13 +497,16 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
                   {students.map(student => (
                     <div key={student.id} className="bg-white border border-gray-200 rounded-xl p-3.5 shadow-sm">
                       <div className="flex justify-between items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-500 flex-shrink-0">
-                          {student.pfp ? (
-                            <img src={getAssetUrl(student.pfp)} alt={student.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = student.name.charAt(0).toUpperCase(); }} />
-                          ) : (
-                            student.name.charAt(0).toUpperCase()
-                          )}
-                        </div>
+                        <ImageWithLoading
+                          src={student.pfp}
+                          alt={student.name || 'Student'}
+                          width={40}
+                          height={40}
+                          variant="avatar"
+                          fallbackText={student.name?.charAt(0).toUpperCase()}
+                          className="w-10 h-10 rounded-full border border-slate-200 shrink-0"
+                          imageClassName="w-full h-full object-cover rounded-full"
+                        />
                         <div className="flex-1 pr-1">
                           <div className="font-mono text-gray-800 text-[11px] font-black tracking-wide mb-1 flex items-center gap-2">
                             {student.roll_no}

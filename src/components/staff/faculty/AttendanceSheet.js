@@ -1,5 +1,4 @@
 'use client';
-/* eslint-disable @next/next/no-img-element */
 import { useState, _useEffect } from 'react';
 import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
@@ -7,8 +6,8 @@ import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
 import { canonicalizeRollNo } from '@/lib/rollNumber';
 import dynamic from 'next/dynamic';
 import LectureTopicModal from './LectureTopicModal';
-import { getAssetUrl } from '@/lib/assets';
 import { formatDate } from '@/lib/date';
+import ImageWithLoading from '@/components/ui/ImageWithLoading';
 
 const QRScannerPanel = dynamic(() => import('./QRScannerPanel'), {
   ssr: false,
@@ -337,13 +336,16 @@ const AttendanceGrid = () => {
           <div key={student.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col gap-3">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-500 flex-shrink-0">
-                  {student.pfp ? (
-                    <img src={getAssetUrl(student.pfp)} alt={student.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = student.name.charAt(0).toUpperCase(); }} />
-                  ) : (
-                    student.name.charAt(0).toUpperCase()
-                  )}
-                </div>
+                <ImageWithLoading
+                  src={student.pfp}
+                  alt={student.name || 'Student'}
+                  width={40}
+                  height={40}
+                  variant="avatar"
+                  fallbackText={student.name?.charAt(0).toUpperCase()}
+                  className="w-10 h-10 rounded-full border border-slate-200 shrink-0"
+                  imageClassName="w-full h-full object-cover rounded-full"
+                />
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm font-mono font-bold text-slate-800">{student.roll_no}</span>
@@ -437,13 +439,16 @@ const AttendanceGrid = () => {
             {students.map((student) => (
               <tr key={student.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-500">
-                    {student.pfp ? (
-                      <img src={getAssetUrl(student.pfp)} alt={student.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = student.name.charAt(0).toUpperCase(); }} />
-                    ) : (
-                      student.name.charAt(0).toUpperCase()
-                    )}
-                  </div>
+                  <ImageWithLoading
+                    src={student.pfp}
+                    alt={student.name || 'Student'}
+                    width={32}
+                    height={32}
+                    variant="avatar"
+                    fallbackText={student.name?.charAt(0).toUpperCase()}
+                    className="w-8 h-8 rounded-full border border-slate-200"
+                    imageClassName="w-full h-full object-cover rounded-full"
+                  />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-800">
                   <div className="flex items-center gap-2">

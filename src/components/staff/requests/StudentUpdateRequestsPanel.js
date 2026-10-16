@@ -3,12 +3,12 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useStaff } from '@/context/StaffContext';
-import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { getAssetUrl } from '@/lib/assets';
 import { Search, Filter, ArrowUpDown, FileText, XCircle } from 'lucide-react';
 import { StudentUpdateReviewModal } from '@/components/ui/edit-modals/StudentUpdateReviewModal';
 import { formatDate } from '@/lib/date';
+import DocumentPreviewWithLoading from '@/components/ui/DocumentPreviewWithLoading';
 
 const StudentUpdateRequestsPanel = () => {
   const { loading: isContextLoading, pendingProfileRequests, isLoadingRequests, refreshProfileRequests } = useStaff();
@@ -232,29 +232,63 @@ const StudentUpdateRequestsPanel = () => {
         setViewingImage={setViewingImage}
       />
 
-      {/* Audit Image Preview Modal */}
+      {/* Audit Image / Document Preview Modal */}
       {viewingImage && typeof document !== 'undefined' && createPortal(
-        (
-          <div 
-            className="fixed inset-0 z-[200] bg-gray-900/95 flex items-center justify-center p-6 md:p-12 cursor-zoom-out animate-fadeIn"
-            onClick={() => setViewingImage(null)}
-          >
-            <div className="relative w-full h-full flex flex-col items-center justify-center">
-              <div className="absolute top-0 right-0 p-4 sm:p-8 z-10">
-                <button 
-                  onClick={(e) => { e.stopPropagation(); setViewingImage(null); }}
-                  className="text-white text-3xl font-light hover:scale-110 transition-transform flex items-center gap-3 bg-black/40 hover:bg-black/60 px-4 py-2 rounded-full backdrop-blur-md border border-white/20 shadow-lg"
+        (() => {
+          const fileUrl = getAssetUrl(viewingImage);
+          const isPdf = typeof viewingImage === 'string' && (
+            viewingImage.toLowerCase().endsWith('.pdf') || 
+            viewingImage.toLowerCase().includes('.pdf?')
+          );
+
+          return (
+            <div 
+              className="fixed inset-0 z-[200] bg-gray-900/95 flex items-center justify-center p-4 md:p-8 animate-fadeIn"
+              onClick={() => setViewingImage(null)}
+            >
+              <div className="relative w-full max-w-5xl h-[90vh] flex flex-col items-center justify-center">
+                <div className="w-full flex items-center justify-between pb-3 z-10">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-semibold tracking-wider text-gray-300 uppercase">
+                      {isPdf ? 'Document Proof (PDF)' : 'Audit Preview'}
+                    </span>
+                    <a
+                      href={fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-xs font-medium text-blue-400 hover:text-blue-300 underline flex items-center gap-1"
+                    >
+                      Open in New Tab / Download ↗
+                    </a>
+                  </div>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setViewingImage(null); }}
+                    className="text-white text-xs font-semibold hover:scale-105 transition-transform flex items-center gap-2 bg-black/60 hover:bg-black/80 px-4 py-2 rounded-full border border-white/20 shadow-lg cursor-pointer"
+                  >
+                    <span>CLOSE</span> &times;
+                  </button>
+                </div>
+                <div 
+                  className="relative w-full flex-1 border border-gray-700 shadow-2xl bg-white rounded-lg overflow-hidden flex items-center justify-center min-h-[400px]" 
+                  onClick={(e) => e.stopPropagation()}
                 >
-                 <span className="text-xs font-semibold tracking-[0.3em]">DISMISS AUDIT</span> &times;
-                </button>
+                  <DocumentPreviewWithLoading
+                    src={viewingImage}
+                    title={isPdf ? 'Document Proof (PDF)' : 'Audit Preview'}
+                    className="w-full h-full"
+                    allowDownload={true}
+                    allowExternal={true}
+                  />
+                </div>
+                <div className="mt-3 text-gray-400 text-[10px] font-semibold tracking-[0.2em]">
+                  Digital Forensic Environment &bull; Official Student Record Verification
+                </div>
               </div>
-              <div className="relative max-w-6xl max-h-[85vh] w-full h-full flex items-center justify-center border-8 border-gray-800 shadow-2xl bg-white rounded-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={getAssetUrl(viewingImage)} alt="Audit Preview" fill sizes="(max-width: 768px) 90vw, 1100px" unoptimized className="object-contain" />
-              </div>
-              <div className="mt-8 text-gray-500 text-[10px] font-semibold tracking-[0.4em] animate-pulse">Digital Forensic Environment &bull; High-Resolution View</div>
             </div>
-          </div>
-        ),
+          );
+        })(),
         document.body
       )}
 

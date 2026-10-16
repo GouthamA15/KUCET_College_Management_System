@@ -2,14 +2,14 @@
 import React, { useState, useEffect, forwardRef } from 'react';
 import toast from 'react-hot-toast';
 import { formatDate, parseDate } from '@/lib/date';
-import Image from 'next/image';
 import ImagePreviewModal from '@/components/ImagePreviewModal';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { getBranchFromRoll, getAdmissionTypeFromRoll, getEntranceExamQualified } from '@/lib/rollNumber';
-import { COLLEGE_CONFIG } from '@/lib/college-config';
+import { COLLEGE_CONFIG, formatGenderLabel } from '@/lib/college-config';
 import { formatIndianNumber } from '@/lib/financial-utils';
 import { getAssetUrl } from '@/lib/assets';
+import ImageWithLoading from '@/components/ui/ImageWithLoading';
 
 const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
     <input
@@ -34,7 +34,6 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
   const [_annualIncomeDisplay, _setAnnualIncomeDisplay] = useState('');
-  const [imageLoading, setImageLoading] = useState(true);
 
   const sanitizeDigits = (input, maxLen = 10) => {
     if (input == null) return '';
@@ -42,13 +41,6 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
     return s.slice(0, maxLen);
   };
 
-  useEffect(() => {
-    if (fetchedStudent?.pfp) {
-      const id = setTimeout(() => setImageLoading(true), 0);
-      return () => clearTimeout(id);
-    }
-    return undefined;
-  }, [fetchedStudent?.pfp]);
 
   useEffect(() => {
     if (!fetchedStudent) return undefined;
@@ -58,9 +50,9 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
       admission_no: fetchedStudent.admission_no || null,
       roll_no: fetchedStudent.roll_no || null,
       fee_reimbursement: fetchedStudent.fee_reimbursement || null,
-      name: fetchedStudent.name || null,
+      name: fetchedStudent.name ? String(fetchedStudent.name).toUpperCase() : null,
       date_of_birth: formatDate(fetchedStudent.date_of_birth) || null,
-      gender: fetchedStudent.gender || 'Male',
+      gender: fetchedStudent.gender ? String(fetchedStudent.gender).toUpperCase() : 'MALE',
       admission_type: getAdmissionTypeFromRoll(fetchedStudent.roll_no) || null,
       course: getBranchFromRoll(fetchedStudent.roll_no) || null,
       mobile: sanitizeDigits(fetchedStudent.mobile || '' , 10) || null,
@@ -218,11 +210,11 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
     try {
       const roll = fetchedStudent.roll_no;
       const updatedData = {
-        name: editValues.name,
+        name: editValues.name ? String(editValues.name).trim().toUpperCase() : '',
         admission_no: editValues.admission_no,
         fee_reimbursement: editValues.fee_reimbursement,
         date_of_birth: editValues.date_of_birth,
-        gender: editValues.gender,
+        gender: editValues.gender ? String(editValues.gender).trim().toUpperCase() : 'MALE',
         mobile: editValues.mobile,
         father_name: personalFull.father_name,
         mother_name: personalFull.mother_name,
@@ -312,54 +304,40 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
                 <div>
                   <div className="text-xs font-bold text-gray-500 mb-2 ">Profile Photo</div>
                   <div className="w-28 h-28 rounded-full bg-gray-100 overflow-hidden mb-3 flex items-center justify-center relative border-2 border-indigo-100">
-                    {(() => {
-                      const p = fetchedStudent.pfp;
-                      const has = p && String(p).trim() !== '';
-                      const isData = has && String(p).startsWith('data:');
-                      const dataHasBody = !isData || (String(p).includes(',') && String(p).split(',')[1].trim() !== '');
-                      if (has && dataHasBody) {
-                        return (
-                            <>
-                                {imageLoading && (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 z-10 space-y-1">
-                                        <div className="animate-spin h-6 w-6 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
-                                        <span className="text-[10px] text-gray-500 font-medium">Loading...</span>
-                                    </div>
-                                )}
-                                <Image 
-                                    src={getAssetUrl(String(p))} 
-                                    alt="Profile" 
-                                    width={112} 
-                                    height={112} 
-                                    unoptimized
-                                    onClick={(e) => { e.stopPropagation(); setImagePreviewSrc(getAssetUrl(String(p))); setImagePreviewOpen(true); }} 
-                                    className={`w-full h-full object-cover cursor-pointer transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
-                                    onLoad={() => setImageLoading(false)}
-                                    onError={() => setImageLoading(false)}
-                                />
-                            </>
-                        );
-                      }
-                      return <div className="text-gray-400 text-xs">No Photo</div>;
-                    })()}
+                    <ImageWithLoading
+                      src={fetchedStudent.pfp}
+                      alt={fetchedStudent.name || "Student Profile"}
+                      width={112}
+                      height={112}
+                      variant="avatar"
+                      className="w-full h-full object-cover"
+                      onClick={() => {
+                        if (fetchedStudent.pfp) {
+                          setImagePreviewSrc(getAssetUrl(String(fetchedStudent.pfp)));
+                          setImagePreviewOpen(true);
+                        }
+                      }}
+                    />
                   </div>
                 </div>
 
                 <div>
                   <div className="text-xs font-bold text-gray-500 mb-2 ">Signature</div>
                   <div className="w-32 h-12 bg-white rounded border border-gray-200 overflow-hidden mb-1 flex items-center justify-center">
-                    {fetchedStudent.signature ? (
-                      <Image
-                        src={getAssetUrl(fetchedStudent.signature)}
-                        alt="Signature"
-                        width={128}
-                        height={48}
-                        className="max-h-full max-w-full object-contain"
-                        onClick={() => { setImagePreviewSrc(getAssetUrl(fetchedStudent.signature)); setImagePreviewOpen(true); }}
-                      />
-                    ) : (
-                      <div className="text-gray-400 text-[10px]">No Signature</div>
-                    )}
+                    <ImageWithLoading
+                      src={fetchedStudent.signature}
+                      alt="Signature"
+                      width={128}
+                      height={48}
+                      variant="signature"
+                      className="max-h-full max-w-full object-contain"
+                      onClick={() => {
+                        if (fetchedStudent.signature) {
+                          setImagePreviewSrc(getAssetUrl(String(fetchedStudent.signature)));
+                          setImagePreviewOpen(true);
+                        }
+                      }}
+                    />
                   </div>
                 </div>
               </div>
@@ -387,7 +365,7 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Student Name</label>
-                  <input placeholder="Student Name" value={editValues.name || ''} onChange={e=>setEditValues({...editValues, name:e.target.value})} className="p-2 border rounded w-full" />
+                  <input placeholder="Student Name" value={editValues.name || ''} onChange={e=>setEditValues({...editValues, name:e.target.value.toUpperCase()})} className="p-2 border rounded w-full" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
@@ -404,8 +382,17 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-                  <select value={editValues.gender || 'Male'} onChange={e=>setEditValues({...editValues, gender:e.target.value})} className="p-2 border rounded w-full">
-                    {genders.map(g=> <option key={g} value={g}>{g}</option>)}
+                  <select 
+                    value={genders.includes(String(editValues.gender || '').toUpperCase()) ? String(editValues.gender).toUpperCase() : (editValues.gender || '')} 
+                    onChange={e=>setEditValues({...editValues, gender:e.target.value.toUpperCase()})} 
+                    className="p-2 border rounded w-full"
+                  >
+                    {editValues.gender && !genders.includes(String(editValues.gender).toUpperCase()) && (
+                      <option value={editValues.gender} disabled>
+                        {String(editValues.gender)} (Legacy / Needs Update)
+                      </option>
+                    )}
+                    {genders.map(g=> <option key={g} value={g}>{formatGenderLabel(g)}</option>)}
                   </select>
                 </div>
                 <div>

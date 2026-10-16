@@ -1,10 +1,10 @@
 'use client';
 import React from 'react';
 import { createPortal } from 'react-dom';
-import Image from 'next/image';
 import { X, FileText, CheckCircle, XCircle } from 'lucide-react';
 import { getAssetUrl } from '@/lib/assets';
 import { formatDate, formatDateTime } from '@/lib/date';
+import ImageWithLoading from '@/components/ui/ImageWithLoading';
 
 export const StudentUpdateReviewModal = ({
   reviewingRequest,
@@ -94,11 +94,15 @@ export const StudentUpdateReviewModal = ({
                       <div className="flex-1 space-y-2">
                         <p className="text-[10px] font-bold text-gray-400 text-center uppercase">Current Record</p>
                         <div className="aspect-square bg-gray-50 border border-gray-200 rounded-md overflow-hidden relative">
-                          {reviewingRequest.old_pfp ? (
-                            <Image unoptimized src={getAssetUrl(reviewingRequest.old_pfp)} alt="Old" fill sizes="120px" className="object-cover" />
-                          ) : (
-                            <div className="flex items-center justify-center h-full text-xs text-gray-400">None</div>
-                          )}
+                          <ImageWithLoading
+                            src={reviewingRequest.old_pfp}
+                            alt="Current Record"
+                            fill
+                            sizes="120px"
+                            variant="avatar"
+                            className="object-cover"
+                            emptyText="None"
+                          />
                         </div>
                       </div>
                       <div className="text-gray-300">→</div>
@@ -106,9 +110,16 @@ export const StudentUpdateReviewModal = ({
                         <p className="text-[10px] font-bold text-purple-600 text-center uppercase">Requested Image</p>
                         <button 
                           onClick={() => setViewingImage(reviewingRequest.new_pfp)}
-                          className="w-full aspect-square bg-white border-2 border-purple-200 rounded-md overflow-hidden relative hover:border-purple-500 transition-colors shadow-sm cursor-zoom-in"
+                          className="w-full aspect-square bg-white border-2 border-purple-200 rounded-md overflow-hidden relative hover:border-purple-500 transition-colors shadow-sm cursor-zoom-in block"
                         >
-                          <Image unoptimized src={getAssetUrl(reviewingRequest.new_pfp)} alt="New" fill sizes="120px" className="object-cover" />
+                          <ImageWithLoading
+                            src={reviewingRequest.new_pfp}
+                            alt="Requested Image"
+                            fill
+                            sizes="120px"
+                            variant="avatar"
+                            className="object-cover pointer-events-none"
+                          />
                         </button>
                       </div>
                     </div>
@@ -122,20 +133,31 @@ export const StudentUpdateReviewModal = ({
                       <div className="space-y-1">
                         <p className="text-[10px] font-bold text-gray-400 uppercase">Current Record</p>
                         <div className="h-16 bg-gray-50 border border-gray-200 rounded-md overflow-hidden relative">
-                          {reviewingRequest.old_signature ? (
-                            <Image unoptimized src={getAssetUrl(reviewingRequest.old_signature)} alt="Old" fill sizes="200px" className="object-contain p-2" />
-                          ) : (
-                            <div className="flex items-center justify-center h-full text-xs text-gray-400">None</div>
-                          )}
+                          <ImageWithLoading
+                            src={reviewingRequest.old_signature}
+                            alt="Current Signature"
+                            fill
+                            sizes="200px"
+                            variant="signature"
+                            className="object-contain p-2"
+                            emptyText="None"
+                          />
                         </div>
                       </div>
                       <div className="space-y-1">
                         <p className="text-[10px] font-bold text-purple-600 uppercase">Requested Image</p>
                         <button 
                           onClick={() => setViewingImage(reviewingRequest.new_signature)}
-                          className="w-full h-16 bg-white border-2 border-purple-200 rounded-md overflow-hidden relative hover:border-purple-500 transition-colors shadow-sm cursor-zoom-in"
+                          className="w-full h-16 bg-white border-2 border-purple-200 rounded-md overflow-hidden relative hover:border-purple-500 transition-colors shadow-sm cursor-zoom-in block"
                         >
-                          <Image unoptimized src={getAssetUrl(reviewingRequest.new_signature)} alt="New" fill sizes="200px" className="object-contain p-2" />
+                          <ImageWithLoading
+                            src={reviewingRequest.new_signature}
+                            alt="Requested Signature"
+                            fill
+                            sizes="200px"
+                            variant="signature"
+                            className="object-contain p-2 pointer-events-none"
+                          />
                         </button>
                       </div>
                     </div>
@@ -171,13 +193,21 @@ export const StudentUpdateReviewModal = ({
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500">Image / PDF</td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right space-x-3">
                         <button 
                           onClick={() => setViewingImage(reviewingRequest.proof_url)}
-                          className="text-xs font-semibold text-[#0b3578] hover:underline"
+                          className="text-xs font-semibold text-[#0b3578] hover:underline cursor-pointer"
                         >
                           Preview
                         </button>
+                        <a
+                          href={getAssetUrl(reviewingRequest.proof_url)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-semibold text-emerald-700 hover:underline cursor-pointer inline-flex items-center gap-1"
+                        >
+                          Open in Tab ↗
+                        </a>
                       </td>
                     </tr>
                   </tbody>

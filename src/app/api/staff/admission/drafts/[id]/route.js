@@ -245,7 +245,17 @@ export const PUT = wrapHandler({
         if (body[field] !== undefined) {
             let value = body[field] === '' ? null : body[field];
             
-            if (field === 'dob') {
+            if (field === 'name' && value) {
+                value = String(value).trim().toUpperCase();
+            }
+            else if (field === 'gender' && value) {
+                const g = String(value).trim().toUpperCase();
+                if (!['MALE', 'FEMALE'].includes(g)) {
+                    return apiError('Invalid gender value. Must be MALE or FEMALE', 400);
+                }
+                value = g;
+            }
+            else if (field === 'dob') {
                 value = toMySQLDate(body[field]);
             } 
             else if (field === 'inter_diploma_marks' && value !== null) {

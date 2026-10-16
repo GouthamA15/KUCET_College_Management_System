@@ -6,7 +6,7 @@ import { formatDate, parseDate } from '@/lib/date';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { validateRollNo, getBranchFromRoll, getAdmissionTypeFromRoll, getEntranceExamQualified } from '@/lib/rollNumber';
-import { COLLEGE_CONFIG } from '@/lib/college-config';
+import { COLLEGE_CONFIG, formatGenderLabel } from '@/lib/college-config';
 import { smoothScrollToTop } from '@/lib/scroll-utils';
 import { formatIndianNumber } from '@/lib/financial-utils';
 
@@ -25,7 +25,7 @@ export default function AddNewStudent() {
   const MAX_MOBILE_LEN = 10;
   const _MAX_ANNUAL_INCOME = 99999999; // adjust to DB limit if known
 
-  const [basic, setBasic] = useState({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'Male', mobile:'', email:'' });
+  const [basic, setBasic] = useState({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'MALE', mobile:'', email:'' });
   const [mobileError, setMobileError] = useState('');
   const [incomeError, setIncomeError] = useState('');
   const [_annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
@@ -147,13 +147,13 @@ export default function AddNewStudent() {
       const payload = {
         admission_no: basic.admission_no || null,
         roll_no: basic.roll_no || null,
-        name: basic.name || null,
+        name: basic.name ? String(basic.name).trim().toUpperCase() : null,
         fee_reimbursement: basic.fee_reimbursement ? String(basic.fee_reimbursement).trim().toUpperCase() : null,
         father_name: personal.father_name || null,
         mother_name: personal.mother_name || null,
         date_of_birth: basic.date_of_birth || null,
         place_of_birth: personal.place_of_birth || null,
-        gender: basic.gender || null,
+        gender: basic.gender ? String(basic.gender).trim().toUpperCase() : 'MALE',
         nationality: personal.nationality || null,
         religion: personal.religion || null,
         sub_caste: personal.sub_caste || null,
@@ -201,7 +201,7 @@ export default function AddNewStudent() {
       setSavedRollLocked(true);
       setShowAddForm(false);
       smoothScrollToTop({ behavior: 'smooth' });
-      setBasic({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'Male', email:''});
+      setBasic({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'MALE', email:''});
       setPersonal({ 
         father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', 
         mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', 
@@ -290,7 +290,7 @@ export default function AddNewStudent() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div className="md:col-span-2">
               <label className="text-sm font-medium text-gray-700 block mb-1">Student Name*</label>
-              <input value={basic.name} onChange={e=>setBasic({...basic, name:e.target.value})} className="w-full p-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-[#0b3578]" />
+              <input value={basic.name} onChange={e=>setBasic({...basic, name:e.target.value.toUpperCase()})} className="w-full p-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-[#0b3578]" />
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-1">Date of Birth*</label>
@@ -307,8 +307,8 @@ export default function AddNewStudent() {
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-1">Gender*</label>
-              <select value={basic.gender} onChange={e=>setBasic({...basic, gender:e.target.value})} className="w-full p-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-[#0b3578]">
-                {genders.map(g=> <option key={g} value={g}>{g}</option>)}
+              <select value={String(basic.gender || 'MALE').toUpperCase()} onChange={e=>setBasic({...basic, gender:e.target.value.toUpperCase()})} className="w-full p-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-[#0b3578]">
+                {genders.map(g=> <option key={g} value={g}>{formatGenderLabel(g)}</option>)}
               </select>
             </div>
             <div className="md:col-span-2">

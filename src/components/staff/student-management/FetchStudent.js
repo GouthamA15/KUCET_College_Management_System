@@ -105,9 +105,9 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
       const initialEdit = {
         admission_no: student.admission_no || null,
         roll_no: student.roll_no || null,
-        name: student.name || null,
+        name: student.name ? String(student.name).toUpperCase() : null,
         date_of_birth: formatDate(student.date_of_birth) || null,
-        gender: student.gender || 'Male',
+        gender: student.gender ? String(student.gender).toUpperCase() : 'MALE',
         admission_type: getAdmissionTypeFromRoll(student.roll_no) || null,
         course: getBranchFromRoll(student.roll_no) || null,
         mobile: sanitizeDigits(student.mobile || '' , 10) || null,

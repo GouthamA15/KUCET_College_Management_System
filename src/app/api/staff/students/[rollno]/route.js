@@ -41,8 +41,8 @@ export const PUT = wrapHandler({
     const { name, gender, mobile, email, date_of_birth } = data;
 
     const updateData = { /* empty */ };
-    if (name !== undefined) updateData.name = name;
-    if (gender !== undefined) updateData.gender = gender;
+    if (name !== undefined) updateData.name = name ? String(name).trim().toUpperCase() : null;
+    if (gender !== undefined) updateData.gender = gender ? String(gender).trim().toUpperCase() : null;
     if (email !== undefined) updateData.email = email.toLowerCase();
     if (date_of_birth !== undefined) updateData.date_of_birth = date_of_birth ? new Date(date_of_birth) : null;
 

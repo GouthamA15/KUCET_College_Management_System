@@ -1,11 +1,11 @@
 "use client";
 import React, { useState } from 'react';
-import Image from 'next/image';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx-js-style';
 import { branchCodes, getBatchFromRoll } from '@/lib/rollNumber';
 import { getAssetUrl } from '@/lib/assets';
 import { formatDate } from '@/lib/date';
+import ImageWithLoading from '@/components/ui/ImageWithLoading';
 
 const ExportStudents = () => {
   const [branch, setBranch] = useState('');
@@ -99,7 +99,7 @@ const ExportStudents = () => {
     }
   };
 
-  const isValidImageUrl = (url) => {
+  const _isValidImageUrl = (url) => {
     if (!url || typeof url !== 'string') return false;
     const clean = url.trim();
     if (clean === '' || clean === 'N/A' || clean === 'NA' || clean === 'None') return false;
@@ -305,22 +305,32 @@ const ExportStudents = () => {
                     <td className="px-6 py-3 font-medium text-gray-700">{student.name}</td>
                     <td className="px-6 py-3 font-mono text-gray-500 text-xs">{student.mobile || 'N/A'}</td>
                     <td className="px-6 py-3">
-                      {isValidImageUrl(getAssetUrl(student.photo)) ? (
-                        <div className="w-8 h-8 rounded-full border border-gray-200 overflow-hidden bg-gray-100">
-                           <Image src={getAssetUrl(student.photo)} width={32} height={32} className="w-full h-full object-cover" alt="S" unoptimized onError={() => {}} />
-                        </div>
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs text-gray-400">NA</div>
-                      )}
+                      <div className="w-8 h-8 rounded-full border border-gray-200 overflow-hidden bg-gray-100">
+                        <ImageWithLoading
+                          src={student.photo}
+                          alt={student.name || "Student"}
+                          width={32}
+                          height={32}
+                          variant="avatar"
+                          className="w-full h-full object-cover"
+                          emptyText="NA"
+                          errorText="NA"
+                        />
+                      </div>
                     </td>
                     <td className="px-6 py-3">
-                      {student.signature ? (
-                        <div className="h-6 w-16 bg-white border border-gray-200 p-1 flex items-center justify-center rounded">
-                           <Image src={getAssetUrl(student.signature)} width={64} height={24} className="h-full object-contain" alt="SIG" unoptimized />
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-400 italic">None</span>
-                      )}
+                      <div className="h-6 w-16 bg-white border border-gray-200 p-0.5 flex items-center justify-center rounded overflow-hidden">
+                        <ImageWithLoading
+                          src={student.signature}
+                          alt="Signature"
+                          width={64}
+                          height={24}
+                          variant="signature"
+                          className="h-full object-contain"
+                          emptyText="None"
+                          errorText="None"
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -338,16 +348,30 @@ const ExportStudents = () => {
                     <span className="ml-2 text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{getBatchFromRoll(student.roll_no)}</span>
                   </div>
                   <div className="flex gap-2">
-                    {isValidImageUrl(getAssetUrl(student.photo)) ? (
-                      <div className="w-8 h-8 rounded-full border border-gray-200 overflow-hidden bg-gray-100">
-                         <Image src={getAssetUrl(student.photo)} width={32} height={32} className="w-full h-full object-cover" alt="S" unoptimized onError={() => {}} />
-                      </div>
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs text-gray-400">NA</div>
-                    )}
+                    <div className="w-8 h-8 rounded-full border border-gray-200 overflow-hidden bg-gray-100">
+                      <ImageWithLoading
+                        src={student.photo}
+                        alt={student.name || "Student"}
+                        width={32}
+                        height={32}
+                        variant="avatar"
+                        className="w-full h-full object-cover"
+                        emptyText="NA"
+                        errorText="NA"
+                      />
+                    </div>
                     {student.signature && (
-                      <div className="h-8 w-12 bg-white border border-gray-200 p-1 flex items-center justify-center rounded">
-                         <Image src={getAssetUrl(student.signature)} width={48} height={24} className="h-full object-contain" alt="SIG" unoptimized />
+                      <div className="h-8 w-12 bg-white border border-gray-200 p-0.5 flex items-center justify-center rounded overflow-hidden">
+                        <ImageWithLoading
+                          src={student.signature}
+                          alt="Signature"
+                          width={48}
+                          height={24}
+                          variant="signature"
+                          className="h-full object-contain"
+                          emptyText="None"
+                          errorText="None"
+                        />
                       </div>
                     )}
                   </div>

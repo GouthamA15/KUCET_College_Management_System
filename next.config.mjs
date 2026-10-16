@@ -30,6 +30,7 @@ const nextConfig = {
     webpackBuildWorker: false,
   },
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',

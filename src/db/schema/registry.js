@@ -72,7 +72,7 @@ export const studentAdmissionDrafts = mysqlTable('student_admission_drafts', {
   father_name: varchar('father_name', { length: 255 }),
   mother_name: varchar('mother_name', { length: 255 }),
   dob: date('dob'),
-  gender: varchar('gender', { length: 10 }),
+  gender: mysqlEnum('gender', ['MALE', 'FEMALE']),
   email: varchar('email', { length: 255 }),
   student_mobile: varchar('student_mobile', { length: 255 }), // Encrypted
   mobile_hash: varchar('mobile_hash', { length: 64 }), // Searchable Index

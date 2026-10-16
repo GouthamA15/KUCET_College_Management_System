@@ -19,7 +19,7 @@ export const COLLEGE_CONFIG = {
     { code: '18', name: 'IT' },
     { code: '03', name: 'MECH' },
   ],
-  genders: ['Male', 'Female'],
+  genders: ['MALE', 'FEMALE'],
   religions: ['Hindu', 'Muslim', 'Christian', 'Sikh', 'Buddhist', 'Jain', 'Parsi', 'Other'],
   categories: ['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC-A', 'SC-B', 'SC-C', 'SC-D', 'ST', 'EWS'],
   bloodGroups: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Not available'],
@@ -43,5 +43,17 @@ export const COLLEGE_CONFIG = {
   ],
 };
 
+export const GENDER_LABELS = {
+  MALE: 'Male',
+  FEMALE: 'Female',
+};
+
+export const formatGenderLabel = (g) => {
+  if (!g) return '';
+  const key = String(g).trim().toUpperCase();
+  return GENDER_LABELS[key] || g;
+};
+
 export const MOBILE_NAV_MODE = 'sidebar'; // 'sidebar' | 'navbar'
+
 
