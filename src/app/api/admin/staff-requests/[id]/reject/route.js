@@ -55,12 +55,12 @@ export const POST = wrapHandler({
         .where(eq(staffRegistrationRequests.id, requestId));
 
       await tx.insert(auditLogs).values({
-        user_id: adminId.toString(),
+        user_id: adminId,
         user_type: 'admin',
         action: 'STAFF_REGISTRATION_REJECTED',
-        entity_type: 'staff_registration_requests',
-        entity_id: requestId.toString(),
-        metadata: { reason: data.rejectionReason },
+        target_type: 'staff_registration_requests',
+        target_id: String(requestId),
+        payload_after: { reason: data.rejectionReason },
         ip_address: context?.ip || '127.0.0.1'
       });
     });

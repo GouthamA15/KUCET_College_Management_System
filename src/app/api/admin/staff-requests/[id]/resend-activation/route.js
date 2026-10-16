@@ -61,12 +61,12 @@ export const POST = wrapHandler({
       });
 
       await tx.insert(auditLogs).values({
-        user_id: adminId.toString(),
+        user_id: adminId,
         user_type: 'admin',
         action: 'RESEND_ACTIVATION_EMAIL',
-        entity_type: 'staff_accounts',
-        entity_id: account.id.toString(),
-        metadata: { requestId: request.id },
+        target_type: 'staff_accounts',
+        target_id: String(account.id),
+        payload_after: { requestId: request.id },
         ip_address: context?.ip || '127.0.0.1'
       });
 
