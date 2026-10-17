@@ -78,9 +78,9 @@ export function StaffProvider({ children }) {
       } else {
         try {
           const data = await res.json();
-          setError(data.error || 'Failed to fetch staff data');
+          setError(data.error || data.message || 'Unable to load staff details. Please refresh the page.');
         } catch {
-          setError('Failed to fetch staff data');
+          setError('Unable to load staff details. Please refresh the page.');
         }
         if (res.status === 401 || res.status === 403) {
           setStaffData(null);
@@ -94,7 +94,7 @@ export function StaffProvider({ children }) {
         }
       }
     } catch (_e) {
-      setError('Network error');
+      setError('Unable to connect to the server. Please check your internet connection and try again.');
     }
     return null;
   }, []);

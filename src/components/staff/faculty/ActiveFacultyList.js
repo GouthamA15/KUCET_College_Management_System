@@ -21,10 +21,11 @@ export default function ActiveFacultyList() {
         const data = await res.json();
         setFacultyList(data.data || []);
       } else {
-        toast.error('Failed to load faculty list');
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error || err.message || 'Unable to load faculty list. Please refresh the page.');
       }
     } catch (_e) {
-      toast.error('An error occurred loading faculty');
+      toast.error('Unable to connect to the server while loading faculty list. Please check your internet connection.');
     } finally {
       setLoading(false);
     }

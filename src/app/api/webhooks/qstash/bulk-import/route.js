@@ -9,6 +9,7 @@ import { _eq, inArray } from 'drizzle-orm';
 import { StudentService } from '@/services/StudentService';
 import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 async function handler(req) {
   try {
@@ -99,7 +100,7 @@ async function handler(req) {
 
     return NextResponse.json({ success: true, insertedCount, updatedCount, errors });
   } catch (err) {
-    console.error('Bulk Import Webhook Error:', err);
+    logger.error({ err: err.message, stack: err.stack }, 'Bulk Import Webhook Error');
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }

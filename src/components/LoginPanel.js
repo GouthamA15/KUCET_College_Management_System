@@ -97,7 +97,7 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
         toast.error(data.error || 'Failed to update password', { id: toastId });
       }
     } catch (_err) {
-      toast.error('Network error updating password', { id: toastId });
+      toast.error('Unable to connect to the server while updating password. Please check your internet connection.', { id: toastId });
     } finally {
       setFirstLoginPassLoading(false);
     }
@@ -153,32 +153,60 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
           'STUDENT_NOT_FOUND',
           'BRANCH_STATUS_UNAVAILABLE'
         ];
+        const CREDENTIAL_NOTICE_CODES = [
+          'FIRST_TIME_DOB_FORMAT_REQUIRED',
+          'INVALID_CREDENTIALS',
+          'DOB_MISMATCH',
+          'ACCOUNT_DEACTIVATED',
+          'ACCOUNT_DISCONTINUED',
+          'ACCOUNT_SUSPENDED'
+        ];
         const code = data.code || data.details?.code;
         const isAdmissionNotice = ADMISSION_STATUS_CODES.includes(code) || (res.status === 404);
+        const isCredentialNotice = CREDENTIAL_NOTICE_CODES.includes(code) || (res.status === 401 && data.details);
 
-        if (isAdmissionNotice) {
-          const title = data.details?.title || 'Student Account Not Found';
-          const message = data.details?.message || data.error || "We couldn't find an active student account for this roll number in the portal.";
+        if (isAdmissionNotice || isCredentialNotice) {
+          const title = data.details?.title || (isAdmissionNotice ? 'Student Account Not Found' : 'Login unsuccessful');
+          const message = data.details?.message || data.error || "The password you entered could not be verified. Check your password and try again.";
           const noticeType = code === 'BRANCH_FINALIZATION_IN_PROGRESS' ? 'info' : 'warning';
 
           setStudentNotice({
-            code: code || 'STUDENT_NOT_FOUND',
+            code: code || 'LOGIN_NOTICE',
             title,
             message,
             type: noticeType
           });
           setStudentError('');
-          toast.error(`${title}. Please review the notice below.`, { id: toastId, duration: 6000 });
+
+          if (code === 'FIRST_TIME_DOB_FORMAT_REQUIRED') {
+            toast.error('Check your password format. Please review the guidance below.', { id: toastId, duration: 6000 });
+          } else if (isCredentialNotice) {
+            toast.error(`${title}. Check your password and try again.`, { id: toastId, duration: 6000 });
+          } else {
+            toast.error(`${title}. Please review the notice below.`, { id: toastId, duration: 6000 });
+          }
+        } else if (res.status === 429) {
+          const rateMsg = data.error || 'Too many login attempts. Please wait a few minutes before trying again.';
+          setStudentNotice({
+            code: 'RATE_LIMITED',
+            title: 'Too Many Attempts',
+            message: rateMsg,
+            type: 'warning'
+          });
+          setStudentError('');
+          toast.error(rateMsg, { id: toastId, duration: 6000 });
         } else {
           setStudentNotice(null);
-          toast.error(data.error || 'Login failed', { id: toastId });
-          setStudentError(data.error || 'Login failed');
+          const errorMsg = data.error || 'Unable to log in. Please check your credentials and try again.';
+          toast.error(errorMsg, { id: toastId });
+          setStudentError(errorMsg);
         }
       }
     } catch (_err) {
       setStudentNotice(null);
-      toast.error('Network error', { id: toastId });
-      setStudentError('Network error');
+      const networkMsg = 'Unable to connect to the server. Please check your internet connection and try again.';
+      toast.error(networkMsg, { id: toastId });
+      setStudentError(networkMsg);
     } finally {
       setStudentLoading(false);
     }
@@ -225,7 +253,7 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
       console.error('Error checking student status:', error);
       setFpIsEligibleForReset(false);
       setFpShowDOBLoginMessage(false);
-      setFpDisplayMessage('Network error. Please try again.');
+      setFpDisplayMessage('Unable to connect to the server. Please check your internet connection and try again.');
       return { ok: false, status: null, error: 'network' };
     } finally {
       setFpIsCheckingStatus(false);
@@ -338,16 +366,28 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
           toast.error(serverMessage);
           setFpDisplayMessage(serverMessage);
         }
-      } else {
-        // Not eligible: show helper message (DOB login info)
+      } else if (statusData && !statusData.has_password_set) {
+        // Not eligible: account is still on initial Date of Birth
         setFpShowDOBLoginMessage(true);
         setFpDisplayMessage(
-          "Password reset not available. Please login using your Date of Birth as password. If you need further assistance, contact support."
+          "Your account is set to first-time login. Please log in using your Date of Birth in DD-MM-YYYY format (for example, 05-09-2007) as your password. Once logged in, you can set a permanent password."
+        );
+      } else if (statusData && !statusData.is_email_verified) {
+        // Has password, but institutional email is unverified
+        setFpShowDOBLoginMessage(true);
+        setFpDisplayMessage(
+          "Your institutional email has not been verified yet, so a password reset link cannot be sent. Please log in with your current password, or contact the college administration to verify your email."
+        );
+      } else {
+        setFpShowDOBLoginMessage(true);
+        setFpDisplayMessage(
+          "Password reset is not available for this roll number. Please log in using your Date of Birth in DD-MM-YYYY format, or contact student support."
         );
       }
     } catch (_error) {
-      toast.error('Unable to process your request. Please try again.');
-      setFpDisplayMessage('Unable to process your request. Please try again.');
+      const netMsg = 'Unable to connect to the server. Please check your internet connection and try again.';
+      toast.error(netMsg);
+      setFpDisplayMessage(netMsg);
     } finally {
       setFpIsLoading(false);
       setFpIsCheckingStatus(false);
@@ -373,10 +413,10 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
         toast.success(data.message);
         setFpEmailMessage(data.message);
       } else {
-        toast.error(data.error || 'An error occurred');
+        toast.error(data.error || 'Unable to send password reset email. Please try again.');
       }
     } catch (_error) {
-      toast.error('An error occurred');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     } finally {
       setFpEmailLoading(false);
     }
@@ -430,12 +470,14 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
 
         window.location.replace(targetPath);
       } else {
-        toast.error(data.error || 'Login failed', { id: toastId });
-        errorSetter(data.error || 'Login failed');
+        const err = data.error || 'Unable to log in. Please verify your email and password.';
+        toast.error(err, { id: toastId });
+        errorSetter(err);
       }
     } catch (_error) {
-      toast.error('An unexpected error occurred', { id: toastId });
-      errorSetter('An unexpected error occurred');
+      const netErr = 'Unable to connect to the server. Please check your internet connection and try again.';
+      toast.error(netErr, { id: toastId });
+      errorSetter(netErr);
     }
   };
 
@@ -544,6 +586,9 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                         onChange={(e) => {
                           setStudentForm((prev) => ({ ...prev, dob: e.target.value }));
                           setStudentError('');
+                          if (studentNotice && ['FIRST_TIME_DOB_FORMAT_REQUIRED', 'INVALID_CREDENTIALS', 'DOB_MISMATCH'].includes(studentNotice.code)) {
+                            setStudentNotice(null);
+                          }
                         }}
                         placeholder="Enter Password"
                         className="w-full px-3 py-2.5 pr-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-150 text-gray-800 text-sm"

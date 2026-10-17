@@ -24,10 +24,10 @@ export default function StudentReactivationsPanel() {
       if (res.ok) {
         setRequests(data.requests || []);
       } else {
-        toast.error(data.error || 'Failed to load reactivation requests');
+        toast.error(data.error || data.message || 'Unable to load reactivation requests. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error loading reactivation requests');
+      toast.error('Unable to connect to the server while loading reactivation requests. Please check your internet connection.');
     }
   }, []);
 
@@ -41,11 +41,11 @@ export default function StudentReactivationsPanel() {
           if (res.ok) {
             setRequests(data.requests || []);
           } else {
-            toast.error(data.error || 'Failed to load reactivation requests');
+            toast.error(data.error || data.message || 'Unable to load reactivation requests. Please try again.');
           }
         }
       } catch (_e) {
-        if (isMounted) toast.error('Network error loading reactivation requests');
+        if (isMounted) toast.error('Unable to connect to the server while loading reactivation requests. Please check your internet connection.');
       } finally {
         if (isMounted) setLoading(false);
       }

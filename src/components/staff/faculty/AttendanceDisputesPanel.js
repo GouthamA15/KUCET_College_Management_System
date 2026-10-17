@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { ExternalLink, Paperclip, MessageSquare, Eye, X, Download, AlertCircle } from 'lucide-react';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { ExternalLink, Paperclip, MessageSquare, Eye, X, Download } from 'lucide-react';
 
 const CATEGORY_LABELS = {
   INCORRECT_MARKING: 'Incorrect Marking',
@@ -88,10 +87,10 @@ export default function AttendanceDisputesPanel() {
       if (res.ok && json.data) {
         setDisputes(json.data);
       } else {
-        toast.error(json.error || 'Failed to load disputes');
+        toast.error(json.error || json.message || 'Unable to load attendance disputes. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error loading disputes');
+      toast.error('Unable to connect to the server while loading disputes. Please check your internet connection.');
     }
   }, [statusFilter]);
 
@@ -113,11 +112,11 @@ export default function AttendanceDisputesPanel() {
           if (res.ok && json.data) {
             setDisputes(json.data);
           } else {
-            toast.error(json.error || 'Failed to load disputes');
+            toast.error(json.error || json.message || 'Unable to load attendance disputes. Please try again.');
           }
         }
       } catch (_e) {
-        if (isMounted) toast.error('Network error loading disputes');
+        if (isMounted) toast.error('Unable to connect to the server while loading disputes. Please check your internet connection.');
       } finally {
         if (isMounted) setLoading(false);
       }

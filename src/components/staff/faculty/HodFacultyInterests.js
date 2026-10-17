@@ -65,10 +65,10 @@ export default function HodFacultyInterests() {
         }
         fetchInterests();
       } else {
-        toast.error(data.error || `Failed to ${action.toLowerCase()} request`);
+        toast.error(data.error || data.message || `Unable to ${action.toLowerCase()} request. Please try again.`);
       }
     } catch (_e) {
-      toast.error('An error occurred');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     } finally {
       setProcessingId(null);
     }

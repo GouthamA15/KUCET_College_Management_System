@@ -83,10 +83,10 @@ export default function SlotEditorModal({
         toast.success(`Slot updated`);
         onSaved();
       } else {
-        toast.error(data.error || 'Failed to update');
+        toast.error(data.error || data.message || 'Unable to update timetable slot. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server while updating slot. Please check your internet connection.');
     } finally {
       setIsSaving(false);
     }
@@ -108,10 +108,10 @@ export default function SlotEditorModal({
         onSaved();
       } else {
         const data = await res.json();
-        toast.error(data.error || 'Deletion failed');
+        toast.error(data.error || data.message || 'Unable to delete lecture slot. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server while deleting slot. Please check your internet connection.');
     } finally {
       setIsSaving(false);
     }

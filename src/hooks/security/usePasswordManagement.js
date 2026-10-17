@@ -59,10 +59,10 @@ export function usePasswordManagement({ role, roll_no, isPasswordSet, onSuccess 
         return true;
       } else {
         const data = await res.json();
-        toast.error(data.error || data.message || 'Failed to update password');
+        toast.error(data.error || data.message || 'Unable to update password. Please verify your current password and try again.');
       }
     } catch {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     } finally {
       setPwSaving(false);
     }

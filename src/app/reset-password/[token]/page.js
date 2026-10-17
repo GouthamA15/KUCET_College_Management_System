@@ -40,7 +40,7 @@ export default function ResetPassword() {
         const res = await fetch(`/api/auth/reset-password/${encodeURIComponent(token)}`);
         const data = await res.json().catch(() => ({ /* empty */ }));
 
-        let status = data.status;
+        let status = data.status || data.code;
         if (!status) {
           if (res.status === 200) status = 'VALID';
           else if (res.status === 410) status = 'EXPIRED';
@@ -50,12 +50,12 @@ export default function ResetPassword() {
 
         if (!cancelled) {
           setTokenStatus(status);
-          setTokenMessage(data.message || '');
+          setTokenMessage(data.message || data.error || '');
         }
       } catch (_err) {
         if (!cancelled) {
           setTokenStatus('INVALID');
-          setTokenMessage('Invalid reset link');
+          setTokenMessage('Unable to validate reset link. Please check your internet connection and try again.');
         }
       }
     }
@@ -94,13 +94,14 @@ export default function ResetPassword() {
         setIsLoading(false);
         setTimeout(() => router.push("/"), 2000);
       } else {
-        const msg = data.error || "An error occurred";
+        const msg = data.error || data.message || "Unable to reset password. Please try again.";
         toast.error(msg);
         setError(msg);
       }
     } catch (_err) {
-      toast.error("An error occurred");
-      setError("An error occurred");
+      const netMsg = "Unable to connect to the server. Please check your internet connection and try again.";
+      toast.error(netMsg);
+      setError(netMsg);
     } finally {
       setIsLoading(false);
     }

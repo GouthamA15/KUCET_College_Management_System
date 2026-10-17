@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { otpCodes } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { SignJWT } from 'jose';
+import { logger } from '@/lib/logger';
 
 export async function POST(req) {
   try {
@@ -51,7 +52,7 @@ export async function POST(req) {
 
     return NextResponse.json({ success: true, verificationToken });
   } catch (error) {
-    console.error('[VERIFY_OTP_ERROR]', error);
-    return NextResponse.json({ success: false, message: 'Internal server error while verifying OTP.' }, { status: 500 });
+    logger.error({ err: error.message }, '[VERIFY_OTP_ERROR]');
+    return NextResponse.json({ success: false, message: 'Unable to verify OTP. Please try again.' }, { status: 500 });
   }
 }

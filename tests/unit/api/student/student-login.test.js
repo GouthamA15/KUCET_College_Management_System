@@ -229,8 +229,8 @@ describe('Student Login API (/api/student/login)', () => {
     });
   });
 
-  describe('Existing Account Credential Failure', () => {
-    it('returns 401 Invalid credentials when password does not match, without STUDENT_NOT_FOUND', async () => {
+  describe('Existing Account Credential Failure & First-Time Guidance', () => {
+    it('returns 401 with INVALID_CREDENTIALS when custom password does not match', async () => {
       const hashed = await bcrypt.hash('CorrectPassword123', 10);
       mockDbSelectResult([{
         id: 101,
@@ -253,11 +253,41 @@ describe('Student Login API (/api/student/login)', () => {
 
       const body = await res.json();
       expect(body.error).toBe('Invalid credentials');
-      expect(body.code).toBeUndefined();
-      expect(body.details).toBeUndefined();
+      expect(body.code).toBe('INVALID_CREDENTIALS');
+      expect(body.details?.code).toBe('INVALID_CREDENTIALS');
+      expect(body.details?.title).toBe('Login unsuccessful');
+      expect(body.details?.message).toBe('The password you entered could not be verified. Check your password and try again. If you have forgotten it, use Forgot Password to reset it.');
     });
 
-    it('returns 401 Invalid credentials when DOB does not match initial account DOB', async () => {
+    it('returns 401 with guidance when student with custom password attempts to log in with DOB format', async () => {
+      const hashed = await bcrypt.hash('CorrectPassword123', 10);
+      mockDbSelectResult([{
+        id: 101,
+        roll_no: '24567T0901',
+        name: 'Jane Doe',
+        password_hash: hashed,
+        date_of_birth: new Date('2004-01-01'),
+        student_status: 'ACTIVE',
+        academic_status: 'ACTIVE',
+      }]);
+
+      const req = makeMockRequest({
+        rollno: '24567T0901',
+        dob: '01-01-2004',
+        rememberMe: false,
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(401);
+
+      const body = await res.json();
+      expect(body.error).toBe('Invalid credentials');
+      expect(body.code).toBe('INVALID_CREDENTIALS');
+      expect(body.details?.title).toBe('Login unsuccessful');
+      expect(body.details?.message).toContain('If you have already changed your password from the default date of birth, use your updated password, or use Forgot Password to reset it.');
+    });
+
+    it('returns 401 with FIRST_TIME_DOB_FORMAT_REQUIRED when first-time student enters non-date password format', async () => {
       mockDbSelectResult([{
         id: 102,
         roll_no: '24567T0902',
@@ -270,7 +300,7 @@ describe('Student Login API (/api/student/login)', () => {
 
       const req = makeMockRequest({
         rollno: '24567T0902',
-        dob: '2004-05-20',
+        dob: 'MyPassword123',
         rememberMe: false,
       });
 
@@ -279,7 +309,39 @@ describe('Student Login API (/api/student/login)', () => {
 
       const body = await res.json();
       expect(body.error).toBe('Invalid credentials');
-      expect(body.code).toBeUndefined();
+      expect(body.code).toBe('FIRST_TIME_DOB_FORMAT_REQUIRED');
+      expect(body.details?.code).toBe('FIRST_TIME_DOB_FORMAT_REQUIRED');
+      expect(body.details?.title).toBe('Check your password format');
+      expect(body.details?.message).toBe('For your first login, enter your date of birth in DD-MM-YYYY format (for example, 05-09-2007). If you have already changed your password, use your current password instead.');
+    });
+
+    it('returns 401 with DOB_MISMATCH when first-time student enters valid date format that does not match records', async () => {
+      mockDbSelectResult([{
+        id: 102,
+        roll_no: '24567T0902',
+        name: 'John Smith',
+        password_hash: null,
+        date_of_birth: new Date('2004-05-15'),
+        student_status: 'ACTIVE',
+        academic_status: 'ACTIVE',
+      }]);
+
+      const req = makeMockRequest({
+        rollno: '24567T0902',
+        dob: '20-05-2004',
+        rememberMe: false,
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(401);
+
+      const body = await res.json();
+      expect(body.error).toBe('Invalid credentials');
+      expect(body.code).toBe('DOB_MISMATCH');
+      expect(body.details?.code).toBe('DOB_MISMATCH');
+      expect(body.details?.title).toBe('Login unsuccessful');
+      expect(body.details?.message).toContain('The date of birth entered could not be verified against college records.');
+      expect(body.details?.message).toContain('For first-time login, verify your date of birth in DD-MM-YYYY format and try again.');
     });
   });
 

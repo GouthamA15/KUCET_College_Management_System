@@ -31,10 +31,10 @@ export default function ChangePasswordModal({ show, onClose, apiEndpoint }) {
         toast.success(data.message);
         onClose();
       } else {
-        toast.error(data.error || 'An error occurred');
+        toast.error(data.error || 'Unable to update password. Please check your inputs and try again.');
       }
     } catch (_error) {
-      toast.error('An error occurred');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     } finally {
       setIsLoading(false);
     }

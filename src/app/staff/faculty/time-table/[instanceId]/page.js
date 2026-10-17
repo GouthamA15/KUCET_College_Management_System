@@ -31,11 +31,12 @@ export default function TimetableInstancePage({ params }) {
         const json = await res.json();
         setData(json.data);
       } else {
-        toast.error('Failed to load instance');
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || d.message || 'Unable to load timetable. Please try again.');
         router.push('/staff/faculty/time-table');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -61,11 +62,11 @@ export default function TimetableInstancePage({ params }) {
         setShowArchiveConfirm(false);
         fetchData();
       } else {
-        const d = await res.json();
-        toast.error(d.error || 'Failed to archive');
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || d.message || 'Unable to archive timetable. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     } finally {
       setIsPublishing(false);
     }
@@ -83,11 +84,11 @@ export default function TimetableInstancePage({ params }) {
         toast.success('Timetable reactivated to Draft');
         fetchData();
       } else {
-        const d = await res.json();
-        toast.error(d.error || 'Failed to reactivate');
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || d.message || 'Unable to reactivate timetable. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     } finally {
       setIsPublishing(false);
     }
@@ -105,11 +106,11 @@ export default function TimetableInstancePage({ params }) {
         toast.success('Timetable published successfully');
         fetchData();
       } else {
-        const d = await res.json();
-        toast.error(d.error || 'Failed to publish');
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || d.message || 'Unable to publish timetable. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     } finally {
       setIsPublishing(false);
     }

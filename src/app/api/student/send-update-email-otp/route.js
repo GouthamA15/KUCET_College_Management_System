@@ -59,9 +59,8 @@ export async function POST(req) {
           expires_at: expiresAt
         });
       } catch (dbError) {
-        logger.error(dbError, '[DATABASE ERROR] OTP management failed');
-        console.error('CRITICAL DATABASE ERROR IN OTP SEND:', dbError);
-        return apiError(`Please try again after 15 minutes. (DB Error: ${dbError.message || dbError})`, 500);
+        logger.error({ err: dbError.message, stack: dbError.stack }, '[DATABASE ERROR] OTP management failed');
+        return apiError('Unable to generate verification code. Please try again in a few moments.', 500);
       }
 
       const isActivating = !user.is_email_verified;
