@@ -31,7 +31,12 @@ export function apiResponse(data, status = 200, headers = {}) {
  */
 export function apiError(message, status = 500, details = null, headers = {}) {
   const response = { error: message };
-  if (details) response.details = details;
+  if (details) {
+    if (typeof details === 'object' && !Array.isArray(details) && details.code) {
+      response.code = details.code;
+    }
+    response.details = details;
+  }
   return NextResponse.json(response, {
     status,
     headers: {
