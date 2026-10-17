@@ -19,10 +19,10 @@ export default function StudentTimetablePage() {
         setSchedule(data.data || []);
         setMeta(data.meta);
       } else {
-        setError(data.error || 'Failed to load timetable');
+        setError(data.error || data.message || 'Unable to load timetable schedule. Please try again.');
       }
     } catch (_e) {
-      setError('Network error — could not sync timetable');
+      setError('Unable to sync timetable. Please check your internet connection and refresh.');
     } finally {
       setLoading(false);
     }

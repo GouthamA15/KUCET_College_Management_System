@@ -258,8 +258,8 @@ export async function PUT(request, { params }) {
             return apiError('This request has already been processed', 409);
         }
     } catch (error) {
-        logger.error("Error updating request:", error);
-        return apiError('An error occurred while updating the request', 500, error.message);
+        logger.error({ err: error, requestId: params?.request_id }, "Error updating request status");
+        return apiError('Unable to update request status. Please try again.', 500);
     }
 }
 

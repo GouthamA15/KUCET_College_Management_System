@@ -284,7 +284,6 @@ export async function GET(request, context) {
             cause: error?.cause || null,
         };
         logger.error({ err: error, details: errorDetails }, '[CERTIFICATE_GENERATION_EXCEPTION]');
-        console.error('[CERTIFICATE_GENERATION_EXCEPTION] Full Stack Trace:', error);
-        return apiError('An error occurred while generating the certificate.', 500, process.env.NODE_ENV === 'development' ? error.stack : error.message);
+        return apiError('Unable to generate the certificate document at this time. Please try again or contact the examination branch if the issue persists.', 500);
     }
 }

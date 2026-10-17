@@ -140,9 +140,8 @@ export const GET = wrapHandler({
 
       return apiResponse({ data: interests });
     } catch (error) {
-      console.error('CRASH STACK:', error.stack || error);
-      logger.error('Faculty Interests GET Error:', error.stack || error);
-      return apiError('Internal Server Error', 500);
+      logger.error({ err: error.message, stack: error.stack }, 'Faculty Interests GET Error');
+      return apiError('Unable to load faculty interests. Please try again.', 500);
     }
   }
 });

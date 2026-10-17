@@ -62,10 +62,11 @@ export default function CertificateRequestsPage() {
         setCertificateRequests(rows);
         setCertificateRequestsLoaded(true);
       } else {
-        toast.error('Failed to fetch requests.');
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.error || errorData.message || 'Unable to load certificate requests. Please refresh the page.');
       }
     } catch (_error) {
-      toast.error('An error occurred while fetching requests.');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     } finally {
       setIsLoadingRequests(false);
     }
@@ -207,11 +208,11 @@ export default function CertificateRequestsPage() {
         toast.success('Request submitted successfully!');
         setSelectedCertificate(certificateOptions[0].value);
       } else {
-        const errorData = await response.json();
-        toast.error(errorData.error || 'Failed to submit request.');
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.error || errorData.message || 'Unable to submit certificate request. Please check required fields and try again.');
       }
     } catch (_error) {
-      toast.error('An error occurred while submitting the request.');
+      toast.error('Unable to connect to the server while submitting request. Please check your internet connection.');
     } finally {
       setIsLoading(false);
     }

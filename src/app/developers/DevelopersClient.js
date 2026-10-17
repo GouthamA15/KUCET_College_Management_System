@@ -192,12 +192,12 @@ export default function DevelopersClient() {
         setIsModalOpen(false);
         setIsLoginPromptOpen(true);
       } else {
-        const errorData = await res.json();
-        toast.error(errorData.message || `Failed to submit ${label}`, { id: loadingToast });
+        const errorData = await res.json().catch(() => ({}));
+        toast.error(errorData.message || errorData.error || `Unable to submit ${label.toLowerCase()}. Please try again.`, { id: loadingToast });
       }
     } catch (error) {
       console.error('Submit error:', error);
-      toast.error('An error occurred. Please try again.', { id: loadingToast });
+      toast.error('Unable to submit report. Please check your connection and try again.', { id: loadingToast });
     } finally {
       setIsSubmitting(false);
     }
@@ -215,11 +215,11 @@ export default function DevelopersClient() {
         toast.success('Marked as fixed!', { id: loadingToast });
         fetchBugReports();
       } else {
-        const err = await res.json();
-        toast.error(err.message || 'Failed to mark as fixed', { id: loadingToast });
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.message || err.error || 'Failed to mark as fixed', { id: loadingToast });
       }
     } catch {
-      toast.error('An error occurred', { id: loadingToast });
+      toast.error('Unable to connect to the server. Please try again.', { id: loadingToast });
     }
   };
 
@@ -235,11 +235,11 @@ export default function DevelopersClient() {
         toast.success('Reopened!', { id: loadingToast });
         fetchBugReports();
       } else {
-        const err = await res.json();
-        toast.error(err.message || 'Failed to reopen', { id: loadingToast });
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.message || err.error || 'Failed to reopen', { id: loadingToast });
       }
     } catch {
-      toast.error('An error occurred', { id: loadingToast });
+      toast.error('Unable to connect to the server. Please try again.', { id: loadingToast });
     }
   };
 

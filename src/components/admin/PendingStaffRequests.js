@@ -89,10 +89,10 @@ export default function PendingStaffRequests({ onRequestAction, categoryFilter }
         fetchRequests();
         if (onRequestAction) onRequestAction();
       } else {
-        toast.error(data.error || 'Failed to approve request', { id: toastId });
+        toast.error(data.error || 'Unable to approve registration request. Please try again.', { id: toastId });
       }
     } catch (_err) {
-      toast.error('Network error approving request', { id: toastId });
+      toast.error('Unable to connect to the server while approving request. Please check your internet connection.', { id: toastId });
     } finally {
       setActionId(null);
     }
@@ -125,10 +125,10 @@ export default function PendingStaffRequests({ onRequestAction, categoryFilter }
         fetchRequests();
         if (onRequestAction) onRequestAction();
       } else {
-        toast.error(data.error || 'Failed to reject request', { id: toastId });
+        toast.error(data.error || 'Unable to reject registration request. Please try again.', { id: toastId });
       }
     } catch (_err) {
-      toast.error('Network error rejecting request', { id: toastId });
+      toast.error('Unable to connect to the server while rejecting request. Please check your internet connection.', { id: toastId });
     } finally {
       setSubmittingReject(false);
     }

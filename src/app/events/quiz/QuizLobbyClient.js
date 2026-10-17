@@ -57,12 +57,12 @@ export default function QuizLobbyClient({ currentUser = null, initialConfig = nu
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data?.error || data?.message || 'Failed to initialize assessment session');
+        throw new Error(data?.error || data?.message || 'Unable to start assessment. Please try again.');
       }
 
       router.push('/events/quiz/play');
     } catch (err) {
-      setErrorMessage(err.message || 'An error occurred starting the assessment.');
+      setErrorMessage(err.message || 'Unable to start the assessment. Please check your connection and try again.');
     } finally {
       setStarting(false);
     }

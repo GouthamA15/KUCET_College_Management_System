@@ -101,7 +101,7 @@ export async function POST(req) {
           }
         }
       } catch (e) {
-        console.error('[Scholarship API] Window evaluation failed:', e);
+        logger.error({ err: e.message }, '[Scholarship API] Window evaluation failed');
       }
 
       // Fetch existing rows for student + academic_year
@@ -243,7 +243,7 @@ export async function POST(req) {
                     infoRows: [{ label: 'App No', value: currentApp }, { label: 'Year', value: academic_year }],
                     category: EMAIL_CATEGORIES.SCHOLARSHIP
                 });
-            } catch (err) { console.error('[Scholarship API] Hardcopy Email Failed:', err); }
+            } catch (err) { logger.error({ err: err.message }, '[Scholarship API] Hardcopy Email Failed'); }
         }
         if (providedThumbFlag === 1 && providedThumbStatus === 'PENDING' && (!prevThumbAvailable || prevThumbStatus !== 'PENDING')) {
             try {
@@ -256,7 +256,7 @@ export async function POST(req) {
                     infoRows: [{ label: 'App No', value: currentApp || 'N/A' }, { label: 'Year', value: academic_year }],
                     category: EMAIL_CATEGORIES.SCHOLARSHIP
                 });
-            } catch (err) { console.error('[Scholarship API] Thumb Email Failed:', err); }
+            } catch (err) { logger.error({ err: err.message }, '[Scholarship API] Thumb Email Failed'); }
         }
     }
 

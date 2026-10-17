@@ -23,10 +23,10 @@ export default function PersonalSchedule() {
       if (res.ok) {
         setSchedule(data.data || []);
       } else {
-        setError(data.error || 'Failed to fetch schedule');
+        setError(data.error || data.message || 'Unable to load personal schedule. Please try again.');
       }
     } catch (_e) {
-      setError('Network error — could not sync your schedule');
+      setError('Unable to sync your schedule. Please check your internet connection and refresh.');
     } finally {
       setLoading(false);
     }

@@ -62,7 +62,7 @@ export default function FacultyTimetableOverview() {
         if (json.systemYear) setNewAcademicYear(json.systemYear);
       }
     } catch (_e) {
-      toast.error('Failed to fetch timetables');
+      toast.error('Unable to load timetables. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -94,10 +94,10 @@ export default function FacultyTimetableOverview() {
         setShowCreate(false);
         router.push(`/staff/faculty/time-table/${data.id}`);
       } else {
-        toast.error(data.error || 'Failed to create');
+        toast.error(data.error || data.message || 'Unable to create timetable. Please verify your inputs and try again.');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     } finally {
       setIsCreating(false);
     }

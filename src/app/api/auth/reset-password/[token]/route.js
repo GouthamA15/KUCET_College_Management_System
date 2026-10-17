@@ -29,21 +29,21 @@ export async function GET(req, { params }) {
 
     const resolved = params ? await params : { /* empty */ };
     const { token } = resolved || { /* empty */ };
-    if (!token) return apiError('INVALID', 400);
+    if (!token) return apiError('This password reset link is invalid or malformed. Please request a new link.', 400, { code: 'INVALID', status: 'INVALID' });
 
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const tokenData = await db.query.passwordResetTokens.findFirst({
       where: eq(passwordResetTokens.token_hash, tokenHash)
     });
 
-    if (!tokenData) return apiError('INVALID', 400);
-    if (tokenData.used_at) return apiError('USED', 409);
-    if (new Date() > new Date(tokenData.expires_at)) return apiError('EXPIRED', 410);
+    if (!tokenData) return apiError('This password reset link is invalid or was not found. Please request a new reset link.', 400, { code: 'INVALID', status: 'INVALID' });
+    if (tokenData.used_at) return apiError('This password reset link has already been used. If you need to reset your password again, please request a new link.', 409, { code: 'USED', status: 'USED' });
+    if (new Date() > new Date(tokenData.expires_at)) return apiError('This password reset link has expired (valid for 60 minutes). For security, please request a new reset link.', 410, { code: 'EXPIRED', status: 'EXPIRED' });
 
     return apiResponse({ status: 'VALID' });
   } catch (err) {
     logger.error('RESET TOKEN VALIDATION ERROR:', err);
-    return apiError('INVALID', 400);
+    return apiError('Unable to validate reset link. Please try again.', 400, { code: 'INVALID', status: 'INVALID' });
   }
 }
 
@@ -70,9 +70,9 @@ export async function POST(req, { params }) {
       where: eq(passwordResetTokens.token_hash, tokenHash)
     });
 
-    if (!tokenData) return apiError('INVALID', 400);
-    if (tokenData.used_at) return apiError('USED', 409);
-    if (new Date() > new Date(tokenData.expires_at)) return apiError('EXPIRED', 410);
+    if (!tokenData) return apiError('This password reset link is invalid or was not found. Please request a new link.', 400);
+    if (tokenData.used_at) return apiError('This password reset link has already been used. Please request a new link.', 409);
+    if (new Date() > new Date(tokenData.expires_at)) return apiError('This password reset link has expired. Please request a new link.', 410);
 
     // ─── FIX #10: bcrypt cost raised from 10 → 12 ───
     const SALT_ROUNDS = 12;

@@ -140,10 +140,10 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
         fetchSemesterTimetable(selectedSem);
         refreshHOD();
       } else {
-        toast.error(data.error || 'Failed to update');
+        toast.error(data.error || data.message || 'Unable to update timetable slot. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server while updating timetable. Please check your internet connection.');
     } finally {
       setIsSaving(false);
     }
@@ -165,10 +165,10 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
         refreshHOD();
       } else {
         const data = await res.json();
-        toast.error(data.error || 'Deletion failed');
+        toast.error(data.error || data.message || 'Unable to remove lecture slot. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server while deleting lecture. Please check your internet connection.');
     } finally {
       setIsSaving(false);
     }
@@ -191,10 +191,10 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
         refreshHOD();
       } else {
         const data = await res.json();
-        toast.error(data.error || 'Clear failed');
+        toast.error(data.error || data.message || 'Unable to clear timetable. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server while clearing timetable. Please check your internet connection.');
     } finally {
       setIsSaving(false);
     }
@@ -861,10 +861,10 @@ function SubjectAllocation({ subjects, faculty, assignments, refresh }) {
         refresh();
       } else {
         const data = await res.json();
-        toast.error(data.error || 'Failed');
+        toast.error(data.error || data.message || 'Unable to authorize faculty substitution. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server while authorizing faculty. Please check your internet connection.');
     } finally {
       setIsSaving(false);
     }

@@ -30,10 +30,10 @@ const SetPasswordModal = ({ rollno, _email, onPasswordSet }) => {
         toast.success('Password set successfully!');
         if (onPasswordSet) onPasswordSet();
       } else {
-        toast.error(data.error || 'Failed to set password');
+        toast.error(data.error || 'Unable to set password. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     } finally {
       setPasswordSaving(false);
     }

@@ -52,14 +52,14 @@ export default function useProfileEdit(studentData = null, refreshData = () => {
         });
         const result = await response.json();
         if (!response.ok) {
-          toast.error(result.message || 'Photo update failed. Try again.');
+          toast.error(result.error || result.message || 'Unable to update profile photo. Please ensure the image is under 5MB.');
           setPhotoProcessing(false);
           return false;
         }
         profileImage.setPreviewPhoto(null);
         setPhotoChanged(false);
       } catch (_e) {
-        toast.error('Network error. Please try again.');
+        toast.error('Unable to connect to the server while updating photo. Please check your internet connection.');
         setPhotoProcessing(false);
         return false;
       } finally {
@@ -90,11 +90,11 @@ export default function useProfileEdit(studentData = null, refreshData = () => {
         refreshData();
         return true;
       } else {
-        toast.error(result.error || 'Failed to update profile.');
+        toast.error(result.error || result.message || 'Unable to update profile. Please verify your details and try again.');
         return false;
       }
     } catch (_error) {
-      toast.error('Network error. Please try again.');
+      toast.error('Unable to connect to the server while updating profile. Please check your internet connection.');
       return false;
     }
   };

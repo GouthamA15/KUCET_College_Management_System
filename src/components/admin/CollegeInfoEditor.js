@@ -25,11 +25,11 @@ export default function CollegeInfoEditor() {
           setSecondSemDay(data.collegeInfo.second_sem_start_day || '');
         }
       } else {
-        toast.error('Failed to fetch college info.');
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error || 'Unable to fetch college information.');
       }
-    } catch (error) {
-      console.error('Error fetching college info:', error);
-      toast.error('Network error while fetching college info.');
+    } catch (_error) {
+      toast.error('Unable to connect to the server while fetching college info. Please check your internet connection.');
     } finally {
       setLoading(false);
     }
@@ -63,11 +63,10 @@ export default function CollegeInfoEditor() {
         // Re-fetch to ensure UI is in sync
         fetchCollegeInfo();
       } else {
-        toast.error(data.error || 'Failed to update college info.');
+        toast.error(data.error || 'Unable to update college information. Please check your inputs and try again.');
       }
-    } catch (error) {
-      console.error('Error saving college info:', error);
-      toast.error('Network error while saving college info.');
+    } catch (_error) {
+      toast.error('Unable to connect to the server while saving college info. Please check your internet connection.');
     } finally {
       setSaving(false);
     }
