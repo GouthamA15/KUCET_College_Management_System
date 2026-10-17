@@ -66,7 +66,88 @@ export const POST = wrapHandler({
 
     if (rows.length === 0) {
       logger.warn({ rollno }, '[Student Login Failed] User not found');
-      return apiError('Invalid credentials', 401);
+
+      // 1. Authoritatively parse and validate roll number format
+      const { validateRollNo, getIntakeYear } = await import('@/lib/rollNumber');
+      const rollValidation = validateRollNo(rollno);
+      const activeIntakeYear = getIntakeYear();
+
+      // If roll number format is invalid, or branch cannot be parsed
+      if (!rollValidation.isValid || !rollValidation.branch || !rollValidation.entryYear) {
+        return apiError('Student account not found', 404, {
+          code: 'BRANCH_STATUS_UNAVAILABLE',
+          title: 'Student Account Not Found',
+          message: "We couldn't find an active student account for this roll number in the portal. Please verify your roll number and try again. If you need assistance, please contact the college administration or admission office."
+        });
+      }
+
+      const rollYear = parseInt(rollValidation.entryYear, 10);
+      const branchCode = rollValidation.branch;
+
+      // Older/non-active admission batches: finalization has concluded, do not claim pending
+      if (rollYear !== activeIntakeYear) {
+        return apiError('Student account not found', 404, {
+          code: 'STUDENT_NOT_FOUND',
+          title: 'Student Account Not Found',
+          message: "We couldn't find an active student account for this roll number in the portal. Please verify your roll number and try again. If you believe your account should be active, please contact the college administration."
+        });
+      }
+
+      // 2. Query authoritative dynamic branch finalization status for active intake batch
+      const { AdmissionFinalizationService, FINALIZATION_STATUS } = await import('@/services/AdmissionFinalizationService');
+      const branchStatusResult = await AdmissionFinalizationService.getBranchFinalizationStatus({
+        branch: branchCode,
+        admissionYear: activeIntakeYear
+      });
+
+      const branchName = branchStatusResult.branchName || branchCode;
+      const status = branchStatusResult.status;
+
+      // Case A: Roll number does not exist and branch is not yet finalized (NOT_STARTED)
+      if (status === FINALIZATION_STATUS.NOT_STARTED) {
+        return apiError('Admission finalization pending', 404, {
+          code: 'BRANCH_FINALIZATION_PENDING',
+          title: 'Admission Finalization Pending',
+          branch: branchCode,
+          branchName,
+          status,
+          message: `Admission finalization for ${branchName} is currently pending. Please wait for your official admission-finalization email before attempting to log in.\n\nIf you have already received your finalization email, please verify your roll number and try again.`
+        });
+      }
+
+      // Case C: Branch finalization is in progress (IN_PROGRESS)
+      if (status === FINALIZATION_STATUS.IN_PROGRESS) {
+        return apiError('Admission finalization in progress', 404, {
+          code: 'BRANCH_FINALIZATION_IN_PROGRESS',
+          title: 'Admission Finalization In Progress',
+          branch: branchCode,
+          branchName,
+          status,
+          message: `Admission finalization for ${branchName} is currently in progress and student accounts are actively being set up. Please wait for your official admission-finalization email before attempting to log in.\n\nIf you have already received your email, please verify your roll number and try again.`
+        });
+      }
+
+      // Case B: Roll number does not exist and branch is finalized (FINALIZED)
+      if (status === FINALIZATION_STATUS.FINALIZED) {
+        return apiError('Student account not found', 404, {
+          code: 'BRANCH_FINALIZED_ACCOUNT_NOT_FOUND',
+          title: 'Student Account Not Found',
+          branch: branchCode,
+          branchName,
+          status,
+          message: `No active student account was found for this roll number in the portal, even though admission finalization for ${branchName} has been completed.\n\nPlease verify your roll number. If you have already received your admission-finalization email, please contact college administration or the admission office.`
+        });
+      }
+
+      // Case E: Branch status cannot be determined (UNAVAILABLE)
+      return apiError('Student account not found', 404, {
+        code: 'BRANCH_STATUS_UNAVAILABLE',
+        title: 'Student Account Not Found',
+        branch: branchCode,
+        branchName,
+        status: FINALIZATION_STATUS.UNAVAILABLE,
+        message: "We couldn't find an active student account for this roll number in the portal. Please verify your roll number and try again. If you believe this is an error, please contact the college administration or admission office."
+      });
     }
 
     const student = rows[0];

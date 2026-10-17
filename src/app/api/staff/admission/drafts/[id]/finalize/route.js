@@ -160,6 +160,17 @@ export const POST = wrapHandler({
         /* non-blocking */
       }
 
+      try {
+        const { AdmissionFinalizationService } = await import('@/services/AdmissionFinalizationService');
+        await AdmissionFinalizationService.handleDraftFinalized({
+          branch: result.branch,
+          admissionYear: result.admission_year,
+          updatedBy: user.email || 'admission_staff',
+        });
+      } catch (_finErr) {
+        /* non-blocking */
+      }
+
       if (idempotencyStarted) {
         await IdempotencyService.complete(idempotencyKey, 201, responseData);
       }
