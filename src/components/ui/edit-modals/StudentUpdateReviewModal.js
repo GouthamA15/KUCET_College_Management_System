@@ -93,14 +93,16 @@ export const StudentUpdateReviewModal = ({
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex-1 space-y-2">
                         <p className="text-[10px] font-bold text-gray-400 text-center uppercase">Current Record</p>
-                        <div className="aspect-square bg-gray-50 border border-gray-200 rounded-md overflow-hidden relative">
+                        <div className="aspect-square bg-gray-50 border border-gray-200 rounded-md overflow-hidden relative flex items-center justify-center">
                           <ImageWithLoading
+                            key={`old-pfp-${reviewingRequest.id}`}
                             src={reviewingRequest.old_pfp}
                             alt="Current Record"
                             fill
-                            sizes="120px"
+                            sizes="140px"
                             variant="avatar"
-                            className="object-cover"
+                            className="object-cover w-full h-full"
+                            imageClassName="object-cover"
                             emptyText="None"
                           />
                         </div>
@@ -109,16 +111,20 @@ export const StudentUpdateReviewModal = ({
                       <div className="flex-1 space-y-2">
                         <p className="text-[10px] font-bold text-purple-600 text-center uppercase">Requested Image</p>
                         <button 
+                          type="button"
                           onClick={() => setViewingImage(reviewingRequest.new_pfp)}
                           className="w-full aspect-square bg-white border-2 border-purple-200 rounded-md overflow-hidden relative hover:border-purple-500 transition-colors shadow-sm cursor-zoom-in block"
+                          title="Click to view full image"
                         >
                           <ImageWithLoading
+                            key={`new-pfp-${reviewingRequest.id}`}
                             src={reviewingRequest.new_pfp}
                             alt="Requested Image"
                             fill
-                            sizes="120px"
+                            sizes="140px"
                             variant="avatar"
-                            className="object-cover pointer-events-none"
+                            className="object-cover w-full h-full pointer-events-none"
+                            imageClassName="object-cover"
                           />
                         </button>
                       </div>
@@ -132,14 +138,16 @@ export const StudentUpdateReviewModal = ({
                     <div className="flex flex-col gap-4">
                       <div className="space-y-1">
                         <p className="text-[10px] font-bold text-gray-400 uppercase">Current Record</p>
-                        <div className="h-16 bg-gray-50 border border-gray-200 rounded-md overflow-hidden relative">
+                        <div className="h-20 bg-gray-50 border border-gray-200 rounded-md overflow-hidden relative flex items-center justify-center p-2">
                           <ImageWithLoading
+                            key={`old-sig-${reviewingRequest.id}`}
                             src={reviewingRequest.old_signature}
                             alt="Current Signature"
                             fill
-                            sizes="200px"
+                            sizes="240px"
                             variant="signature"
-                            className="object-contain p-2"
+                            className="object-contain w-full h-full"
+                            imageClassName="object-contain"
                             emptyText="None"
                           />
                         </div>
@@ -147,16 +155,20 @@ export const StudentUpdateReviewModal = ({
                       <div className="space-y-1">
                         <p className="text-[10px] font-bold text-purple-600 uppercase">Requested Image</p>
                         <button 
+                          type="button"
                           onClick={() => setViewingImage(reviewingRequest.new_signature)}
-                          className="w-full h-16 bg-white border-2 border-purple-200 rounded-md overflow-hidden relative hover:border-purple-500 transition-colors shadow-sm cursor-zoom-in block"
+                          className="w-full h-20 bg-white border-2 border-purple-200 rounded-md overflow-hidden relative hover:border-purple-500 transition-colors shadow-sm cursor-zoom-in block p-2"
+                          title="Click to view full signature"
                         >
                           <ImageWithLoading
+                            key={`new-sig-${reviewingRequest.id}`}
                             src={reviewingRequest.new_signature}
                             alt="Requested Signature"
                             fill
-                            sizes="200px"
+                            sizes="240px"
                             variant="signature"
-                            className="object-contain p-2 pointer-events-none"
+                            className="object-contain w-full h-full pointer-events-none"
+                            imageClassName="object-contain"
                           />
                         </button>
                       </div>

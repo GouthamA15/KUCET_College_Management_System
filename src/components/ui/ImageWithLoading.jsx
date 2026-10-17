@@ -74,7 +74,7 @@ export default function ImageWithLoading({
     if (variant === 'avatar') {
       return (
         <div
-          className={`flex items-center justify-center bg-slate-100 text-slate-500 font-bold uppercase rounded-full border border-slate-200 select-none ${className || containerClassName || 'w-10 h-10 text-xs'}`}
+          className={`flex items-center justify-center bg-slate-100 text-slate-500 font-bold uppercase rounded-full border border-slate-200 select-none ${fill ? 'w-full h-full' : (className || containerClassName || 'w-10 h-10 text-xs')}`}
           role="img"
           aria-label={alt || 'Default avatar'}
         >
@@ -86,7 +86,7 @@ export default function ImageWithLoading({
     if (variant === 'signature') {
       return (
         <div
-          className={`flex items-center justify-center bg-slate-50 border border-slate-200 rounded p-1 text-[10px] text-slate-400 italic select-none ${className || containerClassName || 'w-24 h-10'}`}
+          className={`flex items-center justify-center bg-slate-50 border border-slate-200 rounded p-1 text-[10px] text-slate-400 italic select-none ${fill ? 'w-full h-full' : (className || containerClassName || 'w-24 h-10')}`}
           role="img"
           aria-label={alt || 'No signature available'}
         >
@@ -97,7 +97,7 @@ export default function ImageWithLoading({
 
     return (
       <div
-        className={`flex flex-col items-center justify-center bg-slate-50 border border-slate-200 rounded p-2 text-slate-400 select-none ${className || containerClassName || 'w-full h-full min-h-[80px]'}`}
+        className={`flex flex-col items-center justify-center bg-slate-50 border border-slate-200 rounded p-2 text-slate-400 select-none ${fill ? 'w-full h-full' : (className || containerClassName || 'w-full h-full min-h-[80px]')}`}
         role="img"
         aria-label={alt || 'No image record'}
       >
@@ -118,11 +118,34 @@ export default function ImageWithLoading({
   const loaderVariant =
     variant === 'avatar' ? 'avatar' :
     variant === 'signature' ? 'signature' :
+    variant === 'document' ? 'document' :
     'spinner';
+
+  // Extract object-fit class from imageClassName or className, or derive from variant
+  const extractObjectFit = (cls) => {
+    if (!cls || typeof cls !== 'string') return null;
+    const match = cls.match(/\bobject-(contain|cover|fill|none|scale-down)\b/);
+    return match ? match[0] : null;
+  };
+
+  const explicitFit = extractObjectFit(imageClassName) || extractObjectFit(className);
+  const defaultFit = (variant === 'signature' || variant === 'document' || variant === 'receipt')
+    ? 'object-contain'
+    : (variant === 'avatar' || variant === 'thumbnail' || variant === 'photo')
+      ? 'object-cover'
+      : (fill ? 'object-contain' : 'object-cover');
+  const resolvedObjectFit = explicitFit || defaultFit;
+
+  const containerClasses = [
+    'relative overflow-hidden flex items-center justify-center',
+    fill ? 'w-full h-full' : '',
+    containerClassName,
+    className
+  ].filter(Boolean).join(' ');
 
   return (
     <div
-      className={`relative overflow-hidden flex items-center justify-center ${containerClassName} ${className}`.trim()}
+      className={containerClasses}
       style={!fill && width && height ? { width, height } : undefined}
       onClick={onClick}
     >
@@ -132,7 +155,7 @@ export default function ImageWithLoading({
           <AssetLoadingState
             variant={loaderVariant}
             size={loaderSize}
-            label={variant === 'signature' ? 'Signature...' : 'Loading...'}
+            label={variant === 'signature' ? 'Signature...' : variant === 'document' ? 'Loading Document...' : 'Loading...'}
           />
         </div>
       )}
@@ -185,9 +208,9 @@ export default function ImageWithLoading({
           priority={priority}
           onLoad={onLoadSuccess}
           onError={onLoadError}
-          className={`object-cover transition-opacity duration-300 ${
+          className={`${resolvedObjectFit} transition-opacity duration-300 ${
             isLoading || isError ? 'opacity-0' : 'opacity-100'
-          } ${imageClassName}`}
+          } ${imageClassName}`.trim()}
           {...props}
         />
       ) : (
@@ -200,9 +223,9 @@ export default function ImageWithLoading({
           priority={priority}
           onLoad={onLoadSuccess}
           onError={onLoadError}
-          className={`transition-opacity duration-300 ${
+          className={`${resolvedObjectFit} max-w-full max-h-full h-auto w-auto transition-opacity duration-300 ${
             isLoading || isError ? 'opacity-0' : 'opacity-100'
-          } ${imageClassName}`}
+          } ${imageClassName}`.trim()}
           {...props}
         />
       )}

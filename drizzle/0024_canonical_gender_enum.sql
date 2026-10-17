@@ -22,6 +22,4 @@ WHERE `gender` IN ('Male', 'M', ' M');
 UPDATE `students`
 SET `gender` = 'FEMALE'
 WHERE `gender` IN ('Female', 'F');
---> statement-breakpoint
-ALTER TABLE `students`
-MODIFY COLUMN `gender` enum('MALE', 'FEMALE');
+-- Note: Destructive ALTER TABLE `students` MODIFY COLUMN `gender` to ENUM is stopped to preserve legacy records (760 with 'N/A', 2 with 'P') without data loss or invented classification until manual decision is authorized.

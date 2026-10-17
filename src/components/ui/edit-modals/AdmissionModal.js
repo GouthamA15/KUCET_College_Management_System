@@ -137,7 +137,8 @@ export function MediaSection({ detail, isEditing, onFieldChange }) {
                         fill
                         sizes="180px"
                         variant="avatar"
-                        className="object-cover"
+                        className="object-cover w-full h-full"
+                        imageClassName="object-cover"
                         emptyText="No Record Found"
                         errorText="Image Unavailable"
                     />
@@ -169,7 +170,8 @@ export function MediaSection({ detail, isEditing, onFieldChange }) {
                         fill
                         sizes="240px"
                         variant="signature"
-                        className="object-contain"
+                        className="object-contain w-full h-full"
+                        imageClassName="object-contain"
                         emptyText="No Record Found"
                         errorText="Image Unavailable"
                     />

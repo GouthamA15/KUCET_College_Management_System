@@ -56,15 +56,16 @@ export default function ImagePreviewModal({ src, alt = '', open, onClose }) {
         </button>
         <div 
           onClick={(e) => e.stopPropagation()}
-          className="max-w-[90vw] max-h-[90vh] rounded-lg shadow-2xl overflow-hidden bg-black/40 flex items-center justify-center min-w-[280px] min-h-[200px]"
+          className="relative max-w-[94vw] max-h-[88vh] w-[90vw] h-[82vh] rounded-lg shadow-2xl overflow-hidden bg-black/50 flex items-center justify-center min-w-[280px] min-h-[200px]"
         >
           <ImageWithLoading
             src={src}
             alt={alt || "Image Preview"}
-            width={900}
-            height={900}
+            fill
+            sizes="94vw"
             variant="document"
-            className="block max-w-[90vw] max-h-[85vh] object-contain"
+            className="object-contain w-full h-full p-2"
+            imageClassName="object-contain"
             errorText="Unable to display preview directly."
           />
         </div>
