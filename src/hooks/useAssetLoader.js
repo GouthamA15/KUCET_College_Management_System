@@ -37,6 +37,20 @@ export function useAssetLoader({ src, retryLimit = 3, onLoaded, onError } = {}) 
     setRetryCount(0);
   }
 
+  // Safety timeout: transition to error if loading hangs longer than 15s
+  useEffect(() => {
+    if (status !== 'loading' || !src) return;
+
+    const timer = setTimeout(() => {
+      if (mountedRef.current && status === 'loading') {
+        setStatus('error');
+        setError(new Error('Asset request timed out'));
+      }
+    }, 15000);
+
+    return () => clearTimeout(timer);
+  }, [status, src, retryKey]);
+
   const onLoadSuccess = useCallback(() => {
     if (!mountedRef.current) return;
     setStatus('loaded');
@@ -61,6 +75,12 @@ export function useAssetLoader({ src, retryLimit = 3, onLoaded, onError } = {}) 
     return true;
   }, [retryCount, retryLimit]);
 
+  // Avoid appending query string cache-buster to data URIs
+  const isDataUri = typeof src === 'string' && src.startsWith('data:');
+  const resolvedSrc = retryCount > 0 && src && !isDataUri
+    ? `${src}${src.includes('?') ? '&' : '?'}retry=${retryKey}`
+    : src;
+
   return {
     status,
     isLoading: status === 'loading',
@@ -74,7 +94,7 @@ export function useAssetLoader({ src, retryLimit = 3, onLoaded, onError } = {}) 
     onLoadSuccess,
     onLoadError,
     // URL with retry cache-buster if retried
-    resolvedSrc: retryCount > 0 && src ? `${src}${src.includes('?') ? '&' : '?'}retry=${retryKey}` : src,
+    resolvedSrc,
   };
 }
 

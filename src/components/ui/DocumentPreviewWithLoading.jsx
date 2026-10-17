@@ -48,8 +48,14 @@ export default function DocumentPreviewWithLoading({
   );
 
   const isImage = typeof src === 'string' && (
-    /\.(jpe?g|png|webp|gif|svg)(\?.*)?$/i.test(src) ||
-    /\.(jpe?g|png|webp|gif|svg)(\?.*)?$/i.test(resolvedUrl)
+    /\.(jpe?g|png|webp|gif|svg|bmp|ico|tiff)(\?.*)?$/i.test(src) ||
+    /\.(jpe?g|png|webp|gif|svg|bmp|ico|tiff)(\?.*)?$/i.test(resolvedUrl) ||
+    resolvedUrl.includes('/api/student/requests/image/') ||
+    resolvedUrl.includes('/pfp/') ||
+    resolvedUrl.includes('/signatures/') ||
+    resolvedUrl.includes('/payment') ||
+    src.startsWith('data:image/') ||
+    (!isPdf && !/\.(docx?|xlsx?|csv|zip|tar|gz|rar)(\?.*)?$/i.test(src))
   );
 
   useEffect(() => {
@@ -185,13 +191,16 @@ export default function DocumentPreviewWithLoading({
             />
           </>
         ) : isImage ? (
-          <div className="w-full h-full p-4 flex items-center justify-center">
+          <div className="relative w-full h-full min-h-[380px] p-4 flex items-center justify-center overflow-hidden">
             <ImageWithLoading
               src={resolvedUrl}
               alt={alt}
-              className="max-h-full max-w-full"
-              imageClassName="object-contain max-h-[75vh]"
-              containerClassName="max-h-full max-w-full flex items-center justify-center"
+              fill
+              sizes="100vw"
+              variant="document"
+              className="object-contain w-full h-full"
+              imageClassName="object-contain max-h-[78vh]"
+              containerClassName="relative w-full h-full min-h-[360px] flex items-center justify-center"
             />
           </div>
         ) : (

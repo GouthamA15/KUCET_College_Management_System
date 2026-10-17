@@ -102,8 +102,11 @@ export default function ProfileHeaderCard({ student }) {
             <ImageWithLoading
               src={resolvedPhotoUrl}
               alt="Profile Photo Full View"
-              className="object-contain w-full h-full max-h-[85vh] rounded-md shadow-2xl"
-              variant="avatar"
+              fill
+              sizes="(max-width: 640px) 90vw, 500px"
+              className="object-contain w-full h-full rounded-md shadow-2xl"
+              imageClassName="object-contain max-h-[85vh]"
+              variant="document"
             />
           </div>
         </div>,
