@@ -15,7 +15,18 @@ function withTimeout(promise, ms, operationName) {
   ]);
 }
 
+let healthRedisClient = null;
+let healthRedisUrl = null;
+
 export class HealthService {
+  static resetRedisClient() {
+    if (healthRedisClient) {
+      try { healthRedisClient.disconnect(); } catch { /* ignore */ }
+      healthRedisClient = null;
+      healthRedisUrl = null;
+    }
+  }
+
   static async checkDatabase() {
     try {
       const start = Date.now();
@@ -29,28 +40,53 @@ export class HealthService {
 
   static async checkRedis() {
     if (process.env.REDIS_URL) {
-      let client = null;
       try {
         const start = Date.now();
         const { default: IORedis } = await import('ioredis');
-        client = new IORedis(process.env.REDIS_URL, {
-          connectTimeout: 2000,
-          maxRetriesPerRequest: 1,
-          lazyConnect: true,
-          enableOfflineQueue: false,
-        });
-        await withTimeout(client.connect(), 2000, 'RedisConnect');
+
+        if (!healthRedisClient || healthRedisUrl !== process.env.REDIS_URL) {
+          if (healthRedisClient) {
+            try { healthRedisClient.disconnect(); } catch { /* ignore */ }
+          }
+          healthRedisUrl = process.env.REDIS_URL;
+          healthRedisClient = new IORedis(healthRedisUrl, {
+            connectTimeout: TIMEOUT_MS,
+            maxRetriesPerRequest: 1,
+            lazyConnect: true,
+            enableOfflineQueue: false,
+            retryStrategy(times) {
+              if (times > 3) return null;
+              return Math.min(times * 500, 2000);
+            },
+          });
+          healthRedisClient.on('error', (err) => {
+            logger.warn({ err: err.message }, '[HEALTH_CHECK] Redis client background warning');
+          });
+        }
+
+        const client = healthRedisClient;
+        if (client.status === 'wait' || client.status === 'close' || client.status === 'end') {
+          await withTimeout(client.connect(), TIMEOUT_MS, 'RedisConnect');
+        } else if (client.status === 'connecting' || client.status === 'reconnecting') {
+          await withTimeout(
+            new Promise((resolve, reject) => {
+              client.once('ready', resolve);
+              client.once('error', reject);
+            }),
+            TIMEOUT_MS,
+            'RedisConnect'
+          );
+        }
+
         const ping = await withTimeout(client.ping(), TIMEOUT_MS, 'RedisPing');
         const latencyMs = Date.now() - start;
         const status = ping === 'PONG' ? 'ok' : 'degraded';
         return { status, latencyMs, type: 'self-hosted', error: status === 'ok' ? null : 'Unexpected ping response' };
       } catch (error) {
         logger.error({ err: error }, '[HEALTH_CHECK] Redis (self-hosted) connection failed');
+        // Reset client on critical connection error so subsequent check attempts fresh recovery
+        HealthService.resetRedisClient();
         return { status: 'error', latencyMs: -1, error: error.message };
-      } finally {
-        if (client) {
-          try { client.disconnect(); } catch { /* ignore */ }
-        }
       }
     }
 
