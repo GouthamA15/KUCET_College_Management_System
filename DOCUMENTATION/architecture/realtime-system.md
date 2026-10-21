@@ -70,6 +70,10 @@ All real-time events are defined canonically in `src/lib/events/realtime-events.
 | `attendance:student:verified`| `STUDENT_VERIFIED` | Student verifies PIN & GPS | `role:faculty`, `dept:<branch>` |
 | `attendance:proxy:attempted`| `PROXY_ATTEMPTED` | Device/IP mismatch detected | `role:faculty` |
 | `notification:created` | `SECURITY_NOTIFICATION_CREATED` | Security event / session change | `user:<role>:<id>` |
+| `chess:move:played` | `CHESS_MOVE_PLAYED` | Chess player plays move on board | `match:<matchId>`, `student:<white>`, `student:<black>` |
+| `chess:game:over` | `CHESS_GAME_OVER` | Checkmate / Stalemate / Resignation / Draw | `match:<matchId>` |
+| `chess:action` | `CHESS_ACTION` | Draw offer / Resignation / Timeout | `match:<matchId>` |
+| `tournament:updated` | `TOURNAMENT_UPDATED` | Fixtures generated / Round advanced | `role:admin`, `role:student` |
 
 ---
 
@@ -119,3 +123,43 @@ To prevent multiple redundant WebSocket connections and memory leaks across page
 - **Health Probing:** Docker Compose configured with `restart: unless-stopped` and active HTTP `/health` healthcheck probing every 10 seconds.
 - **Nginx Ingress Routing:** Nginx reverse proxy maps `/socket.io/` to `realtime_upstream:4000` with WebSocket upgrade headers (`Upgrade: $http_upgrade`, `Connection: "upgrade"`) and `proxy_read_timeout 86400s`.
 - **Remote HTTPS Ingress:** Remote clients connecting through public Tailscale Funnel connect to same-origin `wss://.../socket.io/` without exposing raw port 4000 to the public internet.
+
+---
+
+## 7. Modular Provider Architecture (`factory.js`)
+
+In Session 224 (Commit `0ae54de8`), the real-time subsystem was modularized under `src/lib/providers/realtime/`:
+
+```
+src/lib/providers/realtime/
+├── RealtimeProvider.js        # Abstract contract (broadcast(type, payload, options))
+├── RedisRealtimeProvider.js   # Authoritative self-hosted VPS provider (ioredis pub/sub to Socket.IO)
+├── SupabaseRealtimeProvider.js# Cloud-native fallback (Supabase Broadcast via @supabase/supabase-js)
+├── HybridRealtimeProvider.js  # Multi-provider fanout (dispatches to both Redis & Supabase simultaneously)
+└── factory.js                 # Environment-driven singleton factory (getRealtimeProvider())
+```
+
+### Provider Precedence & Configuration
+Configured via `REALTIME_PROVIDER` or `NEXT_PUBLIC_REALTIME_PROVIDER`:
+- **`socketio`** (or **`redis`**, default): Uses `RedisRealtimeProvider` connecting to `REDIS_URL` (`redis://127.0.0.1:6379`). Publishes events to Redis channel `kucet:realtime:events` which the Socket.IO server distributes to connected client sockets.
+- **`supabase`**: Uses `SupabaseRealtimeProvider` connecting to `NEXT_PUBLIC_SUPABASE_URL` with `SUPABASE_SERVICE_ROLE_KEY` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Broadcasts on channel `kucet-updates`. Throws clear configuration error if credentials are absent.
+- **`hybrid`**: Uses `HybridRealtimeProvider` to fan out broadcasts to both Redis and Supabase. If Supabase credentials are not supplied, logs a warning and proceeds with Socket.IO only.
+
+### Strict Targeted Room Isolation (`resolveEventRooms`)
+To prevent accidental broadcast leakage across unrelated users, `src/lib/events/realtime-events.js` implements `resolveEventRooms(event, payload, options)`:
+- Examines canonical event name and payload identifiers (`student_id`, `roll_no`, `branch`, `role`, `matchId`).
+- Maps events strictly to authorized room targets (e.g., student requests only target `role:admin`, `channel:requests`, and `user:student:<id>`).
+- If no explicit room is targeted and `isPublic` is false, `socket-server.js` suppresses the broadcast, preventing security exposure.
+
+---
+
+## 8. Forensic Audit Findings & Integration Status
+
+During the comprehensive Session 224 feature audit, the following integration discrepancies were identified:
+
+| Subsystem | Intended Behavior | Actual Code State | Impact / Runtime Behavior | Status | Recommended Repair |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Supabase Client Listener** | Frontend subscribes to Supabase Realtime when `REALTIME_PROVIDER=supabase` | `RealtimeListener.js` only imports and connects to `socket.io-client`. No client-side Supabase subscription exists anywhere in frontend code. | If `REALTIME_PROVIDER=supabase` is set, server broadcasts to Supabase channel `kucet-updates`, but no browser receives it. | **BROKEN (when supabase selected)** | When `REALTIME_PROVIDER=supabase`, implement client Supabase channel listener or maintain Socket.IO as primary client transport. |
+| **Chess Match Room Join** | `ChessGameView` joins `match:<matchId>` room via Socket.IO for 0-latency move pushes | `socket-server.js` listens to `join_match` event, but `ChessGameView.js` / `RealtimeListener.js` never emits `join_match`. `sharedSocket` is private in `RealtimeListener`. | Multi-tier Layer 1 (Socket.IO) does not receive room moves. Feature relies on Layer 2 (`BroadcastChannel` for same-browser tabs) and Layer 3 (5-second safety poll). | **PARTIALLY WORKING** | Export `joinMatchRoom(matchId)` from `RealtimeListener.js` and call it on `ChessGameView` mount. |
+| **Domain EventBus Coverage** | `CentralDomainEventBus` publishes 8 academic domain events | Only `ATTENDANCE_SUBMITTED` and `FEE_PAID` are actively published in route handlers. `TOPIC_UPDATED`, `MARKS_PUBLISHED`, `STUDENT_REGISTERED`, `ARCHIVE_COMPLETED`, `STUDENT_RESTORED`, `CERTIFICATE_ISSUED` are uncalled stubs. | Internal in-memory pub/sub only triggers cache invalidation for attendance and fee payment. Other domains rely on standard direct cache invalidations. | **PARTIALLY WORKING** | Wire remaining domain event publishers into corresponding services or consolidate unused event types. |
+

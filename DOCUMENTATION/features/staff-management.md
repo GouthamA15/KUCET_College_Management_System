@@ -123,4 +123,22 @@ In the Super Admin Staff Management console (`/admin/manage-staff`), administrat
    - If profile details (name, email, employee ID, active status) are also modified, `staff_accounts` master record is updated in the same transaction.
 4. **Session Synchronization**: Next time the user refreshes their token or makes an authenticated request, `src/app/api/auth/refresh` dynamically resolves the new role code from `staff_account_roles` and issues the updated role claim (`staff_role` and JWT `role`).
 
+---
+
+## 9. Principal Supervisor Role Architecture (Migration `0023`)
+
+In Session 223 (Commit `3582e48c`, Migration `0023`), the institutional identity hierarchy was expanded with the **Principal Supervisor** role (`role_code = 'PRINCIPAL'`) in `staff_roles`:
+
+1. **Institutional Scope**: The Principal serves as the administrative supervisor over all academic departments and student affairs, positioned between the Super Admin and departmental HODs.
+2. **Cross-Branch Authority**: In `src/lib/rbac.js` and route authorization handlers, callers possessing the `PRINCIPAL` role are granted access to all HOD consoles (`/staff/hod/*`), timetable approval queues, and condonation reviews without requiring a departmental branch affinity.
+3. **Non-Disruptive Supervision**: Appointing a Principal supervisor does NOT displace or demote individual departmental HODs. Each academic branch maintains its independent HOD while the Principal possesses college-wide oversight.
+
+---
+
+## 10. Cross-Branch Teaching & Independent HOD Appointments
+
+1. **Independent HOD Appointments**: HOD status is tracked strictly via `faculty_hod_assignments` (`is_active = true`, `department_code = '...'`). This allows faculty members to be appointed as HOD without mutating their base teaching profile or historical lecture assignments.
+2. **Cross-Branch Teaching Assignments**: Faculty members can be assigned courses across departments (e.g. Mathematics faculty assigned to First Year CSE and ECE cohorts) without requiring cross-department role duplication. Course-level eligibility checks validate specific assignment IDs rather than restricting access to the faculty's primary affiliation.
+
+
 

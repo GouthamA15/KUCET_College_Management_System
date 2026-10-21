@@ -295,7 +295,23 @@ In `/staff/admission/requests` under the **Admission Intake** (`mode === 'DRAFT'
 
 ---
 
-## 10. Cross-References
+## 10. Canonical Gender Enum (`MALE` / `FEMALE`) & Excel Photo Export
+
+### Canonical Gender Enum Enforcement (Migration `0024`)
+To prevent data corruption and reporting anomalies across government compliance exports (such as TG EAPCET / TG ECET quotas):
+- Gender column in `students`, `student_admission_drafts`, and `archive_students` is strictly constrained to `'MALE' | 'FEMALE'`.
+- All legacy lowercase or whitespace-padded inputs are normalized before persistence via `canonicalGender()` validation.
+- All admission API endpoints and Zod schemas reject non-canonical gender inputs with explicit validation errors.
+
+### Excel Export with Embedded Student Photos
+The admission export engine (`/api/staff/admission/export`) supports high-fidelity spreadsheet generation:
+- Resolves student profile photos from the canonical StorageProvider.
+- Embeds compressed image thumbnails directly inside the Excel workbook cells alongside roll numbers, academic records, and reservation categories.
+- Handles blood group normalization and eliminates 500 error scenarios during sparse record exports.
+
+---
+
+## 11. Cross-References
 
 - Database Schemas: [schema.md](../database/schema.md)
 - Storage Lifecycle & Media Promotion: [requests.md](./requests.md)
