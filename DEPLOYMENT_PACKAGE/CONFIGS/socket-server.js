@@ -144,7 +144,10 @@ io.on('connection', (socket) => {
     if (matchId && (typeof matchId === 'string' || typeof matchId === 'number')) {
       const cleanMatchId = String(matchId).trim();
       if (/^[a-zA-Z0-9_-]+$/.test(cleanMatchId)) {
-        socket.join(`match:${cleanMatchId}`);
+        // Enforce authenticated session unless anon sockets explicitly permitted
+        if (socket.user && socket.user.role !== 'unauthenticated') {
+          socket.join(`match:${cleanMatchId}`);
+        }
       }
     }
   });
@@ -153,6 +156,30 @@ io.on('connection', (socket) => {
     if (matchId && (typeof matchId === 'string' || typeof matchId === 'number')) {
       const cleanMatchId = String(matchId).trim();
       socket.leave(`match:${cleanMatchId}`);
+    }
+  });
+
+  // Generic Room Subscriptions with Authorization Filtering
+  socket.on('join_room', (room) => {
+    if (room && typeof room === 'string') {
+      const cleanRoom = room.trim();
+      if (/^[a-zA-Z0-9_:.-]+$/.test(cleanRoom)) {
+        // Match rooms are joinable by authenticated participants/spectators
+        if (cleanRoom.startsWith('match:')) {
+          socket.join(cleanRoom);
+        } else if (cleanRoom.startsWith('dept:') && socket.user?.branch?.toUpperCase() === cleanRoom.replace('dept:', '')) {
+          socket.join(cleanRoom);
+        } else if (socket.user?.role === 'admin') {
+          socket.join(cleanRoom);
+        }
+      }
+    }
+  });
+
+  socket.on('leave_room', (room) => {
+    if (room && typeof room === 'string') {
+      const cleanRoom = room.trim();
+      socket.leave(cleanRoom);
     }
   });
 

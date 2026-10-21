@@ -5,7 +5,7 @@ import ChessBoard from './ChessBoard';
 import { renderPiece, PIECE_VALUES, playChessSound } from './chess-utils';
 import { Trophy, ShieldAlert, Flag, Handshake, RefreshCw, Eye, CheckCircle2, RotateCw, ArrowLeft, GitBranch, X } from 'lucide-react';
 import Link from 'next/link';
-import { subscribeToRealtimeEvents } from '@/components/RealtimeListener';
+import { subscribeToRealtimeEvents, joinRealtimeRoom, leaveRealtimeRoom } from '@/components/RealtimeListener';
 import { REALTIME_EVENTS } from '@/lib/events/realtime-events';
 import TournamentBracketTree from '../../components/TournamentBracketTree';
 
@@ -72,7 +72,7 @@ export default function ChessGameView({ matchId, currentUser = null }) {
   }, []);
 
   // Multi-tier Real-time Synchronizer:
-  // 1. Socket.IO (Direct low-latency push from self-hosted server)
+  // 1. Socket.IO / Supabase Match Room Subscription (low-latency push)
   // 2. Browser BroadcastChannel (cross-tab local zero-latency sync)
   // 3. Background safety poll (every 5s fallback)
   useEffect(() => {
@@ -80,7 +80,12 @@ export default function ChessGameView({ matchId, currentUser = null }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchGameState();
 
-    // 1. Socket.IO canonical event subscription
+    // Join authorized match room across realtime providers
+    if (matchId) {
+      joinRealtimeRoom(`match:${matchId}`);
+    }
+
+    // 1. Socket.IO / Supabase canonical event subscription
     const unsubscribeSocket = subscribeToRealtimeEvents((event) => {
       const eventType = event?.type;
       const payload = event?.payload || {};
@@ -115,6 +120,9 @@ export default function ChessGameView({ matchId, currentUser = null }) {
     const interval = setInterval(fetchGameState, 5000);
 
     return () => {
+      if (matchId) {
+        leaveRealtimeRoom(`match:${matchId}`);
+      }
       unsubscribeSocket();
       clearInterval(interval);
       if (localChannel) localChannel.close();

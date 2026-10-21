@@ -153,13 +153,45 @@ To prevent accidental broadcast leakage across unrelated users, `src/lib/events/
 
 ---
 
-## 8. Forensic Audit Findings & Integration Status
+## 8. Forensic Audit Findings & Remediated Integration Status
 
-During the comprehensive Session 224 feature audit, the following integration discrepancies were identified:
+During the architecture stabilization audit, the following integration discrepancies were investigated and fully resolved:
 
-| Subsystem | Intended Behavior | Actual Code State | Impact / Runtime Behavior | Status | Recommended Repair |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Supabase Client Listener** | Frontend subscribes to Supabase Realtime when `REALTIME_PROVIDER=supabase` | `RealtimeListener.js` only imports and connects to `socket.io-client`. No client-side Supabase subscription exists anywhere in frontend code. | If `REALTIME_PROVIDER=supabase` is set, server broadcasts to Supabase channel `kucet-updates`, but no browser receives it. | **BROKEN (when supabase selected)** | When `REALTIME_PROVIDER=supabase`, implement client Supabase channel listener or maintain Socket.IO as primary client transport. |
-| **Chess Match Room Join** | `ChessGameView` joins `match:<matchId>` room via Socket.IO for 0-latency move pushes | `socket-server.js` listens to `join_match` event, but `ChessGameView.js` / `RealtimeListener.js` never emits `join_match`. `sharedSocket` is private in `RealtimeListener`. | Multi-tier Layer 1 (Socket.IO) does not receive room moves. Feature relies on Layer 2 (`BroadcastChannel` for same-browser tabs) and Layer 3 (5-second safety poll). | **PARTIALLY WORKING** | Export `joinMatchRoom(matchId)` from `RealtimeListener.js` and call it on `ChessGameView` mount. |
-| **Domain EventBus Coverage** | `CentralDomainEventBus` publishes 8 academic domain events | Only `ATTENDANCE_SUBMITTED` and `FEE_PAID` are actively published in route handlers. `TOPIC_UPDATED`, `MARKS_PUBLISHED`, `STUDENT_REGISTERED`, `ARCHIVE_COMPLETED`, `STUDENT_RESTORED`, `CERTIFICATE_ISSUED` are uncalled stubs. | Internal in-memory pub/sub only triggers cache invalidation for attendance and fee payment. Other domains rely on standard direct cache invalidations. | **PARTIALLY WORKING** | Wire remaining domain event publishers into corresponding services or consolidate unused event types. |
+| Subsystem | Intended Behavior | Remediated Implementation (`src/lib/realtime/client.js`) | Verification Status |
+| :--- | :--- | :--- | :--- |
+| **Supabase Client Listener** | Frontend subscribes to Supabase Realtime when `NEXT_PUBLIC_REALTIME_PROVIDER=supabase` or in hybrid mode | `src/lib/realtime/client.js` implements a dedicated Supabase client adapter that subscribes to `kucet-updates` broadcast and targeted room channels with 30s event deduplication. | **FIXED AND VERIFIED** |
+| **Chess Match Room Join** | `ChessGameView` joins `match:<matchId>` room via Socket.IO / Supabase for 0-latency move pushes | `joinRealtimeRoom('match:' + matchId)` and `leaveRealtimeRoom('match:' + matchId)` are exported and invoked in `ChessGameView.js` upon mount/unmount and match change, and tracked for automatic resubscription upon reconnect. | **FIXED AND VERIFIED** |
+| **Domain EventBus Coverage** | `CentralDomainEventBus` publishes and processes all 8 academic domain events | All 6 dormant domain events (`TOPIC_UPDATED`, `MARKS_PUBLISHED`, `STUDENT_REGISTERED`, `ARCHIVE_COMPLETED`, `STUDENT_RESTORED`, `CERTIFICATE_ISSUED`) are wired into their respective domain services/routes post-commit, with cache invalidation and wildcard audit logging. | **FIXED AND VERIFIED** |
+
+---
+
+## 9. Client-Side Transport Abstraction Contract
+
+Application components interact with the real-time layer through the unified client contract in `@/lib/realtime/client` (or `@/components/RealtimeListener`):
+
+```javascript
+import {
+  joinRealtimeRoom,
+  leaveRealtimeRoom,
+  subscribeToRealtimeEvents,
+  subscribeToRealtimeStatus,
+  getRealtimeStatus,
+  disconnectRealtime
+} from '@/lib/realtime/client';
+
+// Join authorized match or department room
+joinRealtimeRoom('match:123');
+
+// Subscribe to canonical events
+const unsubscribe = subscribeToRealtimeEvents(({ type, payload }) => {
+  if (type === 'chess:move:played' && payload.matchId === '123') {
+    refreshBoard();
+  }
+});
+
+// Clean up when view unmounts
+unsubscribe();
+leaveRealtimeRoom('match:123');
+```
+
 

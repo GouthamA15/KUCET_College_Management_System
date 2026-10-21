@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { REALTIME_EVENTS, REALTIME_ROOMS, normalizeEventName, resolveEventRooms } from '@/lib/events/realtime-events';
 import { SignJWT, jwtVerify } from 'jose';
 
@@ -229,6 +229,83 @@ describe('Real-Time Event Architecture & Room Isolation', () => {
       resetRealtimeProvider();
 
       expect(() => getRealtimeProvider()).toThrow(/Unsupported REALTIME_PROVIDER: "unsupported_engine"/);
+    });
+  });
+
+  describe('Client-Side Realtime Provider & Room Management Contract', () => {
+    it('should export joinRealtimeRoom, leaveRealtimeRoom, getRealtimeStatus, and subscribeToRealtimeEvents', async () => {
+      const {
+        joinRealtimeRoom,
+        leaveRealtimeRoom,
+        getRealtimeStatus,
+        subscribeToRealtimeStatus,
+        subscribeToRealtimeEvents,
+        disconnectRealtimeSocket
+      } = await import('@/lib/realtime/client');
+
+      expect(typeof joinRealtimeRoom).toBe('function');
+      expect(typeof leaveRealtimeRoom).toBe('function');
+      expect(typeof getRealtimeStatus).toBe('function');
+      expect(typeof subscribeToRealtimeStatus).toBe('function');
+      expect(typeof subscribeToRealtimeEvents).toBe('function');
+      expect(typeof disconnectRealtimeSocket).toBe('function');
+    });
+
+    it('should track connection status transitions', async () => {
+      const { getRealtimeStatus, subscribeToRealtimeStatus } = await import('@/lib/realtime/client');
+      let currentStatus = null;
+      const unsub = subscribeToRealtimeStatus((status) => {
+        currentStatus = status;
+      });
+
+      expect(['disconnected', 'connecting', 'connected', 'error', 'reconnecting']).toContain(currentStatus);
+      expect(getRealtimeStatus()).toBe(currentStatus);
+      unsub();
+    });
+
+    it('should cleanly join and leave match rooms without errors', async () => {
+      const { joinRealtimeRoom, leaveRealtimeRoom } = await import('@/lib/realtime/client');
+
+      expect(() => {
+        joinRealtimeRoom('match:test-match-123');
+        leaveRealtimeRoom('match:test-match-123');
+      }).not.toThrow();
+    });
+  });
+
+  describe('Supabase Realtime Provider Options & Contract', () => {
+    it('should accept options with room targeting and normalize event name', async () => {
+      const SupabaseRealtimeProvider = (await import('@/lib/providers/realtime/SupabaseRealtimeProvider')).default;
+      const provider = new SupabaseRealtimeProvider('https://example.supabase.co', 'test-key');
+
+      // Mock breaker execution
+      provider.breaker = {
+        execute: async (fn) => fn()
+      };
+
+      const mockSend = vi.fn().mockResolvedValue({ status: 'ok' });
+      const mockChannel = {
+        subscribe: vi.fn().mockResolvedValue(true),
+        send: mockSend,
+        unsubscribe: vi.fn().mockResolvedValue(true)
+      };
+
+      provider.supabase = {
+        channel: vi.fn().mockReturnValue(mockChannel)
+      };
+
+      await provider.broadcast('chess:move:played', {
+        matchId: 'match-999',
+        move: 'e4'
+      }, { room: 'match:match-999' });
+
+      expect(provider.supabase.channel).toHaveBeenCalledWith('kucet-updates');
+      expect(provider.supabase.channel).toHaveBeenCalledWith('match:match-999');
+      expect(mockSend).toHaveBeenCalled();
+      const sendPayload = mockSend.mock.calls[0][0];
+      expect(sendPayload.event).toBe('chess:move:played');
+      expect(sendPayload.payload.matchId).toBe('match-999');
+      expect(sendPayload.payload.rooms).toContain('match:match-999');
     });
   });
 });

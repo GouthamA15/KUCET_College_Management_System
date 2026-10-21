@@ -253,12 +253,17 @@ This document synthesizes those key lessons into **21 Inviolable Rules** and def
 - **The Pitfall:** Broadcasting system events without room targeting leaks sensitive operational updates (e.g. student attendance verification, dispute filings, fee sanctions) to all connected clients or opposite roles on the WebSocket server.
 - **The Inviolable Guardrail:** ALWAYS resolve target rooms via `resolveEventRooms(event, payload, options)` before Redis publishing. Suppress public broadcast unless explicitly marked `isPublic: true`. Ensure frontend components subscribe to targeted rooms (`match:<id>`, `dept:<branch>`, `student:<roll>`).
 
+### Rule 33: Client-Side Realtime Provider Abstraction & Explicit Room Subscriptions
+- **The Pitfall:** Depending directly on vendor-specific websocket clients (e.g. `socket.io-client`) inside UI components locks the client to a single transport, prevents cloud fallback (e.g. Supabase Broadcast), and causes silent message loss if components subscribe to events without emitting the required room joins (e.g. chess match room).
+- **The Inviolable Guardrail:** ALWAYS interact with real-time communications through the shared client interface in `@/lib/realtime/client` (or `@/components/RealtimeListener`). Any component viewing a room-scoped resource MUST invoke `joinRealtimeRoom()` on mount and `leaveRealtimeRoom()` on unmount, and the client adapter MUST track active rooms to re-join automatically upon network reconnection.
+
 ---
 
 ## 9. Incident Summary Matrix
 
 | Incident Tag | Root Cause | Engineering Fix Applied |
 | :--- | :--- | :--- |
+| **Session 225 Realtime & Chess Room Defect** | Client listener hardcoded to Socket.IO without Supabase adapter; `ChessGameView` omitted `join_match` emission | Implemented modular `@/lib/realtime/client` with Supabase Broadcast support; wired `joinRealtimeRoom('match:' + matchId)` with reconnect tracking; activated all 8 domain events in `EventBus.js`. |
 | **Session 205 Cookie Drop** | Next.js Edge proxy header comma-merging | Implemented raw `newCookiesToSet` array buffering in `src/proxy.js`. |
 | **Session 204 DB Throttling** | High-frequency academic session queries | Added 5-minute in-memory cache to `getCurrentCalendarSession()`. |
 | **Session 200 Storage Collision** | Mixed SDK calls and raw filenames | Enforced UUID v4 names and relative keys (`kucet/...`). |

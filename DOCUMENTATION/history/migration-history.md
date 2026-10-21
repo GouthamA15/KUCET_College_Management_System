@@ -378,7 +378,46 @@ Prior to Session 210, rejecting a student admission draft executed an unrecovera
 
 ---
 
-## 18. Cross-References & Related Documentation
+## 18. Session 225 — Comprehensive Architecture Stabilization, Client Realtime Abstraction, Chess Room Joining & Domain EventBus Activation (October 21, 2026)
+
+### Key Engineering Milestones:
+- **Shared Client-Side Realtime Provider Interface (`src/lib/realtime/client.js`)**:
+  - Implemented decoupled, transport-agnostic client adapter supporting `socketio`, `supabase`, and `hybrid` transports via `NEXT_PUBLIC_REALTIME_PROVIDER`.
+  - Added centralized room-state tracking (`activeRooms`) with automatic resubscription upon network reconnections.
+  - Implemented 30-second rolling event deduplication (`seenEventIds`) to prevent duplicate dispatches in multi-provider/hybrid fanout environments.
+  - Re-exported unified contract from `src/components/RealtimeListener.js` (`joinRealtimeRoom`, `leaveRealtimeRoom`, `getRealtimeStatus`, `subscribeToRealtimeStatus`, `subscribeToRealtimeEvents`, `disconnectRealtime`).
+- **Chess Match Real-Time Room Integration (`ChessGameView.js` & `socket-server.js`)**:
+  - Resolved confirmed defect where `ChessGameView` subscribed to global events but omitted `join_match`, preventing room-scoped updates from reaching players across devices.
+  - Wired `joinRealtimeRoom('match:' + matchId)` and `leaveRealtimeRoom('match:' + matchId)` upon mount/unmount and match switching.
+  - Hardened `DEPLOYMENT_PACKAGE/CONFIGS/socket-server.js` with authentication validation and `/^[a-zA-Z0-9_-]+$/` match ID sanitization before joining `match:<matchId>`.
+  - Preserved multi-tier fallback architecture: Socket.IO / Supabase push + cross-tab `BroadcastChannel` (0ms) + 5.0-second safety background polling.
+- **Supabase Realtime Provider Options & Targeted Room Ingress (`SupabaseRealtimeProvider.js`)**:
+  - Enhanced `broadcast(type, payload, options)` to accept room options, normalize event names via `normalizeEventName()`, resolve rooms via `resolveEventRooms()`, and inject canonical `eventId`.
+  - Broadcasts on `kucet-updates` and dispatches directly to room-specific channels when `options.room` is supplied.
+  - Added `disconnect()` cleanup method for graceful resource deallocation.
+- **Domain Event Bus Full Activation (`src/lib/events/EventBus.js`)**:
+  - Preserved established `ATTENDANCE_SUBMITTED` and `FEE_PAID` event flows and cache invalidations.
+  - Activated all 6 dormant domain events into their post-transaction lifecycle points:
+    - `TOPIC_UPDATED`: Dispatched in `AttendanceService.updateLectureTopic`.
+    - `MARKS_PUBLISHED`: Dispatched in `/api/staff/faculty/marks` after audit logging.
+    - `STUDENT_REGISTERED`: Dispatched in `StudentProfileService.upsertStudentProfile` after database transaction commit.
+    - `ARCHIVE_COMPLETED`: Dispatched in `ArchiveService.runSemesterArchive` and `runAlumniArchive`.
+    - `STUDENT_RESTORED`: Dispatched in `ArchiveRestoreService.restoreStudent`.
+    - `CERTIFICATE_ISSUED`: Dispatched in `/api/staff/requests/[request_id]` upon certificate approval.
+  - Added corresponding cache invalidation tags (`attendance:topics:*`, `marks:*`, `student:*`, `certificates:*`, `archive:overview`) and preserved wildcard audit logging.
+  - Expanded unit test coverage in `tests/unit/events/EventBus.test.js` from 2 to 5 comprehensive tests.
+- **Architectural Database Boundary Preservation**:
+  - Confirmed and documented strict isolation between core CMS (`kucet_cms`) and tournament engine (`experiment_college_db`).
+  - Formalized read-only student validation pattern in `ParticipantService` without cross-database joins or distributed transactions.
+- **Current Verification Metrics**:
+  - **95/95 test files passed (863/863 unit tests passing)** — +7 newly added passing tests.
+  - **127/127 tests passed** across all event and real-time test suites.
+  - `npm run db:check` passing with 25 migration entries (`0000` to `0024`) and 74 tracked tables.
+  - Next.js 16 standalone production build compiles cleanly (236 routes compiled, 0 errors).
+
+---
+
+## 19. Cross-References & Related Documentation
 
 - [System Architectural Decision Records (ADRs)](./architectural-decisions.md)
 - [Chronological Forensics of Resolved Incidents](./resolved-incidents.md)

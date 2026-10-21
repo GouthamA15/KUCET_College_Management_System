@@ -1,4 +1,5 @@
 import { db } from '@/db';
+import logger from '@/lib/logger';
 import { 
   students as studentsTable, 
   studentPersonalDetails, 
@@ -267,7 +268,18 @@ export class StudentProfileService {
     if (tx) {
       return await executeUpsert(tx);
     } else {
-      return await db.transaction(executeUpsert);
+      const studentId = await db.transaction(executeUpsert);
+      try {
+        const { EventBus, DOMAIN_EVENTS } = await import('@/lib/events/EventBus');
+        EventBus.publish(DOMAIN_EVENTS.STUDENT_REGISTERED, {
+          student_id: studentId,
+          roll_no: roll,
+          registered_by: staffId
+        });
+      } catch (ebErr) {
+        logger.warn({ err: ebErr }, '[EventBus] Student registered publish failed');
+      }
+      return studentId;
     }
   }
 }

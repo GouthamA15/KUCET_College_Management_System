@@ -63,7 +63,9 @@ export default class RedisRealtimeProvider extends RealtimeProvider {
           logger.info({ type: canonicalType, roomsCount: rooms.length }, '[REDIS_BROADCAST_TEST_SKIPPED]');
           return;
         }
+        const eventId = payload.eventId || `${canonicalType}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         const data = {
+          eventId,
           ...payload,
           event: canonicalType,
           type: canonicalType,

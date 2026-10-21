@@ -1,183 +1,33 @@
 'use client';
 
 import { useEffect, useRef, useContext, useCallback, useState } from 'react';
-import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import { StudentContext } from '@/context/StudentContext';
 import { StaffContext } from '@/context/StaffContext';
 import { normalizeEventName, REALTIME_EVENTS } from '@/lib/events/realtime-events';
-import { getClientSessionType, refreshClientSession } from '@/lib/client-auth';
+import {
+  getRealtimeStatus,
+  subscribeToRealtimeStatus,
+  joinRealtimeRoom,
+  leaveRealtimeRoom,
+  disconnectRealtimeSocket,
+  disconnectRealtime,
+  subscribeToRealtimeEvents,
+  ensureRealtimeConnection
+} from '@/lib/realtime/client';
 
-// Global shared singleton state for all instances of RealtimeListener across the React tree
-let sharedSocket = null;
-let sharedStatus = 'disconnected'; // 'connected' | 'connecting' | 'reconnecting' | 'disconnected' | 'error'
-const statusSubscribers = new Set();
-const eventSubscribers = new Set();
-
-function notifyStatus(status) {
-  sharedStatus = status;
-  statusSubscribers.forEach((subscriber) => {
-    try {
-      subscriber(status);
-    } catch (error) {
-      console.error('[Realtime] Status subscriber error', error);
-    }
-  });
-}
-
-function notifyEvent(eventData) {
-  eventSubscribers.forEach((subscriber) => {
-    try {
-      subscriber(eventData);
-    } catch (error) {
-      console.error('[Realtime] Event subscriber error', error);
-    }
-  });
-}
+export {
+  getRealtimeStatus,
+  subscribeToRealtimeStatus,
+  joinRealtimeRoom,
+  leaveRealtimeRoom,
+  disconnectRealtimeSocket,
+  disconnectRealtime,
+  subscribeToRealtimeEvents
+};
 
 /**
- * Initializes and maintains a single centralized Socket.IO connection.
- */
-let lastSilentRefreshTime = 0;
-
-async function trySilentTokenRefresh() {
-  const now = Date.now();
-  if (now - lastSilentRefreshTime < 15000) return false;
-  lastSilentRefreshTime = now;
-  try {
-    const userType = getClientSessionType() || 'staff';
-    const res = await refreshClientSession(userType);
-    return !!(res && res.ok);
-  } catch (_e) {
-    return false;
-  }
-}
-
-export function disconnectRealtimeSocket() {
-  if (sharedSocket) {
-    try {
-      sharedSocket.removeAllListeners();
-      sharedSocket.disconnect();
-    } catch (_e) {
-      // ignore
-    }
-    sharedSocket = null;
-    notifyStatus('disconnected');
-  }
-}
-
-export function subscribeToRealtimeEvents(callback) {
-  if (typeof window === 'undefined') return () => {};
-  ensureSocketConnection();
-  eventSubscribers.add(callback);
-  return () => {
-    eventSubscribers.delete(callback);
-  };
-}
-
-function ensureSocketConnection() {
-  if (typeof window === 'undefined' || (sharedSocket && sharedSocket.connected)) return;
-
-  if (sharedSocket) {
-    if (sharedSocket.disconnected) {
-      sharedSocket.connect();
-    }
-    return;
-  }
-
-  notifyStatus('connecting');
-
-  // Resolve socket URL: on remote/production hosts, fallback to same origin if NEXT_PUBLIC_SOCKET_URL is localhost
-  let socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
-  if (typeof window !== 'undefined') {
-    const isLocalhostHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    if (!socketUrl || (!isLocalhostHost && (socketUrl.includes('localhost') || socketUrl.includes('127.0.0.1')))) {
-      socketUrl = window.location.origin;
-    }
-  } else {
-    socketUrl = socketUrl || 'http://localhost:4000';
-  }
-
-  sharedSocket = io(socketUrl, {
-    path: '/socket.io/',
-    transports: ['websocket', 'polling'],
-    withCredentials: true,
-    autoConnect: true,
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 2000,
-    reconnectionDelayMax: 30000,
-    randomizationFactor: 0.5,
-    timeout: 8000,
-  });
-
-  let hasWarnedSocketError = false;
-
-  sharedSocket.on('connect', () => {
-    hasWarnedSocketError = false;
-    notifyStatus('connected');
-  });
-
-  sharedSocket.on('reconnect_attempt', () => {
-    notifyStatus('reconnecting');
-  });
-
-  sharedSocket.on('connect_error', (err) => {
-    const msg = err?.message || '';
-    const isAuthFailure =
-      msg.includes('Authentication') ||
-      msg.includes('exp') ||
-      msg.includes('expired') ||
-      msg.includes('Invalid or expired');
-
-    if (isAuthFailure) {
-      // Token may have expired — silently refresh, then let Socket.IO retry
-      console.info('[Realtime] Auth token expired — attempting silent refresh before reconnect');
-      trySilentTokenRefresh().then((refreshed) => {
-        if (refreshed) {
-          console.info('[Realtime] Token refreshed — reconnecting socket');
-        } else {
-          console.warn('[Realtime] Token refresh failed — socket will retry with existing credentials');
-        }
-        // Socket.IO reconnection loop will pick up the new cookie automatically on the next attempt
-      });
-    } else if (!hasWarnedSocketError) {
-      console.warn('[Realtime] Socket connection error (will retry with bounded backoff):', msg);
-      hasWarnedSocketError = true;
-    }
-    notifyStatus('error');
-  });
-
-  sharedSocket.on('reconnect_failed', () => {
-    console.info('[Realtime] Reconnection attempts exhausted. Operating in fallback HTTP/API mode.');
-    notifyStatus('disconnected');
-  });
-
-  sharedSocket.on('disconnect', (reason) => {
-    notifyStatus('disconnected');
-    if (reason === 'io server disconnect') {
-      // Reconnect manually if server disconnected
-      sharedSocket.connect();
-    }
-  });
-
-  // Listen to generic events
-  sharedSocket.on('live-session-update', (data) => {
-    const canonicalType = normalizeEventName(data.type || data.event);
-    notifyEvent({ type: canonicalType, payload: data });
-  });
-
-  // Listen to canonical events
-  Object.values(REALTIME_EVENTS).forEach((eventName) => {
-    sharedSocket.on(eventName, (data) => {
-      notifyEvent({ type: eventName, payload: data });
-    });
-  });
-}
-
-/**
- * RealtimeListener Component
- * Mounts in Context Providers (AdminContext, StaffContext, StudentContext) to receive updates.
+ * RealtimeListener Component (Mounted in Root/Context Providers)
  */
 export default function RealtimeListener({ onUpdate, enableNotifications = false }) {
   const studentContext = useContext(StudentContext);
@@ -189,7 +39,7 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
   const staffDataRef = useRef(currentStaff);
   const onUpdateRef = useRef(onUpdate);
   const enableNotificationsRef = useRef(enableNotifications);
-  const [_status, setStatus] = useState(sharedStatus);
+  const [_status, setStatus] = useState(getRealtimeStatus);
 
   useEffect(() => {
     studentDataRef.current = studentData;
@@ -234,7 +84,7 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
     }
 
     if (canonical === REALTIME_EVENTS.STAFF_REGISTRATION_CREATED) {
-      if (stData?.role === 'admin' || window.location.pathname.startsWith('/admin')) {
+      if (stData?.role === 'admin' || (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin'))) {
         toast('New staff registration pending approval', { icon: '👤', id: 'new-staff-reg' });
       }
     }
@@ -246,20 +96,17 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
   }, [handleNotification]);
 
   useEffect(() => {
-    const statusHandler = (nextStatus) => setStatus(nextStatus);
-    const eventHandler = ({ type, payload }) => {
+    const statusUnsub = subscribeToRealtimeStatus((nextStatus) => setStatus(nextStatus));
+    const eventUnsub = subscribeToRealtimeEvents(({ type, payload }) => {
       if (typeof onUpdateRef.current === 'function') onUpdateRef.current({ type, payload });
       if (enableNotificationsRef.current) handleNotificationRef.current(type, payload || {});
-    };
+    });
 
-    statusSubscribers.add(statusHandler);
-    eventSubscribers.add(eventHandler);
-
-    ensureSocketConnection();
+    ensureRealtimeConnection();
 
     return () => {
-      statusSubscribers.delete(statusHandler);
-      eventSubscribers.delete(eventHandler);
+      statusUnsub();
+      eventUnsub();
     };
   }, []);
 

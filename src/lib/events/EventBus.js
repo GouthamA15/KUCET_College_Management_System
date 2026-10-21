@@ -108,6 +108,74 @@ class CentralDomainEventBus {
         logger.warn({ err }, '[EventBus] Failed cache invalidation on fee payment');
       }
     });
+
+    this.subscribe(DOMAIN_EVENTS.TOPIC_UPDATED, async (eventData) => {
+      try {
+        const { invalidateTag } = await import('@/lib/cache');
+        if (eventData.payload?.assignment_id) {
+          await invalidateTag(`attendance:topics:${eventData.payload.assignment_id}`);
+        }
+      } catch (err) {
+        logger.warn({ err }, '[EventBus] Failed cache invalidation on topic update');
+      }
+    });
+
+    this.subscribe(DOMAIN_EVENTS.MARKS_PUBLISHED, async (eventData) => {
+      try {
+        const { invalidateTag } = await import('@/lib/cache');
+        if (eventData.payload?.assignment_id) {
+          await invalidateTag(`marks:${eventData.payload.assignment_id}`);
+        }
+      } catch (err) {
+        logger.warn({ err }, '[EventBus] Failed cache invalidation on marks publish');
+      }
+    });
+
+    this.subscribe(DOMAIN_EVENTS.STUDENT_REGISTERED, async (eventData) => {
+      try {
+        const { invalidateTag } = await import('@/lib/cache');
+        if (eventData.payload?.roll_no) {
+          await invalidateTag(`student:${eventData.payload.roll_no}`);
+        }
+      } catch (err) {
+        logger.warn({ err }, '[EventBus] Failed cache invalidation on student registered');
+      }
+    });
+
+    this.subscribe(DOMAIN_EVENTS.STUDENT_RESTORED, async (eventData) => {
+      try {
+        const { invalidateTag } = await import('@/lib/cache');
+        if (eventData.payload?.roll_no) {
+          await invalidateTag(`student:${eventData.payload.roll_no}`);
+        }
+        await invalidateTag('archive:overview');
+      } catch (err) {
+        logger.warn({ err }, '[EventBus] Failed cache invalidation on student restored');
+      }
+    });
+
+    this.subscribe(DOMAIN_EVENTS.ARCHIVE_COMPLETED, async (_eventData) => {
+      try {
+        const { invalidateTag } = await import('@/lib/cache');
+        await invalidateTag('archive:overview');
+      } catch (err) {
+        logger.warn({ err }, '[EventBus] Failed cache invalidation on archive completed');
+      }
+    });
+
+    this.subscribe(DOMAIN_EVENTS.CERTIFICATE_ISSUED, async (eventData) => {
+      try {
+        const { invalidateTag } = await import('@/lib/cache');
+        if (eventData.payload?.student_id) {
+          await invalidateTag(`student:requests:${eventData.payload.student_id}`);
+        }
+        if (eventData.payload?.roll_no) {
+          await invalidateTag(`certificates:${eventData.payload.roll_no}`);
+        }
+      } catch (err) {
+        logger.warn({ err }, '[EventBus] Failed cache invalidation on certificate issued');
+      }
+    });
   }
 }
 

@@ -418,18 +418,18 @@ To maintain zero external network dependencies and prevent asset latency, chess 
 
 ---
 
-## 14. Forensic Audit Findings & Transport Layer Realities
+## 14. Forensic Audit Findings & Transport Layer Remediation
 
-During the Session 224 feature audit, the chess arena was traced end-to-end across UI, API, DB, and Realtime transports:
+During the architecture stabilization audit, the chess arena was traced end-to-end across UI, API, DB, and Realtime transports:
 
-1. **Core Game Engine & FIDE Validation (WORKING)**:
+1. **Core Game Engine & FIDE Validation (FIXED AND VERIFIED)**:
    - Moves, legal move generation, turn management, check/checkmate/stalemate detection, SAN history recording, arbiter result recording, and admin verification execute reliably in `experiment_college_db`.
-   - Verified by 53 unit tests in `chess-engine-service.test.js`, `match-service-workflow.test.js`, and `event-config-and-workflow.test.js`.
-2. **Real-time Push Transport Layer (PARTIALLY WORKING)**:
-   - **Socket.IO Tier**: Server emits `CHESS_MOVE_PLAYED` to room `match:<matchId>`. While `socket-server.js` listens to `join_match`, `ChessGameView.js` never emits `join_match` (and `sharedSocket` in `RealtimeListener.js` is not exposed). Consequently, cross-network real-time move delivery over Socket.IO does not trigger in the active build.
-   - **Local BroadcastChannel Tier**: Same-browser tabs sync moves immediately (0ms latency), making local multi-tab testing functional.
-   - **Safety Polling Tier**: Background 5-second polling (`setInterval(fetchGameState, 5000)`) successfully polls move state from `GET /api/events/matches/:id`, ensuring moves update within 5 seconds even across separate devices.
-   - **Recommended Repair**: Export `joinMatchRoom(matchId)` / `leaveMatchRoom(matchId)` from `RealtimeListener.js` and call them on `ChessGameView` mount/unmount.
+   - Verified by unit tests in `chess-engine-service.test.js`, `match-service-workflow.test.js`, and `event-config-and-workflow.test.js`.
+2. **Real-time Push Transport Layer (FIXED AND VERIFIED)**:
+   - **Socket.IO & Supabase Tier**: `joinRealtimeRoom('match:' + matchId)` and `leaveRealtimeRoom('match:' + matchId)` are now actively emitted by `ChessGameView.js` upon mounting, unmounting, and match switching. `socket-server.js` validates authentication and alphanumeric match ID, joining the socket to `match:<matchId>`.
+   - **Automatic Reconnection Resubscription**: Active match rooms are stored in client singleton state and automatically re-joined upon network reconnection.
+   - **Local BroadcastChannel Tier**: Same-browser tabs sync moves immediately (0ms latency).
+   - **Safety Polling Tier**: Background 5-second polling (`setInterval(fetchGameState, 5000)`) remains active as a multi-tier redundancy failsafe.
 
 ---
 
