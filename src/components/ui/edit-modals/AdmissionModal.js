@@ -36,7 +36,8 @@ export const EditableField = React.memo(function EditableField({
 
     let resolvedValue = value || '';
     if (options && value) {
-        const match = options.find(o => String(o).toLowerCase() === String(value).toLowerCase());
+        const cleanVal = String(value).toLowerCase().replace(/[\s_-]+/g, '');
+        const match = options.find(o => String(o).toLowerCase().replace(/[\s_-]+/g, '') === cleanVal);
         if (match) resolvedValue = match;
     }
 
@@ -51,7 +52,7 @@ export const EditableField = React.memo(function EditableField({
                     className={`${baseClass} ${isEditing ? activeClass : readOnlyClass}`}
                 >
                     <option value="">SELECT</option>
-                    {value && !options.some(o => String(o).toLowerCase() === String(value).toLowerCase()) && (
+                    {value && !options.some(o => String(o).toLowerCase().replace(/[\s_-]+/g, '') === String(value).toLowerCase().replace(/[\s_-]+/g, '')) && (
                         <option value={value} disabled>
                             {String(value)} (Legacy Record)
                         </option>

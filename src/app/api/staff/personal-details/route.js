@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { students, studentPersonalDetails } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { normalizeAreaStatus } from '@/lib/college-config';
 
 export async function POST(req) {
   const user = await getAuthUser('staff');
@@ -26,9 +27,15 @@ export async function POST(req) {
     ];
 
     const dataObj = {};
-    fields.forEach(f => {
-      dataObj[f] = body[f] || null;
-    });
+    for (const f of fields) {
+      let val = body[f] || null;
+      if (f === 'area_status' && val) {
+        const norm = normalizeAreaStatus(val);
+        if (!norm) return apiError("Invalid area status. Must be 'Local' or 'Non-Local'", 400);
+        val = norm;
+      }
+      dataObj[f] = val;
+    }
 
     const existing = await db.select({ id: studentPersonalDetails.id })
       .from(studentPersonalDetails)

@@ -10,6 +10,7 @@ import {
 import { eq, or, like } from 'drizzle-orm';
 import { encrypt, decrypt, hashForIndex } from '@/lib/encryption';
 import { getPermanentAddressFromDetails, getContactAddressFromDetails, mapAddressStringsToFields } from '@/lib/address-utils';
+import { normalizeAreaStatus } from '@/lib/college-config';
 
 /**
  * Domain Service for Student Profile and Registry operations
@@ -37,6 +38,13 @@ export class StudentProfileService {
   static normalizeAadhaar(val) {
     if (!val) return '';
     return String(val).replace(/\D/g, '');
+  }
+
+  /**
+   * Helper to normalize area status
+   */
+  static normalizeAreaStatus(val) {
+    return normalizeAreaStatus(val);
   }
 
   /**
@@ -201,6 +209,15 @@ export class StudentProfileService {
       admission_date: normalizeToMySQLDate(admission_date) || normalizeToMySQLDate(new Date())
     };
 
+    let normalizedAreaStatus = 'Local';
+    if (area_status !== undefined && area_status !== null && String(area_status).trim() !== '') {
+      const norm = normalizeAreaStatus(area_status);
+      if (!norm) {
+        throw new Error('INVALID_AREA_STATUS');
+      }
+      normalizedAreaStatus = norm;
+    }
+
     const personalValues = {
       father_name: father_name || null,
       mother_name: mother_name || null,
@@ -208,7 +225,7 @@ export class StudentProfileService {
       religion: religion || null,
       category: category || null,
       sub_caste: sub_caste || null,
-      area_status: area_status || 'Local',
+      area_status: normalizedAreaStatus,
       mother_tongue: mother_tongue || null,
       place_of_birth: place_of_birth || null,
       father_occupation: father_occupation || null,

@@ -10,7 +10,7 @@ import {
 import { eq, _sql } from 'drizzle-orm';
 import { toMySQLDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { COLLEGE_CONFIG } from '@/lib/college-config';
+import { COLLEGE_CONFIG, normalizeAreaStatus } from '@/lib/college-config';
 import { storage } from '@/lib/providers';
 import { encrypt, hashForIndex } from '@/lib/encryption';
 import { StudentService } from '@/services/StudentService';
@@ -138,6 +138,14 @@ export async function PUT(req, context) {
             personalUpdate.is_current_same_as_permanent = val === null ? null : !!val;
           } else if (col === 'blood_group') {
             personalUpdate.blood_group = (val && ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].includes(String(val).trim())) ? String(val).trim() : null;
+          } else if (col === 'area_status') {
+            if (val !== null && val !== undefined && val !== '') {
+              const norm = normalizeAreaStatus(val);
+              if (!norm) return apiError("Invalid area status. Must be 'Local' or 'Non-Local'", 400);
+              personalUpdate.area_status = norm;
+            } else {
+              personalUpdate.area_status = null;
+            }
           } else {
             personalUpdate[col] = val;
           }

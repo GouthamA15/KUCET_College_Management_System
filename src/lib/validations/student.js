@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { validateRollNo, _branchCodes } from '@/lib/rollNumber';
-import { _COLLEGE_CONFIG } from '@/lib/college-config';
+import { _COLLEGE_CONFIG, normalizeAreaStatus } from '@/lib/college-config';
 
 /**
  * Zod schema for creating a new student record.
@@ -121,7 +121,18 @@ export const studentCreateSchema = z.object({
       z.date().refine((d) => !Number.isNaN(d.getTime()), "Invalid date")
     ])
   ).optional(),
-  area_status: z.enum(['Local', 'Non-Local']).optional().or(z.literal('')),
+  area_status: z.preprocess(
+    (v) => (v === '' || v === undefined || v === null ? null : v),
+    z.string().nullable().optional().superRefine((val, ctx) => {
+      if (val === null || val === undefined) return;
+      if (!normalizeAreaStatus(val)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Area status must be 'Local' or 'Non-Local'",
+        });
+      }
+    }).transform((val) => (val ? normalizeAreaStatus(val) : ''))
+  ).optional(),
 });
 
 /**

@@ -704,7 +704,7 @@ const AdmissionPage = () => {
                             <label htmlFor="area-status" className={labelClasses}>6. Area</label>
                             <select id="area-status" value={form.area_status} onChange={e => setForm({...form, area_status: e.target.value})} className={inputClasses}>
                                 <option value="Local">Local</option>
-                                <option value="Non Local">Non Local</option>
+                                <option value="Non-Local">Non-Local</option>
                             </select>
                         </div>
 

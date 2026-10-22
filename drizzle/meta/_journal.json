@@ -176,6 +176,13 @@
                         "when":  1790200000000,
                         "version":  "5",
                         "tag":  "0024_canonical_gender_enum"
+                    },
+                    {
+                        "idx":  25,
+                        "breakpoints":  true,
+                        "when":  1790300000000,
+                        "version":  "5",
+                        "tag":  "0025_canonical_area_status"
                     }
                 ]
 }

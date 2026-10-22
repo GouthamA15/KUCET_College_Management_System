@@ -7,6 +7,7 @@ import { toMySQLDate } from '@/lib/date';
 import { storage } from '@/lib/providers';
 import { sendInstitutionalEmail, EMAIL_CATEGORIES } from '@/lib/email';
 import { encrypt, decrypt } from '@/lib/encryption';
+import { normalizeAreaStatus } from '@/lib/college-config';
 
 export const GET = wrapHandler({
   auth: 'admission',
@@ -276,6 +277,17 @@ export const PUT = wrapHandler({
                     } else {
                         return apiError('Invalid blood group value', 400);
                     }
+                }
+            }
+            else if (field === 'area_status') {
+                if (value === null || value === undefined || value === '') {
+                    value = null;
+                } else {
+                    const norm = normalizeAreaStatus(value);
+                    if (!norm) {
+                        return apiError("Invalid area status. Must be 'Local' or 'Non-Local'", 400);
+                    }
+                    value = norm;
                 }
             }
             // Encrypt sensitive fields before saving

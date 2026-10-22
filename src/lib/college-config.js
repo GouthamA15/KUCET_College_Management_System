@@ -19,6 +19,7 @@ export const COLLEGE_CONFIG = {
     { code: '18', name: 'IT' },
     { code: '03', name: 'MECH' },
   ],
+  areaStatuses: ['Local', 'Non-Local'],
   genders: ['MALE', 'FEMALE'],
   religions: ['Hindu', 'Muslim', 'Christian', 'Sikh', 'Buddhist', 'Jain', 'Parsi', 'Other'],
   categories: ['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC-A', 'SC-B', 'SC-C', 'SC-D', 'ST', 'EWS'],
@@ -42,6 +43,22 @@ export const COLLEGE_CONFIG = {
     'Above 8,00,000'
   ],
 };
+
+export const AREA_STATUSES = ['Local', 'Non-Local'];
+
+export function normalizeAreaStatus(val) {
+  if (val === null || val === undefined || val === '') return null;
+  const clean = String(val).trim();
+  if (!clean) return null;
+  const stripped = clean.toLowerCase().replace(/[\s_-]+/g, '');
+  if (stripped === 'local') return 'Local';
+  if (stripped === 'nonlocal') return 'Non-Local';
+  return null;
+}
+
+export function isValidAreaStatus(val) {
+  return normalizeAreaStatus(val) !== null;
+}
 
 export const GENDER_LABELS = {
   MALE: 'Male',
