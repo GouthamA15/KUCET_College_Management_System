@@ -1,3 +1,5 @@
+/* eslint-disable jsx-a11y/alt-text */
+// @react-pdf Image components do not use HTML alt attributes
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 
