@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Clock, Calendar, XCircle, Info, Paperclip, Upload, Trash2, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Clock, Calendar, XCircle, Info, Paperclip, Upload, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function SubjectDetailPage({ params }) {

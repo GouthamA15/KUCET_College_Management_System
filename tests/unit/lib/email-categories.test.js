@@ -1,11 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   EMAIL_CATEGORIES,
-  CATEGORY_ENV_MAP,
   CATEGORY_CONFIG_MAP,
   DEFAULT_SENDER_NAMES,
   isValidEmailCategory,
-  resolveBrevoApiKey,
   resolveBrevoCategoryConfig
 } from '@/lib/email-categories';
 import BrevoEmailProvider from '@/lib/providers/email/BrevoEmailProvider';
