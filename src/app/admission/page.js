@@ -536,7 +536,6 @@ const AdmissionPage = () => {
                                 {/* Hidden photo file input */}
                                 <input
                                     ref={pfpInputRef}
-                                    required={!files.pfp}
                                     type="file"
                                     accept="image/jpeg,image/png,image/webp"
                                     onChange={(e) => handleFileChange(e, 'pfp')}
@@ -648,7 +647,6 @@ const AdmissionPage = () => {
                                 {/* Hidden signature file input */}
                                 <input
                                     ref={sigInputRef}
-                                    required={!files.signature}
                                     type="file"
                                     accept="image/jpeg,image/png,image/webp"
                                     onChange={(e) => handleFileChange(e, 'signature')}
