@@ -67,7 +67,9 @@ const nextConfig = {
         const parsed = new URL(process.env.NEXT_PUBLIC_BASE_URL);
         dynamicOrigin = ` ${parsed.host} wss://${parsed.host}`;
         dynamicImgHost = ` ${parsed.host}`;
-      } catch {}
+      } catch {
+        // Intentionally ignore invalid or incomplete URLs during build/test environments
+      }
     }
     const devConnectSrc = process.env.NODE_ENV !== 'production' ? ' localhost:4000 ws://localhost:4000' : ' localhost:4000 ws://localhost:4000';
     const cspHeader = `
