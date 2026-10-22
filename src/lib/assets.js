@@ -57,6 +57,10 @@ export const STATIC_ASSETS = new Set([
   '/assets/guidance/student-photo-printed-image.png',
   '/assets/guidance/student-photo-full-body.png',
   '/assets/guidance/student-photo-casual-outdoor.png',
+  '/assets/guidance/student-signature-acceptable-1.png',
+  '/assets/guidance/student-signature-acceptable-2.png',
+  '/assets/guidance/student-signature-incorrect-crop.png',
+  '/assets/guidance/student-signature-incorrect-orientation.png',
   '/manifest.json',
   '/favicon.ico',
 ]);

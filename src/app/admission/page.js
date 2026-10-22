@@ -7,17 +7,21 @@ import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { smoothScrollToTop } from '@/lib/scroll-utils';
 import { safeJsonParse } from '@/lib/json-utils';
 import { 
-  PhotoGuidanceGrid, 
   PhotoGuidanceModal, 
   validateStudentPhotoFile 
 } from '@/components/admission/StudentPhotoGuidance';
+import { 
+  SignatureGuidanceModal, 
+  validateStudentSignatureFile 
+} from '@/components/admission/StudentSignatureGuidance';
 import { 
   Camera, 
   Upload, 
   CheckCircle2, 
   Trash2, 
   RefreshCw, 
-  Info 
+  Info,
+  FileSignature
 } from 'lucide-react';
 
 const AdmissionPage = () => {
@@ -100,8 +104,11 @@ const AdmissionPage = () => {
     };
     const [files, setFiles] = useState({ pfp: null, signature: null });
     const [photoMeta, setPhotoMeta] = useState(null);
+    const [sigMeta, setSigMeta] = useState(null);
     const [isPhotoGuidanceModalOpen, setIsPhotoGuidanceModalOpen] = useState(false);
+    const [isSignatureGuidanceModalOpen, setIsSignatureGuidanceModalOpen] = useState(false);
     const pfpInputRef = useRef(null);
+    const sigInputRef = useRef(null);
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [_annualIncomeDisplay, _setAnnualIncomeDisplay] = useState('');
@@ -244,22 +251,45 @@ const AdmissionPage = () => {
                 toast.success('Photograph uploaded successfully!');
             };
             reader.readAsDataURL(processedFile);
-        } else {
+        } else if (type === 'signature') {
+            const validation = await validateStudentSignatureFile(file);
+            if (!validation.valid) {
+                toast.error(validation.error || 'Invalid signature file.');
+                if (sigInputRef.current) sigInputRef.current.value = '';
+                e.target.value = '';
+                return;
+            }
+
+            if (validation.warning) {
+                toast(validation.warning, { icon: '⚠️', duration: 6000 });
+            }
+
             let processedFile = file;
             try {
                 const { compressImage } = await import('@/lib/image-compressor');
                 processedFile = await compressImage(file, 1200, 1200, 0.6);
             } catch (err) {
-                console.error('Image compression failed:', err);
+                console.error('Signature compression failed:', err);
             }
 
             if (processedFile.size > 1 * 1024 * 1024) {
-                toast.error('Signature is too large (Max 1MB).');
+                toast.error('Signature exceeds 1MB limit. Please choose a smaller signature.');
+                if (sigInputRef.current) sigInputRef.current.value = '';
                 e.target.value = '';
                 return;
             }
+
             const reader = new FileReader();
-            reader.onloadend = () => setFiles(prev => ({ ...prev, [type]: reader.result }));
+            reader.onloadend = () => {
+                setFiles(prev => ({ ...prev, signature: reader.result }));
+                setSigMeta({
+                    name: file.name,
+                    size: (processedFile.size / 1024).toFixed(1) + ' KB',
+                    width: validation.dimensions?.width,
+                    height: validation.dimensions?.height,
+                });
+                toast.success('Signature uploaded successfully!');
+            };
             reader.readAsDataURL(processedFile);
         }
     };
@@ -268,6 +298,12 @@ const AdmissionPage = () => {
         setFiles(prev => ({ ...prev, pfp: null }));
         setPhotoMeta(null);
         if (pfpInputRef.current) pfpInputRef.current.value = '';
+    };
+
+    const handleRemoveSignature = () => {
+        setFiles(prev => ({ ...prev, signature: null }));
+        setSigMeta(null);
+        if (sigInputRef.current) sigInputRef.current.value = '';
     };
 
     const handleSubmit = async (e) => {
@@ -395,10 +431,7 @@ const AdmissionPage = () => {
             <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12">
                 <form onSubmit={handleSubmit} className="space-y-10">
                     
-                    {/* 0. Photo Guidance Section (Visible prior to upload) */}
-                    <PhotoGuidanceGrid onOpenModal={() => setIsPhotoGuidanceModalOpen(true)} />
-
-                    {/* Top Upload Section */}
+                    {/* Top Upload Section: Compact, Balanced Photograph & Signature Cards with On-Demand Guidance */}
                     <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
                             {/* Photograph Upload Card */}
@@ -411,7 +444,7 @@ const AdmissionPage = () => {
                                         type="button"
                                         onClick={() => setIsPhotoGuidanceModalOpen(true)}
                                         className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold inline-flex items-center gap-1 cursor-pointer"
-                                        aria-label="View photo guidelines and examples"
+                                        aria-label="View photo guidelines and requirements"
                                     >
                                         <Info className="w-3.5 h-3.5" aria-hidden="true" />
                                         View Photo Requirements
@@ -422,7 +455,7 @@ const AdmissionPage = () => {
                                 </p>
 
                                 {!files.pfp ? (
-                                    /* Empty Upload Placeholder */
+                                    /* Empty Photo Upload Placeholder */
                                     <div
                                         onClick={() => setIsPhotoGuidanceModalOpen(true)}
                                         className="group cursor-pointer border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-white hover:bg-indigo-50/40 rounded-xl p-6 text-center transition-all duration-200 flex flex-col items-center justify-center min-h-[190px]"
@@ -500,7 +533,7 @@ const AdmissionPage = () => {
                                     </div>
                                 )}
 
-                                {/* Hidden file input */}
+                                {/* Hidden photo file input */}
                                 <input
                                     ref={pfpInputRef}
                                     required={!files.pfp}
@@ -515,39 +548,114 @@ const AdmissionPage = () => {
 
                             {/* Signature Upload Card */}
                             <div className="space-y-3">
-                                <label htmlFor="student-signature-file-input" className={labelClasses + " mb-0"}>
-                                    Signature Photo <span className="text-red-500">*</span>
-                                </label>
+                                <div className="flex items-center justify-between">
+                                    <label htmlFor="student-signature-file-input" className={labelClasses + " mb-0"}>
+                                        Signature for Examination Verification <span className="text-red-500">*</span>
+                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsSignatureGuidanceModalOpen(true)}
+                                        className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold inline-flex items-center gap-1 cursor-pointer"
+                                        aria-label="View signature guidelines and requirements"
+                                    >
+                                        <Info className="w-3.5 h-3.5" aria-hidden="true" />
+                                        View Signature Requirements
+                                    </button>
+                                </div>
                                 <p className="text-[11px] text-slate-500 leading-normal">
                                     Sign clearly on plain white paper with blue or black ink. Formats: JPG, PNG, or WebP (Max 1MB).
                                 </p>
-                                <div className="flex flex-col items-center sm:items-start">
-                                    <div className="w-full max-w-[280px] h-28 border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-white flex items-center justify-center overflow-hidden mb-3 rounded-lg transition-colors">
-                                        {files.signature ? (
+
+                                {!files.signature ? (
+                                    /* Empty Signature Upload Placeholder */
+                                    <div
+                                        onClick={() => setIsSignatureGuidanceModalOpen(true)}
+                                        className="group cursor-pointer border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-white hover:bg-indigo-50/40 rounded-xl p-6 text-center transition-all duration-200 flex flex-col items-center justify-center min-h-[190px]"
+                                        role="button"
+                                        tabIndex={0}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                setIsSignatureGuidanceModalOpen(true);
+                                            }
+                                        }}
+                                        aria-label="Click to view requirements and upload student handwritten signature"
+                                    >
+                                        <div className="w-12 h-12 rounded-full bg-indigo-50 group-hover:bg-indigo-100 flex items-center justify-center text-indigo-600 mb-2.5 transition-colors shadow-sm">
+                                            <FileSignature className="w-6 h-6" aria-hidden="true" />
+                                        </div>
+                                        <p className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                                            Upload Handwritten Signature
+                                        </p>
+                                        <p className="text-xs text-slate-500 mt-0.5 max-w-xs">
+                                            Click to review signature requirements & select file
+                                        </p>
+                                        <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold shadow-sm group-hover:bg-indigo-700 transition-colors">
+                                            <Upload className="w-3.5 h-3.5" aria-hidden="true" />
+                                            Choose Signature
+                                        </div>
+                                    </div>
+                                ) : (
+                                    /* Signature Selected Preview Card */
+                                    <div className="bg-white border border-emerald-300 rounded-xl p-4 shadow-sm flex flex-col sm:flex-row items-center sm:items-start gap-4">
+                                        <div className="w-32 h-24 relative rounded-lg overflow-hidden border-2 border-emerald-500 shadow-sm bg-white shrink-0 flex items-center justify-center p-1">
                                             <Image 
-                                                onError={(e) => { e.currentTarget.style.display = 'none'; }} 
                                                 src={files.signature} 
-                                                alt="Signature Preview" 
-                                                className="w-full h-full object-contain p-2" 
-                                                width={224} 
-                                                height={80} 
+                                                alt="Selected student signature preview" 
+                                                fill 
+                                                sizes="128px"
+                                                className="object-contain p-1" 
                                                 unoptimized 
                                             />
-                                        ) : (
-                                            <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider text-center p-2">
-                                                Signature Preview
-                                            </span>
-                                        )}
+                                        </div>
+                                        <div className="flex-1 space-y-2 text-center sm:text-left">
+                                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
+                                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
+                                                Signature Selected for Exam Verification
+                                            </div>
+                                            <p className="text-xs font-semibold text-slate-900 truncate max-w-[220px]">
+                                                {sigMeta?.name || 'Selected Signature'}
+                                            </p>
+                                            {sigMeta?.size && (
+                                                <p className="text-[11px] text-slate-500">
+                                                    Size: {sigMeta.size} {sigMeta.width && `(${sigMeta.width}x${sigMeta.height}px)`}
+                                                </p>
+                                            )}
+                                            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => sigInputRef.current?.click()}
+                                                    className="px-3 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                                                    aria-label="Change uploaded signature"
+                                                >
+                                                    <RefreshCw className="w-3 h-3" aria-hidden="true" />
+                                                    Change Signature
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleRemoveSignature}
+                                                    className="px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                                                    aria-label="Remove selected signature"
+                                                >
+                                                    <Trash2 className="w-3 h-3" aria-hidden="true" />
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <label 
-                                        htmlFor="student-signature-file-input"
-                                        className="cursor-pointer bg-white border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 text-indigo-700 text-xs font-bold py-2 px-4 rounded-lg shadow-sm transition-all duration-200 ease-in-out flex items-center justify-center gap-2 w-full max-w-[180px]"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                                        {files.signature ? 'Change Signature' : 'Upload Signature'}
-                                        <input id="student-signature-file-input" required={!files.signature} type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'signature')} className="hidden" />
-                                    </label>
-                                </div>
+                                )}
+
+                                {/* Hidden signature file input */}
+                                <input
+                                    ref={sigInputRef}
+                                    required={!files.signature}
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    onChange={(e) => handleFileChange(e, 'signature')}
+                                    className="hidden"
+                                    id="student-signature-file-input"
+                                    aria-label="Student handwritten signature upload"
+                                />
                             </div>
                         </div>
                     </div>
@@ -923,11 +1031,18 @@ const AdmissionPage = () => {
                     </div>
                 </form>
 
-                {/* Photo Guidance Modal */}
+                {/* On-Demand Photo Guidance Modal */}
                 <PhotoGuidanceModal 
                     open={isPhotoGuidanceModalOpen} 
                     onClose={() => setIsPhotoGuidanceModalOpen(false)} 
                     onSelectPhoto={() => pfpInputRef.current?.click()} 
+                />
+
+                {/* On-Demand Signature Guidance Modal */}
+                <SignatureGuidanceModal 
+                    open={isSignatureGuidanceModalOpen} 
+                    onClose={() => setIsSignatureGuidanceModalOpen(false)} 
+                    onSelectSignature={() => sigInputRef.current?.click()} 
                 />
             </main>
             </div>

@@ -329,7 +329,40 @@ The admission export engine (`/api/staff/admission/export`) supports high-fideli
 
 ---
 
-## 11. Cross-References
+## 12. Student Photograph and Signature Upload Guidance (On-Demand Popups)
+
+To ensure student submissions meet institutional standards for **physical KUCET identity card printing** and **examination identity verification**, the online admission form (`/admission`) integrates on-demand guidance modals.
+
+### Core Architectural Invariants & Main Page UX
+1. **Clean Main Page Invariant**: The main admission page does not permanently display large guidance galleries or permanent warning boxes. It renders only compact, symmetric cards for photograph and signature upload.
+2. **On-Demand Modal Interaction**:
+   - Clicking the photograph placeholder or "View Photo Requirements" opens `PhotoGuidanceModal`.
+   - Clicking the signature placeholder or "View Signature Requirements" opens `SignatureGuidanceModal`.
+   - Each modal operates independently with accessible focus trapping, keyboard navigation (`Escape` to close), and background scroll lock.
+   - Closing either modal preserves all current form state.
+3. **Physical ID Card Notice (Photograph)**:
+   - *“Your uploaded photograph will be printed directly onto your official physical KUCET student ID card. Please ensure your photograph is clear, recent, sharp, and passport-style before submitting.”*
+   - Displays 4 reference examples:
+     - `CORRECT — Passport-Style Portrait` (`/assets/guidance/student-photo-correct.png`)
+     - `INCORRECT — Printed Photo / ID Card` (`/assets/guidance/student-photo-printed-image.png`)
+     - `INCORRECT — Full-Body or Distant Photo` (`/assets/guidance/student-photo-full-body.png`)
+     - `INCORRECT — Casual Outdoor / Distracting Background` (`/assets/guidance/student-photo-casual-outdoor.png`)
+4. **Examination Verification Notice (Signature)**:
+   - *“Important: Your uploaded signature will be used to verify your identity during KUCET mid-semester and semester examinations. Please upload your own clear, complete and correctly oriented handwritten signature.”*
+   - Displays 4 reference examples:
+     - `✓ ACCEPTABLE — Clear signature` (`/assets/guidance/student-signature-acceptable-1.png`)
+     - `✓ ACCEPTABLE — Properly framed signature` (`/assets/guidance/student-signature-acceptable-2.png`)
+     - `✗ NOT ACCEPTABLE — Incorrect cropping` (`/assets/guidance/student-signature-incorrect-crop.png`)
+     - `✗ NOT ACCEPTABLE — Wrong orientation` (`/assets/guidance/student-signature-incorrect-orientation.png`)
+5. **Client-Side Safe Pre-Validation**:
+   - `validateStudentPhotoFile(file)` and `validateStudentSignatureFile(file)` enforce non-empty files, supported mime types (`image/jpeg`, `image/png`, `image/webp`), pre-compression size bounds (<15MB), decodability via `window.Image()`, and minimum dimensions (Photo: 100x100px; Signature: 80x30px).
+   - Signatures include non-destructive orientation heuristics alerting students if an image is vertically oriented (`height > width * 1.5`).
+6. **Direct File Selection Integration**:
+   - Selecting `Choose Photo` or `Choose Signature` from within the respective dialog triggers the underlying file picker seamlessly.
+
+---
+
+## 13. Cross-References
 
 - Database Schemas: [schema.md](../database/schema.md)
 - Storage Lifecycle & Media Promotion: [requests.md](./requests.md)
