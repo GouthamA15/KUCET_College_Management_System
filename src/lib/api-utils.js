@@ -240,6 +240,14 @@ export function wrapHandler(optionsOrHandler, maybeHandler) {
         if (error.code === 'ER_DUP_ENTRY') {
           return apiError('Duplicate entry detected', 409);
         }
+        if (error.code === 'WARN_DATA_TRUNCATED' || error.code === 'ER_DATA_TOO_LONG' || error.code === 'ER_TRUNCATED_WRONG_VALUE_FOR_FIELD') {
+          logger.warn({ method, url, code: error.code, ip }, '[API_DATA_VALIDATION_DB_ERROR]');
+          return apiError('Invalid data provided: field value violates database format or length constraint', 400);
+        }
+        if (error.code === 'ER_NO_REFERENCED_ROW_2' || error.code === 'ER_ROW_IS_REFERENCED_2') {
+          logger.warn({ method, url, code: error.code, ip }, '[API_FOREIGN_KEY_DB_ERROR]');
+          return apiError('Referenced record does not exist or has active dependencies', 400);
+        }
 
         // Final fallback
         // Sanitize error message for the frontend to prevent leaking raw SQL queries or DB internals

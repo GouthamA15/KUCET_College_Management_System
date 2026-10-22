@@ -10,7 +10,8 @@ import {
 import { eq, or, like } from 'drizzle-orm';
 import { encrypt, decrypt, hashForIndex } from '@/lib/encryption';
 import { getPermanentAddressFromDetails, getContactAddressFromDetails, mapAddressStringsToFields } from '@/lib/address-utils';
-import { normalizeAreaStatus } from '@/lib/college-config';
+import { normalizeAreaStatus, normalizeGender, normalizeBloodGroup, normalizeFeeReimbursement } from '@/lib/college-config';
+import { toMySQLDate } from '@/lib/date';
 
 /**
  * Domain Service for Student Profile and Registry operations
@@ -45,6 +46,27 @@ export class StudentProfileService {
    */
   static normalizeAreaStatus(val) {
     return normalizeAreaStatus(val);
+  }
+
+  /**
+   * Helper to normalize gender
+   */
+  static normalizeGender(val) {
+    return normalizeGender(val);
+  }
+
+  /**
+   * Helper to normalize blood group
+   */
+  static normalizeBloodGroup(val) {
+    return normalizeBloodGroup(val);
+  }
+
+  /**
+   * Helper to normalize fee reimbursement
+   */
+  static normalizeFeeReimbursement(val) {
+    return normalizeFeeReimbursement(val);
   }
 
   /**
@@ -187,26 +209,17 @@ export class StudentProfileService {
       addressFields = mapAddressStringsToFields(finalContactAddr, finalPermAddr);
     }
 
-    const normalizeToMySQLDate = (val) => {
-      if (!val) return null;
-      const d = new Date(val);
-      if (isNaN(d.getTime())) return null;
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    };
-
     const studentValues = {
       admission_no: admission_no || null,
       roll_no: roll,
       name,
-      date_of_birth: normalizeToMySQLDate(date_of_birth),
-      gender: gender || null,
+      date_of_birth: toMySQLDate(date_of_birth),
+      gender: StudentProfileService.normalizeGender(gender),
       email: email ? String(email).toLowerCase() : null,
       mobile: normMobile ? encrypt(normMobile) : null,
       mobile_hash: normMobile ? hashForIndex(normMobile) : null,
-      fee_reimbursement: ['YES', 'NO', 'GOV'].includes(String(fee_reimbursement).toUpperCase()) 
-        ? String(fee_reimbursement).toUpperCase() 
-        : 'NO',
-      admission_date: normalizeToMySQLDate(admission_date) || normalizeToMySQLDate(new Date())
+      fee_reimbursement: normalizeFeeReimbursement(fee_reimbursement),
+      admission_date: toMySQLDate(admission_date) || toMySQLDate(new Date())
     };
 
     let normalizedAreaStatus = 'Local';
@@ -235,7 +248,7 @@ export class StudentProfileService {
       aadhaar_hash: normAadhaar ? hashForIndex(normAadhaar) : null,
       ...addressFields,
       seat_allotted_category: seat_allotted_category || null,
-      blood_group: (blood_group && ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].includes(String(blood_group).trim())) ? String(blood_group).trim() : null,
+      blood_group: StudentProfileService.normalizeBloodGroup(blood_group),
       identification_marks: identification_marks || null
     };
 

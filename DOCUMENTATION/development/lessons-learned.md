@@ -257,6 +257,14 @@ This document synthesizes those key lessons into **21 Inviolable Rules** and def
 - **The Pitfall:** Depending directly on vendor-specific websocket clients (e.g. `socket.io-client`) inside UI components locks the client to a single transport, prevents cloud fallback (e.g. Supabase Broadcast), and causes silent message loss if components subscribe to events without emitting the required room joins (e.g. chess match room).
 - **The Inviolable Guardrail:** ALWAYS interact with real-time communications through the shared client interface in `@/lib/realtime/client` (or `@/components/RealtimeListener`). Any component viewing a room-scoped resource MUST invoke `joinRealtimeRoom()` on mount and `leaveRealtimeRoom()` on unmount, and the client adapter MUST track active rooms to re-join automatically upon network reconnection.
 
+### Rule 34: Canonical Data Contract Synchronization Across Staging, Service, and Persistence Layers
+- **The Pitfall:** Subtle format drift between loose staging schemas (e.g. `varchar(50)` storing `"Non Local"` or uppercase `"NON-LOCAL"`) and strict persistence schemas (e.g. `enum('Local', 'Non-Local')`), along with boolean-like fields (`"Yes"`/`"No"` vs boolean/numeric), causes fatal runtime database crashes (`Data truncated for column`, MySQL error code 1265) during critical multi-table transactions like admission finalization. Furthermore, media promotion fails when asset view prefixes (`/api/assets/view/`) are passed into storage path resolvers.
+- **The Inviolable Guardrail:**
+  1. Centralize all canonical normalizers and domain validators in `@/lib/college-config.js` (`normalizeAreaStatus`, `normalizeGender`, `normalizeBloodGroup`, `normalizeFeeReimbursement`).
+  2. Enforce input normalization at every lifecycle boundary: public intake forms, staff draft modifications, and identity service upserts.
+  3. Strip routing and view prefixes (`/api/assets/view/`) in `MediaPromotionService` before invoking storage migration engines.
+  4. Standardize API error boundaries in `wrapHandler` to catch database constraint errors (`WARN_DATA_TRUNCATED`, `ER_DATA_TOO_LONG`, `ER_NO_REFERENCED_ROW_2`) and return actionable 400 client errors instead of opaque 500 crashes.
+
 ---
 
 ## 9. Incident Summary Matrix
@@ -264,6 +272,7 @@ This document synthesizes those key lessons into **21 Inviolable Rules** and def
 | Incident Tag | Root Cause | Engineering Fix Applied |
 | :--- | :--- | :--- |
 | **Session 225 Realtime & Chess Room Defect** | Client listener hardcoded to Socket.IO without Supabase adapter; `ChessGameView` omitted `join_match` emission | Implemented modular `@/lib/realtime/client` with Supabase Broadcast support; wired `joinRealtimeRoom('match:' + matchId)` with reconnect tracking; activated all 8 domain events in `EventBus.js`. |
+| **Session 226 Admission Finalization & Data Contract Hardening** | Admission finalization crash (`Data truncated for column 'area_status'`, incoming value `'Non Local'`), staging URL path leak (`/api/assets/view/`) breaking media promotion, and loose draft updates | Canonical `AREA_STATUSES` enum migration (`0025_canonical_area_status.sql`), centralized normalizers in `college-config.js`, `toMySQLDate` timezone safety, `cleanKey` in `MediaPromotionService`, and DB constraint error mapping in `wrapHandler`. |
 | **Session 205 Cookie Drop** | Next.js Edge proxy header comma-merging | Implemented raw `newCookiesToSet` array buffering in `src/proxy.js`. |
 | **Session 204 DB Throttling** | High-frequency academic session queries | Added 5-minute in-memory cache to `getCurrentCalendarSession()`. |
 | **Session 200 Storage Collision** | Mixed SDK calls and raw filenames | Enforced UUID v4 names and relative keys (`kucet/...`). |

@@ -3,7 +3,7 @@ import { db } from '@/db';
 import { students, studentPersonalDetails } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { normalizeAreaStatus } from '@/lib/college-config';
+import { normalizeAreaStatus, normalizeBloodGroup } from '@/lib/college-config';
 
 export async function POST(req) {
   const user = await getAuthUser('staff');
@@ -23,7 +23,7 @@ export async function POST(req) {
     const student_id = studentRows[0].id;
 
     const fields = [
-      'father_name','mother_name','nationality','religion','category','sub_caste','area_status','mother_tongue','place_of_birth','father_occupation','annual_income','aadhaar_no','address','seat_allotted_category','identification_marks'
+      'father_name','mother_name','nationality','religion','category','sub_caste','area_status','mother_tongue','place_of_birth','father_occupation','annual_income','aadhaar_no','address','seat_allotted_category','identification_marks','blood_group'
     ];
 
     const dataObj = {};
@@ -33,6 +33,10 @@ export async function POST(req) {
         const norm = normalizeAreaStatus(val);
         if (!norm) return apiError("Invalid area status. Must be 'Local' or 'Non-Local'", 400);
         val = norm;
+      } else if (f === 'blood_group' && val) {
+        const normBg = normalizeBloodGroup(val);
+        if (!normBg) return apiError("Invalid blood group value", 400);
+        val = normBg;
       }
       dataObj[f] = val;
     }

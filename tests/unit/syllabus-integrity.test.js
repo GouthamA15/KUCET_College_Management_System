@@ -1,7 +1,25 @@
+/**
+ * Comprehensive B.Tech Syllabus Integrity & Academic Verification
+ *
+ * NOTE ON CI EXCLUSION & DYNAMIC SYLLABUS ARCHITECTURE:
+ * This test file verifies static integrity against an external syllabus dataset.
+ *
+ * It is intentionally excluded from the automated CI release gate because:
+ * 1. The college syllabus is dynamic and revised periodically by institutional authority.
+ * 2. Academic subject offerings, elective groups, and semester arrangements are
+ *    managed dynamically via the database and HOD console rather than static code.
+ * 3. This test depends on an external path unavailable in CI environments.
+ *
+ * To run this test explicitly with a local dataset:
+ *   npm run test:syllabus
+ * or:
+ *   SYLLABUS_DIR=/custom/path RUN_SYLLABUS_INTEGRITY=true npx vitest run tests/unit/syllabus-integrity.test.js
+ */
+
 import { describe, it, expect } from 'vitest';
 import path from 'path';
 
-const SYLLABUS_DIR = '/run/media/admino/New Volume/User/Desktop/syllabus_backup';
+const SYLLABUS_DIR = process.env.SYLLABUS_DIR || '/run/media/admino/New Volume/User/Desktop/syllabus_backup';
 const BRANCHES = ['civil', 'csd', 'cse', 'ece', 'eee', 'it', 'mech'];
 
 describe('Comprehensive B.Tech Syllabus Integrity & Academic Verification', () => {

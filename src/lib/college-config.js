@@ -60,6 +60,39 @@ export function isValidAreaStatus(val) {
   return normalizeAreaStatus(val) !== null;
 }
 
+export function normalizeGender(val) {
+  if (!val) return null;
+  const v = String(val).trim().toUpperCase();
+  if (v === 'MALE' || v === 'M' || v === 'BOY') return 'MALE';
+  if (v === 'FEMALE' || v === 'F' || v === 'GIRL') return 'FEMALE';
+  return null;
+}
+
+export function isValidGender(val) {
+  return normalizeGender(val) !== null;
+}
+
+export function normalizeBloodGroup(val) {
+  if (!val) return null;
+  const s = String(val).trim().toUpperCase();
+  if (s === '' || s === 'NOT AVAILABLE' || s === 'UNKNOWN' || s === 'N/A') return null;
+  if (['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].includes(s)) {
+    return s;
+  }
+  return null;
+}
+
+export function isValidBloodGroup(val) {
+  return normalizeBloodGroup(val) !== null;
+}
+
+export function normalizeFeeReimbursement(val) {
+  if (!val) return 'NO';
+  const s = String(val).trim().toUpperCase();
+  if (['YES', 'NO', 'GOV'].includes(s)) return s;
+  return 'NO';
+}
+
 export const GENDER_LABELS = {
   MALE: 'Male',
   FEMALE: 'Female',

@@ -18,6 +18,7 @@
     "db:studio": "drizzle-kit studio",
     "events:db:init": "tsx scripts/init-experiment-db.js",
     "test:unit": "vitest run",
+    "test:syllabus": "RUN_SYLLABUS_INTEGRITY=true vitest run tests/unit/syllabus-integrity.test.js",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "prepare": "node -e \"if (process.env.NODE_ENV !== 'production') { try { require('child_process').execSync('husky', {stdio: 'inherit'}) } catch (e) {} }\""

@@ -329,6 +329,25 @@ The admission export engine (`/api/staff/admission/export`) supports high-fideli
 
 ---
 
+## 11. Canonical Area Status (`Local` / `Non-Local`) & Finalization Reliability
+
+### Canonical Area Status Contract
+Admission rules enforce strict geographical classification for state quota compliance:
+- **Canonical Values**: `'Local'` and `'Non-Local'` (defined in `AREA_STATUSES` within `@/lib/college-config.js`).
+- **Database Schema**: `student_personal_details.area_status` is defined as `enum('Local', 'Non-Local')`.
+- **Normalization Invariant**: All input sources (public admission portal, staff draft updates, and Excel imports) route through `normalizeAreaStatus()`. Loose formats such as `"Non Local"`, `"non-local"`, `"NON-LOCAL"`, `"LOCAL"`, or padded whitespace are automatically canonicalized before hitting the database.
+- **Fail-Fast Validation**: Unknown or unrecognized strings are rejected with HTTP 400 (`INVALID_AREA_STATUS`) rather than causing runtime database truncation crashes (`WARN_DATA_TRUNCATED`, MySQL 1265).
+
+### MediaPromotionService Asset Path Normalization
+During finalization, staged candidate photographs and signatures are promoted from `admission_drafts/` to permanent student storage (`students/`):
+- URLs or keys containing internal routing prefixes (such as `/api/assets/view/kucet/...`) are automatically cleaned via `cleanKey()` before triggering storage operations.
+- This guarantees path compatibility across both local disk storage (`/var/www/kucet-storage`) and Cloudinary without throwing path resolution errors.
+
+### Timezone-Safe Date of Birth Invariant
+All student birth dates are formatted via `toMySQLDate(val)` from `@/lib/date` to avoid UTC-midnight timezone shifts that could alter student birth dates by -1 day in non-IST or negative timezone offsets.
+
+---
+
 ## 12. Student Photograph and Signature Upload Guidance (On-Demand Popups)
 
 To ensure student submissions meet institutional standards for **physical KUCET identity card printing** and **examination identity verification**, the online admission form (`/admission`) integrates on-demand guidance modals.

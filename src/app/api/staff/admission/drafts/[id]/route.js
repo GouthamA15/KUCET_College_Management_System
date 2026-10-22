@@ -7,7 +7,7 @@ import { toMySQLDate } from '@/lib/date';
 import { storage } from '@/lib/providers';
 import { sendInstitutionalEmail, EMAIL_CATEGORIES } from '@/lib/email';
 import { encrypt, decrypt } from '@/lib/encryption';
-import { normalizeAreaStatus } from '@/lib/college-config';
+import { normalizeAreaStatus, normalizeGender, normalizeBloodGroup, normalizeFeeReimbursement } from '@/lib/college-config';
 
 export const GET = wrapHandler({
   auth: 'admission',
@@ -249,12 +249,19 @@ export const PUT = wrapHandler({
             if (field === 'name' && value) {
                 value = String(value).trim().toUpperCase();
             }
-            else if (field === 'gender' && value) {
-                const g = String(value).trim().toUpperCase();
-                if (!['MALE', 'FEMALE'].includes(g)) {
-                    return apiError('Invalid gender value. Must be MALE or FEMALE', 400);
+            else if (field === 'gender') {
+                if (value === null || value === undefined || value === '') {
+                    value = null;
+                } else {
+                    const normG = normalizeGender(value);
+                    if (!normG) {
+                        return apiError('Invalid gender value. Must be MALE or FEMALE', 400);
+                    }
+                    value = normG;
                 }
-                value = g;
+            }
+            else if (field === 'fee_reimbursement') {
+                value = normalizeFeeReimbursement(value);
             }
             else if (field === 'dob') {
                 value = toMySQLDate(body[field]);
@@ -266,16 +273,18 @@ export const PUT = wrapHandler({
                 }
             }
             else if (field === 'blood_group') {
-                if (value === null || value === undefined) {
+                if (value === null || value === undefined || value === '') {
                     value = null;
                 } else {
                     const s = String(value).trim();
-                    if (s === '' || s.toLowerCase() === 'not available' || s.toUpperCase() === 'UNKNOWN' || s.toLowerCase() === 'n/a') {
+                    if (s.toLowerCase() === 'not available' || s.toUpperCase() === 'UNKNOWN' || s.toLowerCase() === 'n/a') {
                         value = null;
-                    } else if (['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].includes(s)) {
-                        value = s;
                     } else {
-                        return apiError('Invalid blood group value', 400);
+                        const normBg = normalizeBloodGroup(s);
+                        if (!normBg) {
+                            return apiError('Invalid blood group value', 400);
+                        }
+                        value = normBg;
                     }
                 }
             }
