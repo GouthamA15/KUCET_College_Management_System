@@ -60,6 +60,24 @@ The public admission portal allows prospective students to submit their demograp
 | `fee_reimbursement` | Enum | `YES`, `NO`, `GOV` |
 | `legal_consent` | Boolean | Must explicitly evaluate to `true` |
 
+### Student Photograph Upload Guidance & Physical ID Card Specifications
+
+To ensure high-quality printing of the student's physical KUCET college identity card and prevent application rejections, the admission form provides comprehensive pre-upload visual guidance:
+
+- **Static Reference Assets (`/assets/guidance/`)**:
+  - `student-photo-correct.png`: Accepted front-facing passport portrait with head and shoulders visible against a plain background.
+  - `student-photo-printed-image.png`: Unacceptable photograph of an existing printed photo or ID card.
+  - `student-photo-full-body.png`: Unacceptable distant full-body shot.
+  - `student-photo-casual-outdoor.png`: Unacceptable casual outdoor snapshot with distracting background.
+- **Pre-Upload Guidance Section**: Clearly displays the 4 reference examples in a responsive grid before the upload controls with accessible status indicators (both icons and labels).
+- **Physical ID Card Notice**: Prominent alert highlighting that the photograph will be printed on the student's physical college ID card.
+- **Interactive Guidance Modal**: Opened by clicking the empty upload area or the "View Photo Requirements" button; includes keyboard navigation (`Escape`, focus trap) and a direct "Choose Photo" action.
+- **Client & Server Validation**:
+  - Supported formats: JPEG, PNG, WebP (`image/jpeg`, `image/png`, `image/webp`).
+  - Size limit: 1MB (client-side compression to WebP via HTML5 canvas, max 1200x1200).
+  - Decoding validation: In-memory image decode check ensuring image is uncorrupted and meets minimum 100x100 resolution.
+  - Server-side validation: Refined regex check in `POST /api/public/admission` enforcing valid base64 image data URI.
+
 ---
 
 ## 3. Draft Management, Soft Rejection & Controlled Restoration

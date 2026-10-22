@@ -88,7 +88,10 @@ export async function POST(req) {
       curr_pincode: z.string().trim().max(20).nullable().optional(),
       curr_country: z.string().trim().max(100).default('India'),
       is_current_same_as_permanent: z.boolean().default(false),
-      pfp: z.string().nullable().optional(),
+      pfp: z.string().refine(val => {
+        if (!val || val === '') return true;
+        return /^data:image\/(jpeg|png|webp|jpg);base64,/.test(val);
+      }, { message: 'Photograph must be a valid JPEG, PNG, or WebP image data URI' }).nullable().optional(),
       signature: z.string().nullable().optional(),
       legal_consent: z.literal(true, { errorMap: () => ({ message: "You must agree to the Terms & Conditions and Privacy Policy to proceed." }) })
     });
