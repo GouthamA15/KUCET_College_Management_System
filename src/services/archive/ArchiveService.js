@@ -296,6 +296,20 @@ export class ArchiveService {
       const executionTimeMs = Date.now() - startTime;
       logger.info({ jobId, recordsArchived, mediaArchived, executionTimeMs }, '[SEMESTER_ARCHIVE_SUCCESS]');
 
+      try {
+        const { EventBus, DOMAIN_EVENTS } = await import('@/lib/events/EventBus');
+        EventBus.publish(DOMAIN_EVENTS.ARCHIVE_COMPLETED, {
+          jobId,
+          archive_type: 'SEMESTER',
+          recordsArchived,
+          mediaArchived,
+          storageSizeBytes,
+          archived_by
+        });
+      } catch (ebErr) {
+        logger.warn({ err: ebErr }, '[EventBus] Archive completed event dispatch failed');
+      }
+
       return {
         success: true,
         jobId,
@@ -508,6 +522,20 @@ export class ArchiveService {
       });
 
       const executionTimeMs = Date.now() - startTime;
+
+      try {
+        const { EventBus, DOMAIN_EVENTS } = await import('@/lib/events/EventBus');
+        EventBus.publish(DOMAIN_EVENTS.ARCHIVE_COMPLETED, {
+          jobId,
+          archive_type: 'ALUMNI',
+          recordsArchived,
+          mediaArchived,
+          storageSizeBytes,
+          archived_by
+        });
+      } catch (ebErr) {
+        logger.warn({ err: ebErr }, '[EventBus] Archive completed event dispatch failed');
+      }
 
       return {
         success: true,

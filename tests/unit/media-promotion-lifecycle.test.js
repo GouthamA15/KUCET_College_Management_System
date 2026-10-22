@@ -20,6 +20,7 @@ describe('MediaPromotionService - Temporary vs Permanent Identification', () => 
     expect(MediaPromotionService.isTemporaryPfp('requests/pfp/abc.jpg')).toBe(true);
     expect(MediaPromotionService.isTemporaryPfp('kucet/admission_drafts/pfp/xyz.webp')).toBe(true);
     expect(MediaPromotionService.isTemporaryPfp('admission_drafts/pfp/xyz.webp')).toBe(true);
+    expect(MediaPromotionService.isTemporaryPfp('/api/assets/view/kucet/admission_drafts/pfp/xyz.webp')).toBe(true);
 
     // Permanent keys must return false
     expect(MediaPromotionService.isTemporaryPfp('kucet/students/pfp/abc.jpg')).toBe(false);
@@ -31,6 +32,7 @@ describe('MediaPromotionService - Temporary vs Permanent Identification', () => 
     expect(MediaPromotionService.isTemporarySignature('kucet/requests/signatures/abc.png')).toBe(true);
     expect(MediaPromotionService.isTemporarySignature('requests/signatures/abc.png')).toBe(true);
     expect(MediaPromotionService.isTemporarySignature('kucet/admission_drafts/signatures/xyz.png')).toBe(true);
+    expect(MediaPromotionService.isTemporarySignature('/api/assets/view/kucet/admission_drafts/signatures/xyz.png')).toBe(true);
 
     // Permanent keys must return false
     expect(MediaPromotionService.isTemporarySignature('kucet/students/signatures/abc.png')).toBe(false);
@@ -90,6 +92,24 @@ describe('MediaPromotionService - File Promotion Logic', () => {
     expect(result.moved).toBe(false);
     expect(result.newKey).toBe('kucet/students/pfp/already_permanent.jpg');
     expect(moveSpy).not.toHaveBeenCalled();
+    moveSpy.mockRestore();
+  });
+
+  it('should clean view URLs before promoting to storage', async () => {
+    const { getStorageProvider } = await import('../../src/lib/providers/storage/factory.js');
+    const provider = getStorageProvider();
+    const moveSpy = vi.spyOn(provider, 'moveFile').mockResolvedValueOnce({
+      newPath: 'kucet/students/pfp/photo.webp',
+      sizeBytes: 1024,
+    });
+
+    const { MediaPromotionService } = await import('../../src/services/storage/MediaPromotionService.js');
+    const result = await MediaPromotionService.promoteStudentProfile('/api/assets/view/kucet/admission_drafts/pfp/photo.webp');
+    expect(moveSpy).toHaveBeenCalledWith(
+      'kucet/admission_drafts/pfp/photo.webp',
+      'kucet/students/pfp'
+    );
+    expect(result.newKey).toBe('kucet/students/pfp/photo.webp');
     moveSpy.mockRestore();
   });
 });

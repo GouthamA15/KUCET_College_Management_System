@@ -10,7 +10,7 @@ vi.mock('@/lib/api-utils', () => ({
 }));
 
 vi.mock('@/lib/server-assets', () => ({
-  serveAssetResponse: vi.fn().mockImplementation((val) => {
+  serveAssetResponse: vi.fn().mockImplementation((_val) => {
     return new NextResponse(Buffer.from('fake-image-bytes'), {
       status: 200,
       headers: { 'Content-Type': 'image/jpeg' },

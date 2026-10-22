@@ -1,3 +1,5 @@
+/* eslint-disable jsx-a11y/alt-text */
+// @react-pdf Image components do not use HTML alt attributes
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 
@@ -230,7 +232,7 @@ const styles = StyleSheet.create({
   }
 });
 
-export default function IDCardPDF({
+export function IDCardPage({
   studentName,
   fatherName,
   admissionNo,
@@ -244,82 +246,103 @@ export default function IDCardPDF({
   qrUrl,
 }) {
   return (
-    <Document>
-      <Page size={[242, 385]} style={styles.page}>
-        <View style={styles.cardContainer}>
-          {/* Logo Section */}
-          <View style={styles.logoSection}>
-            <View style={styles.logoWhiteCircle}>
-              {logoUrl && <Image src={logoUrl} style={styles.logoImage} alt="College Logo" />}
-            </View>
-          </View>
-
-          {/* Header Text */}
-          <View style={styles.headerTextSection}>
-            <Text style={styles.collegeCode}>KUCE&T</Text>
-            <Text style={styles.collegeName}>KU COLLEGE OF ENGINEERING</Text>
-            <Text style={styles.collegeName}>& TECHNOLOGY</Text>
-            <Text style={styles.collegeAddress}>KAKATIYA UNIVERSITY CAMPUS</Text>
-            <Text style={styles.collegeAddress}>VIDYARANYAPURI, WARANGAL 506 009</Text>
-            <Text style={styles.tel}>Tel: 91- 870 - 2449191</Text>
-          </View>
-
-          {/* Ribbon */}
-          <View style={styles.titleRibbon}>
-            <Text style={styles.titleText}>IDENTITY CARD</Text>
-          </View>
-
-          {/* Photo */}
-          <View style={styles.photoBox}>
-            {pfpUrl ? (
-              <Image src={pfpUrl} style={styles.studentPhoto} alt="Student Photo" />
-            ) : (
-              <View style={{ backgroundColor: "#eee", flex: 1 }} />
-            )}
-          </View>
-
-          {/* Info Grid */}
-          <View style={styles.infoGrid}>
-            <View style={styles.gridRow}>
-              <Text style={styles.gridValue}>B.Tech ({course})</Text>
-            </View>
-            <View style={styles.gridRow}>
-              <Text style={styles.gridLabel}>H.T. No: <Text style={styles.gridValue}>{admissionNo}</Text></Text>
-            </View>
-            <View style={styles.gridRowLast}>
-              <Text style={styles.gridLabel}>Academic Year: <Text style={styles.gridValue}>{batch}</Text></Text>
-            </View>
-          </View>
-
-          {/* Name Section */}
-          <View style={styles.nameSection}>
-            <Text style={styles.studentName}>{studentName}</Text>
-          </View>
-
-          {/* Father's Name */}
-          <View style={styles.fatherSection}>
-            <Text style={styles.fatherName}>Father&apos;s Name: {(fatherName || '').toUpperCase()}</Text>
-          </View>
-
-          {/* QR Code */}
-          <View style={styles.qrBox}>
-            {qrUrl && <Image src={qrUrl} style={{ width: "100%", height: "100%" }} alt="QR Code" />}
-          </View>
-
-          {/* Signature Area */}
-          <View style={styles.signatureArea}>
-            {signatureUrl && <Image src={signatureUrl} style={styles.principalSignImg} alt="Principal Signature" />}
-            <Text style={styles.principalNameGreen}>T.M. Reddy</Text>
-            <Text style={styles.principalLabel}>Principal</Text>
-          </View>
-
-          {/* Footer Address */}
-          <View style={styles.addressFooter}>
-            <Text style={styles.addressLine}>{address}</Text>
-            <Text style={styles.cellLine}>Cell: {mobile}</Text>
+    <Page size={[242, 385]} style={styles.page}>
+      <View style={styles.cardContainer}>
+        {/* Logo Section */}
+        <View style={styles.logoSection}>
+          <View style={styles.logoWhiteCircle}>
+            {logoUrl && <Image src={logoUrl} style={styles.logoImage} />}
           </View>
         </View>
-      </Page>
+
+        {/* Header Text */}
+        <View style={styles.headerTextSection}>
+          <Text style={styles.collegeCode}>KUCE&T</Text>
+          <Text style={styles.collegeName}>KU COLLEGE OF ENGINEERING</Text>
+          <Text style={styles.collegeName}>& TECHNOLOGY</Text>
+          <Text style={styles.collegeAddress}>KAKATIYA UNIVERSITY CAMPUS</Text>
+          <Text style={styles.collegeAddress}>VIDYARANYAPURI, WARANGAL 506 009</Text>
+          <Text style={styles.tel}>Tel: 91- 870 - 2449191</Text>
+        </View>
+
+        {/* Ribbon */}
+        <View style={styles.titleRibbon}>
+          <Text style={styles.titleText}>IDENTITY CARD</Text>
+        </View>
+
+        {/* Photo */}
+        <View style={styles.photoBox}>
+          {pfpUrl ? (
+            <Image src={pfpUrl} style={styles.studentPhoto} />
+          ) : (
+            <View style={{ backgroundColor: "#eee", flex: 1 }} />
+          )}
+        </View>
+
+        {/* Info Grid */}
+        <View style={styles.infoGrid}>
+          <View style={styles.gridRow}>
+            <Text style={styles.gridValue}>B.Tech ({course})</Text>
+          </View>
+          <View style={styles.gridRow}>
+            <Text style={styles.gridLabel}>H.T. No: <Text style={styles.gridValue}>{admissionNo}</Text></Text>
+          </View>
+          <View style={styles.gridRowLast}>
+            <Text style={styles.gridLabel}>Academic Year: <Text style={styles.gridValue}>{batch}</Text></Text>
+          </View>
+        </View>
+
+        {/* Name Section */}
+        <View style={styles.nameSection}>
+          <Text style={styles.studentName}>{studentName}</Text>
+        </View>
+
+        {/* Father's Name */}
+        <View style={styles.fatherSection}>
+          <Text style={styles.fatherName}>Father&apos;s Name: {(fatherName || '').toUpperCase()}</Text>
+        </View>
+
+        {/* QR Code */}
+        <View style={styles.qrBox}>
+          {qrUrl && <Image src={qrUrl} style={{ width: "100%", height: "100%" }} />}
+        </View>
+
+        {/* Signature Area */}
+        <View style={styles.signatureArea}>
+          {signatureUrl && <Image src={signatureUrl} style={styles.principalSignImg} />}
+          <Text style={styles.principalNameGreen}>T.M. Reddy</Text>
+          <Text style={styles.principalLabel}>Principal</Text>
+        </View>
+
+        {/* Footer Address */}
+        <View style={styles.addressFooter}>
+          <Text style={styles.addressLine}>{address}</Text>
+          <Text style={styles.cellLine}>Cell: {mobile}</Text>
+        </View>
+      </View>
+    </Page>
+  );
+}
+
+export function BulkIDCardPDF({ students = [], logoUrl, signatureUrl }) {
+  return (
+    <Document>
+      {students.map((student, idx) => (
+        <IDCardPage
+          key={student.admissionNo || student.rollNo || idx}
+          {...student}
+          logoUrl={logoUrl || student.logoUrl}
+          signatureUrl={signatureUrl || student.signatureUrl}
+        />
+      ))}
+    </Document>
+  );
+}
+
+export default function IDCardPDF(props) {
+  return (
+    <Document>
+      <IDCardPage {...props} />
     </Document>
   );
 }

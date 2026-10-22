@@ -203,6 +203,18 @@ export class ArchiveRestoreService {
         details: JSON.stringify({ roll_no: s.roll_no, newStudentId, reason }),
       });
 
+      try {
+        const { EventBus, DOMAIN_EVENTS } = await import('@/lib/events/EventBus');
+        EventBus.publish(DOMAIN_EVENTS.STUDENT_RESTORED, {
+          archive_student_id,
+          roll_no: s.roll_no,
+          student_id: newStudentId,
+          restored_by
+        });
+      } catch (ebErr) {
+        logger.warn({ err: ebErr }, '[EventBus] Student restored publish failed');
+      }
+
       return {
         success: true,
         jobId,

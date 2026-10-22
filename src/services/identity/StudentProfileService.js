@@ -1,4 +1,5 @@
 import { db } from '@/db';
+import logger from '@/lib/logger';
 import { 
   students as studentsTable, 
   studentPersonalDetails, 
@@ -9,6 +10,8 @@ import {
 import { eq, or, like } from 'drizzle-orm';
 import { encrypt, decrypt, hashForIndex } from '@/lib/encryption';
 import { getPermanentAddressFromDetails, getContactAddressFromDetails, mapAddressStringsToFields } from '@/lib/address-utils';
+import { normalizeAreaStatus, normalizeGender, normalizeBloodGroup, normalizeFeeReimbursement } from '@/lib/college-config';
+import { toMySQLDate } from '@/lib/date';
 
 /**
  * Domain Service for Student Profile and Registry operations
@@ -36,6 +39,34 @@ export class StudentProfileService {
   static normalizeAadhaar(val) {
     if (!val) return '';
     return String(val).replace(/\D/g, '');
+  }
+
+  /**
+   * Helper to normalize area status
+   */
+  static normalizeAreaStatus(val) {
+    return normalizeAreaStatus(val);
+  }
+
+  /**
+   * Helper to normalize gender
+   */
+  static normalizeGender(val) {
+    return normalizeGender(val);
+  }
+
+  /**
+   * Helper to normalize blood group
+   */
+  static normalizeBloodGroup(val) {
+    return normalizeBloodGroup(val);
+  }
+
+  /**
+   * Helper to normalize fee reimbursement
+   */
+  static normalizeFeeReimbursement(val) {
+    return normalizeFeeReimbursement(val);
   }
 
   /**
@@ -178,27 +209,27 @@ export class StudentProfileService {
       addressFields = mapAddressStringsToFields(finalContactAddr, finalPermAddr);
     }
 
-    const normalizeToMySQLDate = (val) => {
-      if (!val) return null;
-      const d = new Date(val);
-      if (isNaN(d.getTime())) return null;
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    };
-
     const studentValues = {
       admission_no: admission_no || null,
       roll_no: roll,
       name,
-      date_of_birth: normalizeToMySQLDate(date_of_birth),
-      gender: gender || null,
+      date_of_birth: toMySQLDate(date_of_birth),
+      gender: StudentProfileService.normalizeGender(gender),
       email: email ? String(email).toLowerCase() : null,
       mobile: normMobile ? encrypt(normMobile) : null,
       mobile_hash: normMobile ? hashForIndex(normMobile) : null,
-      fee_reimbursement: ['YES', 'NO', 'GOV'].includes(String(fee_reimbursement).toUpperCase()) 
-        ? String(fee_reimbursement).toUpperCase() 
-        : 'NO',
-      admission_date: normalizeToMySQLDate(admission_date) || normalizeToMySQLDate(new Date())
+      fee_reimbursement: normalizeFeeReimbursement(fee_reimbursement),
+      admission_date: toMySQLDate(admission_date) || toMySQLDate(new Date())
     };
+
+    let normalizedAreaStatus = 'Local';
+    if (area_status !== undefined && area_status !== null && String(area_status).trim() !== '') {
+      const norm = normalizeAreaStatus(area_status);
+      if (!norm) {
+        throw new Error('INVALID_AREA_STATUS');
+      }
+      normalizedAreaStatus = norm;
+    }
 
     const personalValues = {
       father_name: father_name || null,
@@ -207,7 +238,7 @@ export class StudentProfileService {
       religion: religion || null,
       category: category || null,
       sub_caste: sub_caste || null,
-      area_status: area_status || 'Local',
+      area_status: normalizedAreaStatus,
       mother_tongue: mother_tongue || null,
       place_of_birth: place_of_birth || null,
       father_occupation: father_occupation || null,
@@ -217,7 +248,7 @@ export class StudentProfileService {
       aadhaar_hash: normAadhaar ? hashForIndex(normAadhaar) : null,
       ...addressFields,
       seat_allotted_category: seat_allotted_category || null,
-      blood_group: (blood_group && ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].includes(String(blood_group).trim())) ? String(blood_group).trim() : null,
+      blood_group: StudentProfileService.normalizeBloodGroup(blood_group),
       identification_marks: identification_marks || null
     };
 
@@ -267,7 +298,18 @@ export class StudentProfileService {
     if (tx) {
       return await executeUpsert(tx);
     } else {
-      return await db.transaction(executeUpsert);
+      const studentId = await db.transaction(executeUpsert);
+      try {
+        const { EventBus, DOMAIN_EVENTS } = await import('@/lib/events/EventBus');
+        EventBus.publish(DOMAIN_EVENTS.STUDENT_REGISTERED, {
+          student_id: studentId,
+          roll_no: roll,
+          registered_by: staffId
+        });
+      } catch (ebErr) {
+        logger.warn({ err: ebErr }, '[EventBus] Student registered publish failed');
+      }
+      return studentId;
     }
   }
 }

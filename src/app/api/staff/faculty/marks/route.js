@@ -368,6 +368,18 @@ export async function POST(request) {
       targetType: 'assignment',
       payload_after: { record_count: marks_data.length, mid_max }
     });
+
+    try {
+      const { EventBus, DOMAIN_EVENTS } = await import('@/lib/events/EventBus');
+      EventBus.publish(DOMAIN_EVENTS.MARKS_PUBLISHED, {
+        assignment_id: targetAssignmentId,
+        record_count: marks_data.length,
+        mid_max,
+        updated_by: user.id
+      });
+    } catch (ebErr) {
+      logger.warn({ err: ebErr }, '[EventBus] Marks published event dispatch failed');
+    }
       
     return apiResponse({ message: `Successfully updated ${marks_data.length} records` });
   } catch (error) {

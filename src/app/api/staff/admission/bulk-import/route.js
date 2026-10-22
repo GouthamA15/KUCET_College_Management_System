@@ -9,6 +9,7 @@ import { toMySQLDate, parseDate } from '@/lib/date';
 import { apiError, wrapHandler } from '@/lib/api-utils';
 import { encrypt, hashForIndex } from '@/lib/encryption';
 import { StudentService } from '@/services/StudentService';
+import { normalizeAreaStatus } from '@/lib/college-config';
 
 // Header normalization: lowercase, trim, spaces & hyphens to _, remove non-word chars
 const normalizeHeader = (h) => {
@@ -189,6 +190,9 @@ export const POST = wrapHandler({
               if (cleanGMobile.length === 10) {
                 personal['guardian_mobile'] = encrypt(cleanGMobile);
               }
+            } else if (key === 'area_status' && val) {
+              const norm = normalizeAreaStatus(val);
+              personal['area_status'] = norm || val;
             } else {
               personal[key] = val;
             }

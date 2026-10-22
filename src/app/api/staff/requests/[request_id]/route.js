@@ -243,6 +243,22 @@ export async function PUT(request, { params }) {
                 after: { status: status, reject_reason: updateData.reject_reason, cert_id: updateData.generated_certificate_id }
             });
 
+            if (status === 'APPROVED') {
+                try {
+                    const { EventBus, DOMAIN_EVENTS } = await import('@/lib/events/EventBus');
+                    EventBus.publish(DOMAIN_EVENTS.CERTIFICATE_ISSUED, {
+                        request_id: requestIdNum,
+                        student_id: requestToUpdate.student_id,
+                        roll_no: requestToUpdate.roll_no,
+                        certificate_type: requestToUpdate.certificate_type,
+                        certificate_id: updateData.generated_certificate_id,
+                        issued_by: staff.id
+                    });
+                } catch (ebErr) {
+                    logger.warn({ err: ebErr }, '[EventBus] Certificate issued publish failed');
+                }
+            }
+
             // REAL-TIME
             try {
                 const { broadcastUpdate } = await import('@/lib/sse');

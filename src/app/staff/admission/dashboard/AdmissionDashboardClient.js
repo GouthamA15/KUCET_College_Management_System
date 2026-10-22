@@ -107,6 +107,15 @@ export default function AdmissionDashboardClient() {
       tone: 'bg-emerald-50 text-emerald-700',
       path: profilePendingCount > certificatePendingCount ? '/staff/admission/requests?tab=updates' : '/staff/admission/requests?tab=certificates',
       badge: profilePendingCount + certificatePendingCount
+    },
+    {
+      key: 'id-cards',
+      label: 'Student ID Cards',
+      description: 'Audit, preview and generate student identity cards.',
+      icon: '🪪',
+      tone: 'bg-amber-50 text-amber-800',
+      path: '/staff/admission/id-cards',
+      badge: 0
     }
   ];
 

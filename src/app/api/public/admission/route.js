@@ -7,6 +7,7 @@ import { toMySQLDate } from '@/lib/date';
 import { storage } from '@/lib/providers';
 import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 import { encrypt, hashForIndex } from '@/lib/encryption';
+import { normalizeAreaStatus } from '@/lib/college-config';
 import { z } from 'zod';
 
 export async function POST(req) {
@@ -38,13 +39,18 @@ export async function POST(req) {
       father_name: z.string().trim().max(255).nullable().optional(),
       mother_name: z.string().trim().max(255).nullable().optional(),
       exam_rank: z.preprocess(v => v === '' ? null : Number(v), z.number().int().positive().nullable().optional()),
-      area_status: z.enum(['URBAN', 'RURAL', 'LOCAL', 'NON-LOCAL', 'Local', 'Non Local', 'Urban', 'Rural'])
-        .nullable()
-        .optional()
-        .transform(val => {
-          if (!val) return val;
-          return val.toUpperCase().replace(/\s+/g, '-');
-        }),
+      area_status: z.preprocess(
+        (v) => (v === '' || v === undefined || v === null ? null : v),
+        z.string().nullable().optional().superRefine((val, ctx) => {
+          if (val === null || val === undefined) return;
+          if (!normalizeAreaStatus(val)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Area status must be 'Local' or 'Non-Local'",
+            });
+          }
+        }).transform(val => val ? normalizeAreaStatus(val) : null)
+      ),
       category: z.string().trim().max(50).nullable().optional(),
       sub_caste: z.string().trim().max(100).nullable().optional(),
       ssc_marks: z.string().trim().max(50).nullable().optional(),
@@ -88,7 +94,10 @@ export async function POST(req) {
       curr_pincode: z.string().trim().max(20).nullable().optional(),
       curr_country: z.string().trim().max(100).default('India'),
       is_current_same_as_permanent: z.boolean().default(false),
-      pfp: z.string().nullable().optional(),
+      pfp: z.string().refine(val => {
+        if (!val || val === '') return true;
+        return /^data:image\/(jpeg|png|webp|jpg);base64,/.test(val);
+      }, { message: 'Photograph must be a valid JPEG, PNG, or WebP image data URI' }).nullable().optional(),
       signature: z.string().nullable().optional(),
       legal_consent: z.literal(true, { errorMap: () => ({ message: "You must agree to the Terms & Conditions and Privacy Policy to proceed." }) })
     });

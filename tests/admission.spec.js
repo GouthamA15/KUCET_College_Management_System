@@ -7,11 +7,10 @@ test.describe('Student Admission Flow', () => {
   const mockImagePath = path.join(__dirname, 'mock-image.png');
 
   test.beforeAll(async () => {
-    // Create a mock image file for testing uploads
-    if (!fs.existsSync(mockImagePath)) {
-      const buffer = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64');
-      fs.writeFileSync(mockImagePath, buffer);
-    }
+    // Create a mock image file for testing uploads (200x200 PNG to satisfy dimension constraints)
+    const validPng200x200 = 'iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAYAAACtWK6eAAAB20lEQVR4Ae3BAQEAIAACIPP/5zqQD4BzkxvgqwGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYHpjUwOOHV5ikQAAAABJRU5ErkJggg==';
+    const buffer = Buffer.from(validPng200x200, 'base64');
+    fs.writeFileSync(mockImagePath, buffer);
   });
 
   test.afterAll(async () => {
@@ -25,7 +24,7 @@ test.describe('Student Admission Flow', () => {
     await page.route('**/*.{png,jpg,jpeg,svg}', route => route.fulfill({ status: 200, body: '' }));
 
     // Mock the admission submission API
-    await page.route('/api/public/admission', async (route) => {
+    await page.route('**/api/public/admission*', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

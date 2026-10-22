@@ -37,7 +37,8 @@ export const NAV_MENU_CONFIG = {
     { label: 'STUDENT RECORDS', children: [
         { label: 'Student Registry', route: '/staff/admission/student-management' },
         { label: 'Student Requests', route: '/staff/admission/requests' },
-        { label: 'Finalize', route: '/staff/admission/finalize' }
+        { label: 'Finalize', route: '/staff/admission/finalize' },
+        { label: 'ID Cards', route: '/staff/admission/id-cards' }
       ]
     },
     { label: 'SETTINGS', children: [
@@ -64,7 +65,8 @@ export const NAV_MENU_CONFIG = {
     { label: 'STUDENT RECORDS', children: [
         { label: 'Student Registry', route: '/staff/admission/student-management' },
         { label: 'Student Requests', route: '/staff/admission/requests' },
-        { label: 'Finalize', route: '/staff/admission/finalize' }
+        { label: 'Finalize', route: '/staff/admission/finalize' },
+        { label: 'ID Cards', route: '/staff/admission/id-cards' }
       ]
     },
     { label: 'SETTINGS', children: [

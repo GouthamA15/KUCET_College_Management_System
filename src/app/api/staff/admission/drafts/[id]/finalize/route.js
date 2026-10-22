@@ -183,6 +183,7 @@ export const POST = wrapHandler({
       if (error instanceof z.ZodError) return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
       if (error.message === 'DRAFT_NOT_FOUND') return apiError('Draft not found', 404);
       if (error.message === 'DRAFT_NOT_VERIFIED') return apiError('Only verified drafts can be finalized', 400);
+      if (error.message === 'INVALID_AREA_STATUS') return apiError("Invalid area status. Must be 'Local' or 'Non-Local'.", 400);
       if (error.message === 'STUDENT_EXISTS') return apiError('A student with this Roll No or Email already exists.', 409);
       if (error.message === 'ROLL_BRANCH_MISMATCH') return apiError('Roll number branch does not match the draft branch.', 400);
       if (error.message === 'ROLL_TYPE_MISMATCH') return apiError('Roll number admission type does not match the draft entrance exam.', 400);

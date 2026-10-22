@@ -1,9 +1,9 @@
-# Collegiate Tournament & Event System Architecture — Chess MVP
+# Collegiate Tournament & Event System Architecture — Multi-Game Engine (Chess MVP & Technical Quiz)
 
-**System Version:** Session 212 (Tournament Workflow Complete)  
+**System Version:** Session 224 (Multi-Game Tournament Architecture & Forensic Audit)  
 **Database:** `experiment_college_db` (Isolated Experimental Database)  
-**Status:** Production-Ready MVP / `MY-EVENT` Branch  
-**Test Suite Verification:** 68 test files (553 unit tests passing)
+**Status:** Active Multi-Game Engine / Synchronized with KUCET CMS Standards  
+**Test Suite Verification:** 10 event test files (101 unit tests passing) / 95 test files (856 unit tests project-wide)
 
 ---
 
@@ -415,4 +415,25 @@ To maintain zero external network dependencies and prevent asset latency, chess 
 - **Capture Sound:** 320Hz &rarr; 140Hz triangle wave punch (120ms duration).
 - **Check Sound:** Dual-tone D5 (587Hz) + A5 (880Hz) sine wave alert (250ms duration).
 - **Victory Sound:** Arpeggiated chord A4 (440Hz) &rarr; C#5 (554Hz) &rarr; E5 (659Hz) victory fanfare (400ms duration).
+
+---
+
+## 14. Forensic Audit Findings & Transport Layer Remediation
+
+During the architecture stabilization audit, the chess arena was traced end-to-end across UI, API, DB, and Realtime transports:
+
+1. **Core Game Engine & FIDE Validation (FIXED AND VERIFIED)**:
+   - Moves, legal move generation, turn management, check/checkmate/stalemate detection, SAN history recording, arbiter result recording, and admin verification execute reliably in `experiment_college_db`.
+   - Verified by unit tests in `chess-engine-service.test.js`, `match-service-workflow.test.js`, and `event-config-and-workflow.test.js`.
+2. **Real-time Push Transport Layer (FIXED AND VERIFIED)**:
+   - **Socket.IO & Supabase Tier**: `joinRealtimeRoom('match:' + matchId)` and `leaveRealtimeRoom('match:' + matchId)` are now actively emitted by `ChessGameView.js` upon mounting, unmounting, and match switching. `socket-server.js` validates authentication and alphanumeric match ID, joining the socket to `match:<matchId>`.
+   - **Automatic Reconnection Resubscription**: Active match rooms are stored in client singleton state and automatically re-joined upon network reconnection.
+   - **Local BroadcastChannel Tier**: Same-browser tabs sync moves immediately (0ms latency).
+   - **Safety Polling Tier**: Background 5-second polling (`setInterval(fetchGameState, 5000)`) remains active as a multi-tier redundancy failsafe.
+
+---
+
+## 15. Game Module 2: Technical Quiz Engine
+
+For full technical specifications of Game Module 2 (Technical Quiz), including question bank management, autosave, server timer, and deterministic leaderboard ranking, refer to the canonical blueprint in [DOCUMENTATION/MY_EVENT_GAMES.md](../MY_EVENT_GAMES.md).
 

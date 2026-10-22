@@ -258,7 +258,28 @@ export const notificationPreferences = mysqlTable('notification_preferences', {
 
 ---
 
-## 6. Cross-References
+## 6. Transactional Email Categorization & Brevo Provider Isolation (Commit `b8682873`)
+
+To prevent deliverability degradation, quota exhaustion, and single-point-of-failure risks, the email subsystem (`src/lib/email.js`, `src/lib/providers/email/BrevoEmailProvider.js`, and `src/lib/email-categories.js`) organizes institutional communications into **7 distinct categories**:
+
+| Category Key | Functional Scope | Default Sender Identity | Circuit Breaker Name |
+| :--- | :--- | :--- | :--- |
+| `auth` | Password reset, account activation OTPs, login verifications | KUCET Security / Auth | `BrevoEmail_auth` |
+| `admission` | Intake submission confirmations, welcome letters, enrollment numbers | KUCET Admissions Office | `BrevoEmail_admission` |
+| `security` | New login alerts, device authorization, password change notifications | KUCET Information Security | `BrevoEmail_security` |
+| `attendance` | Critical condonation risk warnings, dispute resolution notices | KUCET Academic Cell | `BrevoEmail_attendance` |
+| `request` | Certificate readiness, Bonafide tracking, document approvals | KUCET Student Affairs | `BrevoEmail_request` |
+| `notification` | General campus announcements, schedule circulars, holiday notices | KUCET Official Pulse | `BrevoEmail_notification` |
+| `system` | Database backup alerts, infrastructure health warnings, admin alerts | KUCET System Operations | `BrevoEmail_system` |
+
+### Key Architectural Invariants
+1. **Dedicated Brevo API Keys & Identities**: Each category can specify its own `BREVO_API_KEY_<CATEGORY>`, `BREVO_SENDER_EMAIL_<CATEGORY>`, and `BREVO_SENDER_NAME_<CATEGORY>` in environment variables. If category-specific keys are omitted, the provider falls back cleanly to primary `BREVO_API_KEY`.
+2. **Per-Category Circuit Breaker**: Each category operates under an isolated circuit breaker (`BrevoEmail_${category}`). If high-volume notifications trigger rate limits, critical authentication and password reset emails continue to deliver uninterrupted.
+3. **Queue & Backup Forwarding**: Email category and reply-to parameters are preserved across QStash background job serialization and automated database backup notification scripts.
+
+---
+
+## 7. Cross-References
 
 - User Security & Authentication: [authentication.md](../authentication/authentication.md)
 - Student Requests System: [requests.md](./requests.md)

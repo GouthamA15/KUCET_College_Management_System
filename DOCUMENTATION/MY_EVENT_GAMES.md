@@ -1,9 +1,9 @@
 # College Event & Tournament System: Architecture & Games Blueprint
 
 **System Version:** Multi-Game Tournament Engine (Chess MVP & Technical Quiz)  
-**Git Branch:** `MY-EVENT`  
+**Git Branch:** `testvanilla` / Synchronized  
 **Experimental Database:** `experiment_college_db`  
-**Status:** Active, Tested & Synchronized with KUCET CMS Standards  
+**Status:** Active, Tested & Synchronized with KUCET CMS Standards (10 event test files, 101 unit tests passing)  
 
 ---
 
@@ -246,4 +246,22 @@ Run production build:
 ```bash
 npm run build
 ```
+
+---
+
+## 10. Feature Audit & Runtime Verification Matrix
+
+| Event Panel / Module | UI Route | Backend API / Service | Status | Evidence | Recommended Action |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Admin Events Portal** | `/admin/events` | None (Client Directory) | **WORKING** | Renders cards for Chess & Quiz with access guards. | **KEEP** |
+| **Admin Chess Control** | `/admin/events/chess` | `/api/events/config`, `/api/events/participants`, `/api/events/matches` | **WORKING** | Toggle event, manage roster, auto-generate single-elimination fixtures, arbiter result recording, result verification. Covered by 38 tests. | **KEEP** |
+| **Admin Quiz Console** | `/admin/events/quiz` | `/api/events/quiz/*` | **WORKING** | Question bank CRUD, settings configuration, candidate session monitoring, attempt resets. Covered by 23 tests. | **KEEP** |
+| **Events Public Catalog** | `/events` | `EventConfigService.getAllEventConfigs()` | **WORKING** | Dynamically checks active events, renders institutional cards, banners. | **KEEP** |
+| **Student Chess Arena** | `/events/chess/match/[id]` | `ChessEngineService` + `/api/events/matches/[id]/move` | **PARTIALLY WORKING** | Core FIDE chess engine, legal moves, check/checkmate, audio synthesis, bracket view all WORK. Socket.IO tier does not receive push due to missing client `join_match`; relies on 0ms BroadcastChannel across local tabs and 5-sec safety polling fallback. | **REPAIR** (Wire `joinMatchRoom` in `RealtimeListener`) |
+| **Student Chess Lobby** | `/events/chess` | `ParticipantService`, `MatchService` | **WORKING** | One-click registration, roster view, active/completed match lists, tournament tree bracket. | **KEEP** |
+| **Student Quiz Lobby** | `/events/quiz` | `POST /api/events/quiz/session` | **WORKING** | Instructions, rules, candidate pre-fill, session initialization with server timer. | **KEEP** |
+| **Student Quiz Player** | `/events/quiz/play` | `/api/events/quiz/save-answer`, `/submit` | **WORKING** | Server timer countdown, real-time autosave on option click, review marks, auto-submission on expiry, instant scorecard. | **KEEP** |
+| **Quiz Leaderboard** | `/events/quiz/leaderboard` | `GET /api/events/quiz/leaderboard` | **WORKING** | Deterministic tie-breaking (Score DESC, Time Taken ASC, Submitted At ASC), search, department filtering. | **KEEP** |
+| **Dynamic Nav Gating** | `Navbar.js`, `Sidebar.js`, `StudentQuickLinks.js` | `GET /api/events/config`, `useEventsStatus` | **WORKING** | Removes `MY EVENT` link when all events are disabled; updates instantly on admin toggle change. | **KEEP** |
+
 

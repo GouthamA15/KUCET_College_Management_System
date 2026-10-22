@@ -82,3 +82,15 @@ thingstodoafterdeployment.txt
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# ID Card Reconciliation Raw Source Files
+KUCET_STUDENT_ID_CARD_RECONCILIATION_2026.xlsx
+KUCET_STUDENT_ID_CARD_RECONCILIATION_2026_HIGH_QUALITY_PHOTOS.xlsx
+*.xlsx.bak
+ADMISSION-2026 EAPCET.xlsx
+ADMISSION-2026 EAPCET.xlsx.csv
+20240802_120443.jpg
+
+# Photo Guidance Raw Source Files
+Pasted image*.png
+ChatGPT Image*.png

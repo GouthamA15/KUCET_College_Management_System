@@ -1,4 +1,5 @@
 import { db } from '@/db';
+import logger from '@/lib/logger';
 import { 
   attendanceSessions, 
   facultySubjectAssignments, 
@@ -95,6 +96,19 @@ export class AttendanceService {
         expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year expiry for session metadata
         topic_covered: normalizedTopic
       });
+    }
+
+    try {
+      const { EventBus, DOMAIN_EVENTS } = await import('@/lib/events/EventBus');
+      EventBus.publish(DOMAIN_EVENTS.TOPIC_UPDATED, {
+        assignment_id: assignmentId,
+        date,
+        session_number: sessionNumber,
+        topic_covered: normalizedTopic,
+        updated_by: user?.email || user?.id || 'FACULTY'
+      });
+    } catch (ebErr) {
+      logger.warn({ err: ebErr }, '[EventBus] Topic updated publish failed');
     }
 
     return {
