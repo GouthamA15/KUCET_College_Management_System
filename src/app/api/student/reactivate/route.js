@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students, studentReactivationRequests } from '@/db/schema';
-import { eq, and, or, inArray } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import { z } from 'zod';
 

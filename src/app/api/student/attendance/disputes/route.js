@@ -262,7 +262,11 @@ export async function POST(request) {
       }
     } catch (uploadError) {
       for (const meta of uploadedMetadata) {
-        try { await storage.delete(meta.file_key); } catch (_delErr) {}
+        try { 
+          await storage.delete(meta.file_key); 
+        } catch (_delErr) {
+          // Best-effort cleanup of orphan storage files on upload failure
+        }
       }
       throw uploadError;
     }
@@ -328,7 +332,11 @@ export async function POST(request) {
     } catch (txError) {
       // Compensating storage cleanup if DB transaction fails
       for (const meta of uploadedMetadata) {
-        try { await storage.delete(meta.file_key); } catch (_delErr) {}
+        try { 
+          await storage.delete(meta.file_key); 
+        } catch (_delErr) {
+          // Best-effort cleanup of orphan storage files on transaction rollback
+        }
       }
       throw txError;
     }
