@@ -16,10 +16,9 @@ export const GET = wrapHandler({
     // 3. Extract Query Parameters
     const { searchParams } = new URL(req.url);
     const branch = searchParams.get('branch') || 'ALL';
+    const batch = searchParams.get('batch') || 'ALL';
     const search = searchParams.get('search') || '';
     const photoStatus = searchParams.get('photoStatus') || 'ALL';
-    const addressStatus = searchParams.get('addressStatus') || 'ALL';
-    const phoneStatus = searchParams.get('phoneStatus') || 'ALL';
     const page = searchParams.get('page') || 1;
     const limit = searchParams.get('limit') || 20;
 
@@ -28,13 +27,12 @@ export const GET = wrapHandler({
       return apiError(`Forbidden: You do not have permission to access branch ${branch}`, 403);
     }
 
-    // 5. Query Dataset
+    // 5. Query Authoritative Dataset
     const result = await IDCardDataService.getStudentRecords({
       branch,
+      batch,
       search,
       photoStatus,
-      addressStatus,
-      phoneStatus,
       page,
       limit,
       allowedBranches,

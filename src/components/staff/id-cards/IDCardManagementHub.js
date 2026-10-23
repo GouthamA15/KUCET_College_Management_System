@@ -9,29 +9,40 @@ import {
   Eye, 
   Upload, 
   X, 
-  Image as ImageIcon 
+  Image as ImageIcon,
+  CheckCircle2,
+  AlertTriangle,
+  Building2,
+  FileSpreadsheet,
+  Users
 } from 'lucide-react';
 
-const BRANCHES = ['ALL', 'CIVIL', 'CSD', 'CSE', 'ECE', 'EEE', 'IT', 'MECH'];
+const CANONICAL_BRANCH_INFO = [
+  { code: '09', name: 'CSE', fullName: 'Computer Science & Engineering' },
+  { code: '18', name: 'IT', fullName: 'Information Technology' },
+  { code: '30', name: 'CSD', fullName: 'Computer Science & Data Science' },
+  { code: '15', name: 'ECE', fullName: 'Electronics & Communication Engineering' },
+  { code: '12', name: 'EEE', fullName: 'Electrical & Electronics Engineering' },
+  { code: '00', name: 'CIVIL', fullName: 'Civil Engineering' },
+  { code: '03', name: 'MECH', fullName: 'Mechanical Engineering' },
+];
 
-export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
-  // Filters & Pagination State
-  const [branch, setBranch] = useState(initialBranch);
+export default function IDCardManagementHub({ initialBranch = 'CSE' }) {
+  // Branch & Filters State
+  const [selectedBranch, setSelectedBranch] = useState(initialBranch);
+  const [exportFormat, setExportFormat] = useState('xlsx');
   const [search, setSearch] = useState('');
   const [photoFilter, setPhotoFilter] = useState('ALL');
-  const [addressFilter, setAddressFilter] = useState('ALL');
   const [page, setPage] = useState(1);
-  const limit = 25;
+  const limit = 20;
 
   // Data State
   const [students, setStudents] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, limit: 25, total: 0, totalPages: 1 });
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [stats, setStats] = useState(null);
+  const [branches, setBranches] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Selection & Bulk State
-  const [selectedRolls, setSelectedRolls] = useState(new Set());
-  const [isBulkDownloading, setIsBulkDownloading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Modals State
   const [previewStudent, setPreviewStudent] = useState(null);
@@ -43,17 +54,16 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
 
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Fetch student list
+  // Fetch Authoritative Student Records & Dynamic Branch Statistics
   useEffect(() => {
     let ignore = false;
-    async function loadStudents() {
+    async function loadData() {
       setIsLoading(true);
       try {
         const params = new URLSearchParams({
-          branch,
+          branch: selectedBranch,
           search,
           photoStatus: photoFilter,
-          addressStatus: addressFilter,
           page: String(page),
           limit: String(limit),
         });
@@ -67,12 +77,13 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
         const data = await res.json();
         if (!ignore) {
           setStudents(data.students || []);
-          setPagination(data.pagination || { page: 1, limit: 25, total: 0, totalPages: 1 });
+          setPagination(data.pagination || { page: 1, limit: 20, total: 0, totalPages: 1 });
           setStats(data.stats || null);
+          setBranches(data.branches || []);
         }
       } catch (err) {
         if (!ignore) {
-          toast.error(err.message || 'Error loading records');
+          toast.error(err.message || 'Error loading authoritative records');
         }
       } finally {
         if (!ignore) {
@@ -81,11 +92,11 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
       }
     }
 
-    loadStudents();
+    loadData();
     return () => {
       ignore = true;
     };
-  }, [branch, search, photoFilter, addressFilter, page, limit, refreshKey]);
+  }, [selectedBranch, search, photoFilter, page, limit, refreshKey]);
 
   const handleManualRefresh = () => {
     setRefreshKey((prev) => prev + 1);
@@ -101,35 +112,88 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // Selection Handling
-  const handleSelectAllOnPage = () => {
-    const newSet = new Set(selectedRolls);
-    const allSelected = students.every(s => newSet.has(s.rollNo));
-    if (allSelected) {
-      students.forEach(s => newSet.delete(s.rollNo));
-    } else {
-      students.forEach(s => newSet.add(s.rollNo));
+  // Dynamic Information for Current Selection
+  const currentBranchStats = useMemo(() => {
+    if (selectedBranch === 'ALL') {
+      return {
+        name: 'ALL',
+        fullName: 'All Authorized Academic Branches',
+        totalEligible: stats?.totalEligible || 0,
+        photosAvailable: stats?.photosAvailable || 0,
+        photosMissing: stats?.photosMissing || 0,
+      };
     }
-    setSelectedRolls(newSet);
+
+    const found = branches.find(b => b.branch === selectedBranch);
+    const fallback = CANONICAL_BRANCH_INFO.find(b => b.name === selectedBranch);
+
+    return {
+      name: selectedBranch,
+      fullName: found?.branchFullName || fallback?.fullName || selectedBranch,
+      totalEligible: found?.totalEligible ?? 0,
+      photosAvailable: found?.photosAvailable ?? 0,
+      photosMissing: found?.photosMissing ?? 0,
+    };
+  }, [selectedBranch, branches, stats]);
+
+  // Primary 1-Click Branch Export Action
+  const handleDownloadBranchData = async (branchToExport = selectedBranch) => {
+    if (isExporting) return;
+    setIsExporting(true);
+
+    const targetLabel = branchToExport === 'ALL' ? 'All Authorized Branches' : branchToExport;
+    const toastId = toast.loading(`Generating authoritative ID card dataset for ${targetLabel}...`);
+
+    try {
+      const params = new URLSearchParams({
+        branch: branchToExport,
+        format: exportFormat,
+      });
+
+      const res = await fetch(`/api/staff/id-cards/export?${params.toString()}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to export ID card data');
+      }
+
+      // Extract filename from response header or compute default
+      const disposition = res.headers.get('Content-Disposition') || '';
+      let filename = `KUCET_${branchToExport}_ID_CARD_DATA.${exportFormat}`;
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      if (match && match[1]) {
+        filename = match[1];
+      }
+
+      const countHeader = res.headers.get('X-Total-Count');
+      const count = countHeader ? parseInt(countHeader, 10) : null;
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      const successMsg = count 
+        ? `Downloaded complete dataset: ${count} eligible students for ${targetLabel}`
+        : `Downloaded complete ID card dataset for ${targetLabel}`;
+
+      toast.success(successMsg, { id: toastId, duration: 4000 });
+    } catch (err) {
+      toast.error(err.message || 'Export failed', { id: toastId });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
-  const handleToggleSelect = (rollNo) => {
-    const newSet = new Set(selectedRolls);
-    if (newSet.has(rollNo)) newSet.delete(rollNo);
-    else newSet.add(rollNo);
-    setSelectedRolls(newSet);
-  };
-
-  const isAllOnPageSelected = useMemo(() => {
-    if (students.length === 0) return false;
-    return students.every(s => selectedRolls.has(s.rollNo));
-  }, [students, selectedRolls]);
-
-  // Download Single PDF
+  // Download Single Student ID Card PDF
   const handleDownloadSinglePdf = async (rollNo) => {
     setIsSingleDownloading(true);
+    const toastId = toast.loading(`Generating official ID card PDF for ${rollNo}...`);
     try {
-      const toastId = toast.loading(`Generating PDF for ${rollNo}...`);
       const res = await fetch(`/api/staff/id-cards/${rollNo}/pdf`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -144,45 +208,11 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-      toast.success(`ID Card downloaded for ${rollNo}`, { id: toastId });
+      toast.success(`ID Card PDF downloaded for ${rollNo}`, { id: toastId });
     } catch (err) {
-      toast.error(err.message || 'Download failed');
+      toast.error(err.message || 'Download failed', { id: toastId });
     } finally {
       setIsSingleDownloading(false);
-    }
-  };
-
-  // Bulk PDF Generation
-  const handleBulkDownload = async () => {
-    if (selectedRolls.size === 0) return;
-    setIsBulkDownloading(true);
-    const toastId = toast.loading(`Generating bulk PDF for ${selectedRolls.size} students...`);
-    try {
-      const res = await fetch('/api/staff/id-cards/bulk-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rollNos: Array.from(selectedRolls) })
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to generate bulk PDF');
-      }
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `kucet_id_cards_batch_${Date.now()}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success(`Successfully downloaded ${selectedRolls.size} ID cards`, { id: toastId });
-    } catch (err) {
-      toast.error(err.message || 'Bulk generation failed', { id: toastId });
-    } finally {
-      setIsBulkDownloading(false);
     }
   };
 
@@ -191,7 +221,7 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
+      toast.error('Please select a valid image file (PNG, JPG, or WEBP)');
       return;
     }
     setUploadFile(file);
@@ -202,7 +232,7 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
     e.preventDefault();
     if (!uploadFile || !uploadStudent) return;
     setIsUploading(true);
-    const toastId = toast.loading('Uploading photo...');
+    const toastId = toast.loading('Uploading and updating photo in database...');
     try {
       const formData = new FormData();
       formData.append('rollNo', uploadStudent.rollNo);
@@ -210,7 +240,7 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
 
       const res = await fetch('/api/staff/id-cards/upload-photo', {
         method: 'POST',
-        body: formData
+        body: formData,
       });
 
       if (!res.ok) {
@@ -219,7 +249,7 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
       }
 
       const data = await res.json();
-      toast.success('Photo updated successfully!', { id: toastId });
+      toast.success('Photograph successfully persisted in database!', { id: toastId });
 
       // Refresh list & close modal
       setUploadStudent(null);
@@ -233,7 +263,7 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
           ...prev,
           photoKey: data.photoKey,
           photoUrl: data.photoUrl,
-          photoStatus: 'AVAILABLE'
+          photoStatus: 'AVAILABLE',
         }));
       }
     } catch (err) {
@@ -253,32 +283,34 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
         if (data.student) setPreviewStudent(data.student);
       }
     } catch {
-      // Ignore background fetch error
+      // Non-blocking preview fetch error
     }
   };
 
   return (
-    <div className="space-y-6 pb-20">
-      {/* 1. Header & Quick Stats */}
+    <div className="space-y-8 pb-20">
+      {/* 1. Header & Quick Controls */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">🪪</span>
-              <h1 className="text-2xl font-black tracking-tight text-slate-900">
-                Student ID Card Management
-              </h1>
+            <div className="flex items-center gap-3">
+              <span className="p-2.5 bg-blue-50 text-[#0b3578] rounded-xl text-xl">🪪</span>
+              <div>
+                <h1 className="text-2xl font-black tracking-tight text-slate-900">
+                  Student ID Card Data Collection &amp; Export
+                </h1>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  Collect and export authoritative ID card datasets for finalized admissions with official roll numbers.
+                </p>
+              </div>
             </div>
-            <p className="text-sm text-slate-500 mt-1">
-              Reconciled official student records, interactive card previews, and individual or bulk batch PDF printing.
-            </p>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={handleManualRefresh}
-              disabled={isLoading}
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition disabled:opacity-50"
-              title="Refresh Records"
+              disabled={isLoading || isExporting}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition disabled:opacity-50"
+              title="Refresh Authoritative Records"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
@@ -286,200 +318,285 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
           </div>
         </div>
 
-        {/* Metric Badges */}
+        {/* Global Authoritative Readiness Metrics */}
         {stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-6 pt-6 border-t border-slate-100">
-            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
-              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Enrolled</div>
-              <div className="text-2xl font-black text-slate-900 mt-1">{stats.totalInScope}</div>
-              <div className="text-xs text-slate-500 mt-0.5">Authoritative students</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-slate-100">
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 flex items-center justify-between">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Finalized Students</div>
+                <div className="text-2xl font-black text-slate-900 mt-1">{stats.totalEligible}</div>
+                <div className="text-xs text-slate-500 mt-0.5">With official persisted roll numbers</div>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-slate-200/80 flex items-center justify-center text-slate-700">
+                <Users className="w-5 h-5" />
+              </div>
             </div>
 
-            <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-3">
-              <div className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Photos Ready</div>
-              <div className="text-2xl font-black text-emerald-800 mt-1">{stats.photosAvailable}</div>
-              <div className="text-xs text-emerald-600 mt-0.5">{((stats.photosAvailable / stats.totalInScope) * 100).toFixed(1)}% complete</div>
+            <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-4 flex items-center justify-between">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-wider text-emerald-700">Photographs Available</div>
+                <div className="text-2xl font-black text-emerald-800 mt-1">{stats.photosAvailable}</div>
+                <div className="text-xs text-emerald-600 mt-0.5">
+                  {stats.totalEligible > 0 ? ((stats.photosAvailable / stats.totalEligible) * 100).toFixed(1) : 0}% ready for printing
+                </div>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
             </div>
 
-            <div className={`rounded-xl p-3 border ${stats.photosMissing > 0 ? 'bg-amber-50/70 border-amber-300' : 'bg-slate-50 border-slate-200'}`}>
-              <div className="text-xs font-semibold uppercase tracking-wider text-amber-800">Photos Missing</div>
-              <div className="text-2xl font-black text-amber-900 mt-1">{stats.photosMissing}</div>
-              <div className="text-xs text-amber-700 mt-0.5">Action required</div>
-            </div>
-
-            <div className="bg-blue-50/60 border border-blue-200/80 rounded-xl p-3">
-              <div className="text-xs font-semibold uppercase tracking-wider text-blue-700">Addresses Ready</div>
-              <div className="text-2xl font-black text-blue-800 mt-1">{stats.addressesAvailable}</div>
-              <div className="text-xs text-blue-600 mt-0.5">{stats.addressesNeedsReview} review flagged</div>
-            </div>
-
-            <div className="bg-purple-50/60 border border-purple-200/80 rounded-xl p-3">
-              <div className="text-xs font-semibold uppercase tracking-wider text-purple-700">Phone Numbers</div>
-              <div className="text-2xl font-black text-purple-800 mt-1">{stats.phonesAvailable}</div>
-              <div className="text-xs text-purple-600 mt-0.5">100% decrypted</div>
+            <div className={`rounded-xl p-4 border flex items-center justify-between ${stats.photosMissing > 0 ? 'bg-amber-50/70 border-amber-300' : 'bg-slate-50 border-slate-200'}`}>
+              <div>
+                <div className="text-xs font-bold uppercase tracking-wider text-amber-800">Photographs Pending</div>
+                <div className="text-2xl font-black text-amber-900 mt-1">{stats.photosMissing}</div>
+                <div className="text-xs text-amber-700 mt-0.5">
+                  {stats.photosMissing > 0 ? 'Action required prior to printing' : 'All student photos ready'}
+                </div>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* 2. Filters & Search Control Bar */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
-        {/* Branch Tabs */}
-        <div>
-          <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 block">
-            Academic Branch
-          </label>
-          <div className="flex flex-wrap gap-1.5">
-            {BRANCHES.map((b) => {
-              const active = branch === b;
-              const count = stats?.branchCounts?.[b] || (b === 'ALL' ? stats?.totalInScope : 0);
-              return (
-                <button
-                  key={b}
-                  onClick={() => { setBranch(b); setPage(1); }}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition flex items-center gap-1.5 ${
-                    active
-                      ? 'bg-slate-900 text-white shadow-sm'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  <span>{b === 'ALL' ? 'All Branches' : b}</span>
-                  {count !== undefined && count > 0 && (
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
-                      active ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-                    }`}>
-                      {count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+      {/* 2. Branch Selection Dashboard */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-[#0b3578]" />
+              Select Academic Branch
+            </h2>
+            <p className="text-xs text-slate-500">
+              Select an institutional branch to view live student readiness counts and trigger a 1-click dataset export.
+            </p>
           </div>
+
+          <button
+            onClick={() => { setSelectedBranch('ALL'); setPage(1); }}
+            className={`px-3 py-1.5 text-xs font-bold rounded-xl transition border ${
+              selectedBranch === 'ALL'
+                ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            All Authorized Branches ({stats?.totalEligible ?? 0})
+          </button>
         </div>
 
-        {/* Search, Photo Filter & Quality Dropdowns */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-2">
-          {/* Search Box */}
-          <div className="md:col-span-2 relative">
-            <Search className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search by roll number, student name, father name, phone..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition"
-            />
-            {searchInput && (
-              <button
-                onClick={() => setSearchInput('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+        {/* Canonical Branch Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
+          {CANONICAL_BRANCH_INFO.map((b) => {
+            const isSelected = selectedBranch === b.name;
+            const bStats = branches.find(item => item.branch === b.name);
+            const total = bStats?.totalEligible ?? 0;
+            const photosReady = bStats?.photosAvailable ?? 0;
+            const photosMissing = bStats?.photosMissing ?? 0;
+            const isAllowed = bStats ? bStats.isAllowed : true;
+
+            return (
+              <div
+                key={b.name}
+                onClick={() => {
+                  if (isAllowed) {
+                    setSelectedBranch(b.name);
+                    setPage(1);
+                  }
+                }}
+                className={`relative rounded-2xl p-4 transition text-left border cursor-pointer select-none ${
+                  !isAllowed
+                    ? 'opacity-40 cursor-not-allowed bg-slate-100 border-slate-200'
+                    : isSelected
+                    ? 'bg-gradient-to-b from-[#0b3578]/5 to-[#0b3578]/10 border-[#0b3578] shadow-md ring-2 ring-[#0b3578]/20'
+                    : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                }`}
               >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className={`inline-block px-2.5 py-0.5 text-xs font-black rounded-lg ${
+                      isSelected ? 'bg-[#0b3578] text-white' : 'bg-slate-100 text-slate-800'
+                    }`}>
+                      {b.name}
+                    </span>
+                    <span className="text-[11px] font-mono font-semibold text-slate-400 ml-2">
+                      Code {b.code}
+                    </span>
+                  </div>
+                  {isSelected && (
+                    <span className="flex h-2.5 w-2.5 relative">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0b3578] opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#0b3578]"></span>
+                    </span>
+                  )}
+                </div>
 
-          {/* Photo Status Filter */}
-          <div>
-            <select
-              value={photoFilter}
-              onChange={(e) => { setPhotoFilter(e.target.value); setPage(1); }}
-              className="w-full py-2.5 px-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 text-slate-700"
-            >
-              <option value="ALL">All Photograph Statuses</option>
-              <option value="AVAILABLE">Photographs Available</option>
-              <option value="MISSING">Photographs Missing Only</option>
-            </select>
-          </div>
+                <div className="mt-2 text-xs font-bold text-slate-800 truncate" title={b.fullName}>
+                  {b.fullName}
+                </div>
 
-          {/* Address Status Filter */}
-          <div>
-            <select
-              value={addressFilter}
-              onChange={(e) => { setAddressFilter(e.target.value); setPage(1); }}
-              className="w-full py-2.5 px-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 text-slate-700"
-            >
-              <option value="ALL">All Address Quality</option>
-              <option value="AVAILABLE">Fully Verified Addresses</option>
-              <option value="NEEDS_REVIEW">Needs Review / Rural Localities</option>
-            </select>
-          </div>
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-baseline justify-between">
+                  <div>
+                    <div className="text-xl font-black text-slate-900">{total}</div>
+                    <div className="text-[10px] uppercase font-bold text-slate-500">Eligible Students</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs font-bold text-emerald-700">{photosReady} photos</div>
+                    {photosMissing > 0 && (
+                      <div className="text-[10px] font-bold text-amber-700">{photosMissing} pending</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* 3. Floating Bulk Action Bar */}
-      {selectedRolls.size > 0 && (
-        <div className="fixed bottom-6 inset-x-0 mx-auto max-w-xl z-40 px-4">
-          <div className="bg-slate-900 text-white rounded-2xl shadow-2xl p-4 flex items-center justify-between border border-slate-700 animate-in fade-in slide-in-from-bottom-4 duration-200">
-            <div className="flex items-center gap-3">
-              <span className="flex h-3 w-3 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+      {/* 3. Primary One-Click Branch Export Hero Panel */}
+      <div className="bg-gradient-to-br from-[#0b3578] to-[#082452] text-white rounded-3xl p-6 md:p-8 shadow-xl border border-[#0b3578]/30">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 text-amber-300 rounded-full text-xs font-bold tracking-wide uppercase">
+              <span>⚡ One-Click Dataset Export</span>
+            </div>
+            <h3 className="text-2xl md:text-3xl font-black tracking-tight text-white">
+              {currentBranchStats.name === 'ALL'
+                ? 'All Authorized Academic Branches'
+                : `${currentBranchStats.fullName} (${currentBranchStats.name})`}
+            </h3>
+            <p className="text-sm text-slate-200">
+              Downloads a complete, authoritative dataset containing all <strong className="text-white">{currentBranchStats.totalEligible}</strong> finalized students and approved ID card fields without pagination cutoff.
+            </p>
+
+            <div className="flex flex-wrap gap-4 pt-2 text-xs text-slate-300 font-medium">
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                Authoritative Roll Numbers
               </span>
-              <div>
-                <p className="font-bold text-sm">
-                  {selectedRolls.size} {selectedRolls.size === 1 ? 'student' : 'students'} selected
-                </p>
-                <p className="text-xs text-slate-400">Ready for batch ID-card generation</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setSelectedRolls(new Set())}
-                className="px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white transition"
-              >
-                Clear
-              </button>
-              <button
-                onClick={handleBulkDownload}
-                disabled={isBulkDownloading}
-                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-900 bg-amber-400 hover:bg-amber-300 rounded-xl transition shadow-sm disabled:opacity-50"
-              >
-                <Download className={`w-4 h-4 ${isBulkDownloading ? 'animate-bounce' : ''}`} />
-                {isBulkDownloading ? 'Generating...' : `Generate Batch PDF (${selectedRolls.size})`}
-              </button>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                Photographs &amp; Storage Keys
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                Permanent Addresses &amp; Emergency Mobile
+              </span>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* 4. Student Records Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-4 border-b border-slate-200/80 flex items-center justify-between bg-slate-50/50">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-              Student Records ({pagination.total})
-            </span>
-          </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white/10 backdrop-blur-md p-3.5 rounded-2xl border border-white/20">
+            {/* Format Selector */}
+            <div className="flex items-center gap-1 bg-black/20 p-1 rounded-xl">
+              <button
+                onClick={() => setExportFormat('xlsx')}
+                disabled={isExporting}
+                className={`px-3 py-2 text-xs font-bold rounded-lg transition flex items-center gap-1.5 ${
+                  exportFormat === 'xlsx'
+                    ? 'bg-emerald-500 text-white shadow-sm'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                Excel (.xlsx)
+              </button>
+              <button
+                onClick={() => setExportFormat('csv')}
+                disabled={isExporting}
+                className={`px-3 py-2 text-xs font-bold rounded-lg transition ${
+                  exportFormat === 'csv'
+                    ? 'bg-amber-400 text-slate-900 shadow-sm'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                CSV (.csv)
+              </button>
+            </div>
 
-          <div className="flex items-center gap-3">
+            {/* Main Action Button */}
             <button
-              onClick={handleSelectAllOnPage}
-              className="text-xs font-bold text-slate-700 hover:text-slate-900 underline"
+              onClick={() => handleDownloadBranchData(selectedBranch)}
+              disabled={isExporting || currentBranchStats.totalEligible === 0}
+              className="inline-flex items-center justify-center gap-2.5 px-6 py-3 text-sm font-black text-[#0b3578] bg-white hover:bg-slate-100 active:scale-[0.98] rounded-xl transition shadow-lg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
             >
-              {isAllOnPageSelected ? 'Deselect Page' : 'Select All on Page'}
+              <Download className={`w-5 h-5 ${isExporting ? 'animate-bounce' : ''}`} />
+              {isExporting ? (
+                'Generating Dataset...'
+              ) : currentBranchStats.totalEligible === 0 ? (
+                'No Eligible Students'
+              ) : (
+                `Download ID Card Data (${currentBranchStats.totalEligible})`
+              )}
             </button>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {currentBranchStats.totalEligible === 0 && (
+          <div className="mt-4 p-3 bg-amber-500/20 border border-amber-300/40 rounded-xl text-xs text-amber-200 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <span>No finalized students with persisted official roll numbers currently exist for this branch. Admissions must complete the finalization workflow before becoming eligible.</span>
+          </div>
+        )}
+      </div>
+
+      {/* 4. Secondary Feature: Eligible Students Preview Table */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden space-y-4 p-5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-100">
+          <div>
+            <h3 className="text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <span>📋</span>
+              Eligible Students Preview ({pagination.total})
+            </h3>
+            <p className="text-xs text-slate-500">
+              Paginated preview of authoritative finalized records. Use the primary download action above to export all {currentBranchStats.totalEligible} records at once.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Search Box */}
+            <div className="relative min-w-[260px]">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search roll number, name, phone..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition"
+              />
+              {searchInput && (
+                <button
+                  onClick={() => setSearchInput('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Photo Filter */}
+            <select
+              value={photoFilter}
+              onChange={(e) => { setPhotoFilter(e.target.value); setPage(1); }}
+              className="py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 text-slate-700"
+            >
+              <option value="ALL">All Photos</option>
+              <option value="AVAILABLE">Available Only</option>
+              <option value="MISSING">Missing Only</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Table Container */}
+        <div className="overflow-x-auto border border-slate-200/80 rounded-xl">
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-100/70 text-slate-700 uppercase text-[11px] font-bold tracking-wider">
               <tr>
-                <th className="py-3 px-4 w-10 text-center">
-                  <input
-                    type="checkbox"
-                    checked={isAllOnPageSelected}
-                    onChange={handleSelectAllOnPage}
-                    className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
-                  />
-                </th>
                 <th className="py-3 px-3 w-12 text-center">S.No</th>
                 <th className="py-3 px-3 w-16 text-center">Photo</th>
-                <th className="py-3 px-4">Hall Ticket / Roll No</th>
-                <th className="py-3 px-4">Student & Father Name</th>
-                <th className="py-3 px-4">Branch</th>
+                <th className="py-3 px-4">Official Roll No</th>
+                <th className="py-3 px-4">Student &amp; Father Name</th>
+                <th className="py-3 px-3">Branch &amp; Batch</th>
                 <th className="py-3 px-4">Contact Phone</th>
                 <th className="py-3 px-4">Permanent Address</th>
                 <th className="py-3 px-4 text-center">Actions</th>
@@ -488,40 +605,32 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400">
+                  <td colSpan={8} className="py-12 text-center text-slate-400">
                     <RefreshCw className="w-8 h-8 animate-spin mx-auto text-slate-400 mb-2" />
-                    Loading student records...
+                    Loading authoritative student records...
                   </td>
                 </tr>
               ) : students.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400">
-                    No matching student records found.
+                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                    <p className="font-bold text-slate-600">No matching finalized student records found.</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {selectedBranch !== 'ALL'
+                        ? `Branch ${selectedBranch} currently has no eligible students matching these filter criteria.`
+                        : 'No eligible finalized students found.'}
+                    </p>
                   </td>
                 </tr>
               ) : (
-                students.map((st) => {
-                  const isSelected = selectedRolls.has(st.rollNo);
+                students.map((st, idx) => {
                   const isPhotoMissing = st.photoStatus === 'MISSING';
+                  const rowNumber = (page - 1) * limit + idx + 1;
 
                   return (
-                    <tr
-                      key={st.rollNo}
-                      className={`hover:bg-slate-50/80 transition ${isSelected ? 'bg-amber-50/40' : ''}`}
-                    >
-                      {/* Checkbox */}
-                      <td className="py-3 px-4 text-center">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleToggleSelect(st.rollNo)}
-                          className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
-                        />
-                      </td>
-
+                    <tr key={st.rollNo} className="hover:bg-slate-50/80 transition">
                       {/* S.No */}
                       <td className="py-3 px-3 text-center text-xs font-mono text-slate-400">
-                        {st.sNo}
+                        {rowNumber}
                       </td>
 
                       {/* Photo Thumbnail */}
@@ -529,7 +638,7 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
                         {st.photoUrl && !isPhotoMissing ? (
                           <div 
                             onClick={() => handleOpenPreview(st)}
-                            className="w-10 h-12 rounded border border-slate-300 overflow-hidden mx-auto cursor-pointer hover:ring-2 hover:ring-slate-900 transition bg-slate-100"
+                            className="w-10 h-12 rounded border border-slate-300 overflow-hidden mx-auto cursor-pointer hover:ring-2 hover:ring-[#0b3578] transition bg-slate-100"
                             title="Click to preview ID card"
                           >
                             <img
@@ -541,7 +650,7 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
                         ) : (
                           <button
                             onClick={() => setUploadStudent(st)}
-                            className="w-10 h-12 rounded border-2 border-dashed border-red-300 bg-red-50 hover:bg-red-100 flex flex-col items-center justify-center text-red-600 mx-auto transition"
+                            className="w-10 h-12 rounded border-2 border-dashed border-red-300 bg-red-50 hover:bg-red-100 flex flex-col items-center justify-center text-red-600 mx-auto transition cursor-pointer"
                             title="Photograph Missing - Click to upload"
                           >
                             <ImageIcon className="w-4 h-4" />
@@ -550,13 +659,14 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
                         )}
                       </td>
 
-                      {/* Roll Number */}
+                      {/* Official Roll Number */}
                       <td className="py-3 px-4">
                         <div className="font-mono font-black text-slate-900 tracking-wide">
                           {st.rollNo}
                         </div>
-                        <div className="text-[11px] text-slate-400 font-medium">
-                          {st.academicYear}
+                        <div className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1 mt-0.5">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Finalized
                         </div>
                       </td>
 
@@ -565,18 +675,21 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
                         <div className="font-bold text-slate-900">
                           {st.studentName}
                         </div>
-                        {st.fatherName && (
+                        {st.fatherName && st.fatherName !== 'N/A' && (
                           <div className="text-xs text-slate-500">
                             F: {st.fatherName}
                           </div>
                         )}
                       </td>
 
-                      {/* Branch Badge */}
-                      <td className="py-3 px-4">
-                        <span className="inline-block px-2.5 py-1 text-xs font-black rounded-lg bg-slate-100 text-slate-800 border border-slate-200">
+                      {/* Branch & Batch */}
+                      <td className="py-3 px-3">
+                        <span className="inline-block px-2.5 py-0.5 text-xs font-black rounded-lg bg-slate-100 text-slate-800 border border-slate-200">
                           {st.branch}
                         </span>
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                          {st.batch}
+                        </div>
                       </td>
 
                       {/* Phone */}
@@ -591,40 +704,35 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
                         <p className="text-xs text-slate-600 truncate" title={st.studentAddress}>
                           {st.studentAddress || '—'}
                         </p>
-                        {st.addressStatus === 'NEEDS_REVIEW' && (
-                          <span className="inline-block mt-0.5 text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
-                            Rural Locality
-                          </span>
-                        )}
                       </td>
 
                       {/* Actions */}
                       <td className="py-3 px-4 text-center">
-                        <div className="inline-flex items-center gap-1.5">
-                          {/* Preview Button */}
+                        <div className="inline-flex items-center gap-1">
+                          {/* Preview Card Button */}
                           <button
                             onClick={() => handleOpenPreview(st)}
                             className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition"
-                            title="Preview ID Card"
+                            title="Interactive Card Preview"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
 
-                          {/* Download Single PDF */}
+                          {/* Download Single Card PDF */}
                           <button
                             onClick={() => handleDownloadSinglePdf(st.rollNo)}
                             disabled={isSingleDownloading}
                             className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition disabled:opacity-50"
-                            title="Download PDF"
+                            title="Download Card PDF"
                           >
                             <Download className="w-4 h-4" />
                           </button>
 
-                          {/* Upload/Replace Photo */}
+                          {/* Upload Photo Button */}
                           <button
                             onClick={() => setUploadStudent(st)}
                             className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition"
-                            title="Upload/Replace Photograph"
+                            title="Upload/Rectify Photograph"
                           >
                             <Upload className="w-4 h-4" />
                           </button>
@@ -639,7 +747,7 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
         </div>
 
         {/* Pagination Controls */}
-        <div className="p-4 border-t border-slate-200/80 bg-slate-50 flex items-center justify-between text-xs text-slate-600">
+        <div className="pt-2 flex items-center justify-between text-xs text-slate-600">
           <div>
             Showing <span className="font-bold">{students.length > 0 ? (page - 1) * limit + 1 : 0}</span> to{' '}
             <span className="font-bold">{Math.min(page * limit, pagination.total)}</span> of{' '}
@@ -668,7 +776,7 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
         </div>
       </div>
 
-      {/* 5. Interactive Card Preview Modal */}
+      {/* 5. Physical ID Card Simulation Modal */}
       {previewStudent && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-150">
@@ -688,14 +796,12 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
 
             {/* Modal Body: Physical Card Canvas Matching IDCardPDF */}
             <div className="p-6 bg-slate-100/80 flex justify-center">
-              {/* ID Card Simulation Box: 242pt x 385pt ratio */}
               <div 
                 className="w-[280px] h-[445px] bg-white rounded-xl shadow-md border border-slate-300 relative overflow-hidden flex flex-col select-none"
                 style={{ fontFamily: 'sans-serif' }}
               >
                 {/* 1. Header Area: Navy Curve and Title */}
                 <div className="relative h-[95px] w-full">
-                  {/* Blue badge */}
                   <div 
                     className="absolute top-0 left-0 w-[78px] h-[95px] bg-[#0b3578] rounded-br-[22px] flex items-center justify-center z-10"
                   >
@@ -708,7 +814,6 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
                     </div>
                   </div>
 
-                  {/* Header Text */}
                   <div className="absolute top-2 left-[84px] right-2 z-10">
                     <div className="text-[17px] font-black text-black leading-tight tracking-wider">
                       KUCE&amp;T
@@ -737,7 +842,6 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
 
                 {/* 3. Photo & Info Grid */}
                 <div className="mt-3 px-3 flex gap-2.5">
-                  {/* Photo box */}
                   <div className="w-[95px] h-[120px] border-2 border-[#0b3578] rounded bg-slate-50 overflow-hidden flex-shrink-0 flex items-center justify-center">
                     {previewStudent.photoUrl ? (
                       <img
@@ -753,7 +857,6 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
                     )}
                   </div>
 
-                  {/* Info Grid */}
                   <div className="flex-1 border border-[#d32f2f] rounded flex flex-col justify-between py-1 px-1.5 bg-red-50/20 text-[10px]">
                     <div className="border-b border-[#d32f2f] pb-1">
                       <span className="font-black text-black text-[11px]">
@@ -769,7 +872,7 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
                     <div className="pt-1">
                       <span className="text-slate-600 font-bold text-[9px] block">Academic Year:</span>
                       <span className="font-black text-black text-[10.5px]">
-                        {previewStudent.academicYear || '2026-2030'}
+                        {previewStudent.batch || '2026-2030'}
                       </span>
                     </div>
                   </div>
@@ -821,7 +924,7 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
                 onClick={() => {
                   setUploadStudent(previewStudent);
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
               >
                 <Upload className="w-4 h-4" />
                 Upload / Replace Photo
