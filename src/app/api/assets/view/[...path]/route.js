@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { getAuthUser } from '@/lib/api-utils';
 import { isStaticPublicAsset, isUserActive, canUserAccessAsset, normalizeAssetPath } from '@/lib/asset-auth';
-import { resolveInstitutionalFilename } from '@/lib/institution-assets';
+import { resolveInstitutionalFilename, isPrivateInstitutionalAsset } from '@/lib/institution-assets';
 
 // In-memory cache for fast delivery of static/branding assets (< 2MB)
 const assetCache = new Map();
@@ -103,6 +103,18 @@ export async function GET(request, { params }) {
     filename = filename.split('api/assets/view/')[1];
   }
   filename = filename.replace(/^[/\\]+/, '');
+
+  // 0. Hard Security Guard: Block direct web requests to private institutional assets (Principal Signatures, Private keys)
+  if (
+    isPrivateInstitutionalAsset(filename) ||
+    filename.toLowerCase().includes('principal-sign') ||
+    filename.toLowerCase().includes('private')
+  ) {
+    return NextResponse.json(
+      { error: 'Forbidden: Direct access to private institutional assets is strictly prohibited.' },
+      { status: 403, headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
+    );
+  }
 
   // 1. Static Public Asset Check
   const isStatic = isStaticPublicAsset(filename);

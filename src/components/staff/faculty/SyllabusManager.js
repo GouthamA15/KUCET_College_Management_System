@@ -197,7 +197,7 @@ function SubjectSearchDropdown({ value, onSelect, placeholder = "Search by code 
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function SyllabusManager() {
+export default function SyllabusManager({ allowedSemesters = [1, 2, 3, 4, 5, 6, 7, 8] } = {}) {
   const [data, setData] = useState({ coreSubjects: [], professionalElectives: [], openElectives: [], otherGroups: [] });
   const [authorizedBranches, setAuthorizedBranches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -422,7 +422,7 @@ export default function SyllabusManager() {
             <label className={labelClass}>Semester</label>
             <select value={selectedSemester} onChange={e => setSelectedSemester(e.target.value)} className={selectClass}>
               <option value="">Select...</option>
-              {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={s}>Semester {s}</option>)}
+              {allowedSemesters.map(s => <option key={s} value={s}>Semester {s}</option>)}
             </select>
           </div>
         </div>

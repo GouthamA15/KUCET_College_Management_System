@@ -48,6 +48,8 @@ jobs:
       env:
         NEXT_PUBLIC_WORKING_ENV: testing
         SKIP_ENV_VALIDATION: 'true'
+        JWT_SECRET: 'temporary_secret_at_least_32_chars_long'
+        ENCRYPTION_KEY: '12345678901234567890123456789012'
 
     - name: Install Playwright Browsers (Chromium)
       run: npx playwright install --with-deps chromium

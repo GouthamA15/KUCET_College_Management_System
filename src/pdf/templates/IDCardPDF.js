@@ -1,30 +1,33 @@
-/* eslint-disable jsx-a11y/alt-text */
 // @react-pdf Image components do not use HTML alt attributes
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 
+const h = React.createElement;
+
 const styles = StyleSheet.create({
   page: {
     padding: 0,
-    backgroundColor: "#fff",
+    backgroundColor: "#ffffff",
   },
   cardContainer: {
     width: 242,
     height: 385,
     margin: "auto",
-    border: "0.5pt solid #ccc",
+    border: "0.8pt solid #cbd5e1",
     borderRadius: 8,
     position: "relative",
     overflow: "hidden",
-    backgroundColor: "#fff",
+    backgroundColor: "#ffffff",
+    display: "flex",
+    flexDirection: "column",
   },
   // 1. Header Area
   logoSection: {
     position: "absolute",
     top: 0,
     left: 0,
-    width: 70,
-    height: 85,
+    width: 68,
+    height: 82,
     backgroundColor: "#0b3578",
     borderBottomRightRadius: 20,
     zIndex: 10,
@@ -32,204 +35,227 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   logoWhiteCircle: {
-    width: 50,
-    height: 50,
-    backgroundColor: "#fff",
-    borderRadius: 25,
+    width: 48,
+    height: 48,
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
   },
   logoImage: {
-    width: "85%",
-    height: "85%",
+    width: 40,
+    height: 40,
+    objectFit: "contain",
   },
   headerTextSection: {
     position: "absolute",
-    top: 8,
-    left: 75,
-    right: 5,
+    top: 6,
+    left: 74,
+    right: 6,
     zIndex: 10,
   },
   collegeCode: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: "black",
-    color: "#000",
+    color: "#000000",
     letterSpacing: 0.5,
   },
   collegeName: {
-    fontSize: 10,
+    fontSize: 7.5,
     fontWeight: "bold",
     color: "#0b3578",
-    marginTop: 0,
+    marginTop: 0.5,
   },
   collegeAddress: {
-    fontSize: 7,
-    color: "#000",
-    marginTop: 2,
+    fontSize: 6,
+    color: "#000000",
+    marginTop: 1,
     fontWeight: "bold",
   },
   tel: {
-    fontSize: 7,
-    color: "#000",
+    fontSize: 6,
+    color: "#000000",
     fontWeight: "bold",
+    marginTop: 0.5,
+  },
+  headerSpacer: {
+    height: 82,
   },
   // 2. Ribbon Title
-  titleRibbon: {
-    position: "absolute",
-    top: 108,
-    right: 0,
-    width: 135,
-    height: 18,
+  ribbonContainer: {
+    alignSelf: "flex-end",
+    marginTop: 2,
     backgroundColor: "#e91e63",
-    zIndex: 30,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    borderTopLeftRadius: 10,
-    borderBottomLeftRadius: 10,
+    paddingVertical: 1.5,
+    paddingHorizontal: 12,
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
   },
-  titleText: {
-    color: "#fff",
-    fontSize: 11,
+  ribbonText: {
+    color: "#ffffff",
+    fontSize: 9.5,
     fontWeight: "black",
     letterSpacing: 0.5,
   },
-  // 3. Photo and Info Grid
-  photoBox: {
-    position: "absolute",
-    top: 135,
-    left: 10,
-    width: 85,
-    height: 105,
-    border: "1.5pt solid #0b3578",
-    zIndex: 20,
+  // 3. Photo & Info Grid
+  gridSection: {
+    marginTop: 6,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    gap: 8,
   },
-  studentPhoto: {
+  photoBox: {
+    width: 78,
+    height: 98,
+    border: "1.2pt solid #0b3578",
+    borderRadius: 3,
+    backgroundColor: "#f8fafc",
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoImg: {
     width: "100%",
     height: "100%",
     objectFit: "cover",
   },
-  infoGrid: {
-    position: "absolute",
-    top: 135,
-    left: 100,
-    width: 132,
-    height: 105,
-    border: "0.8pt solid #d32f2f",
-    zIndex: 20,
-  },
-  gridRow: {
-    flex: 1,
-    borderBottom: "0.8pt solid #d32f2f",
-    paddingHorizontal: 4,
-    justifyContent: "center",
-  },
-  gridRowLast: {
-    flex: 1,
-    paddingHorizontal: 4,
-    justifyContent: "center",
-  },
-  gridLabel: {
-    fontSize: 9,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  gridValue: {
-    fontSize: 10.5,
-    fontWeight: "black",
-    color: "#000",
-  },
-  // 4. Name Section
-  nameSection: {
-    position: "absolute",
-    top: 250,
-    left: 0,
+  noPhotoBox: {
     width: "100%",
+    height: "100%",
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  noPhotoText: {
+    fontSize: 8,
+    fontWeight: "bold",
+    color: "#dc2626",
+    textAlign: "center",
+  },
+  infoGrid: {
+    flex: 1,
+    height: 98,
+    border: "0.8pt solid #d32f2f",
+    borderRadius: 3,
+    backgroundColor: "#fff5f5",
+    flexDirection: "column",
+    justifyContent: "space-between",
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  infoRow1: {
+    borderBottom: "0.6pt solid #fca5a5",
+    paddingBottom: 4,
+  },
+  infoRow2: {
+    borderBottom: "0.6pt solid #fca5a5",
+    paddingVertical: 4,
+  },
+  infoRow3: {
+    paddingTop: 4,
+  },
+  courseValue: {
+    fontSize: 9.5,
+    fontWeight: "black",
+    color: "#000000",
+  },
+  infoLabel: {
+    fontSize: 7.5,
+    fontWeight: "bold",
+    color: "#475569",
+  },
+  infoValue: {
+    fontSize: 9.5,
+    fontWeight: "black",
+    color: "#000000",
+  },
+  // 4. Student Name & Father Name
+  nameSection: {
+    marginTop: 6,
     paddingHorizontal: 10,
-    zIndex: 20,
   },
   studentName: {
-    fontSize: 17,
+    fontSize: 10.5,
     fontWeight: "black",
     color: "#d32f2f",
     textTransform: "uppercase",
-    textAlign: "left",
-  },
-  fatherSection: {
-    position: "absolute",
-    top: 275,
-    left: 0,
-    width: "100%",
-    paddingHorizontal: 10,
-    zIndex: 20,
+    lineHeight: 1.15,
   },
   fatherName: {
-    fontSize: 10,
-    color: "#000",
+    fontSize: 8,
     fontWeight: "bold",
+    color: "#000000",
+    marginTop: 2.5,
+    lineHeight: 1.15,
   },
-  // 5. QR and Signature
+  // 5. QR Code & Signature
+  bottomRow: {
+    marginTop: 6,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+  },
   qrBox: {
-    position: "absolute",
-    top: 295,
-    left: 10,
-    width: 60,
-    height: 60,
-    border: "0.5pt solid #ddd",
+    width: 46,
+    height: 46,
+    border: "0.6pt solid #cbd5e1",
     padding: 1,
-    zIndex: 20,
-  },
-  signatureArea: {
-    position: "absolute",
-    top: 295,
-    right: 10,
-    width: 100,
+    backgroundColor: "#ffffff",
+    borderRadius: 2,
     alignItems: "center",
-    zIndex: 20,
+    justifyContent: "center",
   },
-  principalSignImg: {
-    width: 75,
-    height: "auto",
-    marginBottom: -5,
+  qrImg: {
+    width: "100%",
+    height: "100%",
+    objectFit: "contain",
   },
-  principalNameGreen: {
-    fontSize: 11,
-    fontWeight: "bold",
-    color: "#2e7d32",
-    marginBottom: 1,
+  signatureBox: {
+    width: 80,
+    alignItems: "center",
+    justifyContent: "flex-end",
   },
-  principalLabel: {
-    fontSize: 11,
-    fontWeight: "black",
-    color: "#000",
-    borderTop: "1pt solid #000",
-    width: 70,
-    textAlign: "center",
+  signatureImg: {
+    width: 68,
+    height: 26,
+    objectFit: "contain",
+    marginBottom: 2,
+  },
+  signatureLine: {
+    borderTop: "0.8pt solid #000000",
+    width: 65,
+    alignItems: "center",
     paddingTop: 1,
   },
-  // 6. Address Footer
-  addressFooter: {
-    position: "absolute",
-    bottom: 10,
-    left: 0,
-    width: "100%",
-    paddingHorizontal: 5,
+  principalLabel: {
+    fontSize: 8,
+    fontWeight: "black",
+    color: "#000000",
+    textAlign: "center",
+  },
+  // 6. Footer Address & Contact
+  footerSection: {
+    marginTop: "auto",
+    marginBottom: 6,
+    paddingHorizontal: 8,
+    borderTop: "0.5pt solid #e2e8f0",
+    paddingTop: 3,
     alignItems: "center",
-    zIndex: 20,
   },
   addressLine: {
-    fontSize: 8.5,
-    color: "#000",
+    fontSize: 6.5,
     fontWeight: "bold",
+    color: "#000000",
     textAlign: "center",
-    lineHeight: 1.1,
+    lineHeight: 1.15,
   },
   cellLine: {
-    fontSize: 10,
-    color: "#000",
+    fontSize: 7.5,
     fontWeight: "black",
-    marginTop: 2,
-  }
+    color: "#000000",
+    marginTop: 1,
+  },
 });
 
 export function IDCardPage({
@@ -245,104 +271,137 @@ export function IDCardPage({
   signatureUrl,
   qrUrl,
 }) {
-  return (
-    <Page size={[242, 385]} style={styles.page}>
-      <View style={styles.cardContainer}>
-        {/* Logo Section */}
-        <View style={styles.logoSection}>
-          <View style={styles.logoWhiteCircle}>
-            {logoUrl && <Image src={logoUrl} style={styles.logoImage} />}
-          </View>
-        </View>
+  return h(
+    Page,
+    { size: [242, 385], style: styles.page },
+    h(
+      View,
+      { style: styles.cardContainer },
+      // 1. Header Section
+      h(
+        View,
+        { style: styles.logoSection },
+        h(
+          View,
+          { style: styles.logoWhiteCircle },
+          logoUrl ? h(Image, { src: logoUrl, style: styles.logoImage }) : null
+        )
+      ),
+      h(
+        View,
+        { style: styles.headerTextSection },
+        h(Text, { style: styles.collegeCode }, "KUCE&T"),
+        h(Text, { style: styles.collegeName }, "KU COLLEGE OF ENGINEERING & TECHNOLOGY"),
+        h(Text, { style: styles.collegeAddress }, "KAKATIYA UNIVERSITY CAMPUS"),
+        h(Text, { style: styles.collegeAddress }, "VIDYARANYAPURI, WARANGAL 506 009"),
+        h(Text, { style: styles.tel }, "Tel: 91- 870 - 2449191")
+      ),
+      h(View, { style: styles.headerSpacer }),
 
-        {/* Header Text */}
-        <View style={styles.headerTextSection}>
-          <Text style={styles.collegeCode}>KUCE&T</Text>
-          <Text style={styles.collegeName}>KU COLLEGE OF ENGINEERING</Text>
-          <Text style={styles.collegeName}>& TECHNOLOGY</Text>
-          <Text style={styles.collegeAddress}>KAKATIYA UNIVERSITY CAMPUS</Text>
-          <Text style={styles.collegeAddress}>VIDYARANYAPURI, WARANGAL 506 009</Text>
-          <Text style={styles.tel}>Tel: 91- 870 - 2449191</Text>
-        </View>
+      // 2. Ribbon
+      h(
+        View,
+        { style: styles.ribbonContainer },
+        h(Text, { style: styles.ribbonText }, "IDENTITY CARD")
+      ),
 
-        {/* Ribbon */}
-        <View style={styles.titleRibbon}>
-          <Text style={styles.titleText}>IDENTITY CARD</Text>
-        </View>
+      // 3. Photo & Academic Info Grid
+      h(
+        View,
+        { style: styles.gridSection },
+        h(
+          View,
+          { style: styles.photoBox },
+          pfpUrl
+            ? h(Image, { src: pfpUrl, style: styles.photoImg })
+            : h(
+                View,
+                { style: styles.noPhotoBox },
+                h(Text, { style: styles.noPhotoText }, "NO PHOTO")
+              )
+        ),
+        h(
+          View,
+          { style: styles.infoGrid },
+          h(
+            View,
+            { style: styles.infoRow1 },
+            h(Text, { style: styles.courseValue }, `B.Tech (${course || '—'})`)
+          ),
+          h(
+            View,
+            { style: styles.infoRow2 },
+            h(Text, { style: styles.infoLabel }, "H.T. No:"),
+            h(Text, { style: styles.infoValue }, admissionNo || '—')
+          ),
+          h(
+            View,
+            { style: styles.infoRow3 },
+            h(Text, { style: styles.infoLabel }, "Academic Year:"),
+            h(Text, { style: styles.infoValue }, batch || '—')
+          )
+        )
+      ),
 
-        {/* Photo */}
-        <View style={styles.photoBox}>
-          {pfpUrl ? (
-            <Image src={pfpUrl} style={styles.studentPhoto} />
-          ) : (
-            <View style={{ backgroundColor: "#eee", flex: 1 }} />
-          )}
-        </View>
+      // 4. Student Name & Father Name
+      h(
+        View,
+        { style: styles.nameSection },
+        h(Text, { style: styles.studentName }, studentName || 'N/A'),
+        h(
+          Text,
+          { style: styles.fatherName },
+          `Father's Name: ${(fatherName || 'N/A').toUpperCase()}`
+        )
+      ),
 
-        {/* Info Grid */}
-        <View style={styles.infoGrid}>
-          <View style={styles.gridRow}>
-            <Text style={styles.gridValue}>B.Tech ({course})</Text>
-          </View>
-          <View style={styles.gridRow}>
-            <Text style={styles.gridLabel}>H.T. No: <Text style={styles.gridValue}>{admissionNo}</Text></Text>
-          </View>
-          <View style={styles.gridRowLast}>
-            <Text style={styles.gridLabel}>Academic Year: <Text style={styles.gridValue}>{batch}</Text></Text>
-          </View>
-        </View>
+      // 5. QR Code & Principal Signature
+      h(
+        View,
+        { style: styles.bottomRow },
+        h(
+          View,
+          { style: styles.qrBox },
+          qrUrl ? h(Image, { src: qrUrl, style: styles.qrImg }) : null
+        ),
+        h(
+          View,
+          { style: styles.signatureBox },
+          signatureUrl ? h(Image, { src: signatureUrl, style: styles.signatureImg }) : null,
+          h(
+            View,
+            { style: styles.signatureLine },
+            h(Text, { style: styles.principalLabel }, "Principal")
+          )
+        )
+      ),
 
-        {/* Name Section */}
-        <View style={styles.nameSection}>
-          <Text style={styles.studentName}>{studentName}</Text>
-        </View>
-
-        {/* Father's Name */}
-        <View style={styles.fatherSection}>
-          <Text style={styles.fatherName}>Father&apos;s Name: {(fatherName || '').toUpperCase()}</Text>
-        </View>
-
-        {/* QR Code */}
-        <View style={styles.qrBox}>
-          {qrUrl && <Image src={qrUrl} style={{ width: "100%", height: "100%" }} />}
-        </View>
-
-        {/* Signature Area */}
-        <View style={styles.signatureArea}>
-          {signatureUrl && <Image src={signatureUrl} style={styles.principalSignImg} />}
-          <Text style={styles.principalNameGreen}>T.M. Reddy</Text>
-          <Text style={styles.principalLabel}>Principal</Text>
-        </View>
-
-        {/* Footer Address */}
-        <View style={styles.addressFooter}>
-          <Text style={styles.addressLine}>{address}</Text>
-          <Text style={styles.cellLine}>Cell: {mobile}</Text>
-        </View>
-      </View>
-    </Page>
+      // 6. Footer Address & Contact
+      h(
+        View,
+        { style: styles.footerSection },
+        h(Text, { style: styles.addressLine }, address || '—'),
+        h(Text, { style: styles.cellLine }, `Cell: ${mobile || '—'}`)
+      )
+    )
   );
 }
 
 export function BulkIDCardPDF({ students = [], logoUrl, signatureUrl }) {
-  return (
-    <Document>
-      {students.map((student, idx) => (
-        <IDCardPage
-          key={student.admissionNo || student.rollNo || idx}
-          {...student}
-          logoUrl={logoUrl || student.logoUrl}
-          signatureUrl={signatureUrl || student.signatureUrl}
-        />
-      ))}
-    </Document>
+  return h(
+    Document,
+    null,
+    students.map((student, idx) =>
+      h(IDCardPage, {
+        key: student.admissionNo || student.rollNo || idx,
+        ...student,
+        logoUrl: logoUrl || student.logoUrl,
+        signatureUrl: signatureUrl || student.signatureUrl,
+      })
+    )
   );
 }
 
 export default function IDCardPDF(props) {
-  return (
-    <Document>
-      <IDCardPage {...props} />
-    </Document>
-  );
+  return h(Document, null, h(IDCardPage, props));
 }

@@ -12,36 +12,56 @@ import { apiResponse, apiError, wrapHandler } from '@/lib/api-utils';
 import { getCollegeAcademicYear } from '@/lib/academic-utils';
 
 export const GET = wrapHandler({
-  auth: 'hod',
+  auth: ['hod', 'faculty'],
   handler: async (request, { user }) => {
     try {
+      const isAuthorized = (user.role === 'faculty' && (user.is_hod || user.is_first_year_coordinator)) || user.role === 'admin';
+      if (!isAuthorized) {
+        return apiError('Unauthorized', 403);
+      }
+
       const { searchParams } = new URL(request.url);
       const semester = searchParams.get('semester');
 
-      if (!user.hod_department_code) {
-        return apiError('Unauthorized - Active HOD Assignment Required', 403);
+      let branchesList = [];
+
+      if (user.is_first_year_coordinator && !user.is_hod && user.role !== 'admin') {
+        const { getInstitutionalBranches } = await import('@/lib/academic-authorization');
+        branchesList = await getInstitutionalBranches();
+
+        if (semester && semester !== 'ALL') {
+          const semInt = parseInt(semester, 10);
+          if (semInt !== 1 && semInt !== 2) {
+            return apiError('Forbidden: First Year Coordinator access is restricted to semesters 1 and 2', 403);
+          }
+        }
+      } else {
+        if (!user.hod_department_code && user.role !== 'admin') {
+          return apiError('Unauthorized - Active HOD Assignment Required', 403);
+        }
+
+        const { staffAcademicAffiliations } = await import('@/db/schema');
+        const affil = await db.select({ 
+          prog_code: academicPrograms.program_code,
+          dept_code: academicDepartments.department_code
+        })
+        .from(staffAcademicAffiliations)
+        .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
+        .leftJoin(academicPrograms, eq(staffAcademicAffiliations.program_id, academicPrograms.id))
+        .where(eq(staffAcademicAffiliations.staff_account_id, user.id));
+
+        const validBranches = affil.map(a => a.prog_code).filter(Boolean);
+        validBranches.push(...affil.map(a => a.dept_code).filter(Boolean));
+        if (user.hod_department_code) validBranches.push(user.hod_department_code);
+        branchesList = [...new Set(validBranches)];
       }
-
-      const { staffAcademicAffiliations } = await import('@/db/schema');
-      const affil = await db.select({ 
-        prog_code: academicPrograms.program_code,
-        dept_code: academicDepartments.department_code
-      })
-      .from(staffAcademicAffiliations)
-      .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
-      .leftJoin(academicPrograms, eq(staffAcademicAffiliations.program_id, academicPrograms.id))
-      .where(eq(staffAcademicAffiliations.staff_account_id, user.id));
-
-      const validBranches = affil.map(a => a.prog_code).filter(Boolean);
-      // Include the department code itself as some subjects might just be mapped to 'CSE' instead of 'BTECH-CSE'
-      validBranches.push(...affil.map(a => a.dept_code).filter(Boolean));
-
-      const branchesList = [...new Set(validBranches)];
 
       let conditions = [inArray(syllabusStructure.branch, branchesList)];
       
       if (semester && semester !== 'ALL') {
         conditions.push(eq(syllabusStructure.semester, parseInt(semester, 10)));
+      } else if (user.is_first_year_coordinator && !user.is_hod && user.role !== 'admin') {
+        conditions.push(inArray(syllabusStructure.semester, [1, 2]));
       }
 
       // 2. Get available subjects from syllabus

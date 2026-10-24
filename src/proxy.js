@@ -301,6 +301,7 @@ export default async function proxy(request) {
       if (pathname.startsWith('/staff/admission') && staffPayload.role !== 'admission') return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
       if (pathname.startsWith('/staff/faculty') && staffPayload.role !== 'faculty') return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
       if (pathname.startsWith('/staff/hod') && (staffPayload.role !== 'faculty' || (!staffPayload.is_hod && !staffPayload.is_principal))) return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
+      if (pathname.startsWith('/staff/first-year') && (staffPayload.role !== 'faculty' || (!staffPayload.is_first_year_coordinator && !staffPayload.is_principal))) return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
     }
   } else if (pathname.startsWith('/student')) {
     if (!studentPayload) return handleUnauthorized(request);

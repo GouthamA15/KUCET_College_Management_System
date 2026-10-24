@@ -10,7 +10,7 @@ import { FACULTY_BRANCHES } from '@/lib/staff-config';
 import { 
   Users, CheckCircle2, Search, 
   AlertTriangle, UserX, UserCheck, Save,
-  ShieldCheck, BookOpen, ExternalLink, Award
+  ShieldCheck, BookOpen, ExternalLink, Award, GraduationCap, X
 } from 'lucide-react';
 
 export default function ManageStaffClient() {
@@ -32,6 +32,84 @@ export default function ManageStaffClient() {
     newHodName: ''
   });
   const [processing, setProcessing] = useState(false);
+
+  // Coordinator Modal State
+  const [isCoordModalOpen, setIsCoordModalOpen] = useState(false);
+  const [coordAssignments, setCoordAssignments] = useState([]);
+  const [loadingCoord, setLoadingCoord] = useState(false);
+  const [coordActionLoading, setCoordActionLoading] = useState(false);
+  const [showNewCoordForm, setShowNewCoordForm] = useState(false);
+  const [newCoordData, setNewCoordData] = useState({
+    staff_account_id: '',
+    academic_year: '2024-2025',
+    start_date: new Date().toISOString().split('T')[0],
+    end_date: ''
+  });
+
+  const fetchCoordinatorAssignments = async () => {
+    setLoadingCoord(true);
+    try {
+      const res = await fetch('/api/admin/coordinator-assignments');
+      const json = await res.json();
+      if (res.ok) {
+        setCoordAssignments(json.data || []);
+        if (json.currentAcademicYear) {
+          setNewCoordData(prev => ({ ...prev, academic_year: json.currentAcademicYear }));
+        }
+      }
+    } catch (_err) {
+      toast.error('Failed to load coordinator assignments');
+    } finally {
+      setLoadingCoord(false);
+    }
+  };
+
+  const handleRevokeCoord = async (assignmentId) => {
+    if (!confirm('Are you sure you want to revoke this First Year Coordinator assignment?')) return;
+    setCoordActionLoading(true);
+    try {
+      const res = await fetch(`/api/admin/coordinator-assignments/${assignmentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'REVOKE' })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to revoke assignment');
+      toast.success('Coordinator assignment revoked');
+      await fetchCoordinatorAssignments();
+      if (refreshStaff) await refreshStaff();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setCoordActionLoading(false);
+    }
+  };
+
+  const handleCreateCoordAssignment = async (e) => {
+    e.preventDefault();
+    if (!newCoordData.staff_account_id) {
+      toast.error('Please select a faculty member');
+      return;
+    }
+    setCoordActionLoading(true);
+    try {
+      const res = await fetch('/api/admin/coordinator-assignments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCoordData)
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to create assignment');
+      toast.success('First Year Coordinator appointed successfully');
+      setShowNewCoordForm(false);
+      await fetchCoordinatorAssignments();
+      if (refreshStaff) await refreshStaff();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setCoordActionLoading(false);
+    }
+  };
 
   // Filter staffList based on active tab, search query, and branch filter
   const filteredStaffList = useMemo(() => {
@@ -73,7 +151,8 @@ export default function ManageStaffClient() {
       scholarshipTotal: scholarshipstaffList.length,
       admissionTotal: admissionstaffList.length,
       hodCount: facultystaffList.filter(c => c.is_hod || (c.hod_branches && c.hod_branches.length > 0)).length,
-      principalCount: facultystaffList.filter(c => c.is_principal).length
+      principalCount: facultystaffList.filter(c => c.is_principal).length,
+      coordCount: facultystaffList.filter(c => c.is_first_year_coordinator).length
     };
   }, [staffList]);
 
@@ -83,7 +162,10 @@ export default function ManageStaffClient() {
       ...staffMember,
       branches: Array.isArray(staffMember.branches) ? [...staffMember.branches] : [],
       hod_branches: Array.isArray(staffMember.hod_branches) ? [...staffMember.hod_branches] : (staffMember.is_hod && staffMember.branches ? [...staffMember.branches] : []),
-      is_principal: !!staffMember.is_principal
+      is_principal: !!staffMember.is_principal,
+      is_first_year_coordinator: !!staffMember.is_first_year_coordinator,
+      coordinator_start_date: staffMember.coordinator_assignment?.start_date || new Date().toISOString().split('T')[0],
+      coordinator_end_date: staffMember.coordinator_assignment?.end_date || ''
     });
     
     // Fetch their latest requests
@@ -142,6 +224,9 @@ export default function ManageStaffClient() {
       const payload = {
         ...editedStaff,
         is_hod: (editedStaff.hod_branches && editedStaff.hod_branches.length > 0) || !!editedStaff.is_hod,
+        is_first_year_coordinator: !!editedStaff.is_first_year_coordinator,
+        coordinator_start_date: editedStaff.coordinator_start_date,
+        coordinator_end_date: editedStaff.coordinator_end_date || null,
         ...(confirmedReassignBranches && confirmedReassignBranches.length > 0 
           ? { reassign_branches: confirmedReassignBranches } 
           : {})
@@ -223,6 +308,9 @@ export default function ManageStaffClient() {
     selectedStaff.employee_id !== editedStaff.employee_id ||
     selectedStaff.is_active !== editedStaff.is_active ||
     selectedStaff.is_principal !== editedStaff.is_principal ||
+    selectedStaff.is_first_year_coordinator !== editedStaff.is_first_year_coordinator ||
+    selectedStaff.coordinator_start_date !== editedStaff.coordinator_start_date ||
+    selectedStaff.coordinator_end_date !== editedStaff.coordinator_end_date ||
     JSON.stringify((selectedStaff.branches || []).sort()) !== JSON.stringify((editedStaff.branches || []).sort()) ||
     JSON.stringify((selectedStaff.hod_branches || []).sort()) !== JSON.stringify((editedStaff.hod_branches || []).sort()) ||
     JSON.stringify((selectedStaff.roles || []).sort()) !== JSON.stringify((editedStaff.roles || []).sort())
@@ -235,9 +323,22 @@ export default function ManageStaffClient() {
           <h1 className="text-2xl font-semibold text-gray-800">Staff & Role Management</h1>
           <p className="text-sm text-gray-600 mt-1">Manage institutional staff accounts, branch HOD appointments, academic affiliations, and supervisory roles.</p>
         </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setIsCoordModalOpen(true);
+              fetchCoordinatorAssignments();
+            }}
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-sky-50 text-sky-800 border border-sky-200 hover:bg-sky-100 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+          >
+            <GraduationCap className="w-4 h-4 text-sky-600" />
+            <span>1st Year Coordinators ({stats.coordCount})</span>
+          </button>
+        </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
           <div className="flex items-center text-[#0b3578] mb-2">
             <Users className="w-5 h-5 mr-2" />
@@ -262,9 +363,16 @@ export default function ManageStaffClient() {
         <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
           <div className="flex items-center text-purple-600 mb-2">
             <ShieldCheck className="w-5 h-5 mr-2" />
-            <h3 className="font-semibold">Principal Supervisors</h3>
+            <h3 className="font-semibold">Principal Sup.</h3>
           </div>
           <p className="text-3xl font-bold text-slate-900">{stats.principalCount}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+          <div className="flex items-center text-sky-600 mb-2">
+            <GraduationCap className="w-5 h-5 mr-2" />
+            <h3 className="font-semibold">1st Year Coord</h3>
+          </div>
+          <p className="text-3xl font-bold text-slate-900">{stats.coordCount}</p>
         </div>
       </div>
 
@@ -401,6 +509,13 @@ export default function ManageStaffClient() {
                           {staffMember.is_principal && (
                             <span className="bg-purple-100 text-purple-900 border border-purple-300 font-extrabold text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs whitespace-nowrap inline-flex items-center gap-0.5 shrink-0">
                               🏛️ Principal Supervisor
+                            </span>
+                          )}
+
+                          {/* First Year Coordinator Badge */}
+                          {staffMember.is_first_year_coordinator && (
+                            <span className="bg-sky-100 text-sky-900 border border-sky-300 font-extrabold text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs whitespace-nowrap inline-flex items-center gap-0.5 shrink-0">
+                              🎓 1st Year Coord
                             </span>
                           )}
                         </div>
@@ -711,6 +826,61 @@ export default function ManageStaffClient() {
                                   </div>
                                 </label>
                               </div>
+
+                              {/* First Year Coordinator Section */}
+                              <div className="bg-sky-50/60 rounded-lg p-5 border border-sky-100">
+                                <label className="flex items-start gap-3 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    name="is_first_year_coordinator"
+                                    checked={!!editedStaff.is_first_year_coordinator}
+                                    onChange={handleChange}
+                                    className="mt-1 h-4 w-4 text-sky-600 focus:ring-sky-500 border-slate-300 rounded cursor-pointer"
+                                  />
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-semibold text-slate-800">
+                                        First Year Coordinator
+                                      </span>
+                                      <span className="bg-sky-100 text-sky-800 text-[10px] font-bold px-2 py-0.5 rounded border border-sky-200">
+                                        All Branches (Sem 1 & 2)
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-slate-600 mt-1">
+                                      Grants cross-branch authority over Semesters 1 and 2 across all institutional branches (CSE, IT, CSD, ECE, EEE, CIVIL, MECH). Responsible for 1st-year subjects, syllabi, timetables, faculty subject-interest reviews, and 1st-year student ID cards.
+                                    </p>
+                                    
+                                    {editedStaff.is_first_year_coordinator && (
+                                      <div className="mt-3 pt-3 border-t border-sky-200/60 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                          <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                                            Appointment Start Date
+                                          </label>
+                                          <input
+                                            type="date"
+                                            name="coordinator_start_date"
+                                            value={editedStaff.coordinator_start_date || ''}
+                                            onChange={handleChange}
+                                            className="w-full text-xs border border-slate-300 rounded px-2.5 py-1.5 bg-white text-slate-800 focus:outline-none focus:border-sky-500"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                                            Appointment End Date (Optional)
+                                          </label>
+                                          <input
+                                            type="date"
+                                            name="coordinator_end_date"
+                                            value={editedStaff.coordinator_end_date || ''}
+                                            onChange={handleChange}
+                                            className="w-full text-xs border border-slate-300 rounded px-2.5 py-1.5 bg-white text-slate-800 focus:outline-none focus:border-sky-500"
+                                          />
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </label>
+                              </div>
                             </div>
                           </>
                         )}
@@ -939,6 +1109,209 @@ export default function ManageStaffClient() {
                   {processing ? 'Reassigning...' : 'Confirm Reassignment'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Coordinator Assignment Hub Modal ─────────────────────────────────── */}
+      {isCoordModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-sky-100 text-sky-700 rounded-lg">
+                  <GraduationCap className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-800">First Year Coordinator Management Hub</h3>
+                  <p className="text-xs text-slate-500">Appoint, track, and revoke time-bounded First Year Coordinator responsibilities</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCoordModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-6 flex-1">
+              {/* Actions Header */}
+              <div className="flex justify-between items-center bg-sky-50/70 p-4 rounded-lg border border-sky-100">
+                <div>
+                  <h4 className="text-sm font-bold text-sky-950">First Year Coordination Scope</h4>
+                  <p className="text-xs text-sky-800 mt-0.5">
+                    Coordinators oversee Semesters 1 & 2 across all institutional branches. Retains Faculty duties.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowNewCoordForm(!showNewCoordForm)}
+                  className="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
+                >
+                  {showNewCoordForm ? 'Cancel New Appointment' : '+ Appoint Coordinator'}
+                </button>
+              </div>
+
+              {/* New Appointment Form */}
+              {showNewCoordForm && (
+                <form onSubmit={handleCreateCoordAssignment} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">New Coordinator Appointment</h4>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                        Select Active Faculty Member *
+                      </label>
+                      <select
+                        required
+                        value={newCoordData.staff_account_id}
+                        onChange={(e) => setNewCoordData({ ...newCoordData, staff_account_id: e.target.value })}
+                        className="w-full text-xs border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-sky-500"
+                      >
+                        <option value="">-- Choose Faculty Member --</option>
+                        {staffList
+                          .filter(s => s.roles?.includes('faculty') && s.is_active)
+                          .map(s => (
+                            <option key={s.id} value={s.id}>
+                              {s.name} ({s.employee_id || 'ID: ' + s.id}) {s.branches?.length ? `— ${s.branches.join(', ')}` : ''}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                        Academic Year *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. 2024-2025"
+                        value={newCoordData.academic_year}
+                        onChange={(e) => setNewCoordData({ ...newCoordData, academic_year: e.target.value })}
+                        className="w-full text-xs border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-sky-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                        Start Date *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={newCoordData.start_date}
+                        onChange={(e) => setNewCoordData({ ...newCoordData, start_date: e.target.value })}
+                        className="w-full text-xs border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-sky-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                        End Date (Optional)
+                      </label>
+                      <input
+                        type="date"
+                        value={newCoordData.end_date}
+                        onChange={(e) => setNewCoordData({ ...newCoordData, end_date: e.target.value })}
+                        className="w-full text-xs border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-sky-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowNewCoordForm(false)}
+                      className="px-3 py-1.5 bg-white border border-slate-300 rounded text-xs font-medium text-slate-600 hover:bg-slate-50 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={coordActionLoading}
+                      className="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {coordActionLoading ? 'Saving...' : 'Confirm Appointment'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Assignment History & Active List */}
+              <div>
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Appointment History & Status</h4>
+                {loadingCoord ? (
+                  <div className="py-8 text-center text-xs text-slate-500">Loading coordinator assignments...</div>
+                ) : coordAssignments.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-slate-400 italic bg-slate-50 rounded-lg border border-slate-200">
+                    No First Year Coordinator assignments on record.
+                  </div>
+                ) : (
+                  <div className="border border-slate-200 rounded-lg overflow-hidden">
+                    <table className="w-full text-left text-xs text-slate-600">
+                      <thead className="bg-slate-50 text-slate-700 border-b border-slate-200 font-semibold">
+                        <tr>
+                          <th className="px-4 py-2.5">Faculty Member</th>
+                          <th className="px-4 py-2.5">Academic Year</th>
+                          <th className="px-4 py-2.5">Appointment Period</th>
+                          <th className="px-4 py-2.5">Status</th>
+                          <th className="px-4 py-2.5 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {coordAssignments.map(asgn => (
+                          <tr key={asgn.id} className="hover:bg-slate-50/70">
+                            <td className="px-4 py-3 font-medium text-slate-900">
+                              <div>{asgn.staff_name || 'Staff #' + asgn.staff_account_id}</div>
+                              <div className="text-[10px] text-slate-400">{asgn.employee_id || asgn.email}</div>
+                            </td>
+                            <td className="px-4 py-3 font-mono">{asgn.academic_year}</td>
+                            <td className="px-4 py-3">
+                              {asgn.start_date} to {asgn.end_date || 'Ongoing'}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                asgn.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                                asgn.status === 'SCHEDULED' ? 'bg-sky-100 text-sky-800 border border-sky-200' :
+                                asgn.status === 'REVOKED' ? 'bg-slate-100 text-slate-700 border border-slate-200' :
+                                'bg-amber-100 text-amber-800 border border-amber-200'
+                              }`}>
+                                {asgn.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {asgn.status === 'ACTIVE' && (
+                                <button
+                                  type="button"
+                                  disabled={coordActionLoading}
+                                  onClick={() => handleRevokeCoord(asgn.id)}
+                                  className="text-xs text-red-600 hover:text-red-800 font-medium cursor-pointer disabled:opacity-50"
+                                >
+                                  Revoke
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-slate-50 px-6 py-3 border-t border-slate-200 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsCoordModalOpen(false)}
+                className="px-4 py-2 bg-white border border-slate-300 rounded-md text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer shadow-xs"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

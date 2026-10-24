@@ -68,6 +68,14 @@ export const POST = wrapHandler({
       return apiError(`Forbidden: You do not have permission for branch ${student.branch}`, 403);
     }
 
+    const firstYearOnly = IDCardAuthorizationService.isFirstYearOnly(user);
+    if (firstYearOnly) {
+      const isFirstYear = await IDCardDataService.isStudentFirstYear(student.rollNo);
+      if (!isFirstYear) {
+        return apiError('Forbidden: First Year Coordinator can only update photos for first-year students', 403);
+      }
+    }
+
     try {
       const result = await IDCardDataService.updateStudentPhoto({
         rollNo,
@@ -77,6 +85,7 @@ export const POST = wrapHandler({
         updatedByStaffId: user.id || user.staffId,
         ip,
         userAgent,
+        firstYearOnly,
       });
 
       return apiResponse({

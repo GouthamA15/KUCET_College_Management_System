@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { branchTimetable, timetableInstances, syllabusSubjects } from '@/db/schema';
 import { eq, and, sql, or, inArray, ne } from 'drizzle-orm';
 import { z } from 'zod';
+import { isAcademicScopeAllowed } from '@/lib/academic-authorization';
 
 const entrySchema = z.object({
   day_of_week: z.enum(['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']),
@@ -15,23 +16,23 @@ const entrySchema = z.object({
 import { FacultyService } from '@/services/FacultyService';
 
 export const POST = wrapHandler({
-  auth: 'hod',
+  auth: ['hod', 'faculty'],
   handler: async (req, { user, context }) => {
     const params = await context.params;
-    if (!user || !user.is_hod) return apiError('Unauthorized', 403);
-    
-    const hodBranches = await FacultyService.getHodBranches(user.id);
-    if (hodBranches.length === 0) return apiError('Unauthorized', 403);
+    const isAuthorized = (user.role === 'faculty' && (user.is_hod || user.is_first_year_coordinator)) || user.role === 'admin';
+    if (!isAuthorized) return apiError('Unauthorized', 403);
     
     const instanceId = parseInt(params.id);
     const json = await req.json();
     const parsed = entrySchema.parse(json);
     
-    // Check if instance exists and belongs to user's branch
-    const [instance] = await db.select().from(timetableInstances).where(
-      and(eq(timetableInstances.id, instanceId), inArray(timetableInstances.branch, hodBranches))
-    );
+    // Check if instance exists and belongs to user's scope
+    const [instance] = await db.select().from(timetableInstances).where(eq(timetableInstances.id, instanceId));
     if (!instance) return apiError('Timetable instance not found', 404);
+
+    if (!isAcademicScopeAllowed(user, { branch: instance.branch, semester: instance.semester })) {
+      return apiError('Forbidden: Outside authorized scope', 403);
+    }
     
     const { day_of_week, period_number, subject_code, faculty_id, room_no } = parsed;
 
@@ -149,13 +150,11 @@ export const POST = wrapHandler({
 });
 
 export const DELETE = wrapHandler({
-  auth: 'hod',
+  auth: ['hod', 'faculty'],
   handler: async (req, { user, context }) => {
     const params = await context.params;
-    if (!user || !user.is_hod) return apiError('Unauthorized', 403);
-    
-    const hodBranches = await FacultyService.getHodBranches(user.id);
-    if (hodBranches.length === 0) return apiError('Unauthorized', 403);
+    const isAuthorized = (user.role === 'faculty' && (user.is_hod || user.is_first_year_coordinator)) || user.role === 'admin';
+    if (!isAuthorized) return apiError('Unauthorized', 403);
     
     const instanceId = parseInt(params.id);
     const { searchParams } = new URL(req.url);
@@ -163,11 +162,12 @@ export const DELETE = wrapHandler({
     
     if (!entryId) return apiError('entryId is required', 400);
     
-    // Check if instance exists and belongs to user's branch
-    const [instance] = await db.select().from(timetableInstances).where(
-      and(eq(timetableInstances.id, instanceId), inArray(timetableInstances.branch, hodBranches))
-    );
+    const [instance] = await db.select().from(timetableInstances).where(eq(timetableInstances.id, instanceId));
     if (!instance) return apiError('Timetable instance not found', 404);
+
+    if (!isAcademicScopeAllowed(user, { branch: instance.branch, semester: instance.semester })) {
+      return apiError('Forbidden: Outside authorized scope', 403);
+    }
 
     await db.delete(branchTimetable).where(and(
       eq(branchTimetable.id, parseInt(entryId)),

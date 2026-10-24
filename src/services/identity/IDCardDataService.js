@@ -1,9 +1,14 @@
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import QRCode from 'qrcode';
 import ExcelJS from 'exceljs';
+import sharp from 'sharp';
+import archiver from 'archiver';
 import logger from '@/lib/logger';
 import { getAssetUrl } from '@/lib/assets';
 import { getStorageProvider } from '@/lib/providers/storage/factory';
+import { getLocalStorageBasePath } from '@/lib/providers/storage/LocalStorageProvider';
 import { db } from '@/db';
 import { 
   students as studentsTable, 
@@ -20,6 +25,7 @@ import {
 } from '@/lib/rollNumber';
 import { decrypt } from '@/lib/encryption';
 import { getPermanentAddressFromDetails } from '@/lib/address-utils';
+import { calculateStudentYearAndSemester, getCurrentCalendarSession } from '@/lib/academic-utils';
 
 export const CANONICAL_BRANCHES = [
   { code: '09', name: 'CSE', fullName: 'Computer Science & Engineering' },
@@ -40,6 +46,29 @@ export class IDCardDataService {
     const norm = String(branchName).trim().toUpperCase();
     const entry = Object.entries(branchCodes).find(([, name]) => name.toUpperCase() === norm);
     return entry ? entry[0] : null;
+  }
+
+  /**
+   * Helper: Checks whether a student is currently in their First Year (Sem 1 / 2)
+   * using the authoritative academic calendar session.
+   */
+  static async isStudentFirstYear(rollNo, currentSession = null) {
+    if (!rollNo) return false;
+    let session = currentSession;
+    if (!session) {
+      session = await getCurrentCalendarSession().catch(() => null);
+    }
+    if (session && session.academicYear && session.semester) {
+      const calc = calculateStudentYearAndSemester(rollNo, session.academicYear, session.semester);
+      return calc.yearOfStudy === 1;
+    }
+    // Fallback if calendar session not configured in DB
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentAcademicYear = now.getMonth() >= 6 ? `${currentYear}-${String(currentYear + 1).slice(-2)}` : `${currentYear - 1}-${String(currentYear).slice(-2)}`;
+    const currentSemester = now.getMonth() >= 6 ? 1 : 2;
+    const calc = calculateStudentYearAndSemester(rollNo, currentAcademicYear, currentSemester);
+    return calc.yearOfStudy === 1;
   }
 
   /**
@@ -135,7 +164,9 @@ export class IDCardDataService {
    * Calculates dynamic statistics for each canonical academic branch.
    * All counts are derived directly from the authoritative database tables.
    */
-  static async getBranchSummaryStats({ allowedBranches = null, batch = null } = {}) {
+  static async getBranchSummaryStats({ allowedBranches = null, batch = null, firstYearOnly = false } = {}) {
+    const session = await getCurrentCalendarSession().catch(() => null);
+
     // 1. Fetch all active finalized student roll numbers and photo keys
     const rows = await db
       .select({
@@ -191,6 +222,10 @@ export class IDCardDataService {
         continue; // Excluded from caller scope
       }
 
+      if (firstYearOnly && !(await IDCardDataService.isStudentFirstYear(r.roll_no, session))) {
+        continue;
+      }
+
       const hasPhoto = r.pfp && String(r.pfp).trim() !== '';
 
       statsMap[br].totalEligible++;
@@ -226,7 +261,10 @@ export class IDCardDataService {
     page = 1,
     limit = 20,
     allowedBranches = null,
+    firstYearOnly = false,
   } = {}) {
+    const session = await getCurrentCalendarSession().catch(() => null);
+
     // 1. Departmental Scoping
     const allowedSet = Array.isArray(allowedBranches) && allowedBranches.length > 0
       ? new Set(allowedBranches.map((b) => String(b).toUpperCase().trim()))
@@ -328,6 +366,11 @@ export class IDCardDataService {
         }
       }
 
+      // First-year scope enforcement
+      if (firstYearOnly && !(await this.isStudentFirstYear(student.rollNo, session))) {
+        continue;
+      }
+
       seenRolls.add(student.rollNo);
       validStudents.push(student);
     }
@@ -342,7 +385,7 @@ export class IDCardDataService {
     const paginated = validStudents.slice(offset, offset + safeLimit);
 
     // 5. Dynamic Branch Stats
-    const summaryStats = await this.getBranchSummaryStats({ allowedBranches, batch });
+    const summaryStats = await this.getBranchSummaryStats({ allowedBranches, batch, firstYearOnly });
 
     return {
       students: paginated,
@@ -360,12 +403,16 @@ export class IDCardDataService {
   /**
    * Retrieves single student details for ID card preview or generation
    */
-  static async getStudentRecordByRollNo(rollNo) {
+  static async getStudentRecordByRollNo(rollNo, { firstYearOnly = false } = {}) {
     if (!rollNo) return null;
     const cleanRoll = String(rollNo).toUpperCase().trim();
 
     const validated = validateRollNo(cleanRoll);
     if (!validated.isValid) return null;
+
+    if (firstYearOnly && !(await this.isStudentFirstYear(cleanRoll))) {
+      return null;
+    }
 
     const rows = await db
       .select({
@@ -436,7 +483,7 @@ export class IDCardDataService {
   /**
    * Retrieves bulk student records for batch PDF generation directly from authoritative database
    */
-  static async getStudentsForBulk(rollNos, allowedBranches = null) {
+  static async getStudentsForBulk(rollNos, allowedBranches = null, { firstYearOnly = false } = {}) {
     if (!Array.isArray(rollNos) || rollNos.length === 0) return [];
 
     const cleanRolls = Array.from(
@@ -495,6 +542,7 @@ export class IDCardDataService {
       if (!student) continue;
 
       if (allowedSet && !allowedSet.has(student.branch)) continue;
+      if (firstYearOnly && !(await this.isStudentFirstYear(student.rollNo))) continue;
       matches.push(student);
     }
 
@@ -547,12 +595,15 @@ export class IDCardDataService {
     format = 'xlsx',
     allowedBranches = null,
     user = null,
+    firstYearOnly = false,
   }) {
     if (!branch) {
       throw new Error('Academic branch is required for ID card data export');
     }
 
     const normBranch = String(branch).toUpperCase().trim();
+    const isFirstYearRestricted = firstYearOnly || (user && user.is_first_year_coordinator);
+    const session = isFirstYearRestricted ? await getCurrentCalendarSession().catch(() => null) : null;
 
     // 1. Departmental Scoping Check
     if (normBranch !== 'ALL' && Array.isArray(allowedBranches) && allowedBranches.length > 0) {
@@ -632,6 +683,7 @@ export class IDCardDataService {
       if (allowedSet && !allowedSet.has(student.branch)) continue;
       if (normBranch !== 'ALL' && student.branch !== normBranch) continue;
       if (batch && batch !== 'ALL' && student.batch !== batch) continue;
+      if (isFirstYearRestricted && !(await this.isStudentFirstYear(student.rollNo, session))) continue;
 
       seenRolls.add(student.rollNo);
       eligibleStudents.push(student);
@@ -648,11 +700,69 @@ export class IDCardDataService {
     const cleanBranchLabel = normBranch === 'ALL' ? 'ALL_BRANCHES' : normBranch;
     const filenameBase = `KUCET_${cleanBranchLabel}_ID_CARD_DATA_${detectedBatch}`;
 
-    // 4. Generate Export File
-    const isCsv = String(format).toLowerCase() === 'csv';
+    // Helper: Robustly retrieves student photograph buffer from storage
+    const fetchStudentPhotoBuffer = async (photoKey) => {
+      if (!photoKey || typeof photoKey !== 'string') return null;
+      const clean = photoKey.trim();
+      if (clean === '' || clean === 'N/A' || clean === 'None') return null;
 
+      try {
+        if (clean.startsWith('data:')) {
+          const parts = clean.split(',');
+          if (parts[1]) return Buffer.from(parts[1], 'base64');
+        }
+
+        const cleanKey = clean
+          .replace(/^\/api\/assets\/view\//, '')
+          .replace(/^https?:\/\/[^/]+\/api\/assets\/view\//, '')
+          .replace(/^kucet\//, '')
+          .replace(/^\/+/, '');
+
+        const basePath = getLocalStorageBasePath();
+        const candidatePaths = [
+          path.join(basePath, 'kucet', cleanKey),
+          path.join(basePath, cleanKey),
+          path.join('/app/storage', 'kucet', cleanKey),
+          path.join('/app/storage', cleanKey),
+          path.join('/var/www/kucet-storage', 'kucet', cleanKey),
+          path.join('/var/www/kucet-storage', cleanKey),
+          path.join(process.cwd(), 'public', 'uploads', cleanKey),
+          path.join(process.cwd(), 'public', 'assets', cleanKey),
+          path.join('/tmp/kucet_photos_cache', cleanKey),
+          path.join('/tmp/kucet_thumbs', `${path.basename(cleanKey, path.extname(cleanKey))}.png`),
+        ];
+
+        for (const cand of candidatePaths) {
+          if (cand && fs.existsSync(/*turbopackIgnore: true*/ cand)) {
+            const stat = fs.statSync(/*turbopackIgnore: true*/ cand);
+            if (stat.isFile() && stat.size > 0) {
+              return await fs.promises.readFile(cand);
+            }
+          }
+        }
+
+        const remoteUrl = getAssetUrl(clean);
+        if (remoteUrl && (remoteUrl.startsWith('http://') || remoteUrl.startsWith('https://'))) {
+          const res = await fetch(remoteUrl, { signal: AbortSignal.timeout(6000) });
+          if (res.ok) {
+            const arr = await res.arrayBuffer();
+            return Buffer.from(arr);
+          }
+        }
+      } catch (err) {
+        logger.warn({ photoKey, err: err.message }, 'Failed to fetch student photo buffer for export');
+      }
+
+      return null;
+    };
+
+    const requestedFormat = String(format).toLowerCase();
+    const isCsv = requestedFormat === 'csv';
+    const isZip = requestedFormat === 'zip';
+
+    // 4. Generate Export File
     if (isCsv) {
-      // CSV Format
+      // CSV Format (Plain text data; RFC 4180 compliant)
       const headers = [
         'S.No',
         'Roll Number',
@@ -701,7 +811,102 @@ export class IDCardDataService {
       };
     }
 
-    // Excel (XLSX) Format using ExcelJS
+    // Retrieve and process photos with bounded concurrency (batches of 10)
+    const photoBuffers = new Map();
+    for (let i = 0; i < eligibleStudents.length; i += 10) {
+      const chunk = eligibleStudents.slice(i, i + 10);
+      await Promise.all(
+        chunk.map(async (st) => {
+          if (st.photoKey && st.photoStatus === 'AVAILABLE') {
+            try {
+              const rawBuf = await fetchStudentPhotoBuffer(st.photoKey);
+              if (rawBuf && rawBuf.length >= 12) {
+                const image = sharp(rawBuf).rotate();
+                const meta = await image.metadata();
+                const jpegBuf = await image.jpeg({ quality: 90, mozjpeg: true }).toBuffer();
+                photoBuffers.set(st.rollNo, {
+                  buffer: jpegBuf,
+                  width: meta.width || 600,
+                  height: meta.height || 800,
+                });
+              }
+            } catch (imgErr) {
+              logger.warn({ roll: st.rollNo, err: imgErr.message }, 'Failed to transcode student photo for export');
+            }
+          }
+        })
+      );
+    }
+
+    // ZIP Package: Companion archive containing CSV + Original high-res photographs organized by roll number
+    if (isZip) {
+      const csvHeaders = [
+        'S.No',
+        'Roll Number',
+        'Student Full Name',
+        'Academic Branch',
+        'Course',
+        'Academic Batch',
+        'Father Name',
+        'Emergency Contact Mobile',
+        'Permanent Address',
+        'Blood Group',
+        'Photo Status',
+        'Photo Image File',
+      ];
+
+      const csvEscape = (val) => {
+        if (val === null || val === undefined) return '""';
+        const str = String(val).replace(/"/g, '""');
+        return `"${str}"`;
+      };
+
+      const csvLines = [csvHeaders.map(csvEscape).join(',')];
+      eligibleStudents.forEach((st, idx) => {
+        const photoFile = photoBuffers.has(st.rollNo) ? `photographs/${st.rollNo}.jpg` : 'MISSING';
+        csvLines.push([
+          idx + 1,
+          csvEscape(st.rollNo),
+          csvEscape(st.studentName),
+          csvEscape(st.branch),
+          csvEscape(st.courseDisplay),
+          csvEscape(st.batch),
+          csvEscape(st.fatherName),
+          csvEscape(st.studentPhone),
+          csvEscape(st.studentAddress),
+          csvEscape(st.bloodGroup),
+          csvEscape(st.photoStatus),
+          csvEscape(photoFile),
+        ].join(','));
+      });
+
+      const csvContent = csvLines.join('\n');
+
+      const zipBuffer = await new Promise((resolve, reject) => {
+        const archive = archiver('zip', { zlib: { level: 6 } });
+        const chunks = [];
+        archive.on('data', (chunk) => chunks.push(chunk));
+        archive.on('end', () => resolve(Buffer.concat(chunks)));
+        archive.on('error', (err) => reject(err));
+
+        archive.append(csvContent, { name: `${filenameBase}.csv` });
+
+        for (const [rollNo, pInfo] of photoBuffers.entries()) {
+          archive.append(pInfo.buffer, { name: `photographs/${rollNo}.jpg` });
+        }
+
+        archive.finalize();
+      });
+
+      return {
+        buffer: zipBuffer,
+        filename: `${filenameBase}_PACKAGE.zip`,
+        contentType: 'application/zip',
+        count: eligibleStudents.length,
+      };
+    }
+
+    // Excel (XLSX) Format using ExcelJS with Embedded Photographs
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'KUCET College Management System';
     workbook.lastModifiedBy = user?.name || user?.email || 'KUCET Admissions Staff';
@@ -716,6 +921,7 @@ export class IDCardDataService {
       { header: 'S.No', key: 'sno', width: 8 },
       { header: 'Roll Number', key: 'roll_no', width: 16 },
       { header: 'Student Full Name', key: 'student_name', width: 28 },
+      { header: 'Student Photograph', key: 'photo', width: 16 },
       { header: 'Academic Branch', key: 'branch', width: 14 },
       { header: 'Course', key: 'course', width: 18 },
       { header: 'Academic Batch', key: 'batch', width: 16 },
@@ -750,12 +956,14 @@ export class IDCardDataService {
       };
     });
 
-    // Populate Data Rows
+    // Populate Data Rows with Actual Embedded Photographs
     eligibleStudents.forEach((st, idx) => {
+      const rowNum = idx + 2; // Row 1 is header
       const row = worksheet.addRow({
         sno: idx + 1,
         roll_no: st.rollNo,
         student_name: st.studentName,
+        photo: '', // placeholder for embedded drawing
         branch: st.branch,
         course: st.courseDisplay,
         batch: st.batch,
@@ -767,11 +975,11 @@ export class IDCardDataService {
         photo_key: st.photoKey || 'N/A',
       });
 
-      row.height = 22;
+      row.height = 72; // Practical height to clearly preview student photo
       row.eachCell((cell, colNumber) => {
         cell.alignment = {
           vertical: 'middle',
-          horizontal: [1, 2, 4, 6, 10, 11].includes(colNumber) ? 'center' : 'left',
+          horizontal: [1, 2, 4, 5, 7, 11, 12].includes(colNumber) ? 'center' : 'left',
         };
         cell.font = { size: 10, color: { argb: 'FF1E293B' } };
         cell.border = {
@@ -781,8 +989,13 @@ export class IDCardDataService {
           right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
         };
 
-        // Highlight photo status
-        if (colNumber === 11) {
+        // Text formatting for roll number
+        if (colNumber === 2) {
+          cell.font = { bold: true, size: 10, color: { argb: 'FF0F172A' } };
+        }
+
+        // Highlight photo status column (col 12)
+        if (colNumber === 12) {
           if (st.photoStatus === 'AVAILABLE') {
             cell.font = { color: { argb: 'FF15803D' }, bold: true, size: 10 }; // Green
           } else {
@@ -790,6 +1003,38 @@ export class IDCardDataService {
           }
         }
       });
+
+      // Embed Photograph into Column 4 (0-indexed col 3)
+      const photoInfo = photoBuffers.get(st.rollNo);
+      if (photoInfo && photoInfo.buffer) {
+        try {
+          const imageId = workbook.addImage({
+            buffer: photoInfo.buffer,
+            extension: 'jpeg',
+          });
+
+          const aspect = photoInfo.width / photoInfo.height;
+          const displayHeight = 64; // height in points
+          const displayWidth = Math.min(80, Math.max(36, Math.round(displayHeight * aspect)));
+
+          worksheet.addImage(imageId, {
+            tl: { col: 3.15, row: rowNum - 0.92 },
+            ext: { width: displayWidth, height: displayHeight },
+            editAs: 'oneCell',
+          });
+        } catch (embedErr) {
+          logger.warn({ roll: st.rollNo, err: embedErr.message }, 'Failed to attach image to worksheet row');
+          const photoCell = row.getCell('photo');
+          photoCell.value = 'PHOTO MISSING';
+          photoCell.font = { size: 8, bold: true, color: { argb: 'FFDC2626' } };
+          photoCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        }
+      } else {
+        const photoCell = row.getCell('photo');
+        photoCell.value = 'PHOTO MISSING';
+        photoCell.font = { size: 8, bold: true, color: { argb: 'FFDC2626' } };
+        photoCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      }
     });
 
     const excelBuffer = await workbook.xlsx.writeBuffer();
@@ -814,12 +1059,19 @@ export class IDCardDataService {
     updatedByStaffId = null,
     ip = '127.0.0.1',
     userAgent = 'System',
+    firstYearOnly = false,
   }) {
     if (!rollNo || !fileBuffer) {
       throw new Error('Roll number and image file buffer are required');
     }
 
     const cleanRoll = String(rollNo).toUpperCase().trim();
+    if (firstYearOnly && !(await this.isStudentFirstYear(cleanRoll))) {
+      const err = new Error(`Access Denied: Student with roll number ${cleanRoll} is not a first year student`);
+      err.statusCode = 403;
+      throw err;
+    }
+
     const student = await this.getStudentRecordByRollNo(cleanRoll);
     if (!student) {
       throw new Error(`Eligible finalized student with roll number ${cleanRoll} not found`);

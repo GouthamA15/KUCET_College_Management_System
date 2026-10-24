@@ -54,13 +54,21 @@ describe('InstitutionAssetService & Architecture', () => {
   });
 
   describe('3. Storage URL Resolution across Environments', () => {
-    it('should resolve local asset URLs via /assets/ path', () => {
+    it('should NEVER return a public URL for private assets like principal signature', () => {
       process.env.STORAGE_TYPE = 'local';
-      const url = InstitutionAssetService.getAssetUrl('principal/signature');
-      expect(url).toBe('/assets/principal-sign.png');
+      const sigUrl = InstitutionAssetService.getAssetUrl('principal/signature');
+      expect(sigUrl).toBe('');
+      const stampUrl = InstitutionAssetService.getAssetUrl('principal/signature-stamp');
+      expect(stampUrl).toBe('');
     });
 
-    it('should resolve Cloudinary institutional asset URLs directly', () => {
+    it('should resolve local public branding asset URLs via /assets/ path', () => {
+      process.env.STORAGE_TYPE = 'local';
+      const url = InstitutionAssetService.getAssetUrl('institution/seal');
+      expect(url).toBe('/assets/ku-college-seal.png');
+    });
+
+    it('should resolve Cloudinary institutional asset URLs directly for public assets', () => {
       process.env.STORAGE_TYPE = 'cloudinary';
       process.env.CLOUDINARY_CLOUD_NAME = 'test_cloud';
       const url = InstitutionAssetService.getAssetUrl('institution/seal');

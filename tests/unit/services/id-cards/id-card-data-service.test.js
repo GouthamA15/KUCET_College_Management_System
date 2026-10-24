@@ -302,6 +302,7 @@ describe('IDCardDataService Authoritative Eligibility & Branch Export Suite', ()
       'S.No',
       'Roll Number',
       'Student Full Name',
+      'Student Photograph',
       'Academic Branch',
       'Course',
       'Academic Batch',

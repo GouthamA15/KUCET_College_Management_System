@@ -61,7 +61,9 @@ refactor_*.js
 next-env.d.ts
 
 # scripts
-/scripts
+/scripts/*
+!/scripts/deployment/
+!/scripts/prepare-standalone.mjs
 /scratch
 
 # Playwright
@@ -94,3 +96,10 @@ ADMISSION-2026 EAPCET.xlsx.csv
 # Photo Guidance Raw Source Files
 Pasted image*.png
 ChatGPT Image*.png
+
+# Private Institutional Signatures & Credentials (MUST NEVER BE COMMITTED)
+public/assets/principal-sign*.png
+*principal-sign*.png
+public/assets/*signature*
+!public/assets/guidance/student-signature*
+

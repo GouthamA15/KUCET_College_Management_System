@@ -183,6 +183,13 @@
                         "when":  1790300000000,
                         "version":  "5",
                         "tag":  "0025_canonical_area_status"
+                    },
+                    {
+                        "idx":  26,
+                        "breakpoints":  true,
+                        "when":  1790400000000,
+                        "version":  "5",
+                        "tag":  "0026_faculty_coordinator_assignments"
                     }
                 ]
 }

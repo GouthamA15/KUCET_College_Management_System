@@ -4,26 +4,26 @@ import { timetableInstances, branchTimetable, syllabusSubjects, staffAccounts } 
 import { eq, and, sql, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { FacultyService } from '@/services/FacultyService';
+import { isAcademicScopeAllowed } from '@/lib/academic-authorization';
 
 const updateStatusSchema = z.object({
   status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED'])
 });
 
 export const GET = wrapHandler({
-  auth: 'hod',
+  auth: ['hod', 'faculty'],
   handler: async (req, { user, context }) => {
     const params = await context.params;
-    if (!user || !user.is_hod) return apiError('Unauthorized', 403);
-    
-    const hodBranches = await FacultyService.getHodBranches(user.id, user.role);
-    if (hodBranches.length === 0) return apiError('Unauthorized', 403);
+    const isAuthorized = (user.role === 'faculty' && (user.is_hod || user.is_first_year_coordinator)) || user.role === 'admin';
+    if (!isAuthorized) return apiError('Unauthorized', 403);
     
     const id = parseInt(params.id);
-    const [instance] = await db.select().from(timetableInstances).where(and(
-      eq(timetableInstances.id, id),
-      inArray(timetableInstances.branch, hodBranches)
-    ));
+    const [instance] = await db.select().from(timetableInstances).where(eq(timetableInstances.id, id));
     if (!instance) return apiError('Not found', 404);
+
+    if (!isAcademicScopeAllowed(user, { branch: instance.branch, semester: instance.semester })) {
+      return apiError('Forbidden: Outside authorized scope', 403);
+    }
     
     const entries = await db.select({
       id: branchTimetable.id,
@@ -49,24 +49,22 @@ export const GET = wrapHandler({
 });
 
 export const PUT = wrapHandler({
-  auth: 'hod',
+  auth: ['hod', 'faculty'],
   handler: async (req, { user, context }) => {
     const params = await context.params;
-    if (!user || !user.is_hod) return apiError('Unauthorized', 403);
-    
-    const hodBranches = await FacultyService.getHodBranches(user.id, user.role);
-    if (hodBranches.length === 0) return apiError('Unauthorized', 403);
+    const isAuthorized = (user.role === 'faculty' && (user.is_hod || user.is_first_year_coordinator)) || user.role === 'admin';
+    if (!isAuthorized) return apiError('Unauthorized', 403);
     
     const id = parseInt(params.id);
     const json = await req.json();
     const { status } = updateStatusSchema.parse(json);
     
-    // Validate HOD owns the instance
-    const [instance] = await db.select().from(timetableInstances).where(and(
-      eq(timetableInstances.id, id),
-      inArray(timetableInstances.branch, hodBranches)
-    ));
+    const [instance] = await db.select().from(timetableInstances).where(eq(timetableInstances.id, id));
     if (!instance) return apiError('Not found', 404);
+
+    if (!isAcademicScopeAllowed(user, { branch: instance.branch, semester: instance.semester })) {
+      return apiError('Forbidden: Outside authorized scope', 403);
+    }
 
     await db.update(timetableInstances)
       .set({ status, updated_by: user.id, updated_at: sql`NOW()`, published_at: status === 'PUBLISHED' ? sql`NOW()` : undefined })

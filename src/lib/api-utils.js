@@ -417,6 +417,41 @@ export async function getAuthUser(role = null) {
         } else {
           return null;
         }
+      } else if (expectedRole === 'first_year_coordinator') {
+        if (actualRole === 'admin') {
+          payload.is_first_year_coordinator = true;
+        } else if (actualRole === 'faculty') {
+          try {
+            const { facultyCoordinatorAssignments } = await import('@/db/schema');
+            if (db?.select && facultyCoordinatorAssignments) {
+              const todayStr = new Date().toISOString().split('T')[0];
+              const coordRows = await db.select()
+                .from(facultyCoordinatorAssignments)
+                .where(and(
+                  eq(facultyCoordinatorAssignments.staff_account_id, payload.id),
+                  eq(facultyCoordinatorAssignments.coordinator_type, 'FIRST_YEAR'),
+                  eq(facultyCoordinatorAssignments.is_active, true)
+                ));
+              const activeCoord = coordRows.find(c => {
+                if (c.start_date && todayStr < c.start_date) return false;
+                if (c.end_date && todayStr > c.end_date) return false;
+                return true;
+              });
+              if (activeCoord) {
+                payload.is_first_year_coordinator = true;
+                payload.first_year_coordinator_assignment = activeCoord;
+              } else {
+                return null;
+              }
+            } else if (!payload.is_first_year_coordinator) {
+              return null;
+            }
+          } catch (_e) {
+            if (!payload.is_first_year_coordinator) return null;
+          }
+        } else {
+          return null;
+        }
       } else {
         if (actualRole !== expectedRole) return null;
       }
@@ -482,6 +517,36 @@ export async function getAuthUser(role = null) {
               ? Array.from(new Set([...hodBranches, 'CSE', 'IT', 'CSD']))
               : hodBranches;
             payload.hod_department_code = hodBranches[0] || (hasPrincipal ? 'CSE' : payload.branch);
+          }
+        }
+      } catch (_e) {
+        // Non-fatal
+      }
+    }
+
+    // Attach First Year Coordinator context to staff payload if available
+    if (payload.role === 'faculty') {
+      try {
+        const { facultyCoordinatorAssignments } = await import('@/db/schema');
+        if (db?.select && facultyCoordinatorAssignments) {
+          const todayStr = new Date().toISOString().split('T')[0];
+          const coordRows = await db.select()
+            .from(facultyCoordinatorAssignments)
+            .where(and(
+              eq(facultyCoordinatorAssignments.staff_account_id, payload.id),
+              eq(facultyCoordinatorAssignments.coordinator_type, 'FIRST_YEAR'),
+              eq(facultyCoordinatorAssignments.is_active, true)
+            ));
+          const activeCoord = coordRows.find(c => {
+            if (c.start_date && todayStr < c.start_date) return false;
+            if (c.end_date && todayStr > c.end_date) return false;
+            return true;
+          });
+          if (activeCoord) {
+            payload.is_first_year_coordinator = true;
+            payload.first_year_coordinator_assignment = activeCoord;
+          } else {
+            payload.is_first_year_coordinator = false;
           }
         }
       } catch (_e) {
