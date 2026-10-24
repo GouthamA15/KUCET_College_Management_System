@@ -9,7 +9,7 @@ import { z } from 'zod';
 const createInstanceSchema = z.object({
   branch: z.string().trim().min(1, 'Branch is required').max(50),
   semester: z.preprocess((val) => (val !== undefined && val !== null ? Number(val) : undefined), z.number().int().min(1).max(8)),
-  academic_year: z.string().regex(/^\d{4}-\d{2}$/, 'Academic year must be in format YYYY-YY')
+  academic_year: z.string().regex(/^(\d{4}-\d{2}|\d{4}-\d{4})$/, 'Academic year must be in format YYYY-YY or YYYY-YYYY')
 });
 
 export const GET = wrapHandler({

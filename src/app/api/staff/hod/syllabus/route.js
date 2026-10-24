@@ -360,6 +360,21 @@ export async function POST(req) {
     // ─── EDIT_SUBJECT ───────────────────────────────────────────────────
     if (action === 'EDIT_SUBJECT') {
       const { subject_code, subject_name, subject_type } = validated.subject;
+      if (user.role !== 'admin' && !user.is_principal) {
+        const mappings = await db.select({ branch: syllabusStructure.branch, semester: syllabusStructure.semester })
+          .from(syllabusStructure)
+          .where(eq(syllabusStructure.subject_code, subject_code));
+        const groupMappings = await db.select({ branch: electiveGroups.branch, semester: electiveGroups.semester })
+          .from(electiveGroupSubjects)
+          .innerJoin(electiveGroups, eq(electiveGroupSubjects.group_id, electiveGroups.id))
+          .where(eq(electiveGroupSubjects.subject_code, subject_code));
+        
+        const allMappings = [...mappings, ...groupMappings];
+        const isAuthorizedForSubject = allMappings.some(m => isAcademicScopeAllowed(user, { branch: m.branch, semester: m.semester }));
+        if (allMappings.length > 0 && !isAuthorizedForSubject) {
+          return apiError('Forbidden - Subject outside your authorized academic scope', 403);
+        }
+      }
       await db.update(syllabusSubjects).set({ subject_name, subject_type }).where(eq(syllabusSubjects.subject_code, subject_code));
       return apiResponse({ success: true, message: 'Subject updated' });
     }

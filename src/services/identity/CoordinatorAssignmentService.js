@@ -378,10 +378,20 @@ export class CoordinatorAssignmentService {
   /**
    * Authoritatively computes assignment status.
    */
-  static computeStatus(row, todayStr = new Date().toISOString().split('T')[0]) {
+  static computeStatus(row, todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })) {
     if (!row.is_active) return 'REVOKED';
-    if (row.start_date && todayStr < row.start_date) return 'SCHEDULED';
-    if (row.end_date && todayStr > row.end_date) return 'EXPIRED';
+
+    const toDateStr = (val) => {
+      if (!val) return null;
+      if (val instanceof Date) return val.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      return String(val).split('T')[0];
+    };
+
+    const sStr = toDateStr(row.start_date);
+    const eStr = toDateStr(row.end_date);
+
+    if (sStr && todayStr < sStr) return 'SCHEDULED';
+    if (eStr && todayStr > eStr) return 'EXPIRED';
     if (row.staff_status && row.staff_status !== 'ACTIVE') return 'DISABLED';
     return 'ACTIVE';
   }
@@ -390,7 +400,7 @@ export class CoordinatorAssignmentService {
    * Retrieves all coordinator assignments with complete appointment history and resolved status.
    */
   static async getCoordinatorAssignments({ coordinatorType = 'FIRST_YEAR', includeInactive = true } = {}) {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
     const rows = await db
       .select({

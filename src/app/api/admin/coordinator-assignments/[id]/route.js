@@ -6,7 +6,7 @@ const updateAssignmentSchema = z.object({
   action: z.enum(['REVOKE', 'UPDATE_DATES', 'RENEW']),
   start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Start date must be in format YYYY-MM-DD').optional(),
   end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'End date must be in format YYYY-MM-DD').optional().nullable(),
-  academic_year: z.string().regex(/^\d{4}-\d{2}$/, 'Academic year must be in format YYYY-YY').optional(),
+  academic_year: z.string().regex(/^(\d{4}-\d{2}|\d{4}-\d{4})$/, 'Academic year must be in format YYYY-YY or YYYY-YYYY').optional(),
   reason: z.string().optional(),
 });
 

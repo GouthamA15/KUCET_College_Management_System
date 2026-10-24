@@ -71,6 +71,16 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
     menuItemsRaw.splice(insertIdx, 0, { label: 'ACADEMIC CALENDAR', route: '/staff/academic-calendar' });
   }
 
+  // Inject First Year Coordinator navigation if the user has an active coordinator assignment
+  if ((effectiveRole === 'faculty' || effectiveRole === 'staff') && staffData?.is_first_year_coordinator) {
+    const academicsIdx = menuItemsRaw.findIndex(i => i.label === 'ACADEMICS');
+    let insertIdx = academicsIdx > -1 ? academicsIdx + 1 : menuItemsRaw.length;
+    menuItemsRaw.splice(insertIdx, 0, {
+      label: 'FIRST YEAR COORDINATION',
+      route: '/staff/first-year/dashboard'
+    });
+  }
+
   // Filter student menu if unverified
   const rawTargetMenu = (effectiveRole === 'student' && !isStudentVerified)
     ? [

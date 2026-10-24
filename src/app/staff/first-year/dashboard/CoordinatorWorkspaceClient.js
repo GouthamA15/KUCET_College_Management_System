@@ -84,7 +84,7 @@ export default function CoordinatorWorkspaceClient() {
 
         if (idRes.status === 'fulfilled' && idRes.value.ok) {
           const json = await idRes.value.json();
-          if (isMounted) setIdCardStats(json.summary || null);
+          if (isMounted) setIdCardStats(json.stats || json.summary || null);
         }
       } catch (_e) {
         // Soft fail
@@ -100,6 +100,7 @@ export default function CoordinatorWorkspaceClient() {
 
   // Fetch Timetable when in timetable tab
   const fetchTimetable = useCallback(async () => {
+    setLoadingTimetable(true);
     try {
       const [ttRes, instRes] = await Promise.all([
         fetch(`/api/staff/hod/timetable?branch=${ttBranch}&semester=${ttSemester}`),
@@ -592,7 +593,7 @@ export default function CoordinatorWorkspaceClient() {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. 2024-2025"
+                      placeholder="e.g. 2025-26 or 2025-2026"
                       value={newInstanceYear}
                       onChange={e => setNewInstanceYear(e.target.value)}
                       className="w-full border border-slate-300 rounded px-3 py-2 text-xs"

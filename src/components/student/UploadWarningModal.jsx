@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
-import { AlertTriangle, Camera, PenTool, X } from 'lucide-react';
+import React from 'react';
+import { AlertTriangle, Camera, PenTool } from 'lucide-react';
+import { PhotoGuidanceModal } from '@/components/admission/StudentPhotoGuidance';
+import { SignatureGuidanceModal } from '@/components/admission/StudentSignatureGuidance';
 
 export const WARNING_CONFIG = {
   pfp: {
@@ -20,115 +22,85 @@ export const WARNING_CONFIG = {
   },
 };
 
+/**
+ * Reusable Institutional Record Warning Callout
+ * Preserves the official institutional warning requirements for profile edits.
+ */
+export function InstitutionalWarningNotice({ type = 'pfp' }) {
+  const config = WARNING_CONFIG[type] || WARNING_CONFIG.pfp;
+  return (
+    <div 
+      role="alert" 
+      className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-xl shadow-xs"
+    >
+      <div className="flex items-start gap-3">
+        <div className="shrink-0 mt-0.5">
+          <AlertTriangle className="w-5 h-5 text-amber-600" aria-hidden="true" />
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900 uppercase tracking-wide">
+            Official Institutional Record
+          </div>
+          <p 
+            id="upload-warning-desc"
+            className="text-xs sm:text-sm text-amber-900/90 mt-1 leading-relaxed"
+          >
+            {config.message}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Enhanced Student Profile Upload Warning Modal
+ * Bridges the student profile-edit page with the rich visual guidance
+ * from the admission system while retaining official institutional record notices.
+ */
 export default function UploadWarningModal({
   isOpen,
   type = 'pfp',
   onCancel,
   onContinue,
 }) {
-  const continueButtonRef = useRef(null);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    // Auto-focus the Continue button on open
-    const timer = setTimeout(() => {
-      continueButtonRef.current?.focus();
-    }, 50);
-
-    // Escape key listener
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onCancel?.();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen, onCancel]);
-
   if (!isOpen) return null;
 
-  const config = WARNING_CONFIG[type] || WARNING_CONFIG.pfp;
-  const { title, message, Icon, iconBg } = config;
+  if (type === 'signature') {
+    return (
+      <SignatureGuidanceModal
+        open={isOpen}
+        isOpen={isOpen}
+        onClose={onCancel}
+        onCancel={onCancel}
+        onSelectSignature={onContinue}
+        onContinue={onContinue}
+        title={WARNING_CONFIG.signature.title}
+        subtitle="Review acceptable vs. rejected signature guidelines before uploading"
+        warningNotice={<InstitutionalWarningNotice type="signature" />}
+        actionText="Choose Signature"
+        cancelText="Cancel"
+        ariaLabelledBy="upload-warning-title"
+        ariaDescribedBy="upload-warning-desc"
+      />
+    );
+  }
 
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn"
-      role="presentation"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onCancel?.();
-        }
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="upload-warning-title"
-        aria-describedby="upload-warning-desc"
-        className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 p-6 z-10 transition-all select-none"
-      >
-        {/* Close Button */}
-        <button
-          type="button"
-          onClick={onCancel}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors p-1.5 rounded-lg hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300"
-          aria-label="Cancel and close dialog"
-        >
-          <X size={18} />
-        </button>
-
-        {/* Header with Icon */}
-        <div className="flex items-start gap-4">
-          <div className={`p-3 rounded-xl border shrink-0 ${iconBg}`}>
-            <Icon size={24} />
-          </div>
-          <div className="flex-1 pr-4">
-            <h3
-              id="upload-warning-title"
-              className="text-base sm:text-lg font-bold text-[#0b2447] leading-snug"
-            >
-              {title}
-            </h3>
-            <div className="flex items-center gap-1.5 mt-1 text-[11px] font-semibold text-amber-700 bg-amber-50/80 px-2 py-0.5 rounded border border-amber-200/60 w-fit">
-              <AlertTriangle size={12} className="shrink-0 text-amber-600" />
-              <span>Official Institutional Record</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Body Message */}
-        <p
-          id="upload-warning-desc"
-          className="text-xs sm:text-sm text-slate-600 leading-relaxed mt-4 mb-6"
-        >
-          {message}
-        </p>
-
-        {/* Action Buttons */}
-        <div className="flex flex-col-reverse sm:flex-row items-center gap-2.5">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="w-full sm:flex-1 px-4 py-2.5 rounded-lg border border-slate-300 text-slate-700 font-semibold text-xs sm:text-sm hover:bg-slate-50 active:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-300"
-          >
-            Cancel
-          </button>
-          <button
-            ref={continueButtonRef}
-            type="button"
-            onClick={onContinue}
-            className="w-full sm:flex-1 px-4 py-2.5 rounded-lg bg-[#0b3578] text-white font-semibold text-xs sm:text-sm hover:bg-[#0a2d66] active:bg-[#092554] transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0b3578]/50"
-          >
-            Continue
-          </button>
-        </div>
-      </div>
-    </div>
+    <PhotoGuidanceModal
+      open={isOpen}
+      isOpen={isOpen}
+      onClose={onCancel}
+      onCancel={onCancel}
+      onSelectPhoto={onContinue}
+      onContinue={onContinue}
+      title={WARNING_CONFIG.pfp.title}
+      subtitle="Review acceptable vs. rejected photo guidelines before uploading"
+      warningNotice={<InstitutionalWarningNotice type="pfp" />}
+      actionText="Choose Photo"
+      cancelText="Cancel"
+      ariaLabelledBy="upload-warning-title"
+      ariaDescribedBy="upload-warning-desc"
+    />
   );
 }

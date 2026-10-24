@@ -548,6 +548,9 @@ export async function PUT(req, context) {
           if (existingCoord.length === 0) {
             const startD = coordinator_start_date || todayStr;
             const endD = coordinator_end_date || null;
+            if (endD && startD && endD < startD) {
+              throw new Error('End date cannot be earlier than start date');
+            }
             await tx.insert(facultyCoordinatorAssignments).values({
               staff_account_id: idNum,
               coordinator_type: 'FIRST_YEAR',
@@ -568,9 +571,14 @@ export async function PUT(req, context) {
               user_agent: req.headers.get('user-agent') || 'system'
             });
           } else if (coordinator_start_date || coordinator_end_date !== undefined) {
+            const startD = coordinator_start_date || existingCoord[0].start_date;
+            const endD = coordinator_end_date !== undefined ? coordinator_end_date : existingCoord[0].end_date;
+            if (endD && startD && endD < startD) {
+              throw new Error('End date cannot be earlier than start date');
+            }
             await tx.update(facultyCoordinatorAssignments).set({
-              start_date: coordinator_start_date || existingCoord[0].start_date,
-              end_date: coordinator_end_date !== undefined ? coordinator_end_date : existingCoord[0].end_date,
+              start_date: startD,
+              end_date: endD,
             }).where(eq(facultyCoordinatorAssignments.id, existingCoord[0].id));
           }
         } else if (is_first_year_coordinator === false && existingCoord.length > 0) {
