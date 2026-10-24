@@ -113,7 +113,7 @@ export class CoordinatorAssignmentService {
       }
 
       // 4. Insert assignment record
-      const [insertResult] = await tx.insert(facultyCoordinatorAssignments).values({
+      const insertResult = await tx.insert(facultyCoordinatorAssignments).values({
         staff_account_id: staff.id,
         coordinator_type: coordinatorType,
         academic_year: academicYear,
@@ -123,7 +123,16 @@ export class CoordinatorAssignmentService {
         assigned_by: assignedBy ? Number(assignedBy) : null,
       });
 
-      const newAssignmentId = insertResult?.insertId || insertResult?.id || 1;
+      const header = Array.isArray(insertResult) ? insertResult[0] : insertResult;
+      const newAssignmentId = header?.insertId ? Number(header.insertId) : null;
+
+      if (!newAssignmentId) {
+        const err = new Error(
+          'Failed to create coordinator assignment: database did not return a valid inserted assignment ID'
+        );
+        err.status = 500;
+        throw err;
+      }
 
       // 5. Audit Log
       await tx.insert(auditLogs).values({

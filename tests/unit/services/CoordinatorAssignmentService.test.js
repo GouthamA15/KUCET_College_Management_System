@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CoordinatorAssignmentService } from '@/services/identity/CoordinatorAssignmentService';
 import { staffAccounts } from '@/db/schema';
+import { db } from '@/db';
 
 // Mock DB
 let mockStaff = [];
@@ -51,9 +52,18 @@ vi.mock('@/db', () => ({
         },
         insert: vi.fn(() => ({
           values: vi.fn((vals) => {
-            const row = { id: mockAssignments.length + 1, insertId: mockAssignments.length + 1, ...vals };
-            mockAssignments.push(row);
-            return [row];
+            const newId = mockAssignments.length + 1;
+            mockAssignments.push({ id: newId, ...vals });
+            // Genuine mysql2 / TiDB ResultSetHeader structure
+            return [{
+              fieldCount: 0,
+              affectedRows: 1,
+              insertId: newId,
+              info: '',
+              serverStatus: 2,
+              warningStatus: 0,
+              changedRows: 0,
+            }];
           })
         })),
         update: vi.fn(() => ({
@@ -128,6 +138,43 @@ describe('CoordinatorAssignmentService', () => {
         startDate: '2024-07-01',
         assignedBy: 1
       })).rejects.toThrow(/Cannot assign coordinator role to an inactive/);
+    });
+
+    it('fails the transaction when database does not return a valid inserted assignment ID', async () => {
+      db.transaction.mockImplementationOnce(async (cb) => {
+        const tx = {
+          select: vi.fn(() => ({
+            from: vi.fn((table) => ({
+              where: vi.fn(() => {
+                if (table === staffAccounts) {
+                  const res = [...mockStaff];
+                  res.limit = vi.fn(() => mockStaff);
+                  return res;
+                }
+                const res = [];
+                res.limit = vi.fn(() => res);
+                return res;
+              }),
+              innerJoin: vi.fn(() => ({
+                where: vi.fn(() => [{ role_code: 'FACULTY' }])
+              })),
+              limit: vi.fn(() => mockStaff)
+            }))
+          })),
+          insert: vi.fn(() => ({
+            values: vi.fn(() => [{ affectedRows: 0, insertId: 0 }])
+          }))
+        };
+        return await cb(tx);
+      });
+
+      await expect(CoordinatorAssignmentService.assignCoordinator({
+        staffAccountId: 10,
+        coordinatorType: 'FIRST_YEAR',
+        academicYear: '2024-25',
+        startDate: '2024-07-01',
+        assignedBy: 1
+      })).rejects.toThrow(/database did not return a valid inserted assignment ID/);
     });
   });
 

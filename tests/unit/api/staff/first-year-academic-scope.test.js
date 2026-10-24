@@ -63,6 +63,11 @@ describe('First Year Coordinator Academic Scope Authorization', () => {
         assertAcademicScope(coordinatorUser, { branch: 'CSE', semester: 3 });
       }).toThrow(/Forbidden/);
     });
+
+    it('denies coordinator for unconfigured or unknown branches', () => {
+      expect(isAcademicScopeAllowed(coordinatorUser, { branch: 'UNKNOWN_BRANCH', semester: 1 })).toBe(false);
+      expect(isAcademicScopeAllowed(coordinatorUser, { branch: 'INVALID_DEPT', semester: 2 })).toBe(false);
+    });
   });
 
   describe('HOD Regression Protection (Semesters 1–8 in Department)', () => {

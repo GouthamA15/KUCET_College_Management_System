@@ -72,9 +72,12 @@ export function getAllowedAcademicSemesters(user, targetBranch = null) {
     return [1, 2, 3, 4, 5, 6, 7, 8];
   }
 
-  // First Year Coordinator is strictly restricted to semesters 1 and 2
+  // First Year Coordinator is strictly restricted to semesters 1 and 2 across configured branches
   if (user.is_first_year_coordinator) {
-    return [1, 2];
+    const isConfiguredBranch = !normBranch || INSTITUTIONAL_BRANCHES.includes(normBranch);
+    if (isConfiguredBranch) {
+      return [1, 2];
+    }
   }
 
   return [];
@@ -108,8 +111,9 @@ export function isAcademicScopeAllowed(user, { branch, semester }) {
 
   // 3. Check First Year Coordinator authority
   if (user.is_first_year_coordinator) {
-    if (semInt === 1 || semInt === 2) {
-      return true; // Allowed for all recognized branches, semesters 1 & 2
+    const isConfiguredBranch = !normBranch || INSTITUTIONAL_BRANCHES.includes(normBranch);
+    if (isConfiguredBranch && (semInt === 1 || semInt === 2)) {
+      return true; // Allowed for all configured institutional branches, semesters 1 & 2
     }
   }
 
