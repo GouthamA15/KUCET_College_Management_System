@@ -191,6 +191,102 @@ describe('Admin Authentication & Routing Audit', () => {
       const staffAuthCookie = cookies.find((c) => c.startsWith('staff_auth='));
       expect(staffAuthCookie).toBeDefined();
     });
+
+    it('should authenticate Faculty with active First Year Coordinator assignment and set is_first_year_coordinator in JWT', async () => {
+      const hashedPassword = await bcrypt.hash('FacultyPassword123!', 10);
+      const staffRecord = {
+        id: 201,
+        email: 'coord@kucet.ac.in',
+        role: 'faculty',
+        password_hash: hashedPassword,
+        account_status: 'ACTIVE',
+        is_hod: false,
+        branch: 'CSE',
+      };
+
+      // 1. Admin select returns empty
+      db.select.mockReturnValueOnce({
+        from: vi.fn().mockReturnValueOnce({
+          where: vi.fn().mockReturnValueOnce({
+            limit: vi.fn().mockResolvedValueOnce([]),
+          }),
+        }),
+      });
+
+      // 2. Staff query returns staffRecord
+      db.select.mockReturnValueOnce({
+        from: vi.fn().mockReturnValueOnce({
+          where: vi.fn().mockReturnValueOnce({
+            limit: vi.fn().mockResolvedValueOnce([staffRecord]),
+          }),
+        }),
+      });
+
+      // 3. Role query returns FACULTY
+      const roleResult = [{ role_code: 'FACULTY' }];
+      db.select.mockReturnValueOnce({
+        from: vi.fn().mockReturnValueOnce({
+          innerJoin: vi.fn().mockReturnValueOnce({
+            where: vi.fn().mockResolvedValueOnce(roleResult)
+          }),
+        }),
+      });
+
+      // 4. Academic affiliation query returns CSE
+      db.select.mockReturnValueOnce({
+        from: vi.fn().mockReturnValueOnce({
+          innerJoin: vi.fn().mockReturnValueOnce({
+            where: vi.fn().mockReturnValueOnce({
+              limit: vi.fn().mockResolvedValueOnce([{ branch_code: 'CSE' }])
+            })
+          }),
+        }),
+      });
+
+      // 5. HOD assignments query returns empty
+      db.select.mockReturnValueOnce({
+        from: vi.fn().mockReturnValueOnce({
+          where: vi.fn().mockReturnValueOnce({
+            limit: vi.fn().mockResolvedValueOnce([])
+          }),
+        }),
+      });
+
+      // 6. Coordinator assignments query returns active FIRST_YEAR assignment
+      const todayStr = new Date().toISOString().split('T')[0];
+      db.select.mockReturnValueOnce({
+        from: vi.fn().mockReturnValueOnce({
+          where: vi.fn().mockResolvedValueOnce([
+            {
+              id: 1,
+              start_date: todayStr,
+              end_date: null,
+            }
+          ]),
+        }),
+      });
+
+      const req = makeMockRequest({
+        email: 'coord@kucet.ac.in',
+        password: 'FacultyPassword123!',
+        rememberMe: false,
+      });
+
+      const res = await employeeLoginPOST(req);
+      expect(res.status).toBe(200);
+
+      const cookies = res.headers.getSetCookie();
+      const staffAuthCookie = cookies.find((c) => c.startsWith('staff_auth='));
+      expect(staffAuthCookie).toBeDefined();
+
+      const tokenValue = staffAuthCookie.split('staff_auth=')[1].split(';')[0];
+      const { jwtVerify } = await import('jose');
+      const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long');
+      const { payload } = await jwtVerify(tokenValue, secret);
+
+      expect(payload.role).toBe('faculty');
+      expect(payload.is_first_year_coordinator).toBe(true);
+    });
   });
 
   describe('/api/admin/login Direct Endpoint', () => {

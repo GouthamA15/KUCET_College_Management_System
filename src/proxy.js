@@ -200,10 +200,16 @@ export default async function proxy(request) {
     (isAdminPath || (isHomePath && cookies.get('admin_logged_in')));
 
   const needsStaffRefresh =
-    !staffPayload &&
-    (staffRes.expired || !staffAuth) &&
-    (cookies.get('staff_refresh_token') || cookies.get('staff_logged_in')) &&
-    (isStaffPath || (isHomePath && cookies.get('staff_logged_in')));
+    (!staffPayload &&
+      (staffRes.expired || !staffAuth) &&
+      (cookies.get('staff_refresh_token') || cookies.get('staff_logged_in')) &&
+      (isStaffPath || (isHomePath && cookies.get('staff_logged_in')))) ||
+    (staffPayload &&
+      staffPayload.role === 'faculty' &&
+      !staffPayload.is_first_year_coordinator &&
+      !staffPayload.is_principal &&
+      pathname.startsWith('/staff/first-year') &&
+      (cookies.get('staff_refresh_token') || cookies.get('staff_logged_in')));
 
   const needsStudentRefresh =
     !studentPayload &&
