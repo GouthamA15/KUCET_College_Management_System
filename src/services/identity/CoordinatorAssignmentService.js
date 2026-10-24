@@ -469,7 +469,7 @@ export class CoordinatorAssignmentService {
    */
   static async getActiveCoordinatorForStaff(staffAccountId, coordinatorType = 'FIRST_YEAR') {
     if (!staffAccountId) return null;
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
     const rows = await db
       .select()
@@ -483,9 +483,17 @@ export class CoordinatorAssignmentService {
       )
       .limit(5);
 
+    const toDateStr = (val) => {
+      if (!val) return null;
+      if (val instanceof Date) return val.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      return String(val).split('T')[0];
+    };
+
     const activeRow = rows.find((r) => {
-      if (r.start_date && todayStr < r.start_date) return false;
-      if (r.end_date && todayStr > r.end_date) return false;
+      const sStr = toDateStr(r.start_date);
+      const eStr = toDateStr(r.end_date);
+      if (sStr && todayStr < sStr) return false;
+      if (eStr && todayStr > eStr) return false;
       return true;
     });
 

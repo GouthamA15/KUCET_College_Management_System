@@ -374,7 +374,7 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
           }
 
           if (facultyCoordinatorAssignments) {
-            const todayStr = new Date().toISOString().split('T')[0];
+            const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
             const coordRows = await db.select({ 
               id: facultyCoordinatorAssignments.id,
               start_date: facultyCoordinatorAssignments.start_date,
@@ -387,9 +387,17 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
               eq(facultyCoordinatorAssignments.is_active, true)
             ));
 
+            const toDateStr = (val) => {
+              if (!val) return null;
+              if (val instanceof Date) return val.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+              return String(val).split('T')[0];
+            };
+
             isCoordinator = coordRows.some(c => {
-              if (c.start_date && todayStr < c.start_date) return false;
-              if (c.end_date && todayStr > c.end_date) return false;
+              const sStr = toDateStr(c.start_date);
+              const eStr = toDateStr(c.end_date);
+              if (sStr && todayStr < sStr) return false;
+              if (eStr && todayStr > eStr) return false;
               return true;
             });
           }

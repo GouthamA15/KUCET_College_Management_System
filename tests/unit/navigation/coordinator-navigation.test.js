@@ -259,4 +259,110 @@ describe('First Year Coordinator Navigation, Route Guards & Authorization Suite'
       assertAcademicScope(coordinatorUser, { branch: 'CSE', semester: 4 });
     }).toThrow(/Forbidden/);
   });
+
+  it('9. CoordinatorAssignmentService date comparison handles Date objects, strings, and IST timezone', async () => {
+    const { CoordinatorAssignmentService } = await import('@/services/identity/CoordinatorAssignmentService');
+    const { db } = await import('@/db');
+
+    const pastDate = new Date('2026-10-20T00:00:00.000Z');
+    const futureDate = new Date('2026-10-30T00:00:00.000Z');
+
+    // Case A: Active assignment with Date object start_date
+    vi.spyOn(db, 'select').mockReturnValueOnce({
+      from: vi.fn().mockReturnValueOnce({
+        where: vi.fn().mockReturnValueOnce({
+          limit: vi.fn().mockResolvedValueOnce([
+            { id: 1, staff_account_id: 201, start_date: pastDate, end_date: null, is_active: true }
+          ])
+        })
+      })
+    });
+    const activeResult = await CoordinatorAssignmentService.getActiveCoordinatorForStaff(201, 'FIRST_YEAR');
+    expect(activeResult).not.toBeNull();
+    expect(activeResult.id).toBe(1);
+
+    // Case B: Expired assignment with Date object end_date in the past
+    vi.spyOn(db, 'select').mockReturnValueOnce({
+      from: vi.fn().mockReturnValueOnce({
+        where: vi.fn().mockReturnValueOnce({
+          limit: vi.fn().mockResolvedValueOnce([
+            { id: 2, staff_account_id: 202, start_date: pastDate, end_date: pastDate, is_active: true }
+          ])
+        })
+      })
+    });
+    const expiredResult = await CoordinatorAssignmentService.getActiveCoordinatorForStaff(202, 'FIRST_YEAR');
+    expect(expiredResult).toBeNull();
+
+    // Case C: Future assignment with Date object start_date in the future
+    vi.spyOn(db, 'select').mockReturnValueOnce({
+      from: vi.fn().mockReturnValueOnce({
+        where: vi.fn().mockReturnValueOnce({
+          limit: vi.fn().mockResolvedValueOnce([
+            { id: 3, staff_account_id: 203, start_date: futureDate, end_date: null, is_active: true }
+          ])
+        })
+      })
+    });
+    const futureResult = await CoordinatorAssignmentService.getActiveCoordinatorForStaff(203, 'FIRST_YEAR');
+    expect(futureResult).toBeNull();
+  });
+
+  it('10. Expired or unassigned faculty fails closed on silent refresh without redirect loops', async () => {
+    const staleFacultyToken = await new SignJWT({
+      id: 204,
+      email: 'expiredcoord@kucet.ac.in',
+      role: 'faculty',
+      is_first_year_coordinator: false,
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime('15m')
+      .sign(secretKey);
+
+    // Refreshed token STILL has is_first_year_coordinator: false because assignment expired
+    const nonCoordRefreshedToken = await new SignJWT({
+      id: 204,
+      email: 'expiredcoord@kucet.ac.in',
+      role: 'faculty',
+      is_first_year_coordinator: false,
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime('15m')
+      .sign(secretKey);
+
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn().mockImplementation(async (url) => {
+      if (url.toString().includes('/api/auth/refresh')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: {
+            getSetCookie: () => [
+              `staff_auth=${nonCoordRefreshedToken}; Path=/; HttpOnly; SameSite=Lax`,
+            ],
+            get: (h) => (h === 'set-cookie' ? `staff_auth=${nonCoordRefreshedToken}; Path=/; HttpOnly; SameSite=Lax` : null),
+          },
+          json: async () => ({ success: true, message: 'Token refreshed' }),
+        };
+      }
+      return originalFetch(url);
+    });
+
+    try {
+      const req = createMockRequest({
+        pathname: '/staff/first-year/dashboard',
+        cookies: {
+          staff_auth: staleFacultyToken,
+          staff_refresh_token: 'valid_refresh_token_string',
+        },
+      });
+
+      const res = await proxy(req);
+      // Fails closed by redirecting non-coordinator to faculty dashboard
+      expect(res.status).toBe(303);
+      expect(res.headers.get('location')).toBe('http://localhost:3000/staff/faculty/dashboard');
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
 });
