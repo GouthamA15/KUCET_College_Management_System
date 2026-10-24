@@ -28,7 +28,10 @@ export const GET = wrapHandler({
 
     return apiResponse({
       success: true,
-      student,
+      student: {
+        ...student,
+        signatureVerified: true,
+      },
     });
   },
 });

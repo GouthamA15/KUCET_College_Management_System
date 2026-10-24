@@ -1,4 +1,4 @@
-import { resolveInstitutionalFilename } from '@/lib/institution-assets';
+import { resolveInstitutionalFilename, isPrivateInstitutionalAsset } from '@/lib/institution-assets';
 
 /**
  * ============================================================
@@ -119,11 +119,16 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto', options = {
   // Guard: reject serialization corruption
   if (path.includes('[object') || path.includes('undefined')) return '';
 
+  // Security guard: private institutional assets (e.g. principal signature) must never have public URLs
+  if (isPrivateInstitutionalAsset(path)) return '';
+
   // 1. Normalize and clean the path
   let cleanPath = path;
   if (cleanPath.startsWith('data:')) {
     return cleanPath;
   }
+
+  if (isPrivateInstitutionalAsset(cleanPath)) return '';
 
   // Handle full external URLs or Cloudinary CDN URLs
   if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {

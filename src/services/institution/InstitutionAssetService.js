@@ -13,11 +13,10 @@ export const INSTITUTION_ASSET_REGISTRY = {
     filename: 'principal-sign.png',
     category: 'principal',
     mimeType: 'image/png',
+    isPrivate: true,
     description: 'Primary digital signature of Principal',
     aliases: [
       'principal-sign.png',
-      '/assets/principal-sign.png',
-      'assets/principal-sign.png',
       'principal-signature',
       'principal/signature'
     ]
@@ -27,14 +26,11 @@ export const INSTITUTION_ASSET_REGISTRY = {
     filename: 'principal-signStamp.png',
     category: 'principal',
     mimeType: 'image/png',
+    isPrivate: true,
     description: 'Principal digital signature with official seal/stamp',
     aliases: [
       'principal-signStamp.png',
       'principal-sign-stamp.png',
-      '/assets/principal-signStamp.png',
-      '/assets/principal-sign-stamp.png',
-      'assets/principal-signStamp.png',
-      'assets/principal-sign-stamp.png',
       'principal/signature-stamp'
     ]
   },
@@ -43,11 +39,10 @@ export const INSTITUTION_ASSET_REGISTRY = {
     filename: 'principal-sign-black.png',
     category: 'principal',
     mimeType: 'image/png',
+    isPrivate: true,
     description: 'Monochrome digital signature of Principal',
     aliases: [
       'principal-sign-black.png',
-      '/assets/principal-sign-black.png',
-      'assets/principal-sign-black.png',
       'principal/signature-black'
     ]
   },
@@ -56,11 +51,10 @@ export const INSTITUTION_ASSET_REGISTRY = {
     filename: 'principal-sign3.png',
     category: 'principal',
     mimeType: 'image/png',
+    isPrivate: true,
     description: 'Alternative signature variant 3',
     aliases: [
       'principal-sign3.png',
-      '/assets/principal-sign3.png',
-      'assets/principal-sign3.png',
       'principal/signature-v3'
     ]
   },
@@ -69,11 +63,10 @@ export const INSTITUTION_ASSET_REGISTRY = {
     filename: 'principal-sign4.png',
     category: 'principal',
     mimeType: 'image/png',
+    isPrivate: true,
     description: 'Alternative signature variant 4',
     aliases: [
       'principal-sign4.png',
-      '/assets/principal-sign4.png',
-      'assets/principal-sign4.png',
       'principal/signature-v4'
     ]
   },
@@ -229,6 +222,7 @@ export class InstitutionAssetService {
       clean.startsWith('assets') ||
       clean.startsWith('institution') ||
       clean.includes('institution/') ||
+      clean.includes('private') ||
       clean.includes('principal-sign') ||
       clean.includes('ku-college-seal') ||
       clean.includes('principal_ku_qr')
@@ -241,14 +235,23 @@ export class InstitutionAssetService {
 
   /**
    * Returns the asset URL for a given logical key or filename based on deployment storage settings.
+   * Private assets (e.g. principal signatures) return empty string as they have NO public URL.
    * @param {string} keyOrAlias 
    * @param {Object} options 
    * @returns {string}
    */
   static getAssetUrl(keyOrAlias, options = {}) {
     const asset = this.resolveAsset(keyOrAlias);
+    if (asset && asset.isPrivate) {
+      return '';
+    }
+
     const filename = asset ? asset.filename : (typeof keyOrAlias === 'string' ? path.basename(keyOrAlias) : '');
     if (!filename) return '';
+
+    if (filename.toLowerCase().includes('principal-sign')) {
+      return '';
+    }
 
     const storageType = (
       process.env.NEXT_PUBLIC_STORAGE_TYPE ||
@@ -282,6 +285,7 @@ export class InstitutionAssetService {
 
   /**
    * Reads asset as Buffer (server-side). Tries local repository files and VPS disk storage.
+   * Private assets are strictly restricted to persistent private storage paths.
    * Caches in memory for fast performance.
    * @param {string} keyOrAlias 
    * @returns {Promise<Buffer|null>}
@@ -299,27 +303,46 @@ export class InstitutionAssetService {
     const cwd = process.cwd();
     const localBasePath = getLocalStorageBasePath();
 
-    // Candidate Local File Paths (supporting standard Next.js & Render standalone .next/standalone layouts)
-    const localCandidatePaths = [
-      path.join(cwd, 'public', 'assets', filename),
-      path.join(cwd, 'public', filename),
-      path.resolve(cwd, '..', 'public', 'assets', filename),
-      path.resolve(cwd, '..', 'public', filename),
-      path.resolve(cwd, '..', '..', 'public', 'assets', filename),
-      path.resolve(cwd, '..', '..', 'public', filename),
-      path.join(localBasePath, filename),
-      path.join(localBasePath, 'kucet', filename),
-      path.join(localBasePath, 'assets', filename),
-      path.join(localBasePath, 'institution', filename),
-      path.join(localBasePath, 'certificates', filename),
-      path.join(localBasePath, 'kucet', 'certificates', filename)
-    ];
+    let localCandidatePaths = [];
+
+    if (asset && asset.isPrivate) {
+      // Sensitive private institutional assets: ONLY search private persistent storage paths outside public root
+      localCandidatePaths = [
+        path.join(localBasePath, 'kucet', 'institution', 'private', filename),
+        path.join(localBasePath, 'institution', 'private', filename),
+        path.join(localBasePath, 'private', filename),
+        path.join(localBasePath, 'kucet', filename),
+        path.join(localBasePath, filename),
+        path.join('/app/storage', 'kucet', 'institution', 'private', filename),
+        path.join('/app/storage', 'institution', 'private', filename),
+        path.join('/app/storage', 'kucet', filename),
+        path.join('/app/storage', filename),
+        path.join('/var/www/kucet-storage', 'kucet', 'institution', 'private', filename),
+        path.join('/var/www/kucet-storage', 'kucet', filename),
+      ];
+    } else {
+      // Public / branding assets
+      localCandidatePaths = [
+        path.join(cwd, 'public', 'assets', filename),
+        path.join(cwd, 'public', filename),
+        path.resolve(cwd, '..', 'public', 'assets', filename),
+        path.resolve(cwd, '..', 'public', filename),
+        path.resolve(cwd, '..', '..', 'public', 'assets', filename),
+        path.resolve(cwd, '..', '..', 'public', filename),
+        path.join(localBasePath, filename),
+        path.join(localBasePath, 'kucet', filename),
+        path.join(localBasePath, 'assets', filename),
+        path.join(localBasePath, 'institution', filename),
+        path.join(localBasePath, 'certificates', filename),
+        path.join(localBasePath, 'kucet', 'certificates', filename)
+      ];
+    }
 
     for (const cand of localCandidatePaths) {
       if (cand && fs.existsSync(cand)) {
         try {
           const stat = fs.statSync(cand);
-          if (stat.isFile()) {
+          if (stat.isFile() && stat.size > 0) {
             const buf = await fs.promises.readFile(cand);
             if (buf && buf.length > 0) {
               if (assetBufferCache.size < MAX_CACHE_ENTRIES) assetBufferCache.set(cacheKey, buf);
@@ -332,21 +355,23 @@ export class InstitutionAssetService {
       }
     }
 
-    // Remote S3 / HTTP fallback if configured
-    const remoteUrl = this.getAssetUrl(keyOrAlias);
-    if (remoteUrl && (remoteUrl.startsWith('http://') || remoteUrl.startsWith('https://')) && !remoteUrl.includes('cloudinary.com')) {
-      try {
-        const res = await fetch(remoteUrl);
-        if (res.ok) {
-          const arrayBuf = await res.arrayBuffer();
-          const buf = Buffer.from(arrayBuf);
-          if (buf && buf.length > 0) {
-            if (assetBufferCache.size < MAX_CACHE_ENTRIES) assetBufferCache.set(cacheKey, buf);
-            return buf;
+    // Remote S3 / HTTP fallback ONLY for non-private assets if configured
+    if (!asset || !asset.isPrivate) {
+      const remoteUrl = this.getAssetUrl(keyOrAlias);
+      if (remoteUrl && (remoteUrl.startsWith('http://') || remoteUrl.startsWith('https://')) && !remoteUrl.includes('cloudinary.com')) {
+        try {
+          const res = await fetch(remoteUrl);
+          if (res.ok) {
+            const arrayBuf = await res.arrayBuffer();
+            const buf = Buffer.from(arrayBuf);
+            if (buf && buf.length > 0) {
+              if (assetBufferCache.size < MAX_CACHE_ENTRIES) assetBufferCache.set(cacheKey, buf);
+              return buf;
+            }
           }
+        } catch (err) {
+          logger.error({ err: err.message, keyOrAlias, remoteUrl }, '[INSTITUTION_ASSET_FETCH_ERROR]');
         }
-      } catch (err) {
-        logger.error({ err: err.message, keyOrAlias, remoteUrl }, '[INSTITUTION_ASSET_FETCH_ERROR]');
       }
     }
 

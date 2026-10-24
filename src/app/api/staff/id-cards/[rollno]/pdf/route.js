@@ -5,35 +5,88 @@ import { apiError, wrapHandler } from '@/lib/api-utils';
 import { IDCardAuthorizationService } from '@/services/identity/IDCardAuthorizationService';
 import { IDCardDataService } from '@/services/identity/IDCardDataService';
 import { InstitutionAssetService } from '@/services/institution/InstitutionAssetService';
+import { getAssetUrl } from '@/lib/assets';
+import { getLocalStorageBasePath } from '@/lib/providers/storage/LocalStorageProvider';
 import { pdf } from '@react-pdf/renderer';
 import IDCardPDF from '@/pdf/templates/IDCardPDF';
 import logger from '@/lib/logger';
+import sharp from 'sharp';
 
-async function resolveImageDataUrl(photoUrlOrKey) {
-  if (!photoUrlOrKey) return null;
-  if (photoUrlOrKey.startsWith('data:')) return photoUrlOrKey;
+/**
+ * Resolves a student photo key or URL into a print-ready JPEG/PNG base64 data URL.
+ * Automatically transcodes WebP into standard printable JPEG for @react-pdf/renderer.
+ */
+export async function resolvePdfImageDataUrl(photoUrlOrKey) {
+  if (!photoUrlOrKey || typeof photoUrlOrKey !== 'string') return null;
+  const clean = photoUrlOrKey.trim();
+  if (clean === '' || clean === 'N/A' || clean === 'None') return null;
 
-  // If local VPS storage file path
   try {
-    const cleanKey = photoUrlOrKey.replace(/^\/+/, '');
-    const localCandidates = [
-      path.join('/var/www/kucet-storage', cleanKey),
-      path.join('/app/storage', cleanKey),
-      path.join('/tmp/kucet_photos_cache', cleanKey.replace(/^kucet\//, '')),
-      path.join('/tmp/kucet_thumbs', `${path.basename(cleanKey, path.extname(cleanKey))}.png`),
-    ];
+    let buf = null;
 
-    for (const cand of localCandidates) {
-      if (fs.existsSync(/*turbopackIgnore: true*/ cand) && fs.statSync(/*turbopackIgnore: true*/ cand).isFile()) {
-        const buf = fs.readFileSync(/*turbopackIgnore: true*/ cand);
-        const ext = path.extname(cand).toLowerCase();
-        const mime = ext === '.png' ? 'image/png' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/webp';
-        return `data:${mime};base64,${buf.toString('base64')}`;
+    if (clean.startsWith('data:image/jpeg') || clean.startsWith('data:image/png')) {
+      return clean;
+    }
+
+    if (clean.startsWith('data:')) {
+      const parts = clean.split(',');
+      if (parts[1]) {
+        buf = Buffer.from(parts[1], 'base64');
+      }
+    } else {
+      const cleanKey = clean
+        .replace(/^\/api\/assets\/view\//, '')
+        .replace(/^https?:\/\/[^/]+\/api\/assets\/view\//, '')
+        .replace(/^kucet\//, '')
+        .replace(/^\/+/, '');
+
+      const basePath = getLocalStorageBasePath();
+      const localCandidates = [
+        path.join(basePath, 'kucet', cleanKey),
+        path.join(basePath, cleanKey),
+        path.join('/app/storage', 'kucet', cleanKey),
+        path.join('/app/storage', cleanKey),
+        path.join('/var/www/kucet-storage', 'kucet', cleanKey),
+        path.join('/var/www/kucet-storage', cleanKey),
+        path.join(process.cwd(), 'public', 'uploads', cleanKey),
+        path.join(process.cwd(), 'public', 'assets', cleanKey),
+        path.join('/tmp/kucet_photos_cache', cleanKey),
+        path.join('/tmp/kucet_thumbs', `${path.basename(cleanKey, path.extname(cleanKey))}.png`),
+      ];
+
+      for (const cand of localCandidates) {
+        if (cand && fs.existsSync(/*turbopackIgnore: true*/ cand)) {
+          const stat = fs.statSync(/*turbopackIgnore: true*/ cand);
+          if (stat.isFile() && stat.size > 0) {
+            buf = fs.readFileSync(/*turbopackIgnore: true*/ cand);
+            break;
+          }
+        }
+      }
+
+      // Fallback: Remote URL fetch if not found on local disk
+      if (!buf) {
+        const remoteUrl = getAssetUrl(clean);
+        if (remoteUrl && (remoteUrl.startsWith('http://') || remoteUrl.startsWith('https://'))) {
+          const res = await fetch(remoteUrl, { signal: AbortSignal.timeout(6000) });
+          if (res.ok) {
+            const arr = await res.arrayBuffer();
+            buf = Buffer.from(arr);
+          }
+        }
       }
     }
-  } catch (_e) {}
 
-  return photoUrlOrKey;
+    if (buf && buf.length >= 12) {
+      // Use sharp to auto-orient based on EXIF and transcode to high-quality JPEG
+      const jpegBuf = await sharp(buf).rotate().jpeg({ quality: 92, mozjpeg: true }).toBuffer();
+      return `data:image/jpeg;base64,${jpegBuf.toString('base64')}`;
+    }
+  } catch (err) {
+    logger.warn({ photoUrlOrKey, err: err.message }, '[RESOLVE_PDF_PHOTO_WARN]');
+  }
+
+  return null;
 }
 
 export const GET = wrapHandler({
@@ -78,19 +131,25 @@ export const GET = wrapHandler({
       let signatureUrl = null;
       try {
         signatureUrl = await InstitutionAssetService.getAssetDataUrl('principal/signature');
-      } catch (_e) {}
+      } catch (err) {
+        logger.warn({ err: err.message }, 'Failed to resolve principal digital signature');
+      }
 
-      // 5. Resolve Student Photo
-      const resolvedPhoto = await resolveImageDataUrl(student.photoKey || student.photoUrl);
+      if (!signatureUrl) {
+        logger.warn({ roll: student.rollNo }, 'Principal digital signature not found in private storage for ID card');
+      }
 
-      // 6. Render PDF Stream to Buffer
+      // 5. Resolve Student Photo with standard JPEG transcoding
+      const resolvedPhoto = await resolvePdfImageDataUrl(student.photoKey || student.photoUrl);
+
+      // 6. Render PDF Stream
       const pdfElement = (
         <IDCardPDF
           studentName={student.studentName}
           fatherName={student.fatherName}
           admissionNo={student.rollNo}
           course={student.branch}
-          batch={student.academicYear}
+          batch={student.batch}
           address={student.studentAddress}
           mobile={student.studentPhone}
           pfpUrl={resolvedPhoto}
@@ -100,14 +159,14 @@ export const GET = wrapHandler({
         />
       );
 
-      const pdfBuffer = await pdf(pdfElement).toBuffer();
+      const pdfStream = await pdf(pdfElement).toBuffer();
 
       const headers = new Headers();
       headers.set('Content-Type', 'application/pdf');
       headers.set('Content-Disposition', `inline; filename="kucet_id_card_${student.rollNo}.pdf"`);
       headers.set('Cache-Control', 'private, no-cache, no-store, max-age=0, must-revalidate');
 
-      return new NextResponse(pdfBuffer, { status: 200, headers });
+      return new NextResponse(pdfStream, { status: 200, headers });
     } catch (err) {
       logger.error({ roll: student.rollNo, err: err.message, stack: err.stack }, '[ID_CARD_PDF_GENERATION_FAILED]');
       return apiError('Failed to generate student ID card PDF', 500);
