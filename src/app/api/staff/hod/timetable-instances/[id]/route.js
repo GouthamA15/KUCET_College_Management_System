@@ -29,7 +29,6 @@ export const GET = wrapHandler({
       id: branchTimetable.id,
       branch: branchTimetable.branch,
       semester: branchTimetable.semester,
-      section: branchTimetable.section,
       day_of_week: branchTimetable.day_of_week,
       period_number: branchTimetable.period_number,
       subject_code: branchTimetable.subject_code,

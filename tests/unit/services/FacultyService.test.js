@@ -168,7 +168,7 @@ describe('FacultyService', () => {
       expect(result[0].day_of_week).toBe('MON');
     });
 
-    it('should fetch branch timetable with section and academicYear provided', async () => {
+    it('should fetch branch timetable with academicYear provided', async () => {
       const mockTimetableChain = {
         from: vi.fn().mockReturnThis(),
         innerJoin: vi.fn().mockReturnThis(),
@@ -180,7 +180,7 @@ describe('FacultyService', () => {
 
       db.select.mockReturnValueOnce(mockTimetableChain);
 
-      const result = await FacultyService.getBranchTimetable({ branch: 'CSE', semester: 1, section: 'A', academicYear: '2025-26' });
+      const result = await FacultyService.getBranchTimetable({ branch: 'CSE', semester: 1, academicYear: '2025-26' });
       expect(result).toHaveLength(1);
       expect(result[0].day_of_week).toBe('TUE');
     });

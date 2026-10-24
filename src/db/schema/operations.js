@@ -57,7 +57,6 @@ export const branchTimetable = mysqlTable('branch_timetable', {
   timetable_instance_id: int('timetable_instance_id'),
   branch: varchar('branch', { length: 50 }).notNull(),
   semester: tinyint('semester').notNull(),
-  section: varchar('section', { length: 5 }).default('A'),
   day_of_week: mysqlEnum('day_of_week', ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']).notNull(),
   period_number: int('period_number').notNull(),
   subject_code: varchar('subject_code', { length: 50 }),
@@ -72,7 +71,7 @@ export const branchTimetable = mysqlTable('branch_timetable', {
   dayPeriodIdx: index('idx_bt_day_period').on(table.day_of_week, table.period_number),
   facultyIdx: index('idx_bt_faculty').on(table.faculty_id),
   instanceIdIdx: index('idx_bt_instance').on(table.timetable_instance_id),
-  uqTimetableSlot: uniqueIndex('uq_timetable_slot').on(table.branch, table.semester, table.section, table.day_of_week, table.period_number, table.academic_year),
+  uqTimetableSlot: uniqueIndex('uq_timetable_slot').on(table.branch, table.semester, table.day_of_week, table.period_number, table.academic_year),
 }));
 
 export const facultyHodAssignments = mysqlTable('faculty_hod_assignments', {

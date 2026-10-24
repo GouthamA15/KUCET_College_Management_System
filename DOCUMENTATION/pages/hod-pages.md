@@ -51,7 +51,7 @@ Maintains balanced teaching loads across departmental staff:
 ---
 
 ### 4. Branch Condonation Analytics (`/staff/hod/attendance-analytics`)
-Monitors student attendance compliance across all branch sections:
+Monitors student attendance compliance across all branch semesters and cohorts:
 - **Threshold Categorization**:
   - **Satisfactory ($\ge 75\%$)**: Regular exam eligibility.
   - **Condonation Range ($65\% - 74.9\%$)**: Eligible for condonation upon medical proof and fee payment.
