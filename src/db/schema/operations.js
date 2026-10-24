@@ -91,6 +91,23 @@ export const facultyHodAssignments = mysqlTable('faculty_hod_assignments', {
   deptIdx: index('idx_hod_dept_code').on(table.department_code),
 }));
 
+export const facultyCoordinatorAssignments = mysqlTable('faculty_coordinator_assignments', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  staff_account_id: int('staff_account_id').notNull(),
+  coordinator_type: varchar('coordinator_type', { length: 50 }).default('FIRST_YEAR').notNull(),
+  academic_year: varchar('academic_year', { length: 9 }).notNull(),
+  start_date: date('start_date').notNull(),
+  end_date: date('end_date'),
+  is_active: boolean('is_active').default(true).notNull(),
+  assigned_by: int('assigned_by').references(() => principal.id, { onDelete: 'set null', onUpdate: 'cascade' }),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').onUpdateNow(),
+}, (table) => ({
+  staffIdIdx: index('idx_coord_staff_id').on(table.staff_account_id),
+  typeActiveIdx: index('idx_coord_type_active').on(table.coordinator_type, table.is_active),
+  acadYearIdx: index('idx_coord_acad_year').on(table.academic_year),
+}));
+
 export const facultyHodRequests = mysqlTable('faculty_hod_requests', {
   id: int('id').autoincrement().primaryKey().notNull(),
   staff_account_id: int('staff_account_id').notNull(),

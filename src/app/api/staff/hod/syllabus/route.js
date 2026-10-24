@@ -4,16 +4,31 @@ import { syllabusSubjects, syllabusStructure, electiveGroups, electiveGroupSubje
 import { eq, and, asc, or, like, sql, inArray } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { ValidationService } from '@/services/ValidationService';
+import { isAcademicScopeAllowed, getInstitutionalBranches } from '@/lib/academic-authorization';
 import { z } from 'zod';
 
 // ─── Auth helpers ────────────────────────────────────────────────────────────
 
 async function getHodUserAndBranches(role = 'hod') {
-  const user = await getAuthUser(role);
-  if (!user || (!((user.role === 'faculty' && user.is_hod) || user.role === 'admin'))) {
+  let user = await getAuthUser(role);
+  if (!user && role === 'hod') {
+    // Also check if user is a First Year Coordinator
+    user = await getAuthUser('faculty');
+    if (user && !user.is_first_year_coordinator && !user.is_hod && user.role !== 'admin') {
+      user = null;
+    }
+  }
+
+  if (!user || (!((user.role === 'faculty' && (user.is_hod || user.is_first_year_coordinator)) || user.role === 'admin'))) {
     return { error: 'Unauthorized', status: 401 };
   }
-  if (!user.hod_department_code) {
+
+  if (user.is_first_year_coordinator && !user.is_hod && user.role !== 'admin') {
+    const instBranches = await getInstitutionalBranches();
+    return { authorizedBranches: instBranches, user };
+  }
+
+  if (!user.hod_department_code && user.role !== 'admin' && !user.is_first_year_coordinator) {
     return { error: 'Unauthorized - Active HOD Assignment Required', status: 403 };
   }
   
@@ -35,15 +50,24 @@ async function getHodUserAndBranches(role = 'hod') {
   // just in case they need to manage base department subjects
   const deptCodes = affil.map(a => a.dept_code).filter(Boolean);
 
-  const authorizedBranches = Array.from(new Set([...deptCodes, ...allocatedPrograms]));
-  return { authorizedBranches };
+  let authorizedBranches = Array.from(new Set([...deptCodes, ...allocatedPrograms]));
+  if (user.hod_department_code && !authorizedBranches.includes(user.hod_department_code)) {
+    authorizedBranches.push(user.hod_department_code);
+  }
+
+  if (user.is_first_year_coordinator || user.role === 'admin' || user.is_principal) {
+    const instBranches = await getInstitutionalBranches();
+    authorizedBranches = Array.from(new Set([...authorizedBranches, ...instBranches]));
+  }
+
+  return { authorizedBranches, user };
 }
 
 // ─── GET Handler ─────────────────────────────────────────────────────────────
 
 export async function GET(req) {
   try {
-    const { authorizedBranches, error, status } = await getHodUserAndBranches();
+    const { authorizedBranches, user, error, status } = await getHodUserAndBranches();
     if (error) return apiError(error, status);
 
     const { searchParams } = new URL(req.url);
@@ -75,6 +99,10 @@ export async function GET(req) {
 
     if (branch && !authorizedBranches.includes(branch)) {
       return apiError('Forbidden - Branch outside authorized scope', 403);
+    }
+
+    if (branch && semester && !isAcademicScopeAllowed(user, { branch, semester })) {
+      return apiError('Forbidden - Semester outside authorized scope', 403);
     }
 
     if (init || !branch || !semester) {
@@ -161,7 +189,7 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    const { authorizedBranches, error, status } = await getHodUserAndBranches();
+    const { authorizedBranches, user, error, status } = await getHodUserAndBranches();
     if (error) return apiError(error, status);
 
     const json = await req.json();
@@ -266,6 +294,7 @@ export async function POST(req) {
     if (action === 'ADD_CORE_SUBJECT') {
       const { subject_code, subject_name, subject_type, branch, semester } = validated.subject;
       if (!authorizedBranches.includes(branch)) return apiError('Forbidden - Outside authorized branches', 403);
+      if (!isAcademicScopeAllowed(user, { branch, semester })) return apiError('Forbidden - Semester outside authorized scope', 403);
 
       await db.transaction(async (tx) => {
         await tx.insert(syllabusSubjects).values({ subject_code, subject_name, subject_type })
@@ -284,6 +313,7 @@ export async function POST(req) {
     if (action === 'ADD_ELECTIVE_GROUP') {
       const { branch, semester, group_code, group_name, group_type, subject_mode, sequence_num, display_order } = validated.group;
       if (!authorizedBranches.includes(branch)) return apiError('Forbidden - Outside authorized branches', 403);
+      if (!isAcademicScopeAllowed(user, { branch, semester })) return apiError('Forbidden - Semester outside authorized scope', 403);
       // PE/OE validation: must be sem 5+
       if (['PROFESSIONAL_ELECTIVE', 'OPEN_ELECTIVE'].includes(group_type) && semester < 5) {
         return apiError('Professional and Open Electives are only valid from Semester 5 onwards', 400);
@@ -305,6 +335,9 @@ export async function POST(req) {
       const group = await db.select().from(electiveGroups).where(eq(electiveGroups.id, group_id)).limit(1);
       if (!group.length) return apiError('Elective group not found', 404);
       if (!authorizedBranches.includes(group[0].branch)) return apiError('Forbidden - Group belongs to unauthorized branch', 403);
+      if (!isAcademicScopeAllowed(user, { branch: group[0].branch, semester: group[0].semester })) {
+        return apiError('Forbidden - Elective group outside authorized semester scope', 403);
+      }
 
       // Check for duplicate before starting transaction
       const existing = await db.select({ id: electiveGroupSubjects.id }).from(electiveGroupSubjects)
@@ -335,6 +368,11 @@ export async function POST(req) {
     if (action === 'EDIT_ELECTIVE_GROUP') {
       const { id, branch, group_name, subject_mode, display_order } = validated.group;
       if (!authorizedBranches.includes(branch)) return apiError('Forbidden', 403);
+      const group = await db.select().from(electiveGroups).where(eq(electiveGroups.id, id)).limit(1);
+      if (!group.length) return apiError('Elective group not found', 404);
+      if (!isAcademicScopeAllowed(user, { branch: group[0].branch, semester: group[0].semester })) {
+        return apiError('Forbidden - Elective group outside authorized semester scope', 403);
+      }
       const updates = { group_name };
       if (subject_mode !== undefined) updates.subject_mode = subject_mode;
       if (display_order !== undefined) updates.display_order = display_order;
@@ -346,6 +384,7 @@ export async function POST(req) {
     if (action === 'DELETE_CORE_MAPPING') {
       const { subject_code, branch, semester } = validated.subject;
       if (!authorizedBranches.includes(branch)) return apiError('Forbidden', 403);
+      if (!isAcademicScopeAllowed(user, { branch, semester })) return apiError('Forbidden - Semester outside authorized scope', 403);
       const { canDelete, reason } = await ValidationService.checkSubjectBranchDependencies(subject_code, branch);
       if (!canDelete) return apiError(reason, 400);
       await db.delete(syllabusStructure).where(and(
@@ -360,6 +399,11 @@ export async function POST(req) {
     if (action === 'DELETE_ELECTIVE_GROUP') {
       const { id, branch } = validated.group;
       if (!authorizedBranches.includes(branch)) return apiError('Forbidden', 403);
+      const group = await db.select().from(electiveGroups).where(eq(electiveGroups.id, id)).limit(1);
+      if (!group.length) return apiError('Elective group not found', 404);
+      if (!isAcademicScopeAllowed(user, { branch: group[0].branch, semester: group[0].semester })) {
+        return apiError('Forbidden - Elective group outside authorized semester scope', 403);
+      }
       const subjectsInGroup = await db.select({ id: electiveGroupSubjects.id })
         .from(electiveGroupSubjects).where(eq(electiveGroupSubjects.group_id, id)).limit(1);
       if (subjectsInGroup.length) {
@@ -377,7 +421,8 @@ export async function POST(req) {
       const mapping = await db.select({
         id: electiveGroupSubjects.id,
         group_id: electiveGroupSubjects.group_id,
-        branch: electiveGroups.branch
+        branch: electiveGroups.branch,
+        semester: electiveGroups.semester,
       })
       .from(electiveGroupSubjects)
       .innerJoin(electiveGroups, eq(electiveGroupSubjects.group_id, electiveGroups.id))
@@ -390,6 +435,10 @@ export async function POST(req) {
 
       if (!authorizedBranches.includes(mapping[0].branch)) {
         return apiError('Forbidden - Outside authorized branches', 403);
+      }
+
+      if (!isAcademicScopeAllowed(user, { branch: mapping[0].branch, semester: mapping[0].semester })) {
+        return apiError('Forbidden - Elective group outside authorized semester scope', 403);
       }
 
       await db.delete(electiveGroupSubjects).where(eq(electiveGroupSubjects.id, egs_id));

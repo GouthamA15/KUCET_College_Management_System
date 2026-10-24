@@ -27,6 +27,8 @@ export const GET = wrapHandler({
       return apiError(`Forbidden: You do not have permission to access branch ${branch}`, 403);
     }
 
+    const firstYearOnly = IDCardAuthorizationService.isFirstYearOnly(user);
+
     // 5. Query Authoritative Dataset
     const result = await IDCardDataService.getStudentRecords({
       branch,
@@ -36,6 +38,7 @@ export const GET = wrapHandler({
       page,
       limit,
       allowedBranches,
+      firstYearOnly,
     });
 
     return apiResponse({
@@ -47,6 +50,7 @@ export const GET = wrapHandler({
         canGenerate: IDCardAuthorizationService.canGenerate(user),
         canBulkGenerate: IDCardAuthorizationService.canBulkGenerate(user),
         canManagePhotos: IDCardAuthorizationService.canManagePhotos(user),
+        firstYearOnly,
       },
     });
   },

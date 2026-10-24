@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { staffAccounts, staffAcademicAffiliations, academicDepartments, academicPrograms, facultyHodAssignments, staffRoles, staffAccountRoles, semesters, auditLogs } from '@/db/schema';
+import { staffAccounts, staffAcademicAffiliations, academicDepartments, academicPrograms, facultyHodAssignments, facultyCoordinatorAssignments, staffRoles, staffAccountRoles, semesters, auditLogs } from '@/db/schema';
 import { eq, and, ne, sql, inArray } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
 import { z } from 'zod';
@@ -92,14 +92,18 @@ export async function PUT(req, context) {
       is_principal: z.boolean().optional(),
       reassign_branches: z.array(z.string()).optional(),
       branches: z.array(z.string()).optional(),
-      roles: z.array(z.string()).optional()
+      roles: z.array(z.string()).optional(),
+      is_first_year_coordinator: z.boolean().optional(),
+      coordinator_start_date: z.string().optional(),
+      coordinator_end_date: z.string().optional().nullable()
     });
 
     const validatedData = updateSchema.parse(json);
     const { 
       name, email, employee_id, is_active, 
       is_hod, hod_branches, is_principal, reassign_branches, 
-      branches, roles 
+      branches, roles,
+      is_first_year_coordinator, coordinator_start_date, coordinator_end_date
     } = validatedData;
 
     const staffBefore = await db.query.staffAccounts.findFirst({
@@ -512,6 +516,83 @@ export async function PUT(req, context) {
           ip_address: req.headers.get('x-forwarded-for') || '127.0.0.1',
           user_agent: req.headers.get('user-agent') || 'system'
         });
+      }
+
+      // 5. Handle First Year Coordinator Appointment
+      if (is_first_year_coordinator !== undefined) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const { getCurrentCalendarSession } = await import('@/lib/academic-utils');
+        const currentSession = await getCurrentCalendarSession().catch(() => null);
+        const currentAcademicYear = currentSession?.academicYear || '2026-27';
+
+        const existingCoord = await tx.select().from(facultyCoordinatorAssignments).where(and(
+          eq(facultyCoordinatorAssignments.staff_account_id, idNum),
+          eq(facultyCoordinatorAssignments.coordinator_type, 'FIRST_YEAR'),
+          eq(facultyCoordinatorAssignments.is_active, true)
+        ));
+
+        if (is_first_year_coordinator === true) {
+          if (staffBefore.account_status !== 'ACTIVE' && is_active !== true) {
+            throw new Error('Cannot assign coordinator role to an inactive staff account.');
+          }
+          const hasFaculty = await tx.select().from(staffAccountRoles)
+            .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
+            .where(and(
+              eq(staffAccountRoles.staff_account_id, idNum),
+              eq(staffRoles.role_code, 'FACULTY')
+            ));
+          if (hasFaculty.length === 0) {
+            throw new Error('Only active faculty members are eligible for First Year Coordinator assignment.');
+          }
+
+          if (existingCoord.length === 0) {
+            const startD = coordinator_start_date || todayStr;
+            const endD = coordinator_end_date || null;
+            await tx.insert(facultyCoordinatorAssignments).values({
+              staff_account_id: idNum,
+              coordinator_type: 'FIRST_YEAR',
+              academic_year: currentAcademicYear,
+              start_date: startD,
+              end_date: endD,
+              is_active: true,
+              assigned_by: user.id
+            });
+            await tx.insert(auditLogs).values({
+              user_id: user.id,
+              user_type: 'admin',
+              action: 'COORDINATOR_ASSIGNED',
+              target_type: 'faculty_coordinator_assignments',
+              target_id: String(idNum),
+              payload_after: { coordinator_type: 'FIRST_YEAR', academic_year: currentAcademicYear, start_date: startD, end_date: endD },
+              ip_address: req.headers.get('x-forwarded-for') || '127.0.0.1',
+              user_agent: req.headers.get('user-agent') || 'system'
+            });
+          } else if (coordinator_start_date || coordinator_end_date !== undefined) {
+            await tx.update(facultyCoordinatorAssignments).set({
+              start_date: coordinator_start_date || existingCoord[0].start_date,
+              end_date: coordinator_end_date !== undefined ? coordinator_end_date : existingCoord[0].end_date,
+            }).where(eq(facultyCoordinatorAssignments.id, existingCoord[0].id));
+          }
+        } else if (is_first_year_coordinator === false && existingCoord.length > 0) {
+          await tx.update(facultyCoordinatorAssignments).set({
+            is_active: false,
+            end_date: todayStr
+          }).where(and(
+            eq(facultyCoordinatorAssignments.staff_account_id, idNum),
+            eq(facultyCoordinatorAssignments.coordinator_type, 'FIRST_YEAR'),
+            eq(facultyCoordinatorAssignments.is_active, true)
+          ));
+          await tx.insert(auditLogs).values({
+            user_id: user.id,
+            user_type: 'admin',
+            action: 'COORDINATOR_REVOKED',
+            target_type: 'faculty_coordinator_assignments',
+            target_id: String(idNum),
+            payload_after: { is_active: false, end_date: todayStr },
+            ip_address: req.headers.get('x-forwarded-for') || '127.0.0.1',
+            user_agent: req.headers.get('user-agent') || 'system'
+          });
+        }
       }
     });
 

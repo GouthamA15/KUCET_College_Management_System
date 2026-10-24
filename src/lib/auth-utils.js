@@ -209,6 +209,7 @@ export async function issueStaffAuthCookie(response, staff, rememberMe = false, 
     role: staff.role,
     is_hod: !!staff.is_hod,
     is_principal: !!staff.is_principal,
+    is_first_year_coordinator: !!staff.is_first_year_coordinator,
     branch: staff.branch,
   })
     .setProtectedHeader({ alg: 'HS256' })
@@ -347,6 +348,7 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
       }
 
       let isHod = false;
+      let isCoordinator = false;
       let branch = null;
       if (resolvedRole === 'faculty') {
           const affil = await db.select({ branch_code: academicDepartments.department_code })
@@ -359,7 +361,7 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
           }
 
           const isPrincipal = roleRecords.some(r => r.role_code === 'PRINCIPAL');
-          const { facultyHodAssignments } = await import('@/db/schema');
+          const { facultyHodAssignments, facultyCoordinatorAssignments } = await import('@/db/schema');
           const hodRow = await db.select({ id: facultyHodAssignments.id })
               .from(facultyHodAssignments)
               .where(and(
@@ -370,6 +372,27 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
           if (hodRow.length > 0 || isPrincipal) {
             isHod = true;
           }
+
+          if (facultyCoordinatorAssignments) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const coordRows = await db.select({ 
+              id: facultyCoordinatorAssignments.id,
+              start_date: facultyCoordinatorAssignments.start_date,
+              end_date: facultyCoordinatorAssignments.end_date
+            })
+            .from(facultyCoordinatorAssignments)
+            .where(and(
+              eq(facultyCoordinatorAssignments.staff_account_id, user.id),
+              eq(facultyCoordinatorAssignments.coordinator_type, 'FIRST_YEAR'),
+              eq(facultyCoordinatorAssignments.is_active, true)
+            ));
+
+            isCoordinator = coordRows.some(c => {
+              if (c.start_date && todayStr < c.start_date) return false;
+              if (c.end_date && todayStr > c.end_date) return false;
+              return true;
+            });
+          }
       }
 
       const adaptedStaff = {
@@ -377,6 +400,7 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
          email: user.email,
          role: resolvedRole,
          is_hod: isHod,
+         is_first_year_coordinator: isCoordinator || false,
          branch: branch
       };
 

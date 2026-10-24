@@ -1,6 +1,6 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { staffAccounts, staffRoles, staffAccountRoles, staffAcademicAffiliations, academicDepartments, academicPrograms, facultyHodAssignments } from '@/db/schema';
+import { staffAccounts, staffRoles, staffAccountRoles, staffAcademicAffiliations, academicDepartments, academicPrograms, facultyHodAssignments, facultyCoordinatorAssignments } from '@/db/schema';
 import { eq, sql, and } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
@@ -96,16 +96,42 @@ export async function GET() {
       };
     });
 
+    // Query active Coordinator assignments
+    const activeCoordRows = await db.select({
+      id: facultyCoordinatorAssignments.id,
+      staff_id: facultyCoordinatorAssignments.staff_account_id,
+      coordinator_type: facultyCoordinatorAssignments.coordinator_type,
+      academic_year: facultyCoordinatorAssignments.academic_year,
+      start_date: facultyCoordinatorAssignments.start_date,
+      end_date: facultyCoordinatorAssignments.end_date,
+    })
+    .from(facultyCoordinatorAssignments)
+    .where(eq(facultyCoordinatorAssignments.is_active, true));
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const activeCoordMap = new Map();
+    activeCoordRows.forEach(c => {
+      if (c.start_date && todayStr < c.start_date) return;
+      if (c.end_date && todayStr > c.end_date) return;
+      activeCoordMap.set(c.staff_id, c);
+    });
+
     const formattedData = Array.from(staffMap.values()).map(staff => ({
       ...staff,
       roles: Array.from(staff.roles),
       branches: Array.from(staff.branches),
       hod_branches: Array.from(staff.hod_branches),
       is_hod: staff.hod_branches.size > 0,
-      is_principal: !!staff.is_principal
+      is_principal: !!staff.is_principal,
+      is_first_year_coordinator: activeCoordMap.has(staff.id),
+      coordinator_assignment: activeCoordMap.get(staff.id) || null,
     }));
 
-    return apiResponse({ data: formattedData, active_hod_directory: activeHodDirectory });
+    return apiResponse({ 
+      data: formattedData, 
+      active_hod_directory: activeHodDirectory,
+      active_coordinators: Array.from(activeCoordMap.values())
+    });
   } catch (error) {
     logger.error('Error fetching staff:', error);
     return apiError('Internal Server Error', 500);

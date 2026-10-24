@@ -34,6 +34,8 @@ export const GET = wrapHandler({
     }
 
     try {
+      const firstYearOnly = IDCardAuthorizationService.isFirstYearOnly(user);
+
       // 5. Generate Complete Branch Export Dataset (Zero Pagination Truncation)
       const exportResult = await IDCardDataService.exportBranchData({
         branch,
@@ -41,6 +43,7 @@ export const GET = wrapHandler({
         format,
         allowedBranches,
         user,
+        firstYearOnly,
       });
 
       logger.info({

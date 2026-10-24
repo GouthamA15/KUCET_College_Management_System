@@ -28,9 +28,10 @@ export const POST = wrapHandler({
 
     // 2. Departmental Scoping
     const allowedBranches = IDCardAuthorizationService.getAllowedBranches(user);
+    const firstYearOnly = IDCardAuthorizationService.isFirstYearOnly(user);
 
     // 3. Fetch Authorized Students
-    const students = await IDCardDataService.getStudentsForBulk(rollNos, allowedBranches);
+    const students = await IDCardDataService.getStudentsForBulk(rollNos, allowedBranches, { firstYearOnly });
     if (!students || students.length === 0) {
       return apiError('No matching student records found for the provided roll numbers within your authorized scope', 404);
     }

@@ -1,6 +1,7 @@
 import { apiError, apiResponse, getAuthUser, wrapHandler } from '@/lib/api-utils';
 import { FacultyService } from '@/services/FacultyService';
 import { timetableSlotSchema } from '@/lib/validations/staff';
+import { isAcademicScopeAllowed } from '@/lib/academic-authorization';
 import { z } from 'zod';
 import { db } from '@/db';
 import { branchTimetable, syllabusSubjects } from '@/db/schema';
@@ -12,23 +13,23 @@ import logger from '@/lib/logger';
  * Fetch branch timetable for HOD management
  */
 export const GET = wrapHandler({
-  auth: 'hod',
+  auth: ['hod', 'faculty'],
   handler: async (req, { user }) => {
-    if (!user || (!((user.role === 'faculty' && user.is_hod) || user.role === 'admin'))) {
-      return apiError('Unauthorized: HOD only', 403);
+    const isAuthorized = (user.role === 'faculty' && (user.is_hod || user.is_first_year_coordinator)) || user.role === 'admin';
+    if (!isAuthorized) {
+      return apiError('Unauthorized', 403);
     }
 
     const { searchParams } = new URL(req.url);
     const requestedBranch = searchParams.get('branch');
     const targetBranch = requestedBranch || user.branch || user.hod_department_code;
 
-    const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
-    if (user.role !== 'admin' && requestedBranch && authorizedBranches.length > 0 && !authorizedBranches.includes(requestedBranch)) {
-      return apiError(`Forbidden - Not authorized for ${requestedBranch} branch.`, 403);
-    }
-
     const semester = searchParams.get('semester') ? parseInt(searchParams.get('semester')) : 1;
     const section = searchParams.get('section') || 'A';
+
+    if (!isAcademicScopeAllowed(user, { branch: targetBranch, semester })) {
+      return apiError(`Forbidden - Not authorized for ${targetBranch} Sem ${semester}`, 403);
+    }
 
     const systemYear = await FacultyService.getCurrentAcademicYear();
     const timetable = await FacultyService.getBranchTimetable({
@@ -44,8 +45,14 @@ export const GET = wrapHandler({
 
 export async function POST(req) {
   try {
-    const user = await getAuthUser('hod');
-    if (!user || (!((user.role === 'faculty' && user.is_hod) || user.role === 'admin'))) {
+    let user = await getAuthUser('hod');
+    if (!user) {
+      user = await getAuthUser('faculty');
+      if (user && !user.is_first_year_coordinator && !user.is_hod && user.role !== 'admin') {
+        user = null;
+      }
+    }
+    if (!user || (!((user.role === 'faculty' && (user.is_hod || user.is_first_year_coordinator)) || user.role === 'admin'))) {
       return apiError('Unauthorized', 401);
     }
 
@@ -72,9 +79,18 @@ export async function POST(req) {
     } = validatedData;
 
     const targetBranch = validatedData.branch || req.nextUrl?.searchParams?.get('branch') || user.branch || user.hod_department_code;
-    const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
-    if (user.role !== 'admin' && authorizedBranches.length > 0 && !authorizedBranches.includes(targetBranch)) {
-      return apiError(`Forbidden - Not authorized for ${targetBranch} branch.`, 403);
+
+    if (!isAcademicScopeAllowed(user, { branch: targetBranch, semester })) {
+      return apiError(`Forbidden - Not authorized for ${targetBranch} Sem ${semester}`, 403);
+    }
+
+    // If updating an existing slot, verify the existing persisted record is also within scope
+    if (id) {
+      const [existingSlot] = await db.select().from(branchTimetable).where(eq(branchTimetable.id, id));
+      if (!existingSlot) return apiError('Timetable slot not found', 404);
+      if (!isAcademicScopeAllowed(user, { branch: existingSlot.branch, semester: existingSlot.semester })) {
+        return apiError('Forbidden - Existing slot is outside your authorized scope', 403);
+      }
     }
 
     // Verify subject exists in this branch/semester
@@ -178,8 +194,14 @@ export async function POST(req) {
 
 export async function DELETE(req) {
   try {
-    const user = await getAuthUser('hod');
-    if (!user || (!((user.role === 'faculty' && user.is_hod) || user.role === 'admin'))) {
+    let user = await getAuthUser('hod');
+    if (!user) {
+      user = await getAuthUser('faculty');
+      if (user && !user.is_first_year_coordinator && !user.is_hod && user.role !== 'admin') {
+        user = null;
+      }
+    }
+    if (!user || (!((user.role === 'faculty' && (user.is_hod || user.is_first_year_coordinator)) || user.role === 'admin'))) {
       return apiError('Unauthorized', 401);
     }
 
@@ -187,19 +209,28 @@ export async function DELETE(req) {
     const requestedBranch = searchParams.get('branch');
     const targetBranch = requestedBranch || user.branch || user.hod_department_code;
 
-    const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
-    if (user.role !== 'admin' && authorizedBranches.length > 0 && !authorizedBranches.includes(targetBranch)) {
-      return apiError(`Forbidden - Not authorized for ${targetBranch} branch.`, 403);
-    }
-
     const action = searchParams.get('action'); // 'clearSemester' or 'clearAll'
     const semester = searchParams.get('semester');
     const section = searchParams.get('section') || 'A';
     const day_of_week = searchParams.get('day_of_week');
     const period_number = searchParams.get('period_number');
 
-    if (action === 'clearSemester') {
+    if (action === 'clearAll') {
+      if (user.is_first_year_coordinator && !user.is_hod && user.role !== 'admin') {
+        return apiError('Forbidden: First Year Coordinator cannot clear all department semesters', 403);
+      }
+      const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+      if (user.role !== 'admin' && authorizedBranches.length > 0 && !authorizedBranches.includes(targetBranch)) {
+        return apiError(`Forbidden - Not authorized for ${targetBranch} branch.`, 403);
+      }
+      await db.delete(branchTimetable)
+        .where(eq(branchTimetable.branch, targetBranch));
+    }
+    else if (action === 'clearSemester') {
       if (!semester) return apiError('Missing semester', 400);
+      if (!isAcademicScopeAllowed(user, { branch: targetBranch, semester })) {
+        return apiError(`Forbidden - Not authorized for ${targetBranch} Sem ${semester}`, 403);
+      }
       await db.delete(branchTimetable)
         .where(and(
           eq(branchTimetable.branch, targetBranch),
@@ -207,14 +238,13 @@ export async function DELETE(req) {
           eq(branchTimetable.section, section)
         ));
     } 
-    else if (action === 'clearAll') {
-      await db.delete(branchTimetable)
-        .where(eq(branchTimetable.branch, targetBranch));
-    }
     else {
       // Single slot deletion
       if (!semester || !day_of_week || !period_number) {
         return apiError('Missing required parameters', 400);
+      }
+      if (!isAcademicScopeAllowed(user, { branch: targetBranch, semester })) {
+        return apiError(`Forbidden - Not authorized for ${targetBranch} Sem ${semester}`, 403);
       }
 
       await db.delete(branchTimetable)

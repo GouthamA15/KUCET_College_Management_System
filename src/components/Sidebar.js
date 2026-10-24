@@ -154,9 +154,8 @@ function buildMenuItems({ effectiveRole, studentData, staffData, hasActiveEvents
   }
 
   // Add HOD Dashboard dynamically
+  let enhancedMenu = [...menuItemsRaw];
   if (effectiveRole === 'faculty' && staffData?.is_hod) {
-    const enhancedMenu = [...menuItemsRaw];
-    
     // Find ACADEMICS to place ACADEMIC CALENDAR and STAFF MANAGEMENT right after it
     const academicsIdx = enhancedMenu.findIndex(i => i.label === 'ACADEMICS');
     let insertIdx = enhancedMenu.length;
@@ -168,20 +167,25 @@ function buildMenuItems({ effectiveRole, studentData, staffData, hasActiveEvents
       insertIdx = settingsIdx > -1 ? settingsIdx : enhancedMenu.length;
     }
 
-    // Insert backwards so they appear in order: ACADEMICS -> ACADEMIC CALENDAR -> STAFF MANAGEMENT -> STUDENT REQUESTS
+    // Insert in order: ACADEMICS -> ACADEMIC CALENDAR -> STAFF MANAGEMENT -> STUDENT REQUESTS
     enhancedMenu.splice(insertIdx, 0,
+      { label: 'ACADEMIC CALENDAR', route: '/staff/academic-calendar' },
+      { label: 'STAFF MANAGEMENT', route: '/staff/hod/staff-management' },
       { label: 'STUDENT REQUESTS', route: '/staff/hod/requests' }
     );
-    enhancedMenu.splice(insertIdx, 0,
-      { label: 'STAFF MANAGEMENT', route: '/staff/hod/staff-management' }
-    );
-    enhancedMenu.splice(insertIdx, 0,
-      { label: 'ACADEMIC CALENDAR', route: '/staff/academic-calendar' }
-    );
-    return enhancedMenu;
   }
 
-  return filterDynamicMenuItems(menuItemsRaw, { hasActiveEvents });
+  // Add First Year Coordinator Dashboard dynamically
+  if ((effectiveRole === 'faculty' || effectiveRole === 'staff') && staffData?.is_first_year_coordinator) {
+    const academicsIdx = enhancedMenu.findIndex(i => i.label === 'ACADEMICS');
+    let insertIdx = academicsIdx > -1 ? academicsIdx + 1 : enhancedMenu.length;
+    enhancedMenu.splice(insertIdx, 0, {
+      label: 'FIRST YEAR COORDINATION',
+      route: '/staff/first-year/dashboard'
+    });
+  }
+
+  return filterDynamicMenuItems(enhancedMenu, { hasActiveEvents });
 }
 
 function getDisplayLabel({ effectiveRole, label }) {
@@ -224,7 +228,7 @@ function pickIconKey(label) {
   const upper = String(label || '').toUpperCase();
   if (upper === 'DASHBOARD' || upper === 'HOME' || upper.includes('DASHBOARD')) return 'dashboard';
   if (upper === 'PROFILE') return 'profile';
-  if (upper.includes('ACADEMIC') || upper === 'ACADEMICS' || upper === 'ATTENDANCE' || upper === 'MATERIALS') return 'academics';
+  if (upper.includes('COORDINAT') || upper.includes('FIRST YEAR') || upper.includes('ACADEMIC') || upper === 'ACADEMICS' || upper === 'ATTENDANCE' || upper === 'MATERIALS') return 'academics';
   if (upper === 'FINANCES') return 'finances';
   if (upper.includes('TIME TABLE') || upper.includes('TIMETABLE')) return 'timetable';
   if (upper === 'MY EVENT' || upper.includes('EVENT') || upper.includes('TOURNAMENT')) return 'events';

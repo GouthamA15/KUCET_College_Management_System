@@ -108,6 +108,14 @@ export const GET = wrapHandler({
       return apiError(`Student with roll number ${rollno} not found`, 404);
     }
 
+    // First Year Scope Check
+    if (IDCardAuthorizationService.isFirstYearOnly(user)) {
+      const isFirstYear = await IDCardDataService.isStudentFirstYear(student.rollNo);
+      if (!isFirstYear) {
+        return apiError('Forbidden: First Year Coordinator access is restricted strictly to first-year students', 403);
+      }
+    }
+
     // 3. Departmental Scoping Check
     if (!IDCardAuthorizationService.isBranchAllowed(user, student.branch)) {
       return apiError(`Forbidden: You do not have permission for branch ${student.branch}`, 403);

@@ -11,6 +11,7 @@ export class IDCardAuthorizationService {
    */
   static canView(user) {
     if (!user || !user.role) return false;
+    if (user.is_first_year_coordinator) return true;
     return hasPermission(user.role, PERMISSIONS.ID_CARD_VIEW);
   }
 
@@ -19,6 +20,7 @@ export class IDCardAuthorizationService {
    */
   static canPreview(user) {
     if (!user || !user.role) return false;
+    if (user.is_first_year_coordinator) return true;
     return hasPermission(user.role, PERMISSIONS.ID_CARD_PREVIEW);
   }
 
@@ -27,6 +29,7 @@ export class IDCardAuthorizationService {
    */
   static canGenerate(user) {
     if (!user || !user.role) return false;
+    if (user.is_first_year_coordinator) return true;
     return hasPermission(user.role, PERMISSIONS.ID_CARD_GENERATE);
   }
 
@@ -35,6 +38,7 @@ export class IDCardAuthorizationService {
    */
   static canBulkGenerate(user) {
     if (!user || !user.role) return false;
+    if (user.is_first_year_coordinator) return true;
     return hasPermission(user.role, PERMISSIONS.ID_CARD_BULK_GENERATE);
   }
 
@@ -43,6 +47,7 @@ export class IDCardAuthorizationService {
    */
   static canManagePhotos(user) {
     if (!user || !user.role) return false;
+    if (user.is_first_year_coordinator) return true;
     return hasPermission(user.role, PERMISSIONS.ID_CARD_MANAGE_PHOTOS);
   }
 
@@ -56,8 +61,8 @@ export class IDCardAuthorizationService {
 
     const role = String(user.role).toLowerCase();
 
-    // Global administrative & admission roles have complete cross-branch access
-    if (['super_admin', 'admin', 'principal', 'admission'].includes(role)) {
+    // Global administrative & admission roles or First Year Coordinator have complete cross-branch access
+    if (['super_admin', 'admin', 'principal', 'admission'].includes(role) || user.is_first_year_coordinator) {
       return null; // unrestricted
     }
 
@@ -72,6 +77,19 @@ export class IDCardAuthorizationService {
 
     // Default restricted
     return [];
+  }
+
+  /**
+   * Checks whether the user is restricted strictly to first-year students.
+   * Returns true for First Year Coordinators without full admin/admission privileges.
+   */
+  static isFirstYearOnly(user) {
+    if (!user) return false;
+    const role = String(user.role || '').toLowerCase();
+    if (['super_admin', 'admin', 'principal', 'admission'].includes(role)) {
+      return false;
+    }
+    return Boolean(user.is_first_year_coordinator);
   }
 
   /**

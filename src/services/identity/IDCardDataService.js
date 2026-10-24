@@ -25,6 +25,7 @@ import {
 } from '@/lib/rollNumber';
 import { decrypt } from '@/lib/encryption';
 import { getPermanentAddressFromDetails } from '@/lib/address-utils';
+import { calculateStudentYearAndSemester, getCurrentCalendarSession } from '@/lib/academic-utils';
 
 export const CANONICAL_BRANCHES = [
   { code: '09', name: 'CSE', fullName: 'Computer Science & Engineering' },
@@ -45,6 +46,29 @@ export class IDCardDataService {
     const norm = String(branchName).trim().toUpperCase();
     const entry = Object.entries(branchCodes).find(([, name]) => name.toUpperCase() === norm);
     return entry ? entry[0] : null;
+  }
+
+  /**
+   * Helper: Checks whether a student is currently in their First Year (Sem 1 / 2)
+   * using the authoritative academic calendar session.
+   */
+  static async isStudentFirstYear(rollNo, currentSession = null) {
+    if (!rollNo) return false;
+    let session = currentSession;
+    if (!session) {
+      session = await getCurrentCalendarSession().catch(() => null);
+    }
+    if (session && session.academicYear && session.semester) {
+      const calc = calculateStudentYearAndSemester(rollNo, session.academicYear, session.semester);
+      return calc.yearOfStudy === 1;
+    }
+    // Fallback if calendar session not configured in DB
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentAcademicYear = now.getMonth() >= 6 ? `${currentYear}-${String(currentYear + 1).slice(-2)}` : `${currentYear - 1}-${String(currentYear).slice(-2)}`;
+    const currentSemester = now.getMonth() >= 6 ? 1 : 2;
+    const calc = calculateStudentYearAndSemester(rollNo, currentAcademicYear, currentSemester);
+    return calc.yearOfStudy === 1;
   }
 
   /**
@@ -140,7 +164,9 @@ export class IDCardDataService {
    * Calculates dynamic statistics for each canonical academic branch.
    * All counts are derived directly from the authoritative database tables.
    */
-  static async getBranchSummaryStats({ allowedBranches = null, batch = null } = {}) {
+  static async getBranchSummaryStats({ allowedBranches = null, batch = null, firstYearOnly = false } = {}) {
+    const session = await getCurrentCalendarSession().catch(() => null);
+
     // 1. Fetch all active finalized student roll numbers and photo keys
     const rows = await db
       .select({
@@ -196,6 +222,10 @@ export class IDCardDataService {
         continue; // Excluded from caller scope
       }
 
+      if (firstYearOnly && !(await IDCardDataService.isStudentFirstYear(r.roll_no, session))) {
+        continue;
+      }
+
       const hasPhoto = r.pfp && String(r.pfp).trim() !== '';
 
       statsMap[br].totalEligible++;
@@ -231,7 +261,10 @@ export class IDCardDataService {
     page = 1,
     limit = 20,
     allowedBranches = null,
+    firstYearOnly = false,
   } = {}) {
+    const session = await getCurrentCalendarSession().catch(() => null);
+
     // 1. Departmental Scoping
     const allowedSet = Array.isArray(allowedBranches) && allowedBranches.length > 0
       ? new Set(allowedBranches.map((b) => String(b).toUpperCase().trim()))
@@ -333,6 +366,11 @@ export class IDCardDataService {
         }
       }
 
+      // First-year scope enforcement
+      if (firstYearOnly && !(await this.isStudentFirstYear(student.rollNo, session))) {
+        continue;
+      }
+
       seenRolls.add(student.rollNo);
       validStudents.push(student);
     }
@@ -347,7 +385,7 @@ export class IDCardDataService {
     const paginated = validStudents.slice(offset, offset + safeLimit);
 
     // 5. Dynamic Branch Stats
-    const summaryStats = await this.getBranchSummaryStats({ allowedBranches, batch });
+    const summaryStats = await this.getBranchSummaryStats({ allowedBranches, batch, firstYearOnly });
 
     return {
       students: paginated,
@@ -365,12 +403,16 @@ export class IDCardDataService {
   /**
    * Retrieves single student details for ID card preview or generation
    */
-  static async getStudentRecordByRollNo(rollNo) {
+  static async getStudentRecordByRollNo(rollNo, { firstYearOnly = false } = {}) {
     if (!rollNo) return null;
     const cleanRoll = String(rollNo).toUpperCase().trim();
 
     const validated = validateRollNo(cleanRoll);
     if (!validated.isValid) return null;
+
+    if (firstYearOnly && !(await this.isStudentFirstYear(cleanRoll))) {
+      return null;
+    }
 
     const rows = await db
       .select({
@@ -441,7 +483,7 @@ export class IDCardDataService {
   /**
    * Retrieves bulk student records for batch PDF generation directly from authoritative database
    */
-  static async getStudentsForBulk(rollNos, allowedBranches = null) {
+  static async getStudentsForBulk(rollNos, allowedBranches = null, { firstYearOnly = false } = {}) {
     if (!Array.isArray(rollNos) || rollNos.length === 0) return [];
 
     const cleanRolls = Array.from(
@@ -500,6 +542,7 @@ export class IDCardDataService {
       if (!student) continue;
 
       if (allowedSet && !allowedSet.has(student.branch)) continue;
+      if (firstYearOnly && !(await this.isStudentFirstYear(student.rollNo))) continue;
       matches.push(student);
     }
 
@@ -552,12 +595,15 @@ export class IDCardDataService {
     format = 'xlsx',
     allowedBranches = null,
     user = null,
+    firstYearOnly = false,
   }) {
     if (!branch) {
       throw new Error('Academic branch is required for ID card data export');
     }
 
     const normBranch = String(branch).toUpperCase().trim();
+    const isFirstYearRestricted = firstYearOnly || (user && user.is_first_year_coordinator);
+    const session = isFirstYearRestricted ? await getCurrentCalendarSession().catch(() => null) : null;
 
     // 1. Departmental Scoping Check
     if (normBranch !== 'ALL' && Array.isArray(allowedBranches) && allowedBranches.length > 0) {
@@ -637,6 +683,7 @@ export class IDCardDataService {
       if (allowedSet && !allowedSet.has(student.branch)) continue;
       if (normBranch !== 'ALL' && student.branch !== normBranch) continue;
       if (batch && batch !== 'ALL' && student.batch !== batch) continue;
+      if (isFirstYearRestricted && !(await this.isStudentFirstYear(student.rollNo, session))) continue;
 
       seenRolls.add(student.rollNo);
       eligibleStudents.push(student);
@@ -1012,12 +1059,19 @@ export class IDCardDataService {
     updatedByStaffId = null,
     ip = '127.0.0.1',
     userAgent = 'System',
+    firstYearOnly = false,
   }) {
     if (!rollNo || !fileBuffer) {
       throw new Error('Roll number and image file buffer are required');
     }
 
     const cleanRoll = String(rollNo).toUpperCase().trim();
+    if (firstYearOnly && !(await this.isStudentFirstYear(cleanRoll))) {
+      const err = new Error(`Access Denied: Student with roll number ${cleanRoll} is not a first year student`);
+      err.statusCode = 403;
+      throw err;
+    }
+
     const student = await this.getStudentRecordByRollNo(cleanRoll);
     if (!student) {
       throw new Error(`Eligible finalized student with roll number ${cleanRoll} not found`);
