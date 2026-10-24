@@ -15,8 +15,53 @@ CREATE TABLE IF NOT EXISTS `faculty_coordinator_assignments` (
 	CONSTRAINT `faculty_coordinator_assignments_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
-CREATE INDEX `idx_coord_staff_id` ON `faculty_coordinator_assignments` (`staff_account_id`);
+SET @add_idx_staff = (
+  SELECT IF(
+    NOT EXISTS(
+      SELECT 1 FROM information_schema.statistics
+      WHERE table_schema = DATABASE() AND table_name = 'faculty_coordinator_assignments' AND index_name = 'idx_coord_staff_id'
+    ),
+    'CREATE INDEX `idx_coord_staff_id` ON `faculty_coordinator_assignments` (`staff_account_id`)',
+    'DO 0'
+  )
+);
 --> statement-breakpoint
-CREATE INDEX `idx_coord_type_active` ON `faculty_coordinator_assignments` (`coordinator_type`,`is_active`);
+PREPARE stmt_idx_staff FROM @add_idx_staff;
 --> statement-breakpoint
-CREATE INDEX `idx_coord_acad_year` ON `faculty_coordinator_assignments` (`academic_year`);
+EXECUTE stmt_idx_staff;
+--> statement-breakpoint
+DEALLOCATE PREPARE stmt_idx_staff;
+--> statement-breakpoint
+SET @add_idx_active = (
+  SELECT IF(
+    NOT EXISTS(
+      SELECT 1 FROM information_schema.statistics
+      WHERE table_schema = DATABASE() AND table_name = 'faculty_coordinator_assignments' AND index_name = 'idx_coord_type_active'
+    ),
+    'CREATE INDEX `idx_coord_type_active` ON `faculty_coordinator_assignments` (`coordinator_type`,`is_active`)',
+    'DO 0'
+  )
+);
+--> statement-breakpoint
+PREPARE stmt_idx_active FROM @add_idx_active;
+--> statement-breakpoint
+EXECUTE stmt_idx_active;
+--> statement-breakpoint
+DEALLOCATE PREPARE stmt_idx_active;
+--> statement-breakpoint
+SET @add_idx_year = (
+  SELECT IF(
+    NOT EXISTS(
+      SELECT 1 FROM information_schema.statistics
+      WHERE table_schema = DATABASE() AND table_name = 'faculty_coordinator_assignments' AND index_name = 'idx_coord_acad_year'
+    ),
+    'CREATE INDEX `idx_coord_acad_year` ON `faculty_coordinator_assignments` (`academic_year`)',
+    'DO 0'
+  )
+);
+--> statement-breakpoint
+PREPARE stmt_idx_year FROM @add_idx_year;
+--> statement-breakpoint
+EXECUTE stmt_idx_year;
+--> statement-breakpoint
+DEALLOCATE PREPARE stmt_idx_year;

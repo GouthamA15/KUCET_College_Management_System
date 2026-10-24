@@ -97,6 +97,146 @@ export const SIGNATURE_EXAMPLES = [
 ];
 
 /**
+ * Authoritative signature acceptance & rejection guidelines.
+ * Shared across Admission and Student Profile Edit workflows.
+ */
+export const SIGNATURE_ACCEPTED_RULES = [
+  'Your own genuine handwritten signature in dark blue or black ink',
+  'A clean image against a plain, light or white background with sharp contrast',
+  'A horizontal, upright image with writing oriented correctly (left-to-right)',
+  'The complete signature without cropped edges, cut-off strokes, or obscured letters',
+  'A sufficiently large, legible signature neatly centered with balanced margins',
+  'A sharp and unedited photograph without shadows, filters, or excessive empty space',
+];
+
+export const SIGNATURE_REJECTED_RULES = [
+  "Another person's signature, or a printed/typed signature presented as handwritten",
+  'A signature that is rotated, sideways, vertical, or upside-down',
+  'A heavily cropped signature cutting off letters or starting/ending strokes',
+  'A blurry, faded, low-contrast image, or a photo taken in dim lighting',
+  'A signature photographed against dark, patterned, or ruled notebook paper',
+  'A photograph containing unnecessary surroundings, table surfaces, or other objects',
+  'An image with filters, decorative borders, or effects that obscure the actual strokes',
+];
+
+export const SIGNATURE_FILE_REQUIREMENTS = {
+  formats: ['JPG', 'PNG', 'WebP'],
+  formatsLabel: 'JPG, PNG, WebP',
+  maxSizeBytes: 1048576,
+  maxSizeLabel: '1 MB',
+};
+
+/**
+ * Reusable Signature Checklist Component (Accepted vs. Rejected rules)
+ */
+export function SignatureGuidanceChecklist({ className = '' }) {
+  return (
+    <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 ${className}`}>
+      <div className="space-y-2">
+        <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" aria-hidden="true" />
+          What to Upload (Accepted)
+        </h4>
+        <ul className="text-xs text-slate-700 space-y-1.5 pl-1 leading-relaxed">
+          {SIGNATURE_ACCEPTED_RULES.map((rule, idx) => (
+            <li key={idx} className="flex items-start gap-1.5">
+              <span className="text-emerald-600 font-bold shrink-0">✓</span>
+              <span>{rule}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="text-xs font-bold text-rose-800 uppercase tracking-wider flex items-center gap-1.5">
+          <XCircle className="w-4 h-4 text-rose-600 shrink-0" aria-hidden="true" />
+          What NOT to Upload (Rejected)
+        </h4>
+        <ul className="text-xs text-slate-700 space-y-1.5 pl-1 leading-relaxed">
+          {SIGNATURE_REJECTED_RULES.map((rule, idx) => (
+            <li key={idx} className="flex items-start gap-1.5">
+              <span className="text-rose-600 font-bold shrink-0">✗</span>
+              <span>{rule}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Reusable Signature Visual Examples Cards Grid
+ */
+export function SignatureExamplesCards({ className = '' }) {
+  return (
+    <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 ${className}`}>
+      {SIGNATURE_EXAMPLES.map((ex) => (
+        <div 
+          key={ex.id}
+          className={`rounded-xl border ${ex.isAccepted ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-rose-200'} bg-white overflow-hidden shadow-sm flex flex-col justify-between`}
+        >
+          <div>
+            <div className={`p-2.5 ${ex.isAccepted ? 'bg-emerald-50 text-emerald-900 border-b border-emerald-100' : 'bg-rose-50 text-rose-900 border-b border-rose-100'} flex items-center justify-between`}>
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${ex.isAccepted ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
+                {ex.isAccepted ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                {ex.isAccepted ? 'ACCEPTABLE' : 'UNACCEPTABLE'}
+              </span>
+              <span className="text-[10px] font-bold uppercase truncate max-w-[120px]">
+                {ex.classification}
+              </span>
+            </div>
+
+            <div className="p-3 bg-slate-50 flex items-center justify-center border-b border-slate-100 h-44">
+              <div className="relative h-36 w-full max-w-[200px] shadow-sm rounded overflow-hidden bg-white border border-slate-200">
+                <Image
+                  src={ex.src}
+                  alt={ex.alt}
+                  fill
+                  sizes="(max-width: 768px) 160px, 200px"
+                  className="object-contain p-1"
+                />
+              </div>
+            </div>
+
+            <div className="p-3 space-y-1.5">
+              <p className="text-xs font-bold text-slate-900 leading-tight">
+                {ex.title}
+              </p>
+              <p className="text-[11px] text-slate-600 leading-normal">
+                {ex.summary}
+              </p>
+            </div>
+          </div>
+
+          <div className={`p-2 text-[10px] font-semibold text-center border-t ${ex.isAccepted ? 'bg-emerald-50 text-emerald-800 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'}`}>
+            {ex.isAccepted ? '✓ Exam Hall Ready' : '✗ Will Require Re-upload'}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Reusable Complete Signature Guidance Content Section
+ */
+export function SignatureGuidanceSection({ warningNotice, className = '' }) {
+  return (
+    <div className={`space-y-6 ${className}`}>
+      {warningNotice || <ExaminationVerificationWarning />}
+      <SignatureGuidanceChecklist />
+      <div>
+        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">
+          Visual Reference Examples
+        </h3>
+        <SignatureExamplesCards />
+      </div>
+    </div>
+  );
+}
+
+/**
  * Prominent Examination Verification Warning Alert Box
  */
 export function ExaminationVerificationWarning({ className = '' }) {
@@ -124,56 +264,83 @@ export function ExaminationVerificationWarning({ className = '' }) {
 
 /**
  * Interactive Signature Guidance Modal Dialog
- * Opens when student clicks the signature placeholder or "View Signature Requirements".
+ * Opens when student clicks the signature placeholder, "View Signature Requirements",
+ * or triggers signature update in student profile settings.
  */
-export function SignatureGuidanceModal({ open, onClose, onSelectSignature }) {
+export function SignatureGuidanceModal({ 
+  open, 
+  isOpen, 
+  onClose, 
+  onCancel, 
+  onSelectSignature, 
+  onContinue,
+  title = 'Student Signature Requirements for Examination Verification',
+  subtitle = 'Review acceptable vs. unacceptable signature uploads before submitting',
+  warningNotice,
+  actionText = 'Choose Signature',
+  cancelText = 'Close',
+  ariaLabelledBy = 'signature-guidance-modal-title',
+  ariaDescribedBy,
+}) {
+  const isModalOpen = open ?? isOpen ?? false;
+  const handleClose = onClose ?? onCancel;
+  const handleSelect = onSelectSignature ?? onContinue;
+
   const modalRef = useRef(null);
+  const actionButtonRef = useRef(null);
   const previouslyFocusedElement = useRef(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!isModalOpen) return;
 
     // Save previous active element to restore focus on close
-    previouslyFocusedElement.current = document.activeElement;
+    previouslyFocusedElement.current = typeof document !== 'undefined' ? document.activeElement : null;
 
     // Prevent background scrolling
     const origOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
-    // Focus modal container
-    if (modalRef.current) {
-      modalRef.current.focus();
-    }
+    // Auto-focus primary action button
+    const focusTimer = setTimeout(() => {
+      if (actionButtonRef.current?.focus) {
+        actionButtonRef.current.focus();
+      } else if (modalRef.current?.focus) {
+        modalRef.current.focus();
+      }
+    }, 50);
 
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        onClose();
+        e.preventDefault();
+        handleClose?.();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
+      clearTimeout(focusTimer);
       document.body.style.overflow = origOverflow;
       window.removeEventListener('keydown', handleKeyDown);
       if (previouslyFocusedElement.current?.focus) {
         previouslyFocusedElement.current.focus();
       }
     };
-  }, [open, onClose]);
+  }, [isModalOpen, handleClose]);
 
-  if (!open) return null;
+  if (!isModalOpen) return null;
 
   return (
     <div 
-      className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6"
+      className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fadeIn"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="signature-guidance-modal-title"
+      aria-labelledby={ariaLabelledBy}
+      aria-describedby={ariaDescribedBy}
       tabIndex={-1}
       ref={modalRef}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) handleClose?.();
       }}
     >
       <div 
@@ -183,21 +350,21 @@ export function SignatureGuidanceModal({ open, onClose, onSelectSignature }) {
         {/* Modal Header */}
         <div className="p-5 sm:p-6 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-700 shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-[#0b3578] shrink-0">
               <FileSignature className="w-5 h-5" aria-hidden="true" />
             </div>
             <div>
-              <h2 id="signature-guidance-modal-title" className="text-base sm:text-xl font-bold text-slate-900">
-                Student Signature Requirements for Examination Verification
+              <h2 id={ariaLabelledBy} className="text-base sm:text-xl font-bold text-[#0b2447]">
+                {title}
               </h2>
               <p className="text-xs sm:text-sm text-slate-600">
-                Review acceptable vs. unacceptable signature uploads before submitting
+                {subtitle}
               </p>
             </div>
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="text-slate-400 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-200/60 transition-colors cursor-pointer"
             aria-label="Close guidance dialog"
           >
@@ -206,113 +373,19 @@ export function SignatureGuidanceModal({ open, onClose, onSelectSignature }) {
         </div>
 
         {/* Modal Scrollable Body */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-6">
+        <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1">
           {/* Prominent Warning Callout */}
-          <ExaminationVerificationWarning />
+          {warningNotice || <ExaminationVerificationWarning />}
 
           {/* Quick Checklist */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                What to Upload (Accepted)
-              </h4>
-              <ul className="text-xs text-slate-700 space-y-1.5 pl-1">
-                <li className="flex items-start gap-1.5">
-                  <span className="text-emerald-600 font-bold">✓</span>
-                  Handwritten signature in dark blue or black ink
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-emerald-600 font-bold">✓</span>
-                  Clean, unlined white paper with high contrast
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-emerald-600 font-bold">✓</span>
-                  Horizontal upright orientation (reads left-to-right)
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-emerald-600 font-bold">✓</span>
-                  Properly framed with balanced margins around signature
-                </li>
-              </ul>
-            </div>
-
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-rose-800 uppercase tracking-wider flex items-center gap-1.5">
-                <XCircle className="w-4 h-4 text-rose-600" />
-                What NOT to Upload (Rejected)
-              </h4>
-              <ul className="text-xs text-slate-700 space-y-1.5 pl-1">
-                <li className="flex items-start gap-1.5">
-                  <span className="text-rose-600 font-bold">✗</span>
-                  Sideways, rotated, or vertical signatures
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-rose-600 font-bold">✗</span>
-                  Excessive background area (tables, shadows, edges)
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-rose-600 font-bold">✗</span>
-                  Signatures cropped too tightly with cut-off strokes
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-rose-600 font-bold">✗</span>
-                  Signatures written on dark, colored, or ruled paper
-                </li>
-              </ul>
-            </div>
-          </div>
+          <SignatureGuidanceChecklist />
 
           {/* Detailed 4 Examples Grid */}
           <div>
             <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">
               Visual Reference Examples
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {SIGNATURE_EXAMPLES.map((ex) => (
-                <div 
-                  key={ex.id}
-                  className={`rounded-xl border ${ex.isAccepted ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-rose-200'} bg-white overflow-hidden shadow-sm flex flex-col justify-between`}
-                >
-                  <div>
-                    <div className={`p-2.5 ${ex.isAccepted ? 'bg-emerald-50 text-emerald-900 border-b border-emerald-100' : 'bg-rose-50 text-rose-900 border-b border-rose-100'} flex items-center justify-between`}>
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${ex.isAccepted ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
-                        {ex.isAccepted ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                        {ex.isAccepted ? 'ACCEPTABLE' : 'UNACCEPTABLE'}
-                      </span>
-                      <span className="text-[10px] font-bold uppercase truncate max-w-[120px]">
-                        {ex.classification}
-                      </span>
-                    </div>
-
-                    <div className="p-3 bg-slate-50 flex items-center justify-center border-b border-slate-100 h-44">
-                      <div className="relative h-36 w-full max-w-[200px] shadow-sm rounded overflow-hidden bg-white border border-slate-200">
-                        <Image
-                          src={ex.src}
-                          alt={ex.alt}
-                          fill
-                          sizes="(max-width: 768px) 160px, 200px"
-                          className="object-contain p-1"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="p-3 space-y-1.5">
-                      <p className="text-xs font-bold text-slate-900 leading-tight">
-                        {ex.title}
-                      </p>
-                      <p className="text-[11px] text-slate-600 leading-normal">
-                        {ex.summary}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className={`p-2 text-[10px] font-semibold text-center border-t ${ex.isAccepted ? 'bg-emerald-50 text-emerald-800 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'}`}>
-                    {ex.isAccepted ? '✓ Exam Hall Ready' : '✗ Will Require Re-upload'}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <SignatureExamplesCards />
           </div>
         </div>
 
@@ -324,21 +397,23 @@ export function SignatureGuidanceModal({ open, onClose, onSelectSignature }) {
           <div className="flex items-center gap-2.5 w-full sm:w-auto">
             <button
               type="button"
-              onClick={onClose}
-              className="w-full sm:w-auto px-4 py-2 text-xs sm:text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              onClick={handleClose}
+              className="w-full sm:w-auto px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
             >
-              Close
+              {cancelText}
             </button>
             <button
+              ref={actionButtonRef}
               type="button"
               onClick={() => {
-                onClose();
-                if (onSelectSignature) onSelectSignature();
+                handleClose?.();
+                handleSelect?.();
               }}
-              className="w-full sm:w-auto px-5 py-2 text-xs sm:text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
+              aria-label="Continue and choose signature"
+              className="w-full sm:w-auto px-5 py-2.5 text-xs sm:text-sm font-bold text-white bg-[#0b3578] hover:bg-[#0a2d66] active:bg-[#092554] rounded-lg shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#0b3578]/50"
             >
               <Upload className="w-4 h-4" aria-hidden="true" />
-              Choose Signature
+              {actionText}
             </button>
           </div>
         </div>

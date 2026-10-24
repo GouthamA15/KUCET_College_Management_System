@@ -422,28 +422,12 @@ export async function getAuthUser(role = null) {
           payload.is_first_year_coordinator = true;
         } else if (actualRole === 'faculty') {
           try {
-            const { facultyCoordinatorAssignments } = await import('@/db/schema');
-            if (db?.select && facultyCoordinatorAssignments) {
-              const todayStr = new Date().toISOString().split('T')[0];
-              const coordRows = await db.select()
-                .from(facultyCoordinatorAssignments)
-                .where(and(
-                  eq(facultyCoordinatorAssignments.staff_account_id, payload.id),
-                  eq(facultyCoordinatorAssignments.coordinator_type, 'FIRST_YEAR'),
-                  eq(facultyCoordinatorAssignments.is_active, true)
-                ));
-              const activeCoord = coordRows.find(c => {
-                if (c.start_date && todayStr < c.start_date) return false;
-                if (c.end_date && todayStr > c.end_date) return false;
-                return true;
-              });
-              if (activeCoord) {
-                payload.is_first_year_coordinator = true;
-                payload.first_year_coordinator_assignment = activeCoord;
-              } else {
-                return null;
-              }
-            } else if (!payload.is_first_year_coordinator) {
+            const { CoordinatorAssignmentService } = await import('@/services/identity/CoordinatorAssignmentService');
+            const activeCoord = await CoordinatorAssignmentService.getActiveCoordinatorForStaff(payload.id);
+            if (activeCoord) {
+              payload.is_first_year_coordinator = true;
+              payload.first_year_coordinator_assignment = activeCoord;
+            } else {
               return null;
             }
           } catch (_e) {
@@ -527,27 +511,13 @@ export async function getAuthUser(role = null) {
     // Attach First Year Coordinator context to staff payload if available
     if (payload.role === 'faculty') {
       try {
-        const { facultyCoordinatorAssignments } = await import('@/db/schema');
-        if (db?.select && facultyCoordinatorAssignments) {
-          const todayStr = new Date().toISOString().split('T')[0];
-          const coordRows = await db.select()
-            .from(facultyCoordinatorAssignments)
-            .where(and(
-              eq(facultyCoordinatorAssignments.staff_account_id, payload.id),
-              eq(facultyCoordinatorAssignments.coordinator_type, 'FIRST_YEAR'),
-              eq(facultyCoordinatorAssignments.is_active, true)
-            ));
-          const activeCoord = coordRows.find(c => {
-            if (c.start_date && todayStr < c.start_date) return false;
-            if (c.end_date && todayStr > c.end_date) return false;
-            return true;
-          });
-          if (activeCoord) {
-            payload.is_first_year_coordinator = true;
-            payload.first_year_coordinator_assignment = activeCoord;
-          } else {
-            payload.is_first_year_coordinator = false;
-          }
+        const { CoordinatorAssignmentService } = await import('@/services/identity/CoordinatorAssignmentService');
+        const activeCoord = await CoordinatorAssignmentService.getActiveCoordinatorForStaff(payload.id);
+        if (activeCoord) {
+          payload.is_first_year_coordinator = true;
+          payload.first_year_coordinator_assignment = activeCoord;
+        } else {
+          payload.is_first_year_coordinator = false;
         }
       } catch (_e) {
         // Non-fatal

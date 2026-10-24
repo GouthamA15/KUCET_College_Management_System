@@ -122,24 +122,11 @@ export const GET = wrapHandler({
     let coordinatorAssignment = null;
     if (resolvedRole === 'faculty') {
       try {
-        const { facultyCoordinatorAssignments } = await import('@/db/schema');
-        const { and, lte, gte, isNull, or } = await import('drizzle-orm');
-        const nowStr = new Date().toISOString().split('T')[0];
-        const coordRows = await db.select()
-          .from(facultyCoordinatorAssignments)
-          .where(and(
-            eq(facultyCoordinatorAssignments.staff_account_id, staff.id),
-            eq(facultyCoordinatorAssignments.coordinator_type, 'FIRST_YEAR'),
-            eq(facultyCoordinatorAssignments.is_active, true),
-            lte(facultyCoordinatorAssignments.start_date, nowStr),
-            or(
-              isNull(facultyCoordinatorAssignments.end_date),
-              gte(facultyCoordinatorAssignments.end_date, nowStr)
-            )
-          ));
-        if (coordRows.length > 0) {
+        const { CoordinatorAssignmentService } = await import('@/services/identity/CoordinatorAssignmentService');
+        const activeCoord = await CoordinatorAssignmentService.getActiveCoordinatorForStaff(staff.id);
+        if (activeCoord) {
           isFirstYearCoordinator = true;
-          coordinatorAssignment = coordRows[0];
+          coordinatorAssignment = activeCoord;
         }
       } catch (_e) {
         // Non-fatal

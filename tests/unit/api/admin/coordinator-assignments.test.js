@@ -126,5 +126,56 @@ describe('Admin Coordinator Assignments API Endpoints', () => {
       expect(res.status).toBe(200);
       expect(json.message).toContain('revoked');
     });
+
+    it('updates dates when action is UPDATE_DATES', async () => {
+      vi.spyOn(CoordinatorAssignmentService, 'updateCoordinatorDates').mockResolvedValueOnce({
+        id: 5,
+        start_date: '2024-08-01',
+        end_date: '2025-07-31',
+        message: 'Appointment dates successfully updated'
+      });
+
+      const req = new Request('http://localhost/api/admin/coordinator-assignments/5', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'UPDATE_DATES',
+          start_date: '2024-08-01',
+          end_date: '2025-07-31'
+        })
+      });
+
+      const res = await PUT(req, { params: Promise.resolve({ id: '5' }) });
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.message).toContain('Appointment dates');
+    });
+
+    it('renews coordinator when action is RENEW with YYYY-YYYY format', async () => {
+      vi.spyOn(CoordinatorAssignmentService, 'renewCoordinator').mockResolvedValueOnce({
+        id: 6,
+        staff_account_id: 10,
+        coordinator_type: 'FIRST_YEAR',
+        academic_year: '2025-2026',
+        start_date: '2025-07-01'
+      });
+
+      const req = new Request('http://localhost/api/admin/coordinator-assignments/5', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'RENEW',
+          academic_year: '2025-2026',
+          start_date: '2025-07-01'
+        })
+      });
+
+      const res = await PUT(req, { params: Promise.resolve({ id: '5' }) });
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.data.academic_year).toBe('2025-2026');
+    });
   });
 });

@@ -61,7 +61,7 @@ export async function POST(req) {
       id: z.number().int().positive().optional(),
       version: z.number().int().min(0).optional(),
       branch: z.string().optional(),
-      academic_year: z.string().regex(/^\d{4}-\d{2}$/, "Format: YYYY-YY").default('2025-26'),
+      academic_year: z.string().regex(/^(\d{4}-\d{2}|\d{4}-\d{4})$/, "Format: YYYY-YY or YYYY-YYYY").default('2025-26'),
       semester: z.number().int().min(1).max(8),
       faculty_id: z.preprocess(
         (v) => (v === '' || v === undefined || v === null) ? null : Number(v),

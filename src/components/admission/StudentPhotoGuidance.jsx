@@ -100,6 +100,37 @@ export const PHOTO_EXAMPLES = [
 ];
 
 /**
+ * Authoritative photo acceptance & rejection guidelines.
+ * Shared across Admission and Student Profile Edit workflows.
+ */
+export const PHOTO_ACCEPTED_RULES = [
+  'An original, recent passport-style portrait (JPG, PNG, or WebP)',
+  'A straight-on, front-facing view of the student with both eyes open',
+  'A head-and-shoulders portrait with face clearly visible and centered',
+  'A plain white or light-coloured background with natural, even lighting',
+  'Good lighting and sharp focus where face occupies 60% to 70% of the frame',
+  'A clean photograph without filters, decorative effects, borders, or distracting objects',
+];
+
+export const PHOTO_REJECTED_RULES = [
+  'A photograph of an existing printed ID card, paper print, or another screen',
+  'A screenshot of a photograph or photo taken of another photo',
+  'Full-body or distant photographs where the face is too small to recognize',
+  'Casual group photographs, selfies with filters, or social media snapshots',
+  'Outdoor photographs with distracting foliage, buildings, or furniture',
+  'Images with sunglasses, face-obscuring objects, heavy shadows, or extreme angles',
+  'Blurry, pixelated, excessively dark, or overexposed images',
+  'Images of another person, or photos with borders and heavy editing',
+];
+
+export const PHOTO_FILE_REQUIREMENTS = {
+  formats: ['JPG', 'PNG', 'WebP'],
+  formatsLabel: 'JPG, PNG, WebP',
+  maxSizeBytes: 1048576,
+  maxSizeLabel: '1 MB',
+};
+
+/**
  * Prominent Physical ID-Card Warning Alert Box
  */
 export function PhysicalIDCardWarning({ className = '' }) {
@@ -281,57 +312,194 @@ export function PhotoGuidanceGrid({ onOpenModal }) {
 }
 
 /**
- * Interactive Photo Guidance Modal Dialog
- * Opens when student clicks "View Photo Requirements" or clicks the empty upload placeholder.
+ * Reusable Photo Checklist Component (Accepted vs. Rejected rules)
  */
-export function PhotoGuidanceModal({ open, onClose, onSelectPhoto }) {
+export function PhotoGuidanceChecklist({ className = '' }) {
+  return (
+    <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 ${className}`}>
+      <div className="space-y-2">
+        <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" aria-hidden="true" />
+          What to Upload (Accepted)
+        </h4>
+        <ul className="text-xs text-slate-700 space-y-1.5 pl-1 leading-relaxed">
+          {PHOTO_ACCEPTED_RULES.map((rule, idx) => (
+            <li key={idx} className="flex items-start gap-1.5">
+              <span className="text-emerald-600 font-bold shrink-0">✓</span>
+              <span>{rule}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="text-xs font-bold text-rose-800 uppercase tracking-wider flex items-center gap-1.5">
+          <XCircle className="w-4 h-4 text-rose-600 shrink-0" aria-hidden="true" />
+          What NOT to Upload (Rejected)
+        </h4>
+        <ul className="text-xs text-slate-700 space-y-1.5 pl-1 leading-relaxed">
+          {PHOTO_REJECTED_RULES.map((rule, idx) => (
+            <li key={idx} className="flex items-start gap-1.5">
+              <span className="text-rose-600 font-bold shrink-0">✗</span>
+              <span>{rule}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Reusable Photo Visual Examples Cards Grid
+ */
+export function PhotoExamplesCards({ className = '' }) {
+  return (
+    <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 ${className}`}>
+      {PHOTO_EXAMPLES.map((ex) => (
+        <div 
+          key={ex.id}
+          className={`rounded-xl border ${ex.isAccepted ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-rose-200'} bg-white overflow-hidden shadow-sm flex flex-col justify-between`}
+        >
+          <div>
+            <div className={`p-2.5 ${ex.isAccepted ? 'bg-emerald-50 text-emerald-900 border-b border-emerald-100' : 'bg-rose-50 text-rose-900 border-b border-rose-100'} flex items-center justify-between`}>
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${ex.isAccepted ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
+                {ex.isAccepted ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                {ex.isAccepted ? 'GOOD' : 'AVOID'}
+              </span>
+              <span className="text-[10px] font-bold uppercase truncate max-w-[120px]">
+                {ex.classification}
+              </span>
+            </div>
+
+            <div className="p-3 bg-slate-50 flex items-center justify-center border-b border-slate-100 h-44">
+              <div className="relative h-36 w-28 shadow-sm rounded overflow-hidden bg-white border border-slate-200">
+                <Image
+                  src={ex.src}
+                  alt={ex.alt}
+                  fill
+                  sizes="112px"
+                  className="object-contain"
+                />
+              </div>
+            </div>
+
+            <div className="p-3 space-y-1.5">
+              <p className="text-xs font-bold text-slate-900 leading-tight">
+                {ex.title}
+              </p>
+              <p className="text-[11px] text-slate-600 leading-normal">
+                {ex.summary}
+              </p>
+            </div>
+          </div>
+
+          <div className={`p-2 text-[10px] font-semibold text-center border-t ${ex.isAccepted ? 'bg-emerald-50 text-emerald-800 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'}`}>
+            {ex.isAccepted ? '✓ Recommended' : '✗ Will Be Rejected'}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Reusable Complete Photo Guidance Content Section
+ */
+export function PhotoGuidanceSection({ warningNotice, className = '' }) {
+  return (
+    <div className={`space-y-6 ${className}`}>
+      {warningNotice || <PhysicalIDCardWarning />}
+      <PhotoGuidanceChecklist />
+      <div>
+        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">
+          Visual Reference Examples
+        </h3>
+        <PhotoExamplesCards />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Interactive Photo Guidance Modal Dialog
+ * Opens when student clicks "View Photo Requirements", clicks the empty upload placeholder,
+ * or triggers photo update in student profile settings.
+ */
+export function PhotoGuidanceModal({ 
+  open, 
+  isOpen, 
+  onClose, 
+  onCancel, 
+  onSelectPhoto, 
+  onContinue,
+  title = 'Student Photograph Requirements for College ID Card',
+  subtitle = 'Review acceptable vs. unacceptable photos before uploading',
+  warningNotice,
+  actionText = 'Choose Photo',
+  cancelText = 'Close',
+  ariaLabelledBy = 'photo-guidance-modal-title',
+  ariaDescribedBy,
+}) {
+  const isModalOpen = open ?? isOpen ?? false;
+  const handleClose = onClose ?? onCancel;
+  const handleSelect = onSelectPhoto ?? onContinue;
+
   const modalRef = useRef(null);
+  const actionButtonRef = useRef(null);
   const previouslyFocusedElement = useRef(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!isModalOpen) return;
 
     // Save previous active element to restore focus on close
-    previouslyFocusedElement.current = document.activeElement;
+    previouslyFocusedElement.current = typeof document !== 'undefined' ? document.activeElement : null;
 
     // Prevent background scrolling
     const origOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
-    // Focus modal container
-    if (modalRef.current) {
-      modalRef.current.focus();
-    }
+    // Auto-focus primary action button
+    const focusTimer = setTimeout(() => {
+      if (actionButtonRef.current?.focus) {
+        actionButtonRef.current.focus();
+      } else if (modalRef.current?.focus) {
+        modalRef.current.focus();
+      }
+    }, 50);
 
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        onClose();
+        e.preventDefault();
+        handleClose?.();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
+      clearTimeout(focusTimer);
       document.body.style.overflow = origOverflow;
       window.removeEventListener('keydown', handleKeyDown);
       if (previouslyFocusedElement.current?.focus) {
         previouslyFocusedElement.current.focus();
       }
     };
-  }, [open, onClose]);
+  }, [isModalOpen, handleClose]);
 
-  if (!open) return null;
+  if (!isModalOpen) return null;
 
   return (
     <div 
-      className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6"
+      className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fadeIn"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="photo-guidance-modal-title"
+      aria-labelledby={ariaLabelledBy}
+      aria-describedby={ariaDescribedBy}
       tabIndex={-1}
       ref={modalRef}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) handleClose?.();
       }}
     >
       <div 
@@ -341,21 +509,21 @@ export function PhotoGuidanceModal({ open, onClose, onSelectPhoto }) {
         {/* Modal Header */}
         <div className="p-5 sm:p-6 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-700 shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
               <Camera className="w-5 h-5" aria-hidden="true" />
             </div>
             <div>
-              <h2 id="photo-guidance-modal-title" className="text-base sm:text-xl font-bold text-slate-900">
-                Student Photograph Requirements for College ID Card
+              <h2 id={ariaLabelledBy} className="text-base sm:text-xl font-bold text-[#0b2447]">
+                {title}
               </h2>
               <p className="text-xs sm:text-sm text-slate-600">
-                Review acceptable vs. unacceptable photos before uploading
+                {subtitle}
               </p>
             </div>
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="text-slate-400 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-200/60 transition-colors cursor-pointer"
             aria-label="Close guidance dialog"
           >
@@ -364,113 +532,19 @@ export function PhotoGuidanceModal({ open, onClose, onSelectPhoto }) {
         </div>
 
         {/* Modal Scrollable Body */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-6">
+        <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1">
           {/* Prominent Warning Callout */}
-          <PhysicalIDCardWarning />
+          {warningNotice || <PhysicalIDCardWarning />}
 
           {/* Quick Checklist */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                What to Upload (Accepted)
-              </h4>
-              <ul className="text-xs text-slate-700 space-y-1.5 pl-1">
-                <li className="flex items-start gap-1.5">
-                  <span className="text-emerald-600 font-bold">✓</span>
-                  Original digital passport portrait (JPEG, PNG, or WebP)
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-emerald-600 font-bold">✓</span>
-                  Straight-on, front-facing view with both eyes open
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-emerald-600 font-bold">✓</span>
-                  Plain white or light-colored background
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-emerald-600 font-bold">✓</span>
-                  Head and shoulders clearly visible and sharp
-                </li>
-              </ul>
-            </div>
-
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-rose-800 uppercase tracking-wider flex items-center gap-1.5">
-                <XCircle className="w-4 h-4 text-rose-600" />
-                What NOT to Upload (Rejected)
-              </h4>
-              <ul className="text-xs text-slate-700 space-y-1.5 pl-1">
-                <li className="flex items-start gap-1.5">
-                  <span className="text-rose-600 font-bold">✗</span>
-                  Photographs of existing paper prints, ID cards, or screens
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-rose-600 font-bold">✗</span>
-                  Full-body or distant shots where face is small
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-rose-600 font-bold">✗</span>
-                  Casual outdoor snapshots with trees, cafe, or crowded background
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-rose-600 font-bold">✗</span>
-                  Selfies with filters, sunglasses, heavy shadows, or tilted angles
-                </li>
-              </ul>
-            </div>
-          </div>
+          <PhotoGuidanceChecklist />
 
           {/* Detailed 4 Examples Grid */}
           <div>
             <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">
               Visual Reference Examples
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {PHOTO_EXAMPLES.map((ex) => (
-                <div 
-                  key={ex.id}
-                  className={`rounded-xl border ${ex.isAccepted ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-rose-200'} bg-white overflow-hidden shadow-sm flex flex-col justify-between`}
-                >
-                  <div>
-                    <div className={`p-2.5 ${ex.isAccepted ? 'bg-emerald-50 text-emerald-900 border-b border-emerald-100' : 'bg-rose-50 text-rose-900 border-b border-rose-100'} flex items-center justify-between`}>
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${ex.isAccepted ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
-                        {ex.isAccepted ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                        {ex.isAccepted ? 'GOOD' : 'AVOID'}
-                      </span>
-                      <span className="text-[10px] font-bold uppercase truncate max-w-[120px]">
-                        {ex.classification}
-                      </span>
-                    </div>
-
-                    <div className="p-3 bg-slate-50 flex items-center justify-center border-b border-slate-100 h-44">
-                      <div className="relative h-36 w-28 shadow-sm rounded overflow-hidden bg-white border border-slate-200">
-                        <Image
-                          src={ex.src}
-                          alt={ex.alt}
-                          fill
-                          sizes="112px"
-                          className="object-contain"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="p-3 space-y-1.5">
-                      <p className="text-xs font-bold text-slate-900 leading-tight">
-                        {ex.title}
-                      </p>
-                      <p className="text-[11px] text-slate-600 leading-normal">
-                        {ex.summary}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className={`p-2 text-[10px] font-semibold text-center border-t ${ex.isAccepted ? 'bg-emerald-50 text-emerald-800 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'}`}>
-                    {ex.isAccepted ? '✓ Recommended' : '✗ Will Be Rejected'}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <PhotoExamplesCards />
           </div>
         </div>
 
@@ -482,21 +556,23 @@ export function PhotoGuidanceModal({ open, onClose, onSelectPhoto }) {
           <div className="flex items-center gap-2.5 w-full sm:w-auto">
             <button
               type="button"
-              onClick={onClose}
-              className="w-full sm:w-auto px-4 py-2 text-xs sm:text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              onClick={handleClose}
+              className="w-full sm:w-auto px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
             >
-              Close
+              {cancelText}
             </button>
             <button
+              ref={actionButtonRef}
               type="button"
               onClick={() => {
-                onClose();
-                if (onSelectPhoto) onSelectPhoto();
+                handleClose?.();
+                handleSelect?.();
               }}
-              className="w-full sm:w-auto px-5 py-2 text-xs sm:text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
+              aria-label="Continue and choose photo"
+              className="w-full sm:w-auto px-5 py-2.5 text-xs sm:text-sm font-bold text-white bg-[#0b3578] hover:bg-[#0a2d66] active:bg-[#092554] rounded-lg shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#0b3578]/50"
             >
               <Upload className="w-4 h-4" aria-hidden="true" />
-              Choose Photo
+              {actionText}
             </button>
           </div>
         </div>

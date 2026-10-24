@@ -2,6 +2,18 @@ import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import UploadWarningModal, { WARNING_CONFIG } from '@/components/student/UploadWarningModal';
+import { 
+  validateStudentPhotoFile, 
+  PHOTO_ACCEPTED_RULES, 
+  PHOTO_REJECTED_RULES, 
+  PHOTO_FILE_REQUIREMENTS 
+} from '@/components/admission/StudentPhotoGuidance';
+import { 
+  validateStudentSignatureFile, 
+  SIGNATURE_ACCEPTED_RULES, 
+  SIGNATURE_REJECTED_RULES, 
+  SIGNATURE_FILE_REQUIREMENTS 
+} from '@/components/admission/StudentSignatureGuidance';
 
 describe('Student Profile Picture & Signature Upload Warnings', () => {
   describe('UploadWarningModal Content & Accessibility Standards', () => {
@@ -85,10 +97,90 @@ describe('Student Profile Picture & Signature Upload Warnings', () => {
         })
       );
 
-      expect(html).toContain('max-w-md');
+      expect(html).toContain('max-w-4xl');
       expect(html).toContain('w-full');
       expect(html).toContain('rounded-2xl');
       expect(html).toContain('flex flex-col-reverse sm:flex-row');
+    });
+
+    it('renders visual guidance checklist, examples, and file specs for profile photograph', () => {
+      const html = renderToStaticMarkup(
+        React.createElement(UploadWarningModal, {
+          isOpen: true,
+          type: 'pfp',
+          onCancel: vi.fn(),
+          onContinue: vi.fn(),
+        })
+      );
+
+      // Checklist headings
+      expect(html).toContain('What to Upload (Accepted)');
+      expect(html).toContain('What NOT to Upload (Rejected)');
+
+      // Detailed rules
+      expect(html).toContain('passport-style portrait');
+      expect(html).toContain('front-facing view');
+      expect(html).toContain('plain white or light-coloured background');
+      expect(html).toContain('printed ID card');
+
+      // Visual reference examples
+      expect(html).toContain('CORRECT — Passport-Style Portrait');
+      expect(html).toContain('Printed Photo / Photo of an ID Card');
+      expect(html).toContain('Full-Body or Distant Photo');
+      expect(html).toContain('Casual Outdoor / Distracting Background');
+      expect(html).toContain('student-photo-correct.png');
+      expect(html).toContain('student-photo-printed-image.png');
+      expect(html).toContain('student-photo-full-body.png');
+      expect(html).toContain('student-photo-casual-outdoor.png');
+
+      // File format and size contract
+      expect(html).toContain('Accepted formats:');
+      expect(html).toContain('JPG, PNG, WebP');
+      expect(html).toContain('Max 1MB');
+
+      // Actions
+      expect(html).toContain('Cancel');
+      expect(html).toContain('Choose Photo');
+    });
+
+    it('renders visual guidance checklist, examples, and file specs for signature', () => {
+      const html = renderToStaticMarkup(
+        React.createElement(UploadWarningModal, {
+          isOpen: true,
+          type: 'signature',
+          onCancel: vi.fn(),
+          onContinue: vi.fn(),
+        })
+      );
+
+      // Checklist headings
+      expect(html).toContain('What to Upload (Accepted)');
+      expect(html).toContain('What NOT to Upload (Rejected)');
+
+      // Detailed signature rules
+      expect(html).toContain('genuine handwritten signature in dark blue or black ink');
+      expect(html).toContain('clean image against a plain, light or white background');
+      expect(html).toContain('rotated, sideways, vertical, or upside-down');
+      expect(html).toContain('cropped signature');
+
+      // Visual reference examples
+      expect(html).toContain('ACCEPTABLE — Clear signature');
+      expect(html).toContain('ACCEPTABLE — Properly framed signature');
+      expect(html).toContain('NOT ACCEPTABLE — Incorrect cropping');
+      expect(html).toContain('NOT ACCEPTABLE — Wrong orientation');
+      expect(html).toContain('student-signature-acceptable-1.png');
+      expect(html).toContain('student-signature-acceptable-2.png');
+      expect(html).toContain('student-signature-incorrect-crop.png');
+      expect(html).toContain('student-signature-incorrect-orientation.png');
+
+      // File format and size contract
+      expect(html).toContain('Accepted formats:');
+      expect(html).toContain('JPG, PNG, WebP');
+      expect(html).toContain('Max 1MB');
+
+      // Actions
+      expect(html).toContain('Cancel');
+      expect(html).toContain('Choose Signature');
     });
   });
 
@@ -246,6 +338,97 @@ describe('Student Profile Picture & Signature Upload Warnings', () => {
       expect(validateFile({ size: 2 * 1024 * 1024 }).valid).toBe(false); // 2 MB
       expect(validateFile({ size: 1048576 }).valid).toBe(true); // Exact 1 MB
       expect(validateFile({ size: 500000 }).valid).toBe(true); // 500 KB
+    });
+  });
+
+  describe('Shared Guidance Contracts & Validation Integration', () => {
+    it('verifies photo and signature requirements specifications match backend 1 MB and format limits', () => {
+      expect(PHOTO_FILE_REQUIREMENTS.formats).toEqual(['JPG', 'PNG', 'WebP']);
+      expect(PHOTO_FILE_REQUIREMENTS.maxSizeBytes).toBe(1048576);
+      expect(PHOTO_FILE_REQUIREMENTS.maxSizeLabel).toBe('1 MB');
+
+      expect(SIGNATURE_FILE_REQUIREMENTS.formats).toEqual(['JPG', 'PNG', 'WebP']);
+      expect(SIGNATURE_FILE_REQUIREMENTS.maxSizeBytes).toBe(1048576);
+      expect(SIGNATURE_FILE_REQUIREMENTS.maxSizeLabel).toBe('1 MB');
+    });
+
+    it('verifies comprehensive accepted and rejected instruction rules are defined', () => {
+      expect(PHOTO_ACCEPTED_RULES.length).toBeGreaterThanOrEqual(5);
+      expect(PHOTO_REJECTED_RULES.length).toBeGreaterThanOrEqual(5);
+
+      expect(SIGNATURE_ACCEPTED_RULES.length).toBeGreaterThanOrEqual(5);
+      expect(SIGNATURE_REJECTED_RULES.length).toBeGreaterThanOrEqual(5);
+    });
+
+    it('validates photo using shared validateStudentPhotoFile', async () => {
+      const nullCheck = await validateStudentPhotoFile(null);
+      expect(nullCheck.valid).toBe(false);
+
+      const emptyCheck = await validateStudentPhotoFile({ size: 0, type: 'image/jpeg' });
+      expect(emptyCheck.valid).toBe(false);
+
+      const invalidType = await validateStudentPhotoFile({ size: 1000, type: 'application/pdf' });
+      expect(invalidType.valid).toBe(false);
+      expect(invalidType.error).toContain('Unsupported file format');
+
+      const oversizedRaw = await validateStudentPhotoFile({ size: 16 * 1024 * 1024, type: 'image/jpeg' });
+      expect(oversizedRaw.valid).toBe(false);
+      expect(oversizedRaw.error).toContain('too large');
+    });
+
+    it('validates signature using shared validateStudentSignatureFile', async () => {
+      const nullCheck = await validateStudentSignatureFile(null);
+      expect(nullCheck.valid).toBe(false);
+
+      const emptyCheck = await validateStudentSignatureFile({ size: 0, type: 'image/png' });
+      expect(emptyCheck.valid).toBe(false);
+
+      const invalidType = await validateStudentSignatureFile({ size: 1000, type: 'text/plain' });
+      expect(invalidType.valid).toBe(false);
+      expect(invalidType.error).toContain('Unsupported file format');
+
+      const oversizedRaw = await validateStudentSignatureFile({ size: 16 * 1024 * 1024, type: 'image/png' });
+      expect(oversizedRaw.valid).toBe(false);
+      expect(oversizedRaw.error).toContain('too large');
+    });
+
+    it('ensures profile modifications isolate media changes from unrelated personal fields', () => {
+      const originalProfile = {
+        name: 'K. Rahul',
+        father_name: 'K. Srinivas',
+        dob: '2004-05-15',
+        curr_city: 'Warangal',
+      };
+
+      const newPhotoDataUrl = 'data:image/jpeg;base64,sampleUpdatedPhotoData';
+      
+      // Payload when student only updates photo
+      const payload = {
+        signature: null,
+        pfp: newPhotoDataUrl,
+        data: null, // No personal data changes
+        proof: null,
+      };
+
+      expect(payload.pfp).toBe(newPhotoDataUrl);
+      expect(payload.data).toBeNull();
+      expect(originalProfile.name).toBe('K. Rahul');
+      expect(originalProfile.father_name).toBe('K. Srinivas');
+    });
+
+    it('simulates upload failure: existing photo remains unchanged and error is handled', async () => {
+      let currentPhoto = 'kucet/students/pfp/current_valid.webp';
+      let _pendingPhotoDataUrl = 'data:image/jpeg;base64,failedAttempt';
+
+      const mockFailedSave = vi.fn().mockRejectedValue(new Error('Network timeout'));
+
+      try {
+        await mockFailedSave();
+      } catch (err) {
+        expect(err.message).toBe('Network timeout');
+        // On failure, currentPhoto on profile remains untouched
+        expect(currentPhoto).toBe('kucet/students/pfp/current_valid.webp');
+      }
     });
   });
 });

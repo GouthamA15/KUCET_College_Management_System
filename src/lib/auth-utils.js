@@ -348,6 +348,7 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
       }
 
       let isHod = false;
+      let isPrincipal = roleRecords.some(r => r.role_code === 'PRINCIPAL');
       let isCoordinator = false;
       let branch = null;
       if (resolvedRole === 'faculty') {
@@ -360,7 +361,6 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
             branch = affil[0].branch_code;
           }
 
-          const isPrincipal = roleRecords.some(r => r.role_code === 'PRINCIPAL');
           const { facultyHodAssignments, facultyCoordinatorAssignments } = await import('@/db/schema');
           const hodRow = await db.select({ id: facultyHodAssignments.id })
               .from(facultyHodAssignments)
@@ -408,6 +408,7 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
          email: user.email,
          role: resolvedRole,
          is_hod: isHod,
+         is_principal: isPrincipal,
          is_first_year_coordinator: isCoordinator || false,
          branch: branch
       };

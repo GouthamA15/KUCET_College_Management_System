@@ -214,5 +214,42 @@ describe('CoordinatorAssignmentService', () => {
       });
       expect(status).toBe('REVOKED');
     });
+
+    it('computes EXPIRED status correctly when end_date is a Date object in the past', () => {
+      const pastDate = new Date('2020-01-01T00:00:00.000Z');
+      const status = CoordinatorAssignmentService.computeStatus({
+        is_active: true,
+        start_date: new Date('2019-01-01T00:00:00.000Z'),
+        end_date: pastDate
+      });
+      expect(status).toBe('EXPIRED');
+    });
+
+    it('computes SCHEDULED status correctly when start_date is a Date object in the future', () => {
+      const futureDate = new Date('2099-01-01T00:00:00.000Z');
+      const status = CoordinatorAssignmentService.computeStatus({
+        is_active: true,
+        start_date: futureDate,
+        end_date: new Date('2099-12-31T00:00:00.000Z')
+      });
+      expect(status).toBe('SCHEDULED');
+    });
+
+    it('computes DISABLED status when staff account status is not ACTIVE', () => {
+      const status = CoordinatorAssignmentService.computeStatus({
+        is_active: true,
+        start_date: '2020-01-01',
+        end_date: '2030-12-31',
+        staff_status: 'SUSPENDED'
+      });
+      expect(status).toBe('DISABLED');
+    });
+
+    it('rejects updateCoordinatorDates when end date is earlier than start date', async () => {
+      await expect(CoordinatorAssignmentService.updateCoordinatorDates(1, {
+        startDate: '2025-06-30',
+        endDate: '2025-01-01'
+      })).rejects.toThrow('End date cannot be earlier than start date');
+    });
   });
 });

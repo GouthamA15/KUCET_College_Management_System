@@ -142,6 +142,18 @@ const BASELINE_RULES = [
     getReason: () => 'students and student_admission_drafts gender columns are already canonical ENUM',
   },
   {
+    id: 26,
+    description: '0026_faculty_coordinator_assignments',
+    getEntries: (entries) => entries.filter((e) => e.idx === 26),
+    isSatisfied: async (conn) => {
+      const [tableRows] = await conn.query(
+        'SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = "faculty_coordinator_assignments"'
+      );
+      return Number(tableRows?.[0]?.count || 0) > 0;
+    },
+    getReason: () => 'faculty_coordinator_assignments table already exists',
+  },
+  {
     id: 27,
     description: '0027_remove_class_section',
     getEntries: (entries) => entries.filter((e) => e.idx === 27),

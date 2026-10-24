@@ -5,7 +5,7 @@ import { z } from 'zod';
 const assignCoordinatorSchema = z.object({
   staff_account_id: z.coerce.number().int().positive('Valid staff account is required'),
   coordinator_type: z.string().trim().default('FIRST_YEAR'),
-  academic_year: z.string().regex(/^\d{4}-\d{2}$/, 'Academic year must be in format YYYY-YY'),
+  academic_year: z.string().regex(/^(\d{4}-\d{2}|\d{4}-\d{4})$/, 'Academic year must be in format YYYY-YY or YYYY-YYYY'),
   start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Start date must be in format YYYY-MM-DD'),
   end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'End date must be in format YYYY-MM-DD').optional().nullable(),
 });

@@ -9,6 +9,8 @@ import { formatDateTime, toMySQLDate } from '@/lib/date';
 import { createPortal } from 'react-dom';
 import { Info, X, Camera, UploadCloud, FileText } from 'lucide-react';
 import UploadWarningModal from '@/components/student/UploadWarningModal';
+import { validateStudentPhotoFile } from '@/components/admission/StudentPhotoGuidance';
+import { validateStudentSignatureFile } from '@/components/admission/StudentSignatureGuidance';
 
 export default function EditProfilePage() {
   const { studentData, loading: contextLoading, profileDetails, refreshProfile } = useStudent();
@@ -252,9 +254,72 @@ export default function EditProfilePage() {
       return;
     }
 
-    if (file) {
+    if (!file) return;
+
+    if (type === 'pfp') {
+      const validation = await validateStudentPhotoFile(file);
+      if (!validation.valid) {
+        toast.error(validation.error || 'Invalid photograph file.');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
+      let processedFile = file;
+      try {
+        const { compressImage } = await import('@/lib/image-compressor');
+        processedFile = await compressImage(file, 1200, 1200, 0.6);
+      } catch (err) {
+        console.error('Image compression failed:', err);
+      }
+
+      const MAX_BYTES = 1048576; // 1 MB = 1,048,576 bytes
+      if (processedFile.size > MAX_BYTES) {
+        toast.error(`File exceeds the 1 MB limit (1,048,576 bytes). Current size: ${(processedFile.size / (1024 * 1024)).toFixed(2)} MB.`);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPfpDataUrl(reader.result);
+      };
+      reader.readAsDataURL(processedFile);
+    } else if (type === 'sig') {
+      const validation = await validateStudentSignatureFile(file);
+      if (!validation.valid) {
+        toast.error(validation.error || 'Invalid signature file.');
+        if (signatureInputRef.current) signatureInputRef.current.value = '';
+        return;
+      }
+
+      if (validation.warning) {
+        toast(validation.warning, { icon: '⚠️', duration: 5000 });
+      }
+
+      let processedFile = file;
+      try {
+        const { compressImage } = await import('@/lib/image-compressor');
+        processedFile = await compressImage(file, 1200, 1200, 0.6);
+      } catch (err) {
+        console.error('Image compression failed:', err);
+      }
+
+      const MAX_BYTES = 1048576; // 1 MB = 1,048,576 bytes
+      if (processedFile.size > MAX_BYTES) {
+        toast.error(`File exceeds the 1 MB limit (1,048,576 bytes). Current size: ${(processedFile.size / (1024 * 1024)).toFixed(2)} MB.`);
+        if (signatureInputRef.current) signatureInputRef.current.value = '';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        setSignatureDataUrl(reader.result);
+      };
+      reader.readAsDataURL(processedFile);
+    } else if (type === 'proof') {
       if (!['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'application/pdf'].includes(file.type)) {
         toast.error('File format rejected. Use JPG/PNG/PDF.');
+        if (proofInputRef.current) proofInputRef.current.value = '';
         return;
       }
 
@@ -268,17 +333,16 @@ export default function EditProfilePage() {
         }
       }
 
-      const MAX_BYTES = 1048576; // 1 MB = 1,048,576 bytes
+      const MAX_BYTES = 5242880; // 5 MB limit for proof document
       if (processedFile.size > MAX_BYTES) {
-        toast.error(`File exceeds the 1 MB limit (1,048,576 bytes). Current size: ${(processedFile.size / (1024 * 1024)).toFixed(2)} MB.`);
+        toast.error(`Proof document exceeds the 5 MB limit. Current size: ${(processedFile.size / (1024 * 1024)).toFixed(2)} MB.`);
+        if (proofInputRef.current) proofInputRef.current.value = '';
         return;
       }
-      
+
       const reader = new FileReader();
       reader.onload = () => {
-        if (type === 'pfp') setPfpDataUrl(reader.result);
-        else if (type === 'sig') setSignatureDataUrl(reader.result);
-        else if (type === 'proof') setProofDataUrl(reader.result);
+        setProofDataUrl(reader.result);
       };
       reader.readAsDataURL(processedFile);
     }
@@ -497,7 +561,7 @@ export default function EditProfilePage() {
                     )}
                   </div>
                 )}
-                {!isPending && <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/jpg" className="hidden" onChange={(e) => onFileSelect(e.target.files[0], 'pfp')} />}
+                {!isPending && <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/jpg" className="hidden" onChange={(e) => onFileSelect(e.target.files[0], 'pfp')} />}
               </div>
 
               {/* Signature Card */}
@@ -516,7 +580,7 @@ export default function EditProfilePage() {
                     </>
                   )}
                 </div>
-                {!isPending && <input ref={signatureInputRef} type="file" accept="image/jpeg,image/png,image/jpg" className="hidden" onChange={(e) => onFileSelect(e.target.files[0], 'sig')} />}
+                {!isPending && <input ref={signatureInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/jpg" className="hidden" onChange={(e) => onFileSelect(e.target.files[0], 'sig')} />}
               </div>
 
               {/* Supporting Documents Card */}
