@@ -141,6 +141,26 @@ const BASELINE_RULES = [
     },
     getReason: () => 'students and student_admission_drafts gender columns are already canonical ENUM',
   },
+  {
+    id: 27,
+    description: '0027_remove_class_section',
+    getEntries: (entries) => entries.filter((e) => e.idx === 27),
+    isSatisfied: async (conn) => {
+      const [colRows] = await conn.query(
+        'SELECT COUNT(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = "branch_timetable" AND column_name = "section"'
+      );
+      const [idxRows] = await conn.query(
+        `SELECT column_name FROM information_schema.statistics
+         WHERE table_schema = DATABASE() AND table_name = "branch_timetable" AND index_name = "uq_timetable_slot"
+         ORDER BY seq_in_index`
+      );
+      const cols = (idxRows || []).map((r) => r.column_name);
+      const expectedCols = ['branch', 'semester', 'day_of_week', 'period_number', 'academic_year'];
+      const indexMatches = cols.length === expectedCols.length && cols.every((c, i) => c === expectedCols[i]);
+      return Number(colRows?.[0]?.count || 0) === 0 && indexMatches;
+    },
+    getReason: () => 'branch_timetable.section is dropped and uq_timetable_slot matches canonical 5-column definition',
+  },
 ];
 
 module.exports = {
