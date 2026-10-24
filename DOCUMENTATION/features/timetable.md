@@ -52,7 +52,6 @@ Session 213 established a clean, parent-child container architecture with zero d
 │ timetable_instance_id: int NULL (INDEX idx_bt_instance)    │
 │ branch: varchar(50) NOT NULL                               │
 │ semester: tinyint NOT NULL                                 │
-│ section: varchar(5) DEFAULT 'A'                            │
 │ day_of_week: enum('MON','TUE','WED','THU','FRI','SAT')     │
 │ period_number: int NOT NULL (1 to 7)                       │
 │ subject_code: varchar(50) NULL                             │
@@ -63,13 +62,13 @@ Session 213 established a clean, parent-child container architecture with zero d
 │ created_at / updated_at                                    │
 │                                                            │
 │ CONSTRAINT uq_timetable_slot UNIQUE                        │
-│   (branch, semester, section, day_of_week, period_number,  │
+│   (branch, semester, day_of_week, period_number,           │
 │    academic_year)                                          │
 └────────────────────────────────────────────────────────────┘
 ```
 
 ### Inviolable Invariants:
-1. **Zero Section Bloat**: `timetable_instances` does NOT contain a `section` column. `uq_timetable_instance` enforces uniqueness strictly on `(branch, semester, academic_year)`.
+1. **Zero Section Bloat**: Neither `timetable_instances` nor `branch_timetable` contains a `section` column. KUCET enforces a single class cohort per branch, semester, and academic year. Unique constraints enforce uniqueness strictly on `(branch, semester, academic_year)` and `(branch, semester, day_of_week, period_number, academic_year)`.
 2. **Computed Year Level**: `year_level` is NOT stored in the database. Client and server layers derive it on demand using:
    $$\text{year\_level} = \left\lceil \frac{\text{semester}}{2} \right\rceil$$
 3. **Zero Legacy Data Loss**: Any historical `branch_timetable` records created prior to Migration 0019 are backfilled into a `PUBLISHED` parent instance, ensuring faculty and students never experience blank timetable views.

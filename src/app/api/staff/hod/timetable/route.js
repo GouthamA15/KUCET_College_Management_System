@@ -25,7 +25,6 @@ export const GET = wrapHandler({
     const targetBranch = requestedBranch || user.branch || user.hod_department_code;
 
     const semester = searchParams.get('semester') ? parseInt(searchParams.get('semester')) : 1;
-    const section = searchParams.get('section') || 'A';
 
     if (!isAcademicScopeAllowed(user, { branch: targetBranch, semester })) {
       return apiError(`Forbidden - Not authorized for ${targetBranch} Sem ${semester}`, 403);
@@ -35,7 +34,6 @@ export const GET = wrapHandler({
     const timetable = await FacultyService.getBranchTimetable({
       branch: targetBranch,
       semester,
-      section,
       academicYear: systemYear
     });
 
@@ -63,7 +61,6 @@ export async function POST(req) {
       id: z.number().int().positive().optional(),
       version: z.number().int().min(0).optional(),
       branch: z.string().optional(),
-      section: z.string().trim().max(1).toUpperCase().default('A'),
       academic_year: z.string().regex(/^\d{4}-\d{2}$/, "Format: YYYY-YY").default('2025-26'),
       semester: z.number().int().min(1).max(8),
       faculty_id: z.preprocess(
@@ -74,7 +71,7 @@ export async function POST(req) {
 
     const validatedData = validationSchema.parse(json);
     const { 
-      id, version, semester, section, day_of_week, 
+      id, version, semester, day_of_week, 
       period_number, subject_code, faculty_id, academic_year, room_no 
     } = validatedData;
 
@@ -115,7 +112,6 @@ export async function POST(req) {
         id: branchTimetable.id,
         branch: branchTimetable.branch,
         semester: branchTimetable.semester,
-        section: branchTimetable.section,
         subject_code: branchTimetable.subject_code,
         subject_name: syllabusSubjects.subject_name
       })
@@ -135,20 +131,19 @@ export async function POST(req) {
         // Term Parity Check: Only conflict if both are Odd or both are Even
         sql`(${branchTimetable.semester} % 2 = 0) = ${isEvenSem}`,
         // Don't conflict with itself
-        id ? ne(branchTimetable.id, id) : sql`NOT (${eq(branchTimetable.branch, targetBranch)} AND ${eq(branchTimetable.semester, semester)} AND ${eq(branchTimetable.section, section)})`
+        id ? ne(branchTimetable.id, id) : sql`NOT (${eq(branchTimetable.branch, targetBranch)} AND ${eq(branchTimetable.semester, semester)})`
       ))
       .limit(1);
 
       if (conflictRows.length > 0) {
         const c = conflictRows[0];
-        return apiError(`Faculty Conflict: This instructor is already assigned to ${c.subject_name || c.subject_code} in ${c.branch} Sem ${c.semester} (Sec ${c.section}) during this period.`, 400);
+        return apiError(`Faculty Conflict: This instructor is already assigned to ${c.subject_name || c.subject_code} in ${c.branch} Sem ${c.semester} during this period.`, 400);
       }
     }
 
     const slotData = {
       branch: targetBranch,
       semester: semester,
-      section: section,
       day_of_week: day_of_week,
       period_number: period_number,
       subject_code: subject_code,
@@ -211,7 +206,6 @@ export async function DELETE(req) {
 
     const action = searchParams.get('action'); // 'clearSemester' or 'clearAll'
     const semester = searchParams.get('semester');
-    const section = searchParams.get('section') || 'A';
     const day_of_week = searchParams.get('day_of_week');
     const period_number = searchParams.get('period_number');
 
@@ -234,8 +228,7 @@ export async function DELETE(req) {
       await db.delete(branchTimetable)
         .where(and(
           eq(branchTimetable.branch, targetBranch),
-          eq(branchTimetable.semester, parseInt(semester)),
-          eq(branchTimetable.section, section)
+          eq(branchTimetable.semester, parseInt(semester))
         ));
     } 
     else {
@@ -251,7 +244,6 @@ export async function DELETE(req) {
         .where(and(
           eq(branchTimetable.branch, targetBranch),
           eq(branchTimetable.semester, parseInt(semester)),
-          eq(branchTimetable.section, section),
           eq(branchTimetable.day_of_week, day_of_week),
           eq(branchTimetable.period_number, parseInt(period_number))
         ));

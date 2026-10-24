@@ -116,7 +116,6 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
 
     const payload = {
       semester: selectedSem,
-      section: 'A',
       day_of_week: editingSlot.day,
       period_number: editingSlot.period,
       subject_code: formData.get('subject_code'),

@@ -197,9 +197,9 @@ export class FacultyService {
   }
 
   /**
-   * Fetch consistent branch timetable for any role (HOD or Student)
+   * Fetch consistent branch timetable for any role (HOD, Coordinator, or Student)
    */
-  static async getBranchTimetable({ branch, semester, section, academicYear }) {
+  static async getBranchTimetable({ branch, semester, academicYear }) {
     let systemYear = academicYear;
     if (!systemYear) {
       systemYear = await this.getCurrentAcademicYear();
@@ -214,11 +214,7 @@ export class FacultyService {
       )
     ];
 
-    if (section) {
-      whereClause.push(eq(branchTimetable.section, section));
-    }
-
-    const cacheKey = `timetable:${branch}:${semester}:${systemYear}:${section || 'all'}`;
+    const cacheKey = `timetable:${branch}:${semester}:${systemYear}`;
     return await fetchWithSWR(cacheKey, async () => {
       return await db.select({
         id: branchTimetable.id,

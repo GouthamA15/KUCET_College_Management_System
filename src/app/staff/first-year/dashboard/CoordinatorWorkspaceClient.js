@@ -36,7 +36,6 @@ export default function CoordinatorWorkspaceClient() {
   // Timetable State
   const [ttBranch, setTtBranch] = useState('CSE');
   const [ttSemester, setTtSemester] = useState(1);
-  const [ttSection, setTtSection] = useState('A');
   const [timetableData, setTimetableData] = useState([]);
   const [timetableInstances, setTimetableInstances] = useState([]);
   const [loadingTimetable, setLoadingTimetable] = useState(false);
@@ -103,7 +102,7 @@ export default function CoordinatorWorkspaceClient() {
   const fetchTimetable = useCallback(async () => {
     try {
       const [ttRes, instRes] = await Promise.all([
-        fetch(`/api/staff/hod/timetable?branch=${ttBranch}&semester=${ttSemester}&section=${ttSection}`),
+        fetch(`/api/staff/hod/timetable?branch=${ttBranch}&semester=${ttSemester}`),
         fetch('/api/staff/hod/timetable-instances')
       ]);
 
@@ -113,7 +112,7 @@ export default function CoordinatorWorkspaceClient() {
       }
       if (instRes.ok) {
         const json = await instRes.json();
-        setTimetableInstances((json.data || []).filter(i => [1, 2].includes(i.course_semester)));
+        setTimetableInstances((json.data || []).filter(i => [1, 2].includes(i.semester || i.course_semester)));
         if (json.systemYear && !newInstanceYear) setNewInstanceYear(json.systemYear);
       }
     } catch (_e) {
@@ -121,7 +120,7 @@ export default function CoordinatorWorkspaceClient() {
     } finally {
       setLoadingTimetable(false);
     }
-  }, [ttBranch, ttSemester, ttSection, newInstanceYear]);
+  }, [ttBranch, ttSemester, newInstanceYear]);
 
   useEffect(() => {
     let ignore = false;
@@ -167,7 +166,7 @@ export default function CoordinatorWorkspaceClient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           branch: newInstanceBranch,
-          course_semester: parseInt(newInstanceSem),
+          semester: parseInt(newInstanceSem),
           academic_year: newInstanceYear
         })
       });
@@ -346,7 +345,7 @@ export default function CoordinatorWorkspaceClient() {
                     🕒 Timetable Instances & Matrix
                   </h3>
                   <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                    Review and establish weekly class periods (Periods 1–7), short breaks, and lunch breaks for first-year cohorts across all sections.
+                    Review and establish weekly class periods (Periods 1–7), short breaks, and lunch breaks for first-year cohorts.
                   </p>
                 </div>
                 <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-[#0b3578] shrink-0" />
@@ -418,121 +417,141 @@ export default function CoordinatorWorkspaceClient() {
       )}
 
       {/* ─── TAB 3: TIMETABLE ──────────────────────────────────────────────────── */}
-      {activeTab === 'timetable' && (
-        <div className="space-y-6">
-          {/* Controls Bar */}
-          <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Branch</label>
-                <select
-                  value={ttBranch}
-                  onChange={(e) => setTtBranch(e.target.value)}
-                  className="text-xs border border-slate-300 rounded-lg px-3 py-1.5 bg-white font-medium text-slate-800 focus:outline-none focus:border-[#0b3578]"
-                >
-                  {INSTITUTIONAL_BRANCHES.map(b => (
-                    <option key={b} value={b}>{b}</option>
-                  ))}
-                </select>
+      {activeTab === 'timetable' && (() => {
+        const activeInstance = timetableInstances.find(i => i.branch === ttBranch && Number(i.semester || i.course_semester) === Number(ttSemester));
+        const DAYS = [
+          { key: 'MON', label: 'Monday' },
+          { key: 'TUE', label: 'Tuesday' },
+          { key: 'WED', label: 'Wednesday' },
+          { key: 'THU', label: 'Thursday' },
+          { key: 'FRI', label: 'Friday' },
+          { key: 'SAT', label: 'Saturday' },
+        ];
+
+        return (
+          <div className="space-y-6">
+            {/* Controls Bar */}
+            <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Branch</label>
+                  <select
+                    value={ttBranch}
+                    onChange={(e) => setTtBranch(e.target.value)}
+                    className="text-xs border border-slate-300 rounded-lg px-3 py-1.5 bg-white font-medium text-slate-800 focus:outline-none focus:border-[#0b3578]"
+                  >
+                    {INSTITUTIONAL_BRANCHES.map(b => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Semester</label>
+                  <select
+                    value={ttSemester}
+                    onChange={(e) => setTtSemester(parseInt(e.target.value))}
+                    className="text-xs border border-slate-300 rounded-lg px-3 py-1.5 bg-white font-medium text-slate-800 focus:outline-none focus:border-[#0b3578]"
+                  >
+                    <option value={1}>Semester 1</option>
+                    <option value={2}>Semester 2</option>
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Semester</label>
-                <select
-                  value={ttSemester}
-                  onChange={(e) => setTtSemester(parseInt(e.target.value))}
-                  className="text-xs border border-slate-300 rounded-lg px-3 py-1.5 bg-white font-medium text-slate-800 focus:outline-none focus:border-[#0b3578]"
-                >
-                  <option value={1}>Semester 1</option>
-                  <option value={2}>Semester 2</option>
-                </select>
-              </div>
+              <div className="flex items-center gap-3">
+                {activeInstance && (
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/staff/faculty/time-table/${activeInstance.id}`)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-[#0b3578] rounded-lg text-xs font-semibold border border-slate-300 shadow-xs transition-colors cursor-pointer"
+                  >
+                    <span>Open Timetable Editor</span>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                      activeInstance.status === 'PUBLISHED' ? 'bg-emerald-100 text-emerald-700' :
+                      activeInstance.status === 'DRAFT' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-700'
+                    }`}>
+                      {activeInstance.status}
+                    </span>
+                  </button>
+                )}
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Section</label>
-                <select
-                  value={ttSection}
-                  onChange={(e) => setTtSection(e.target.value)}
-                  className="text-xs border border-slate-300 rounded-lg px-3 py-1.5 bg-white font-medium text-slate-800 focus:outline-none focus:border-[#0b3578]"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewInstanceBranch(ttBranch);
+                    setNewInstanceSem(ttSemester);
+                    setShowCreateInstance(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0b3578] hover:bg-[#0a2d66] text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
                 >
-                  <option value="A">Section A</option>
-                  <option value="B">Section B</option>
-                  <option value="C">Section C</option>
-                </select>
+                  <Plus className="w-4 h-4" />
+                  <span>Create Timetable Instance</span>
+                </button>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setShowCreateInstance(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0b3578] hover:bg-[#0a2d66] text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Create Timetable Instance</span>
-            </button>
-          </div>
-
-          {/* Timetable Matrix Grid */}
-          <div className="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
-            <div className="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-              <div>
-                <h3 className="text-sm font-bold text-slate-800">
-                  {ttBranch} — Semester {ttSemester} ({ttSection}) Schedule
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Weekly class periods Monday through Saturday {timetableInstances.length > 0 && `(${timetableInstances.length} configured instances for Sem 1-2)`}
-                </p>
+            {/* Timetable Matrix Grid */}
+            <div className="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
+              <div className="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">
+                    {ttBranch} — Semester {ttSemester} Timetable
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Weekly class periods Monday through Saturday {timetableInstances.length > 0 && `(${timetableInstances.length} configured instances for Sem 1-2)`}
+                  </p>
+                </div>
               </div>
+
+              {loadingTimetable ? (
+                <div className="py-16 text-center text-xs text-slate-500">Loading timetable schedule...</div>
+              ) : timetableData.length === 0 ? (
+                <div className="py-16 text-center text-xs text-slate-400 italic">
+                  No timetable entries configured for {ttBranch} Sem {ttSemester}.
+                </div>
+              ) : (
+                <div className="p-4 overflow-x-auto">
+                  <table className="w-full text-xs text-slate-700 border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                        <th className="p-2.5 text-left">Day</th>
+                        {[1, 2, 3, 4, 5, 6, 7].map(p => (
+                          <th key={p} className="p-2.5 text-center">Period {p}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {DAYS.map(d => {
+                        const dayEntries = timetableData.filter(e => e.day_of_week === d.key || e.day_of_week === d.label);
+                        return (
+                          <tr key={d.key} className="hover:bg-slate-50/70">
+                            <td className="p-2.5 font-bold text-slate-900 bg-slate-50/50">{d.label}</td>
+                            {[1, 2, 3, 4, 5, 6, 7].map(p => {
+                              const entry = dayEntries.find(e => Number(e.period_number) === Number(p));
+                              return (
+                                <td key={p} className="p-2 text-center border-l border-slate-100">
+                                  {entry ? (
+                                    <div className="bg-blue-50 border border-blue-200 rounded p-1 text-[11px]">
+                                      <div className="font-bold text-[#0b3578] truncate">{entry.subject_code}</div>
+                                      <div className="text-[10px] text-slate-500 truncate">{entry.faculty_name}</div>
+                                    </div>
+                                  ) : (
+                                    <span className="text-slate-300">—</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
-            {loadingTimetable ? (
-              <div className="py-16 text-center text-xs text-slate-500">Loading timetable schedule...</div>
-            ) : timetableData.length === 0 ? (
-              <div className="py-16 text-center text-xs text-slate-400 italic">
-                No timetable entries configured for {ttBranch} Sem {ttSemester} Sec {ttSection}.
-              </div>
-            ) : (
-              <div className="p-4 overflow-x-auto">
-                <table className="w-full text-xs text-slate-700 border-collapse">
-                  <thead>
-                    <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
-                      <th className="p-2.5 text-left">Day</th>
-                      {[1, 2, 3, 4, 5, 6, 7].map(p => (
-                        <th key={p} className="p-2.5 text-center">Period {p}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => {
-                      const dayEntries = timetableData.filter(e => e.day_of_week === day);
-                      return (
-                        <tr key={day} className="hover:bg-slate-50/70">
-                          <td className="p-2.5 font-bold text-slate-900 bg-slate-50/50">{day}</td>
-                          {[1, 2, 3, 4, 5, 6, 7].map(p => {
-                            const entry = dayEntries.find(e => e.period_number === p);
-                            return (
-                              <td key={p} className="p-2 text-center border-l border-slate-100">
-                                {entry ? (
-                                  <div className="bg-blue-50 border border-blue-200 rounded p-1 text-[11px]">
-                                    <div className="font-bold text-[#0b3578] truncate">{entry.subject_code}</div>
-                                    <div className="text-[10px] text-slate-500 truncate">{entry.faculty_name}</div>
-                                  </div>
-                                ) : (
-                                  <span className="text-slate-300">—</span>
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* Create Instance Modal */}
+            {/* Create Instance Modal */}
           {showCreateInstance && (
             <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
               <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 border border-slate-200">
@@ -601,7 +620,8 @@ export default function CoordinatorWorkspaceClient() {
             </div>
           )}
         </div>
-      )}
+      );
+    })()}
 
       {/* ─── TAB 4: FACULTY REQUESTS ───────────────────────────────────────────── */}
       {activeTab === 'requests' && (

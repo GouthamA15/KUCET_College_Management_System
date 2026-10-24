@@ -8,6 +8,7 @@ import { getAssetUrl } from '@/lib/assets';
 import { formatDateTime, toMySQLDate } from '@/lib/date';
 import { createPortal } from 'react-dom';
 import { Info, X, Camera, UploadCloud, FileText } from 'lucide-react';
+import UploadWarningModal from '@/components/student/UploadWarningModal';
 
 export default function EditProfilePage() {
   const { studentData, loading: contextLoading, profileDetails, refreshProfile } = useStudent();
@@ -37,9 +38,45 @@ export default function EditProfilePage() {
   const [isHovered, setIsHovered] = useState(false);
   const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
 
+  // Upload Confirmation Warning Modal state
+  const [uploadWarning, setUploadWarning] = useState({ isOpen: false, type: 'pfp' });
+
   const fileInputRef = useRef(null);
   const signatureInputRef = useRef(null);
   const proofInputRef = useRef(null);
+
+  const handlePhotoClick = () => {
+    if (latestRequest && latestRequest.status === 'pending') return;
+    setUploadWarning({ isOpen: true, type: 'pfp' });
+  };
+
+  const handleSignatureClick = () => {
+    if (latestRequest && latestRequest.status === 'pending') return;
+    setUploadWarning({ isOpen: true, type: 'signature' });
+  };
+
+  const handleWarningCancel = () => {
+    setUploadWarning(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const handleWarningContinue = () => {
+    const targetType = uploadWarning.type;
+    setUploadWarning(prev => ({ ...prev, isOpen: false }));
+    // Open the corresponding file picker cleanly
+    setTimeout(() => {
+      if (targetType === 'pfp') {
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+          fileInputRef.current.click();
+        }
+      } else if (targetType === 'signature') {
+        if (signatureInputRef.current) {
+          signatureInputRef.current.value = '';
+          signatureInputRef.current.click();
+        }
+      }
+    }, 50);
+  };
 
   const displayedPhoto = pfpDataUrl === 'REMOVE' ? null : (pfpDataUrl || getAssetUrl(currentPfp) || null);
   const displayedSignature = signatureDataUrl === 'REMOVE' ? null : (signatureDataUrl || getAssetUrl(currentSignature));
@@ -428,7 +465,7 @@ export default function EditProfilePage() {
               <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm flex flex-col items-center">
                 <div 
                   className="w-36 h-36 rounded-full border-4 border-gray-100 bg-gray-50 overflow-hidden relative group shadow-sm flex items-center justify-center cursor-pointer"
-                  onClick={() => !isPending && fileInputRef.current?.click()}
+                  onClick={handlePhotoClick}
                 >
                   {displayedPhoto ? (
                     <Image unoptimized src={displayedPhoto} alt="Profile" width={144} height={144} className="object-cover w-full h-full" />
@@ -445,7 +482,7 @@ export default function EditProfilePage() {
                 {!isPending && (
                   <div className="flex flex-col sm:flex-row gap-2 mt-4 w-full">
                     <button 
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={handlePhotoClick}
                       className="md:hidden text-xs font-medium text-[#0b3578] border border-[#0b3578] rounded-md px-3 py-1.5 hover:bg-blue-50 transition-colors flex-1"
                     >
                       Change Photo
@@ -468,7 +505,7 @@ export default function EditProfilePage() {
                 <h3 className="text-xs font-semibold text-gray-800 uppercase tracking-wide mb-3">Signature</h3>
                 <div 
                   className={`w-full h-24 border-2 border-dashed ${isPending ? 'border-gray-200 bg-gray-50 cursor-not-allowed' : 'border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer'} flex flex-col items-center justify-center relative group overflow-hidden rounded-md transition-colors`} 
-                  onClick={() => !isPending && signatureInputRef.current.click()}
+                  onClick={handleSignatureClick}
                 >
                   {displayedSignature ? (
                     <Image unoptimized src={displayedSignature} alt="Signature" width={200} height={80} className="object-contain w-full h-full p-2" />
@@ -783,6 +820,13 @@ export default function EditProfilePage() {
       </div>
 
       {typeof document !== 'undefined' && isBottomSheetOpen && isMobileDevice && createPortal(bottomSheet, document.body)}
+
+      <UploadWarningModal
+        isOpen={uploadWarning.isOpen}
+        type={uploadWarning.type}
+        onCancel={handleWarningCancel}
+        onContinue={handleWarningContinue}
+      />
     </div>
   );
 }
