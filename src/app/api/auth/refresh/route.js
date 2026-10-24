@@ -200,7 +200,7 @@ export async function POST(req) {
                 }
 
                 if (facultyCoordinatorAssignments) {
-                  const todayStr = new Date().toISOString().split('T')[0];
+                  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
                   const coordRows = await db.select({
                     id: facultyCoordinatorAssignments.id,
                     start_date: facultyCoordinatorAssignments.start_date,
@@ -213,9 +213,17 @@ export async function POST(req) {
                     eq(facultyCoordinatorAssignments.is_active, true)
                   ));
 
+                  const toDateStr = (val) => {
+                    if (!val) return null;
+                    if (val instanceof Date) return val.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+                    return String(val).split('T')[0];
+                  };
+
                   user.is_first_year_coordinator = coordRows.some(c => {
-                    if (c.start_date && todayStr < c.start_date) return false;
-                    if (c.end_date && todayStr > c.end_date) return false;
+                    const sStr = toDateStr(c.start_date);
+                    const eStr = toDateStr(c.end_date);
+                    if (sStr && todayStr < sStr) return false;
+                    if (eStr && todayStr > eStr) return false;
                     return true;
                   });
                 }
@@ -398,6 +406,7 @@ export async function POST(req) {
         user.role = resolvedRole;
         user.is_principal = isPrincipal;
         user.is_hod = isPrincipal;
+        user.is_first_year_coordinator = false;
         user.branch = null;
         if (resolvedRole === 'faculty') {
             const affil = await db.select({ branch_code: academicDepartments.department_code })
@@ -411,7 +420,7 @@ export async function POST(req) {
                 user.branch = 'CSE';
             }
 
-            const { facultyHodAssignments } = await import('@/db/schema');
+            const { facultyHodAssignments, facultyCoordinatorAssignments } = await import('@/db/schema');
             const hodRow = await db.select({ id: facultyHodAssignments.id })
                 .from(facultyHodAssignments)
                 .where(and(
@@ -421,6 +430,35 @@ export async function POST(req) {
                 .limit(1);
             if (hodRow.length > 0 || isPrincipal) {
                 user.is_hod = true;
+            }
+
+            if (facultyCoordinatorAssignments) {
+              const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+              const coordRows = await db.select({
+                id: facultyCoordinatorAssignments.id,
+                start_date: facultyCoordinatorAssignments.start_date,
+                end_date: facultyCoordinatorAssignments.end_date
+              })
+              .from(facultyCoordinatorAssignments)
+              .where(and(
+                eq(facultyCoordinatorAssignments.staff_account_id, user.id),
+                eq(facultyCoordinatorAssignments.coordinator_type, 'FIRST_YEAR'),
+                eq(facultyCoordinatorAssignments.is_active, true)
+              ));
+
+              const toDateStr = (val) => {
+                if (!val) return null;
+                if (val instanceof Date) return val.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+                return String(val).split('T')[0];
+              };
+
+              user.is_first_year_coordinator = coordRows.some(c => {
+                const sStr = toDateStr(c.start_date);
+                const eStr = toDateStr(c.end_date);
+                if (sStr && todayStr < sStr) return false;
+                if (eStr && todayStr > eStr) return false;
+                return true;
+              });
             }
         }
       }
