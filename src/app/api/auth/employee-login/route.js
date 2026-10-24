@@ -103,8 +103,9 @@ export async function POST(request) {
         else if (roleCodes.includes('SCHOLARSHIP_STAFF')) resolvedRole = 'scholarship';
         else resolvedRole = 'faculty';
 
-        // Fetch HOD & Branch
+        // Fetch HOD, Coordinator & Branch
         let isHod = isPrincipal;
+        let isCoordinator = false;
         let branch = null;
         if (resolvedRole === 'faculty') {
             const affil = await db.select({ branch_code: academicDepartments.department_code })
@@ -118,7 +119,7 @@ export async function POST(request) {
               branch = 'CSE';
             }
 
-            const { facultyHodAssignments } = await import('@/db/schema');
+            const { facultyHodAssignments, facultyCoordinatorAssignments } = await import('@/db/schema');
             const hodRow = await db.select({ id: facultyHodAssignments.id })
                 .from(facultyHodAssignments)
                 .where(and(
@@ -128,6 +129,27 @@ export async function POST(request) {
                 .limit(1);
             if (hodRow.length > 0 || isPrincipal) {
               isHod = true;
+            }
+
+            if (facultyCoordinatorAssignments) {
+              const todayStr = new Date().toISOString().split('T')[0];
+              const coordRows = await db.select({
+                id: facultyCoordinatorAssignments.id,
+                start_date: facultyCoordinatorAssignments.start_date,
+                end_date: facultyCoordinatorAssignments.end_date
+              })
+              .from(facultyCoordinatorAssignments)
+              .where(and(
+                eq(facultyCoordinatorAssignments.staff_account_id, staff.id),
+                eq(facultyCoordinatorAssignments.coordinator_type, 'FIRST_YEAR'),
+                eq(facultyCoordinatorAssignments.is_active, true)
+              ));
+
+              isCoordinator = coordRows.some(c => {
+                if (c.start_date && todayStr < c.start_date) return false;
+                if (c.end_date && todayStr > c.end_date) return false;
+                return true;
+              });
             }
         }
 
@@ -156,6 +178,7 @@ export async function POST(request) {
            role: resolvedRole,
            is_hod: isHod,
            is_principal: isPrincipal,
+           is_first_year_coordinator: isCoordinator,
            branch: branch
         };
         await issueStaffAuthCookie(response, adaptedStaff, rememberMe, ip, userAgent);

@@ -123,5 +123,148 @@ describe('Navigation, Proxy Guards & Silent Auth Refresh Suite', () => {
     expect(setCookieHeaders.some(c => c.includes('staff_auth=;'))).toBe(true);
     expect(setCookieHeaders.some(c => c.includes('staff_logged_in=;'))).toBe(true);
   });
+
+  describe('First Year Coordinator Route Guards', () => {
+    it('should allow valid faculty with is_first_year_coordinator to access /staff/first-year/dashboard', async () => {
+      const token = await new SignJWT({
+        id: 101,
+        email: 'coord@kucet.ac.in',
+        role: 'faculty',
+        is_first_year_coordinator: true,
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setExpirationTime('15m')
+        .sign(secretKey);
+
+      const req = createMockRequest({
+        pathname: '/staff/first-year/dashboard',
+        cookies: { staff_auth: token },
+      });
+
+      const res = await proxy(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('location')).toBeNull();
+    });
+
+    it('should allow valid faculty with is_first_year_coordinator to access /staff/first-year', async () => {
+      const token = await new SignJWT({
+        id: 101,
+        email: 'coord@kucet.ac.in',
+        role: 'faculty',
+        is_first_year_coordinator: true,
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setExpirationTime('15m')
+        .sign(secretKey);
+
+      const req = createMockRequest({
+        pathname: '/staff/first-year',
+        cookies: { staff_auth: token },
+      });
+
+      const res = await proxy(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('location')).toBeNull();
+    });
+
+    it('should redirect regular faculty without coordinator sub-role away from /staff/first-year/dashboard to faculty dashboard', async () => {
+      const token = await new SignJWT({
+        id: 102,
+        email: 'regularfaculty@kucet.ac.in',
+        role: 'faculty',
+        is_first_year_coordinator: false,
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setExpirationTime('15m')
+        .sign(secretKey);
+
+      const req = createMockRequest({
+        pathname: '/staff/first-year/dashboard',
+        cookies: { staff_auth: token },
+      });
+
+      const res = await proxy(req);
+      expect(res.status).toBe(303);
+      expect(res.headers.get('location')).toBe('http://localhost:3000/staff/faculty/dashboard');
+    });
+
+    it('should allow principal with staff token to access /staff/first-year/dashboard', async () => {
+      const principalToken = await new SignJWT({
+        id: 105,
+        email: 'principal@kucet.ac.in',
+        role: 'faculty',
+        is_principal: true,
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setExpirationTime('15m')
+        .sign(secretKey);
+
+      const reqPrincipal = createMockRequest({
+        pathname: '/staff/first-year/dashboard',
+        cookies: { staff_auth: principalToken },
+      });
+
+      const resPrincipal = await proxy(reqPrincipal);
+      expect(resPrincipal.status).toBe(200);
+      expect(resPrincipal.headers.get('location')).toBeNull();
+    });
+
+    it('should trigger silent refresh and allow access if token is refreshed with is_first_year_coordinator: true', async () => {
+      const staleToken = await new SignJWT({
+        id: 106,
+        email: 'newcoord@kucet.ac.in',
+        role: 'faculty',
+        is_first_year_coordinator: false,
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setExpirationTime('15m')
+        .sign(secretKey);
+
+      const refreshedToken = await new SignJWT({
+        id: 106,
+        email: 'newcoord@kucet.ac.in',
+        role: 'faculty',
+        is_first_year_coordinator: true,
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setExpirationTime('15m')
+        .sign(secretKey);
+
+      // Mock global fetch for loopback refresh endpoint
+      const originalFetch = global.fetch;
+      global.fetch = vi.fn().mockImplementation(async (url) => {
+        if (url.toString().includes('/api/auth/refresh')) {
+          return {
+            ok: true,
+            status: 200,
+            headers: {
+              getSetCookie: () => [
+                `staff_auth=${refreshedToken}; Path=/; HttpOnly; SameSite=Lax`,
+              ],
+              get: (h) => (h === 'set-cookie' ? `staff_auth=${refreshedToken}; Path=/; HttpOnly; SameSite=Lax` : null),
+            },
+            json: async () => ({ success: true, message: 'Token refreshed' }),
+          };
+        }
+        return originalFetch(url);
+      });
+
+      try {
+        const req = createMockRequest({
+          pathname: '/staff/first-year/dashboard',
+          cookies: {
+            staff_auth: staleToken,
+            staff_refresh_token: 'valid_refresh_token_string',
+          },
+        });
+
+        const res = await proxy(req);
+        expect(res.status).toBe(200);
+        expect(res.headers.get('location')).toBeNull();
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
+  });
 });
 

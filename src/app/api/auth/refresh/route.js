@@ -173,6 +173,7 @@ export async function POST(req) {
             user.role = resolvedRole;
             user.is_principal = isPrincipal;
             user.is_hod = isPrincipal;
+            user.is_first_year_coordinator = false;
             user.branch = null;
             if (resolvedRole === 'faculty') {
                 const affil = await db.select({ branch_code: academicDepartments.department_code })
@@ -186,7 +187,7 @@ export async function POST(req) {
                     user.branch = 'CSE';
                 }
 
-                const { facultyHodAssignments } = await import('@/db/schema');
+                const { facultyHodAssignments, facultyCoordinatorAssignments } = await import('@/db/schema');
                 const hodRow = await db.select({ id: facultyHodAssignments.id })
                     .from(facultyHodAssignments)
                     .where(and(
@@ -196,6 +197,27 @@ export async function POST(req) {
                     .limit(1);
                 if (hodRow.length > 0 || isPrincipal) {
                     user.is_hod = true;
+                }
+
+                if (facultyCoordinatorAssignments) {
+                  const todayStr = new Date().toISOString().split('T')[0];
+                  const coordRows = await db.select({
+                    id: facultyCoordinatorAssignments.id,
+                    start_date: facultyCoordinatorAssignments.start_date,
+                    end_date: facultyCoordinatorAssignments.end_date
+                  })
+                  .from(facultyCoordinatorAssignments)
+                  .where(and(
+                    eq(facultyCoordinatorAssignments.staff_account_id, user.id),
+                    eq(facultyCoordinatorAssignments.coordinator_type, 'FIRST_YEAR'),
+                    eq(facultyCoordinatorAssignments.is_active, true)
+                  ));
+
+                  user.is_first_year_coordinator = coordRows.some(c => {
+                    if (c.start_date && todayStr < c.start_date) return false;
+                    if (c.end_date && todayStr > c.end_date) return false;
+                    return true;
+                  });
                 }
             }
           }
@@ -289,10 +311,12 @@ export async function POST(req) {
         } else if (type === 'staff') {
           const token = await new (await import('jose')).SignJWT({
             id: user.id,
+            staffId: user.id,
             email: user.email,
             role: user.role,
             is_hod: !!user.is_hod,
             is_principal: !!user.is_principal,
+            is_first_year_coordinator: !!user.is_first_year_coordinator,
             branch: user.branch,
           })
             .setProtectedHeader({ alg: 'HS256' })
