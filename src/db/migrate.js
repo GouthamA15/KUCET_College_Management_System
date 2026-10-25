@@ -15,46 +15,83 @@ async function runMigrations() {
   if (process.env.DATABASE_URL) {
     const url = new URL(process.env.DATABASE_URL);
     if (process.env.MIGRATE_HOST) url.hostname = process.env.MIGRATE_HOST;
+    const isTiDB = url.hostname.includes('tidbcloud.com');
     dbConfig = {
       host: url.hostname === 'db' ? '127.0.0.1' : url.hostname,
       user: url.username,
       password: decodeURIComponent(url.password),
       database: url.pathname.slice(1),
-      port: Number(url.port) || 3306,
+      port: Number(url.port) || (isTiDB ? 4000 : 3306),
       multipleStatements: true,
-      ssl: (url.searchParams.get('ssl') === 'true' || url.hostname.includes('tidbcloud.com')) ? {
+      connectTimeout: Number(process.env.DB_CONNECT_TIMEOUT) || 30000,
+      ssl: (url.searchParams.get('ssl') === 'true' || isTiDB) ? {
         minVersion: 'TLSv1.2',
         rejectUnauthorized: true,
       } : undefined,
     };
   } else {
     const rawHost = process.env.MIGRATE_HOST || process.env.DB_HOST || '127.0.0.1';
+    const isTiDB = (rawHost && rawHost.includes('tidbcloud.com')) || (process.env.DB_HOST && process.env.DB_HOST.includes('tidbcloud.com'));
     dbConfig = {
       host: rawHost === 'db' ? '127.0.0.1' : rawHost,
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_DATABASE,
-      port: Number(process.env.DB_PORT) || 3306,
+      port: Number(process.env.DB_PORT) || (isTiDB ? 4000 : 3306),
       multipleStatements: true,
-      ssl: (process.env.DB_SSL === 'true' || (process.env.DB_HOST && process.env.DB_HOST.includes('tidbcloud.com'))) ? {
+      connectTimeout: Number(process.env.DB_CONNECT_TIMEOUT) || 30000,
+      ssl: (process.env.DB_SSL === 'true' || isTiDB) ? {
         minVersion: 'TLSv1.2',
         rejectUnauthorized: true,
       } : undefined,
     };
   }
 
+  const maxAttempts = Number(process.env.DB_MIGRATE_MAX_RETRIES) || 3;
   let connection;
-  try {
-    connection = await mysql.createConnection(dbConfig);
-  } catch (connError) {
-    const isConnRefused = connError.code === 'ECONNREFUSED' || connError.code === 'ENOTFOUND' || connError.errno === -111;
+  let lastError;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      connection = await mysql.createConnection(dbConfig);
+      break;
+    } catch (connError) {
+      lastError = connError;
+      const isRetryable = connError.code === 'ETIMEDOUT' ||
+        connError.code === 'ECONNRESET' ||
+        connError.code === 'EPIPE' ||
+        connError.code === 'EAI_AGAIN' ||
+        connError.code === 'EHOSTUNREACH' ||
+        connError.code === 'PROTOCOL_CONNECTION_LOST';
+
+      if (attempt < maxAttempts && isRetryable) {
+        const backoffMs = attempt * 2000;
+        console.warn(`⚠️ Connection attempt ${attempt}/${maxAttempts} failed (${connError.code || connError.message}). Retrying in ${backoffMs}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
+      } else {
+        break;
+      }
+    }
+  }
+
+  if (!connection) {
+    const isConnRefused = lastError?.code === 'ECONNREFUSED' || lastError?.code === 'ENOTFOUND' || lastError?.errno === -111;
     const hasConfiguredCreds = !!(process.env.DATABASE_URL || (process.env.DB_HOST && process.env.DB_HOST !== '127.0.0.1' && process.env.DB_HOST !== 'localhost'));
     
     if (isConnRefused && (process.env.CI || !hasConfiguredCreds)) {
       console.warn('⚠️ Database connection unavailable in CI environment (missing DB credentials/secrets). Skipping automated migrations cleanly.');
       return;
     }
-    console.error('❌ Failed to connect to database for migration:', connError.message);
+
+    const hostStr = dbConfig.host || 'unknown';
+    const sanitizedHost = (hostStr === '127.0.0.1' || hostStr === 'localhost')
+      ? hostStr
+      : hostStr.replace(/(.{4}).*(.{4}\.[^.]+$)/, '$1***$2');
+
+    console.error('❌ Failed to connect to database for migration:');
+    console.error(`   Error: ${lastError?.code || 'UNKNOWN'} - ${lastError?.message}`);
+    console.error(`   Target: host=${sanitizedHost}, port=${dbConfig.port}, database=${dbConfig.database || 'default'}, ssl=${!!dbConfig.ssl}`);
+    console.error(`   Timeout: ${dbConfig.connectTimeout}ms (${maxAttempts} attempts exhausted)`);
     process.exit(1);
   }
 
