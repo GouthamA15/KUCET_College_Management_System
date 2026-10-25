@@ -184,12 +184,17 @@ test.describe('Admin Academic Archive Management System E2E Flow', () => {
     await bootstrapAdminSession(page);
     await page.goto('/admin/archive');
 
-    // Switch to Search & Restore tab
-    await page.getByRole('button', { name: 'Search & Restore', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Academic Archive Management Center' })).toBeVisible({ timeout: 15000 });
 
-    // Fill search input
+    const searchTab = page.getByRole('button', { name: 'Search & Restore', exact: true });
     const searchInput = page.getByPlaceholder(/Search by Roll No/i);
-    await expect(searchInput).toBeVisible({ timeout: 10000 });
+
+    // Switch to Search & Restore tab (with toPass retry to guard against pre-hydration click discard)
+    await expect(async () => {
+      await searchTab.click();
+      await expect(searchInput).toBeVisible({ timeout: 1000 });
+    }).toPass({ timeout: 15000 });
+
     await searchInput.fill('228W1A0599');
 
     // Click Search Archive button

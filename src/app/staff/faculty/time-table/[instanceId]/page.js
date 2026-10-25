@@ -31,7 +31,7 @@ export default function TimetableInstancePage({ params }) {
       const res = await fetch(`/api/staff/hod/timetable-instances/${instanceId}`);
       if (res.ok) {
         const json = await res.json();
-        setData(json.data);
+        setData(json.data || json);
       } else {
         const d = await res.json().catch(() => ({}));
         toast.error(d.error || d.message || 'Unable to load timetable. Please try again.');
@@ -125,7 +125,9 @@ export default function TimetableInstancePage({ params }) {
   }
 
   if (!data) return null;
-  const { instance, entries } = data;
+  const instance = data.instance || (data.branch ? data : null);
+  const entries = data.entries || [];
+  if (!instance) return null;
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 text-sm pb-10">
@@ -140,6 +142,7 @@ export default function TimetableInstancePage({ params }) {
 
       <header className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white border border-slate-200 p-6 rounded-md shadow-sm">
         <div>
+          <p className="text-xs font-bold text-[#0b3578] uppercase tracking-wider mb-1">Timetable Editor</p>
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-2xl font-semibold text-gray-800">{instance.branch} &mdash; Semester {instance.semester}</h1>
             <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${

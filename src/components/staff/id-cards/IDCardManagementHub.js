@@ -626,7 +626,7 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
                   const rowNumber = (page - 1) * limit + idx + 1;
 
                   return (
-                    <tr key={st.rollNo} className="hover:bg-gray-50/70 transition">
+                    <tr key={st.rollNo || st.roll_number || idx} className="hover:bg-gray-50/70 transition">
                       <td className="py-2 px-3 text-center text-gray-400 font-mono">
                         {rowNumber}
                       </td>
@@ -640,7 +640,7 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
                           >
                             <img
                               src={st.photoUrl}
-                              alt={st.studentName}
+                              alt={st.studentName || st.name}
                               className="w-full h-full object-cover"
                             />
                           </div>
@@ -658,7 +658,7 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
 
                       <td className="py-2 px-4">
                         <div className="font-mono font-bold text-gray-900 tracking-wide">
-                          {st.rollNo}
+                          {st.rollNo || st.roll_number}
                         </div>
                         <div className="text-[10px] text-emerald-700 font-medium flex items-center gap-1 mt-0.5">
                           <CheckCircle2 className="w-2.5 h-2.5" />
@@ -668,7 +668,7 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
 
                       <td className="py-2 px-4">
                         <div className="font-semibold text-gray-900">
-                          {st.studentName}
+                          {st.studentName || st.name}
                         </div>
                         {st.fatherName && st.fatherName !== 'N/A' && (
                           <div className="text-[11px] text-gray-500">

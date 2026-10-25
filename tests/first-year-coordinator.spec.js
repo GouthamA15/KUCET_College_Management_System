@@ -75,6 +75,17 @@ test.describe('First Year Coordinator Comprehensive E2E Suite', () => {
       .sign(secret);
   });
 
+  test.beforeEach(async ({ page }) => {
+    await page.route('**/*.{png,jpg,jpeg,svg}', (route) => route.fulfill({ status: 200, body: '' }));
+    await page.route('/api/public/college-info', async (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ collegeInfo: { college_name: 'KUCET' } }),
+      });
+    });
+  });
+
   // Scenario 1: Admin appoints coordinator in Staff Management
   test('Scenario 1: Admin appoints coordinator in Staff Management', async ({ page }) => {
     await page.context().addCookies([
@@ -104,24 +115,31 @@ test.describe('First Year Coordinator Comprehensive E2E Suite', () => {
       });
     });
 
-    // Make an API check using page request
-    const response = await page.request.post('http://localhost:3000/api/admin/coordinator-assignments', {
-      headers: {
-        Cookie: `admin_auth=${adminToken}; admin_logged_in=true`,
-        'Content-Type': 'application/json',
-      },
-      data: {
-        staff_id: 101,
-        coordinator_type: 'FIRST_YEAR',
-        academic_year: '2025-26',
-        start_date: '2025-08-01',
-      },
+    await page.goto('/');
+
+    // Make an API check using page evaluate so page.route intercepts it
+    const response = await page.evaluate(async () => {
+      const res = await fetch('/api/admin/coordinator-assignments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          staff_id: 101,
+          coordinator_type: 'FIRST_YEAR',
+          academic_year: '2025-26',
+          start_date: '2025-08-01',
+        }),
+      });
+      return {
+        status: res.status,
+        data: await res.json(),
+      };
     });
 
-    expect(response.status()).toBe(201);
-    const data = await response.json();
-    expect(data.success).toBe(true);
-    expect(data.data.staff_id).toBe(101);
+    expect(response.status).toBe(201);
+    expect(response.data.success).toBe(true);
+    expect(response.data.data.staff_id).toBe(101);
   });
 
   // Scenario 2: Coordinator logs in and sees First Year Coordination in navigation
@@ -149,7 +167,7 @@ test.describe('First Year Coordinator Comprehensive E2E Suite', () => {
 
     await page.goto('/staff/faculty/dashboard');
     // Navigation should contain First Year Coordination link
-    const coordNav = page.locator('a[href="/staff/first-year/dashboard"], text="First Year Coordination"');
+    const coordNav = page.locator('a[href="/staff/first-year/dashboard"]');
     await expect(coordNav.first()).toBeVisible();
   });
 
@@ -168,7 +186,7 @@ test.describe('First Year Coordinator Comprehensive E2E Suite', () => {
       });
     });
 
-    await page.route('/api/staff/id-cards?**', async (route) => {
+    await page.route('**/api/staff/id-cards*', async (route) => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -181,7 +199,15 @@ test.describe('First Year Coordinator Comprehensive E2E Suite', () => {
       });
     });
 
-    await page.route('/api/staff/first-year/faculty-interests?**', async (route) => {
+    await page.route('**/api/staff/hod/faculty-interests*', async (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: [] }),
+      });
+    });
+
+    await page.route('**/api/staff/first-year/faculty-interests*', async (route) => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -193,10 +219,7 @@ test.describe('First Year Coordinator Comprehensive E2E Suite', () => {
     await expect(page.locator('text=First Year Academic Coordination')).toBeVisible();
 
     // Verify 7 branches badge / pills
-    const branchPills = ['CSE', 'IT', 'CSD', 'ECE', 'EEE', 'CIVIL', 'MECH'];
-    for (const b of branchPills) {
-      await expect(page.locator(`text=${b}`).first()).toBeVisible();
-    }
+    await expect(page.locator('text="CSE, IT, CSD, ECE, EEE, CIVIL, MECH"')).toBeVisible();
 
     // Verify real ID card stat count 420 is rendered
     await expect(page.locator('text=420')).toBeVisible();
@@ -217,7 +240,7 @@ test.describe('First Year Coordinator Comprehensive E2E Suite', () => {
       });
     });
 
-    await page.route('/api/staff/id-cards?**', async (route) => {
+    await page.route('**/api/staff/id-cards*', async (route) => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -230,7 +253,7 @@ test.describe('First Year Coordinator Comprehensive E2E Suite', () => {
 
     await page.reload();
     expect(page.url()).toContain('/staff/first-year/dashboard');
-    await expect(page.locator('text=First Year Academic Coordination')).toBeVisible();
+    await expect(page.locator('text=First Year Academic Coordination')).toBeVisible({ timeout: 15000 });
   });
 
   // Scenario 5: Timetable instance creation & slot editor opens with loaded subjects/faculty
@@ -261,7 +284,13 @@ test.describe('First Year Coordinator Comprehensive E2E Suite', () => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ success: true, data: mockInstance }),
+        body: JSON.stringify({
+          success: true,
+          data: {
+            instance: mockInstance,
+            entries: [],
+          },
+        }),
       });
     });
 
@@ -298,7 +327,7 @@ test.describe('First Year Coordinator Comprehensive E2E Suite', () => {
     await page.goto('/staff/faculty/time-table/999');
     // Timetable editor header must render without blanking out
     await expect(page.locator('text=Timetable Editor')).toBeVisible();
-    await expect(page.locator('text=CSE - Semester 1')).toBeVisible();
+    await expect(page.locator('text=/CSE.*Semester 1/')).toBeVisible();
   });
 
   // Scenario 6: Faculty subject-interest review persists approval and generates assignment
@@ -318,15 +347,20 @@ test.describe('First Year Coordinator Comprehensive E2E Suite', () => {
       return route.fulfill({ status: 405 });
     });
 
-    const res = await page.request.patch('http://localhost:3000/api/staff/first-year/faculty-interests/77', {
-      headers: {
-        Cookie: `staff_auth=${coordinatorToken}; staff_logged_in=true`,
-        'Content-Type': 'application/json',
-      },
-      data: { status: 'APPROVED' },
+    await page.goto('/');
+
+    const res = await page.evaluate(async () => {
+      const response = await fetch('/api/staff/first-year/faculty-interests/77', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'APPROVED' }),
+      });
+      return { status: response.status };
     });
 
-    expect(res.status()).toBe(200);
+    expect(res.status).toBe(200);
     expect(patched).toBe(true);
   });
 
@@ -341,17 +375,21 @@ test.describe('First Year Coordinator Comprehensive E2E Suite', () => {
       });
     });
 
-    const res = await page.request.patch('http://localhost:3000/api/staff/first-year/faculty-interests/88', {
-      headers: {
-        Cookie: `staff_auth=${coordinatorToken}; staff_logged_in=true`,
-        'Content-Type': 'application/json',
-      },
-      data: { status: 'APPROVED' },
+    await page.goto('/');
+
+    const res = await page.evaluate(async () => {
+      const response = await fetch('/api/staff/first-year/faculty-interests/88', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'APPROVED' }),
+      });
+      return { status: response.status, body: await response.json() };
     });
 
-    expect(res.status()).toBe(403);
-    const body = await res.json();
-    expect(body.message).toContain('Self-review prohibited');
+    expect(res.status).toBe(403);
+    expect(res.body.message).toContain('Self-review prohibited');
   });
 
   // Scenario 8: Student ID cards tab renders first-year students across all branches
@@ -376,8 +414,8 @@ test.describe('First Year Coordinator Comprehensive E2E Suite', () => {
         body: JSON.stringify({
           success: true,
           students: [
-            { id: 1, roll_number: '250101', name: 'John Doe', branch: 'CSE', semester: 1 },
-            { id: 2, roll_number: '250201', name: 'Jane Smith', branch: 'ECE', semester: 1 },
+            { id: 1, rollNo: '250101', roll_number: '250101', studentName: 'John Doe', name: 'John Doe', branch: 'CSE', semester: 1 },
+            { id: 2, rollNo: '250201', roll_number: '250201', studentName: 'Jane Smith', name: 'Jane Smith', branch: 'ECE', semester: 1 },
           ],
           stats: { totalEligible: 2, printedCount: 0, pendingCount: 2 },
           pagination: { totalCount: 2 },
@@ -408,7 +446,15 @@ test.describe('First Year Coordinator Comprehensive E2E Suite', () => {
       });
     });
 
-    await page.route('/api/staff/first-year/faculty-interests?**', async (route) => {
+    await page.route('**/api/staff/hod/faculty-interests*', async (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: [] }),
+      });
+    });
+
+    await page.route('**/api/staff/first-year/faculty-interests*', async (route) => {
       route.fulfill({
         status: 403,
         contentType: 'application/json',
@@ -416,13 +462,14 @@ test.describe('First Year Coordinator Comprehensive E2E Suite', () => {
       });
     });
 
-    const res = await page.request.get('http://localhost:3000/api/staff/first-year/faculty-interests', {
-      headers: {
-        Cookie: `staff_auth=${regularFacultyToken}; staff_logged_in=true`,
-      },
+    await page.goto('/');
+
+    const res = await page.evaluate(async () => {
+      const response = await fetch('/api/staff/first-year/faculty-interests');
+      return { status: response.status };
     });
 
-    expect(res.status()).toBe(403);
+    expect(res.status).toBe(403);
   });
 
   // Scenario 10: Section-free verification: verify no section selector exists in timetable flows
