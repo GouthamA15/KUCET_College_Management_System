@@ -12,9 +12,10 @@ import {
   studentMarks,
   syllabusSubjects,
   attendanceSessions,
-  facultySubjectAssignments
+  facultySubjectAssignments,
+  facultyHodAssignments
 } from '@/db/schema';
-import { eq, and, desc, asc, sql, like, or } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, like, or, isNull, gte, lte } from 'drizzle-orm';
 
 /**
  * Service for Faculty and HOD-related business logic
@@ -30,22 +31,61 @@ export class FacultyService {
       return Array.from(new Set([...allDepts.map(d => d.dept_code), ...allProgs.map(p => p.prog_code)].filter(Boolean)));
     }
 
+    if (!staffId) return [];
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // 1. Primary check: Query active dynamic assignments in faculty_hod_assignments
+    const activeAssignments = await db.select({
+      dept_code: facultyHodAssignments.department_code
+    })
+    .from(facultyHodAssignments)
+    .where(and(
+      eq(facultyHodAssignments.staff_account_id, Number(staffId)),
+      eq(facultyHodAssignments.is_active, true),
+      lte(facultyHodAssignments.start_date, todayStr),
+      or(
+        isNull(facultyHodAssignments.end_date),
+        gte(facultyHodAssignments.end_date, todayStr)
+      )
+    ));
+
+    if (activeAssignments && activeAssignments.length > 0) {
+      return Array.from(new Set(activeAssignments.map(a => a.dept_code?.toUpperCase().trim()).filter(Boolean)));
+    }
+
+    // 2. Check if there are ANY records in facultyHodAssignments for this staff member (even inactive/expired)
+    const anyAssignments = await db.select({ id: facultyHodAssignments.id })
+      .from(facultyHodAssignments)
+      .where(eq(facultyHodAssignments.staff_account_id, Number(staffId)))
+      .limit(1);
+
+    // If assignments exist in faculty_hod_assignments but none are active, HOD is revoked/expired: do NOT fall back to legacy flag
+    if (anyAssignments && anyAssignments.length > 0) {
+      return [];
+    }
+
+    // 3. Fallback for legacy environments where faculty_hod_assignments hasn't been seeded yet:
+    // Only return if staff_academic_affiliations explicitly marks is_hod = true
     const affil = await db.select({ 
-          dept_id: academicDepartments.id,
-          dept_code: academicDepartments.department_code, 
-          prog_code: academicPrograms.program_code 
-        })
-        .from(staffAcademicAffiliations)
-        .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
-        .leftJoin(academicPrograms, eq(staffAcademicAffiliations.program_id, academicPrograms.id))
-        .where(eq(staffAcademicAffiliations.staff_account_id, staffId));
-        
+      dept_id: academicDepartments.id,
+      dept_code: academicDepartments.department_code, 
+      prog_code: academicPrograms.program_code 
+    })
+    .from(staffAcademicAffiliations)
+    .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
+    .leftJoin(academicPrograms, eq(staffAcademicAffiliations.program_id, academicPrograms.id))
+    .where(and(
+      eq(staffAcademicAffiliations.staff_account_id, Number(staffId)),
+      eq(staffAcademicAffiliations.is_hod, true)
+    ));
+
     if (affil.length === 0) return [];
 
     const allProgramCodes = affil.map(a => a.prog_code).filter(Boolean);
     const rawDepts = affil.map(a => a.dept_code).filter(Boolean);
 
-    return Array.from(new Set([...allProgramCodes, ...rawDepts]));
+    return Array.from(new Set([...allProgramCodes, ...rawDepts].map(b => b?.toUpperCase().trim()).filter(Boolean)));
   }
 
   /**

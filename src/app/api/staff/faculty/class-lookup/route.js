@@ -33,7 +33,7 @@ export async function GET(request) {
       return apiError('Invalid year of study', 400);
     }
 
-    // Server-side Authorization: Determine allowed programs
+    // Server-side Authorization: Determine allowed programs & branch codes
     const affil = await db.select({ 
       dept_code: academicDepartments.department_code, 
       prog_code: academicPrograms.program_code 
@@ -43,22 +43,42 @@ export async function GET(request) {
     .leftJoin(academicPrograms, eq(staffAcademicAffiliations.program_id, academicPrograms.id))
     .where(eq(staffAcademicAffiliations.staff_account_id, user.id));
     
+    // Base programs and branch codes for the faculty member
+    const basePrograms = Array.from(new Set([
+      ...affil.map(a => a.prog_code).filter(Boolean),
+      ...affil.map(a => a.dept_code).filter(Boolean),
+      ...(user.authorized_branches || (user.is_hod && user.branch ? [user.branch] : []))
+    ]));
+    const baseBranchCodes = Array.from(new Set(
+      basePrograms.map(p => {
+        if (branchCodes[p]) return p;
+        const code = Object.keys(branchCodes).find(key => branchCodes[key] === p);
+        return code || null;
+      }).filter(Boolean)
+    ));
+
+    const isFirstYearCoord = Boolean(user.is_first_year_coordinator);
+    const allBranchCodes = Object.keys(branchCodes);
+    const allPrograms = Array.from(new Set([...Object.values(branchCodes), ...Object.keys(branchCodes)]));
+
     let allowedPrograms = [];
     let allowedBranchCodes = [];
 
     if (user.role === 'admin') {
-      allowedBranchCodes = Object.keys(branchCodes);
-      allowedPrograms = Object.values(branchCodes);
-      allowedPrograms = Array.from(new Set([
-        ...affil.map(a => a.prog_code).filter(Boolean),
-        ...affil.map(a => a.dept_code).filter(Boolean),
-        ...(user.authorized_branches || (user.is_hod && user.branch ? [user.branch] : []))
-      ]));
-      allowedBranchCodes = allowedPrograms.map(p => Object.keys(branchCodes).find(key => branchCodes[key] === p)).filter(Boolean);
+      allowedBranchCodes = allBranchCodes;
+      allowedPrograms = allPrograms;
+    } else if (isFirstYearCoord && yearOfStudy === 1) {
+      // First Year Coordinator has institutional authority across ALL branches for Year 1 (Category 01)
+      allowedBranchCodes = allBranchCodes;
+      allowedPrograms = allPrograms;
+    } else {
+      // Standard faculty / HOD, or coordinator accessing Year 2-4 (restricted to base department)
+      allowedBranchCodes = baseBranchCodes;
+      allowedPrograms = basePrograms;
     }
 
-    if (allowedBranchCodes.length === 0) {
-      return apiError('No teaching programs assigned to your profile', 403);
+    if (!isSearchMode && allowedBranchCodes.length === 0) {
+      return apiError('No teaching programs assigned to your profile for this year of study', 403);
     }
 
     // Determine active academic year
@@ -71,12 +91,42 @@ export async function GET(request) {
     let conditions = [eq(studentsTable.student_status, 'ACTIVE')];
 
     if (isSearchMode) {
-      // Search Mode: enforce department constraints across all allowed branches
-      const branchConditions = allowedBranchCodes.flatMap(bc => [
-        like(studentsTable.roll_no, `%567T${bc}%`),
-        like(studentsTable.roll_no, `%567${bc}%L`)
-      ]);
-      conditions.push(or(...branchConditions));
+      // Search Mode: enforce department / coordinator constraints
+      if (user.role === 'admin') {
+        // Admin: no branch restriction
+      } else if (isFirstYearCoord) {
+        // Coordinator can search Year 1 across all branches, plus any year in their base branches
+        const year1Condition = sql`CASE 
+          WHEN ${studentsTable.roll_no} LIKE '%T%' THEN 
+            (${currentStartYear} - CAST(CONCAT('20', SUBSTRING(${studentsTable.roll_no}, 1, 2)) AS SIGNED) + 1) - ${studentsTable.academic_offset_years}
+          WHEN ${studentsTable.roll_no} LIKE '%L' THEN 
+            (${currentStartYear} - CAST(CONCAT('20', SUBSTRING(${studentsTable.roll_no}, 1, 2)) AS SIGNED) + 2) - ${studentsTable.academic_offset_years}
+          ELSE 0
+        END = 1`;
+
+        if (baseBranchCodes.length > 0) {
+          const baseBranchConditions = baseBranchCodes.flatMap(bc => [
+            like(studentsTable.roll_no, `%567T${bc}%`),
+            like(studentsTable.roll_no, `%567${bc}%L`)
+          ]);
+          conditions.push(or(
+            year1Condition,
+            or(...baseBranchConditions)
+          ));
+        } else {
+          conditions.push(year1Condition);
+        }
+      } else {
+        // Regular faculty: restrict to base branches
+        if (baseBranchCodes.length === 0) {
+          return apiError('No teaching programs assigned to your profile', 403);
+        }
+        const branchConditions = baseBranchCodes.flatMap(bc => [
+          like(studentsTable.roll_no, `%567T${bc}%`),
+          like(studentsTable.roll_no, `%567${bc}%L`)
+        ]);
+        conditions.push(or(...branchConditions));
+      }
 
       if (searchRoll) {
         conditions.push(like(studentsTable.roll_no, `%${searchRoll}%`));
@@ -86,11 +136,12 @@ export async function GET(request) {
       }
     } else {
       // Lookup Mode: enforce single program
-      if (!allowedPrograms.includes(program)) {
+      const branchCode = Object.keys(branchCodes).find(key => branchCodes[key] === program) || (branchCodes[program] ? program : null);
+      if (!branchCode) return apiError('Invalid program code', 400);
+
+      if (!allowedBranchCodes.includes(branchCode) && !allowedPrograms.includes(program)) {
         return apiError('You are not authorized to view students for this program', 403);
       }
-      const branchCode = Object.keys(branchCodes).find(key => branchCodes[key] === program);
-      if (!branchCode) return apiError('Invalid program code', 400);
 
       conditions.push(or(
         like(studentsTable.roll_no, `%567T${branchCode}%`),

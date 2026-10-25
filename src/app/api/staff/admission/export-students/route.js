@@ -138,15 +138,21 @@ export async function GET(req) {
       return apiError('Branch and Year are required.', 400);
     }
 
-    // Role-based access control for full Aadhaar export
+    // Role-based access control for Student Master Export (Category 03)
     const userRole = (user.role || '').toLowerCase();
-    const isAuthorizedForFullAadhaar = [
+    const isAuthorizedForExport = [
       'admin',
       'super_admin',
       'principal',
       'admission',
       'admission_clerk'
     ].includes(userRole);
+
+    if (!isAuthorizedForExport) {
+      return apiError('Forbidden: Access denied. Only admission staff and administrators can export student records.', 403);
+    }
+
+    const isAuthorizedForFullAadhaar = isAuthorizedForExport;
 
     const students = await StudentService.getFullStudentDataForExport(year, branch);
 

@@ -48,13 +48,17 @@ export async function GET(request) {
     .where(and(...conditions))
     .orderBy(desc(studentReactivationRequests.created_at));
 
-    // Department branch isolation for HOD / Principal
-    const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
-    const filtered = (user.role !== 'admin' && authorizedBranches.length > 0)
-      ? rows.filter(r => authorizedBranches.includes(getBranchFromRoll(r.roll_no)))
-      : rows;
+    // Department branch isolation for HOD / Principal (Fail-closed)
+    if (user.role !== 'admin') {
+      const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+      if (!authorizedBranches || authorizedBranches.length === 0) {
+        return apiResponse({ data: [] });
+      }
+      const filtered = rows.filter(r => authorizedBranches.includes(getBranchFromRoll(r.roll_no)));
+      return apiResponse({ data: filtered });
+    }
 
-    return apiResponse({ data: filtered });
+    return apiResponse({ data: rows });
   } catch (err) {
     logger.error('Error fetching HOD reactivation requests:', err);
     return apiError('Internal Server Error', 500);
