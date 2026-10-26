@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { requestBackgroundSync, savePendingAttendance, openDB, getPendingAttendance } from '@/lib/idb-attendance';
+import { requestBackgroundSync, savePendingAttendance, getPendingAttendance } from '@/lib/idb-attendance';
 
 // In-memory IndexedDB simulation
 function setupMockIndexedDB() {
@@ -19,7 +19,7 @@ function setupMockIndexedDB() {
         createIndex: vi.fn(),
       };
     },
-    transaction: (storeNames, mode) => {
+    transaction: (storeNames, _mode) => {
       const storeName = Array.isArray(storeNames) ? storeNames[0] : storeNames;
       const targetStore = stores[storeName];
 
@@ -102,7 +102,6 @@ function setupMockIndexedDB() {
 
 describe('P2: Service Worker Background Sync & Offline Attendance Synchronization', () => {
   let originalWindow;
-  let originalNavigator;
   let originalIndexedDB;
   let mockStores;
 
@@ -264,7 +263,7 @@ describe('P2: Service Worker Background Sync & Offline Attendance Synchronizatio
       expect(data.synced_count).toBe(1);
 
       // Delete synced item
-      for (const syncedId of data.synced_ids) {
+      for (const _syncedId of data.synced_ids) {
         mockStores.pending_attendance.delete(queuedItem.id);
       }
 
