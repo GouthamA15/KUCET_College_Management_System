@@ -53,6 +53,27 @@ export const openDB = () => {
 // PENDING ATTENDANCE QUEUE (OFFLINE SYNC)
 // ==========================================
 
+/**
+ * Request background sync via Service Worker SyncManager if supported.
+ * Returns true if registered, false if unsupported or failed.
+ */
+export const requestBackgroundSync = async (tag = 'sync-attendance') => {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+    return false;
+  }
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    if (registration && 'sync' in registration && typeof registration.sync.register === 'function') {
+      await registration.sync.register(tag);
+      return true;
+    }
+  } catch (err) {
+    // Non-fatal: background sync is a progressive enhancement. Foreground fallback handles sync.
+    console.warn('[SyncManager] Background sync registration skipped:', err?.message || err);
+  }
+  return false;
+};
+
 export const savePendingAttendance = async (payload) => {
   if (!isBrowser()) return null;
   const db = await openDB();
@@ -96,7 +117,10 @@ export const savePendingAttendance = async (payload) => {
       }
     };
 
-    transaction.oncomplete = () => resolve(clientOpId);
+    transaction.oncomplete = () => {
+      requestBackgroundSync('sync-attendance').catch(() => {});
+      resolve(clientOpId);
+    };
     transaction.onerror = (event) => reject(event.target.error);
   });
 };

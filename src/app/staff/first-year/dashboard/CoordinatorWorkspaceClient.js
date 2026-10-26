@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useStaff } from '@/context/StaffContext';
 import SyllabusManager from '@/components/staff/faculty/SyllabusManager';
 import IDCardManagementHub from '@/components/staff/id-cards/IDCardManagementHub';
+import CoordinatorApaarDashboard from '@/components/staff/first-year/CoordinatorApaarDashboard';
 import toast from 'react-hot-toast';
 import { 
   GraduationCap, 
@@ -18,7 +19,8 @@ import {
   Plus, 
   X,
   Layers,
-  ExternalLink
+  ExternalLink,
+  ShieldCheck
 } from 'lucide-react';
 
 const INSTITUTIONAL_BRANCHES = ['CSE', 'IT', 'CSD', 'ECE', 'EEE', 'CIVIL', 'MECH'];
@@ -251,6 +253,7 @@ export default function CoordinatorWorkspaceClient() {
       <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-1.5 flex flex-wrap gap-1.5">
         {[
           { id: 'overview', label: 'Overview', icon: Layers },
+          { id: 'apaar', label: 'APAAR Monitoring & Reports', icon: ShieldCheck },
           { id: 'syllabus', label: 'Subjects & Syllabus', icon: BookOpen },
           { id: 'timetable', label: 'First-Year Timetables', icon: Calendar },
           { id: 'requests', label: `Faculty Requests ${pendingRequestsCount > 0 ? `(${pendingRequestsCount})` : ''}`, icon: Users },
@@ -371,6 +374,23 @@ export default function CoordinatorWorkspaceClient() {
             </div>
 
             <div 
+              onClick={() => setActiveTab('apaar')}
+              className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs hover:border-[#0b3578]/50 hover:shadow-sm transition-all cursor-pointer group"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm group-hover:text-[#0b3578] transition-colors">
+                    🛡️ APAAR ID Monitoring &amp; Cohort Exports
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                    Track APAAR ID submission statuses across all 7 institutional engineering branches. Filter by branch or pending status, and generate formula-safe Excel reports.
+                  </p>
+                </div>
+                <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-[#0b3578] shrink-0" />
+              </div>
+            </div>
+
+            <div 
               onClick={() => setActiveTab('id-cards')}
               className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs hover:border-[#0b3578]/50 hover:shadow-sm transition-all cursor-pointer group"
             >
@@ -404,7 +424,12 @@ export default function CoordinatorWorkspaceClient() {
         </div>
       )}
 
-      {/* ─── TAB 2: SUBJECTS & SYLLABUS ────────────────────────────────────────── */}
+      {/* ─── TAB 2: APAAR ID MONITORING & EXPORTS ────────────────────────────── */}
+      {activeTab === 'apaar' && (
+        <CoordinatorApaarDashboard />
+      )}
+
+      {/* ─── TAB 3: SUBJECTS & SYLLABUS ────────────────────────────────────────── */}
       {activeTab === 'syllabus' && (
         <div className="space-y-4">
           <div className="bg-blue-50/70 border border-blue-200/80 rounded-xl p-4 flex items-center justify-between text-xs text-blue-900">

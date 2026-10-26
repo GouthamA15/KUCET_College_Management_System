@@ -18,7 +18,8 @@ import {
   saveAttendanceDraft,
   getAttendanceDraft,
   getLatestAttendanceDraft,
-  clearAttendanceDraft
+  clearAttendanceDraft,
+  requestBackgroundSync
 } from '@/lib/idb-attendance';
 import RealtimeListener from '@/components/RealtimeListener';
 
@@ -428,6 +429,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
             attendance_data: attendanceData,
           };
           await savePendingAttendance(payload);
+          await requestBackgroundSync('sync-attendance');
           await refreshPendingSyncs();
           throw new Error('OFFLINE_SAVED');
         }
@@ -656,8 +658,28 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     };
 
     window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, [refreshPendingSyncs, syncOfflineAttendance]);
+
+    const handleSWMessage = (event) => {
+      if (event.data?.type === 'ATTENDANCE_SYNCED') {
+        refreshPendingSyncs();
+        fetchAttendanceStatus(null, null, true);
+        if (event.data.synced_count > 0) {
+          toast.success(`Background sync: ${event.data.synced_count} offline record(s) synchronized.`, { id: 'sw-sync-complete' });
+        }
+      }
+    };
+
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleSWMessage);
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleSWMessage);
+      }
+    };
+  }, [refreshPendingSyncs, syncOfflineAttendance, fetchAttendanceStatus]);
 
   // --- INITIALIZATION & DRAFT RECOVERY ---
   useEffect(() => {

@@ -342,30 +342,47 @@ describe('Task 3: Student APAAR ID Lifecycle & Security Audit Suite', () => {
     });
 
     it('enforces export RBAC permissions matrix', () => {
-      const checkExportPermission = (user) => {
+      const checkExportPermission = (user, scope = 'master') => {
         const userRole = (user?.role || '').toLowerCase();
-        return [
-          'admin',
-          'super_admin',
-          'principal',
-          'admission',
-          'admission_clerk'
-        ].includes(userRole);
+        const isAdmin = ['admin', 'super_admin', 'principal'].includes(userRole);
+        if (scope === 'master') {
+          return isAdmin || ['admission', 'admission_clerk'].includes(userRole);
+        }
+        if (scope === 'scholarship') {
+          return isAdmin || ['scholarship', 'scholarship_clerk'].includes(userRole);
+        }
+        if (scope === 'department') {
+          return isAdmin || Boolean(user?.is_hod || user?.isHod);
+        }
+        if (scope === 'first_year') {
+          return isAdmin || Boolean(user?.is_first_year_coordinator);
+        }
+        return false;
       };
 
-      // Allowed roles
-      expect(checkExportPermission({ role: 'admin' })).toBe(true);
-      expect(checkExportPermission({ role: 'super_admin' })).toBe(true);
-      expect(checkExportPermission({ role: 'admission' })).toBe(true);
-      expect(checkExportPermission({ role: 'admission_clerk' })).toBe(true);
+      // Master scope: Allowed roles
+      expect(checkExportPermission({ role: 'admin' }, 'master')).toBe(true);
+      expect(checkExportPermission({ role: 'super_admin' }, 'master')).toBe(true);
+      expect(checkExportPermission({ role: 'admission' }, 'master')).toBe(true);
+      expect(checkExportPermission({ role: 'admission_clerk' }, 'master')).toBe(true);
 
-      // Denied roles (HOD, Coordinator, Scholarship, Faculty, Student)
-      expect(checkExportPermission({ role: 'scholarship' })).toBe(false);
-      expect(checkExportPermission({ role: 'faculty', is_first_year_coordinator: true })).toBe(false);
-      expect(checkExportPermission({ role: 'faculty', is_hod: true })).toBe(false);
-      expect(checkExportPermission({ role: 'faculty' })).toBe(false);
-      expect(checkExportPermission({ role: 'student' })).toBe(false);
-      expect(checkExportPermission(null)).toBe(false);
+      // Master scope: Denied roles (HOD, Coordinator, Scholarship, Faculty, Student)
+      expect(checkExportPermission({ role: 'scholarship' }, 'master')).toBe(false);
+      expect(checkExportPermission({ role: 'faculty', is_first_year_coordinator: true }, 'master')).toBe(false);
+      expect(checkExportPermission({ role: 'faculty', is_hod: true }, 'master')).toBe(false);
+      expect(checkExportPermission({ role: 'faculty' }, 'master')).toBe(false);
+      expect(checkExportPermission({ role: 'student' }, 'master')).toBe(false);
+      expect(checkExportPermission(null, 'master')).toBe(false);
+
+      // Scoped permissions: Scholarship, HOD, and First-Year Coordinator
+      expect(checkExportPermission({ role: 'scholarship' }, 'scholarship')).toBe(true);
+      expect(checkExportPermission({ role: 'faculty' }, 'scholarship')).toBe(false);
+
+      expect(checkExportPermission({ role: 'faculty', is_hod: true }, 'department')).toBe(true);
+      expect(checkExportPermission({ role: 'faculty' }, 'department')).toBe(false);
+
+      expect(checkExportPermission({ role: 'faculty', is_first_year_coordinator: true }, 'first_year')).toBe(true);
+      expect(checkExportPermission({ role: 'faculty' }, 'first_year')).toBe(false);
     });
 
     it('enforces staff correction RBAC permissions matrix (Admission & Scholarship only)', () => {

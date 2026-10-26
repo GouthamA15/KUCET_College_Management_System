@@ -256,7 +256,7 @@ export default function DashboardActionCenter({ student }) {
       type: 'warning',
       icon: '🪪',
       title: 'APAAR ID Pending',
-      desc: 'Your APAAR ID has not been submitted yet. KUCET needs this information for scholarship processing and other authorized administrative purposes. You can submit it now or return later if your university roll number or required academic identity details are not yet available.',
+      desc: 'Registration is required for academic credit banking & scholarships. You can submit now or return anytime if your roll number is pending.',
       action: { label: 'Submit APAAR ID', href: '/student/apaar' },
       dismissible: false
     }] : []),

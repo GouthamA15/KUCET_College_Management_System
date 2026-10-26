@@ -1,6 +1,6 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { studentAdmissionDrafts, students, staffAccounts, studentPersonalDetails } from '@/db/schema';
+import { studentAdmissionDrafts, students, staffAccounts, studentPersonalDetails, otpCodes } from '@/db/schema';
 import { eq, and, ne } from 'drizzle-orm';
 import { apiError, apiResponse } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
@@ -10,6 +10,7 @@ import { encrypt, hashForIndex } from '@/lib/encryption';
 import { normalizeAreaStatus } from '@/lib/college-config';
 import { z } from 'zod';
 import { jwtVerify } from 'jose';
+import crypto from 'crypto';
 
 export async function POST(req) {
   try {
@@ -137,13 +138,29 @@ export async function POST(req) {
     }
     const secret = new TextEncoder().encode(jwtSecret);
 
+    let jwtPayload;
     try {
       const { payload } = await jwtVerify(verificationToken, secret);
       if (payload.verifiedEmail !== email || payload.purpose !== 'student_admission_email') {
         return apiError('Email verification does not match the submitted email address.', 400);
       }
+      jwtPayload = payload;
     } catch (_jwtError) {
       return apiError('Invalid or expired email verification token. Please verify your email again.', 400);
+    }
+
+    const tokenIdentifier = jwtPayload.jti || crypto.createHash('sha256').update(verificationToken).digest('hex');
+    const tokenRecordKey = `consumed_admission_token:${tokenIdentifier}`;
+    const tokenExpiresAt = jwtPayload.exp ? new Date(jwtPayload.exp * 1000) : new Date(Date.now() + 2 * 3600 * 1000);
+
+    // Fast pre-check to prevent redundant image uploads if token is already consumed
+    if (db.query?.otpCodes?.findFirst) {
+      const alreadyConsumed = await db.query.otpCodes.findFirst({
+        where: eq(otpCodes.identifier, tokenRecordKey),
+      });
+      if (alreadyConsumed) {
+        return apiError('Verification token has already been used. Please verify your email again.', 400);
+      }
     }
     
     // 1. Email Uniqueness Check (Exclude REJECTED drafts so student can re-apply)
@@ -251,8 +268,38 @@ export async function POST(req) {
       addressFields = mapAddressStringsToFields(finalContactAddr, finalPermAddr);
     }
 
+    const runInTransaction = async (callback) => {
+      if (typeof db.transaction === 'function') {
+        return db.transaction(callback);
+      }
+      return callback(db);
+    };
+
     try {
-      const [result] = await db.insert(studentAdmissionDrafts).values({
+      const result = await runInTransaction(async (tx) => {
+        // 1. Transactional check to enforce single-use atomically
+        if (tx.query?.otpCodes?.findFirst) {
+          const isConsumed = await tx.query.otpCodes.findFirst({
+            where: eq(otpCodes.identifier, tokenRecordKey),
+          });
+          if (isConsumed) {
+            const err = new Error('Verification token has already been used. Please verify your email again.');
+            err.code = 'TOKEN_ALREADY_CONSUMED';
+            throw err;
+          }
+        }
+
+        // 2. Mark token as consumed in same transaction
+        if (tx.insert) {
+          await tx.insert(otpCodes).values({
+            identifier: tokenRecordKey,
+            otp_code: 'CONSUMED',
+            expires_at: tokenExpiresAt,
+          });
+        }
+
+        // 3. Insert student admission draft
+        const insertRes = await tx.insert(studentAdmissionDrafts).values({
           status: 'DRAFT',
           admission_year,
           entrance_exam,
@@ -290,13 +337,17 @@ export async function POST(req) {
           identification_mark_2: identification_mark_2 || null,
           data_policy_consented_at: new Date(),
           ...addressFields
+        });
+
+        const draftRow = Array.isArray(insertRes) ? insertRes[0] : insertRes;
+        return draftRow;
       });
 
       // Realtime Broadcast for Admission Staff
       try {
         const { broadcastUpdate } = await import('@/lib/sse');
         await broadcastUpdate('ADMISSION_DRAFT_CREATED', {
-          id: result.insertId,
+          id: result?.insertId,
           name,
           father_name: father_name || null,
           exam_rank: exam_rank || null,
@@ -310,10 +361,14 @@ export async function POST(req) {
         // Non-blocking
       }
 
-      return apiResponse({ success: true, draftId: result.insertId, message: 'Your application has been submitted successfully.' });
+      return apiResponse({ success: true, draftId: result?.insertId, message: 'Your application has been submitted successfully.' });
     } catch (insertError) {
       if (pfpUrl) await storage.delete(pfpUrl).catch(e => logger.error(e, 'Failed to cleanup orphaned pfp in admission draft db insert failure'));
       if (signatureUrl) await storage.delete(signatureUrl).catch(e => logger.error(e, 'Failed to cleanup orphaned signature in admission draft db insert failure'));
+
+      if (insertError.code === 'TOKEN_ALREADY_CONSUMED' || insertError.message?.includes('already been used')) {
+        return apiError('Verification token has already been used. Please verify your email again.', 400);
+      }
       throw insertError;
     }
 

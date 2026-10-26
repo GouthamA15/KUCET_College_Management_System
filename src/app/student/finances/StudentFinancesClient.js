@@ -290,10 +290,10 @@ export default function StudentFinancesClient() {
               </div>
             </div>
 
-            <div className="flex items-center shrink-0">
+            <div className="flex items-center shrink-0 w-full sm:w-auto">
               <Link
                 href="/student/apaar"
-                className="px-4 py-2 text-sm font-semibold rounded-md bg-[#0b3578] text-white hover:bg-[#082654] shadow-sm transition-colors whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2 text-xs sm:text-sm font-semibold rounded-md bg-[#0b3578] text-white hover:bg-[#082654] shadow-sm transition-colors whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>View Guidance &amp; Register</span>
                 <ArrowRight className="w-4 h-4" />

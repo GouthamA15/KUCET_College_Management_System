@@ -810,19 +810,22 @@ const AdmissionPage = () => {
                             />
                         </div>
 
-                        <div className="space-y-1">
-                            <div className="flex items-center justify-between">
-                                <label htmlFor="apaar_id" className={labelClasses}>
-                                    Student APAAR ID (Academic Bank of Credits) <span className="text-xs text-slate-500 font-normal">(Optional - 12 Digits)</span>
-                                </label>
+                        <div className="space-y-1.5">
+                            <div className="flex flex-wrap items-center justify-between gap-1.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                    <label htmlFor="apaar_id" className={`${labelClasses} mb-0`}>
+                                        Student APAAR ID (Academic Bank of Credits)
+                                    </label>
+                                    <span className="text-xs text-slate-500 font-normal">(Optional - 12 Digits)</span>
+                                </div>
                                 <button
                                     type="button"
                                     onClick={() => setIsApaarGuidanceModalOpen(true)}
-                                    className="inline-flex items-center gap-1 text-xs text-[#0b3578] hover:text-blue-700 font-semibold focus:outline-none focus:underline"
-                                    title="What is APAAR ID? How to get it?"
-                                    aria-label="APAAR ID Guidance"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs text-[#0b3578] hover:text-blue-700 bg-blue-50/80 hover:bg-blue-100 border border-blue-200 rounded-md font-semibold focus:outline-none focus:ring-2 focus:ring-[#0b3578]/20 transition-colors cursor-pointer"
+                                    title="How to get your APAAR ID"
+                                    aria-label="How to get your APAAR ID"
                                 >
-                                    <HelpCircle className="w-3.5 h-3.5 text-blue-600" />
+                                    <HelpCircle className="w-3.5 h-3.5 text-[#0b3578] shrink-0" aria-hidden="true" />
                                     <span>Guidance</span>
                                 </button>
                             </div>

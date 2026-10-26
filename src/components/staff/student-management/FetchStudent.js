@@ -399,14 +399,14 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
           </div>
           <div className="divide-y divide-gray-200">
             {fetchedList.map(s => (
-              <div key={s.roll_no} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-medium text-sm">
+              <div key={s.roll_no} className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 sm:p-4 gap-3 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-medium text-sm shrink-0">
                     {s.name.charAt(0).toUpperCase()}
                   </div>
-                  <div>
-                    <div className="font-medium text-gray-800 text-sm flex flex-wrap items-center gap-2">
-                      <span>{s.name}</span>
+                  <div className="min-w-0">
+                    <div className="font-medium text-gray-800 text-sm flex flex-wrap items-center gap-1.5 sm:gap-2">
+                      <span className="truncate">{s.name}</span>
                       {s.apaar_id ? (
                         <span className="inline-flex items-center gap-1 font-mono bg-blue-50 text-[#0b3578] border border-blue-200 px-2 py-0.5 rounded text-[11px] font-medium">
                           APAAR: {formatApaar(s.apaar_id)}
@@ -417,7 +417,7 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1 flex gap-3">
+                    <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-2 sm:gap-3">
                       <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">{s.roll_no}</span>
                       <span>Adm: {s.admission_no || 'N/A'}</span>
                     </div>
@@ -426,7 +426,7 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
                 <button 
                   type="button"
                   onClick={()=>loadFullProfileByRoll(s.roll_no)} 
-                  className="px-3 py-1.5 bg-white border border-gray-300 text-[#0b3578] hover:bg-gray-50 rounded-md text-xs font-medium transition-colors cursor-pointer"
+                  className="w-full sm:w-auto px-3 py-1.5 bg-white border border-gray-300 text-[#0b3578] hover:bg-gray-50 rounded-md text-xs font-medium transition-colors cursor-pointer text-center"
                 >
                   Edit Record
                 </button>
