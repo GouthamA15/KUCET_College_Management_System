@@ -5,7 +5,7 @@
 **Date of Audit & Test Execution:** October 26, 2026  
 **Test Suite Status:** 100% Passing (23 automated fraud & security unit tests, 14 finance tests, 7 requests-image access control tests)  
 **Branch:** `testvanilla`  
-**HEAD Commit:** `f4875b28`  
+**HEAD Commit:** `8e9582f1`  
 
 ---
 

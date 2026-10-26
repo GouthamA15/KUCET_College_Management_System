@@ -3,7 +3,7 @@
 
 **Target Audience:** Admission Clerks, Admission Cell Staff, Verification Faculty, Department Coordinators, and Principals  
 **System Module:** `/admin/payments` & `/staff/admission/requests`  
-**Video File:** `artifacts/task4_video/kucet_payment_fraud_training.mp4`  
+**Video File:** `artifacts/task4_video/payment-fraud-staff-training.mp4` (also available as `kucet_payment_fraud_training.mp4`)  
 **Captions Subtitles:** `artifacts/task4_video/captions.srt` & `captions.vtt`  
 
 ---

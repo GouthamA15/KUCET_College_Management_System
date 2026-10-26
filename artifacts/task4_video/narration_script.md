@@ -50,7 +50,7 @@ Fourth, inspect Callout Four: the beneficiary name. Ensure the money was transfe
 ---
 
 ### Scene 4: Correct Submission by a Student (02:30 - 03:15)
-**Visual:** Student submission portal showing payment instructions, official college QR code, UPI handle, and transaction ID input field with live validation.  
+**Visual:** Actual KUCET CMS Certificate Payment Portal (/student/requests/certificates) displaying certificate selection, institutional eligibility, official UPI payment details, QR code ('SCAN & PAY'), official payee ('PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY'), fee amount, 12-digit UTR input field, and payment screenshot upload preview.  
 **Narration:**  
 "Let us see how a genuine, error-free submission proceeds. 
 

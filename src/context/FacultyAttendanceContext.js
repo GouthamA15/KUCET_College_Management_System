@@ -20,7 +20,7 @@ import {
   getLatestAttendanceDraft,
   clearAttendanceDraft
 } from '@/lib/idb-attendance';
-import RealtimeListener from '@/components/staff/faculty/RealtimeListener';
+import RealtimeListener from '@/components/RealtimeListener';
 
 const FacultyAttendanceContext = createContext(null);
 
