@@ -171,20 +171,22 @@ export async function POST(request) {
       console.warn('[SSE] Broadcast failed:', sseErr);
     }
 
-    // DOMAIN EVENT: Trigger background cache invalidation & audit logs
-    try {
-      const { EventBus, DOMAIN_EVENTS } = await import('@/lib/events/EventBus');
-      for (const item of attendance_data) {
-        EventBus.publish(DOMAIN_EVENTS.ATTENDANCE_SUBMITTED, {
-          student_id: item.student_id,
-          assignment_id: targetAssignmentId,
-          date,
-          session
-        });
+    // DOMAIN EVENT: Trigger background cache invalidation & audit logs asynchronously
+    Promise.resolve().then(async () => {
+      try {
+        const { EventBus, DOMAIN_EVENTS } = await import('@/lib/events/EventBus');
+        for (const item of attendance_data) {
+          EventBus.publish(DOMAIN_EVENTS.ATTENDANCE_SUBMITTED, {
+            student_id: item.student_id,
+            assignment_id: targetAssignmentId,
+            date,
+            session
+          });
+        }
+      } catch (ebErr) {
+        logger.warn({ err: ebErr }, '[EventBus] Attendance publish failed');
       }
-    } catch (ebErr) {
-      logger.warn({ err: ebErr }, '[EventBus] Attendance publish failed');
-    }
+    }).catch(() => {});
 
     return apiResponse({ message: 'Attendance updated successfully', topic_covered: savedTopic });
   } catch (error) {
