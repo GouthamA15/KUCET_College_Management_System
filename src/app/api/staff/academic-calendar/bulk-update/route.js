@@ -4,6 +4,7 @@ import { academicCalendar, semesters } from '@/db/schema';
 import { eq, and, between, sql, _notInArray, min, max } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { safeJsonParse } from '@/lib/json-utils';
+import { clearCalendarSessionCache } from '@/lib/academic-utils';
 
 export async function POST(request) {
   try {
@@ -83,6 +84,8 @@ export async function POST(request) {
       
       return { success: true };
     });
+
+    clearCalendarSessionCache();
 
     return apiResponse({ message: 'Bulk update successful' });
 

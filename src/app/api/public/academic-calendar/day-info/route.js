@@ -18,11 +18,14 @@ export async function GET(request) {
   }
 
   try {
+    const semNum = parseInt(semester, 10);
+    const termNum = !isNaN(semNum) && semNum > 2 ? ((semNum - 1) % 2) + 1 : semNum;
+
     // First, ensure the date falls within the configured academic term window.
     const semesterRow = await db.query.semesters.findFirst({
       where: and(
         eq(semesters.academic_year, academic_year),
-        eq(semesters.semester, parseInt(semester))
+        eq(semesters.semester, termNum)
       ),
       columns: {
         start_date: true,
@@ -54,7 +57,7 @@ export async function GET(request) {
         where: and(
             eq(academicCalendar.date, dateStr),
             eq(academicCalendar.academic_year, academic_year),
-            eq(academicCalendar.semester, parseInt(semester))
+            eq(academicCalendar.semester, termNum)
         ),
         columns: {
             day_type: true,

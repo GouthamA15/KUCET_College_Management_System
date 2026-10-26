@@ -89,6 +89,11 @@ let cachedSession = null;
 let cacheTimestamp = 0;
 const CACHE_TTL = 1000 * 60 * 5; // 5 minutes
 
+export function clearCalendarSessionCache() {
+  cachedSession = null;
+  cacheTimestamp = 0;
+}
+
 /**
  * Gets the current academic session details directly from the semesters table.
  * Returns { academicYear, semester, status, isCurrent }
