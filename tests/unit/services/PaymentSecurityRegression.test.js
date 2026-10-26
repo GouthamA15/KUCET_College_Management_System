@@ -101,6 +101,210 @@ describe('Payment Fraud & Security Regression Suite', () => {
       expect(result.flags).toContain(FRAUD_FLAGS.AMOUNT_MISMATCH);
       expect(result.isFlagged).toBe(true);
     }, 25000);
+
+    it('does NOT flag amount mismatch when OCR extracted amount matches expected fee with decimals or formatting', async () => {
+      const result = await PaymentFraudService.verifyPaymentEvidence({
+        transactionId: '428190123456',
+        expectedAmount: 500.00,
+        studentId: 77,
+        ocrFixture: {
+          success: true,
+          fullText: 'Amount: ₹500.00 UTR: 428190123456',
+          references: ['428190123456'],
+          amounts: [500.00],
+          statuses: ['SUCCESSFUL']
+        }
+      });
+
+      expect(result.flags).not.toContain(FRAUD_FLAGS.AMOUNT_MISMATCH);
+    });
+
+    it('preserves unverified review state without fabricating amount mismatch when OCR extraction fails or returns empty amounts', async () => {
+      const result = await PaymentFraudService.verifyPaymentEvidence({
+        transactionId: '428190123456',
+        expectedAmount: 500,
+        studentId: 77,
+        ocrFixture: {
+          success: false,
+          fullText: '',
+          references: [],
+          amounts: [],
+          error: 'Unreadable image'
+        }
+      });
+
+      expect(result.flags).not.toContain(FRAUD_FLAGS.AMOUNT_MISMATCH);
+      expect(result.flags).toContain(FRAUD_FLAGS.UNVERIFIED_EVIDENCE);
+      expect(result.status).toBe(PAYMENT_VERIFICATION_STATUS.NEEDS_REVIEW);
+      expect(result.isFlagged).toBe(false); // UNVERIFIED_EVIDENCE alone is not active fraud
+    });
+
+    it('handles missing or ambiguous expected fee safely without inventing an amount mismatch', async () => {
+      const result = await PaymentFraudService.verifyPaymentEvidence({
+        transactionId: '428190123456',
+        expectedAmount: null, // Missing expected fee
+        studentId: 77,
+        ocrFixture: {
+          success: true,
+          fullText: 'Rs. 500.00 UTR: 428190123456',
+          references: ['428190123456'],
+          amounts: [500],
+          statuses: ['SUCCESSFUL']
+        }
+      });
+
+      expect(result.flags).not.toContain(FRAUD_FLAGS.AMOUNT_MISMATCH);
+      expect(result.status).toBe(PAYMENT_VERIFICATION_STATUS.NEEDS_REVIEW);
+    });
+  });
+
+  describe('OCR Reference Discrepancy & Equivalence Validation', () => {
+    it('flags OCR_DISCREPANCY when extracted reference materially contradicts entered reference', async () => {
+      const result = await PaymentFraudService.verifyPaymentEvidence({
+        transactionId: '428190123499', // Entered
+        expectedAmount: 500,
+        studentId: 77,
+        ocrFixture: {
+          success: true,
+          fullText: 'UTR: 428190123456',
+          references: ['428190123456'],
+          amounts: [500],
+          statuses: ['SUCCESSFUL']
+        }
+      });
+
+      expect(result.flags).toContain(FRAUD_FLAGS.OCR_DISCREPANCY);
+      expect(result.isFlagged).toBe(true);
+      expect(result.status).toBe(PAYMENT_VERIFICATION_STATUS.NEEDS_REVIEW);
+      expect(result.riskScore).toBeGreaterThanOrEqual(30);
+    });
+
+    it('does NOT flag OCR_DISCREPANCY when references differ only in permitted formatting (spaces, hyphens, UPI/ prefix, casing)', async () => {
+      const testCases = [
+        { entered: '4281 9012 3456', extracted: ['428190123456'] },
+        { entered: '4281-9012-3456', extracted: ['428190123456'] },
+        { entered: 'UPI/428190123456', extracted: ['428190123456'] },
+        { entered: '428190123456', extracted: ['UPI/428190123456'] },
+        { entered: 'axis01234567', extracted: ['AXIS01234567'] }
+      ];
+
+      for (const tc of testCases) {
+        const result = await PaymentFraudService.verifyPaymentEvidence({
+          transactionId: tc.entered,
+          expectedAmount: 500,
+          studentId: 77,
+          ocrFixture: {
+            success: true,
+            fullText: `UTR: ${tc.extracted[0]}`,
+            references: tc.extracted,
+            amounts: [500],
+            statuses: ['SUCCESSFUL']
+          }
+        });
+
+        expect(result.flags).not.toContain(FRAUD_FLAGS.OCR_DISCREPANCY);
+      }
+    });
+
+    it('does NOT treat distinct transaction references as equivalent when normalizing', () => {
+      expect(PaymentFraudService.areReferencesEquivalent('428190123456', '428190123499')).toBe(false);
+      expect(PaymentFraudService.areReferencesEquivalent('428190123456', '428190123457')).toBe(false);
+      expect(PaymentFraudService.areReferencesEquivalent('AXIS12345678', 'AXIS12345679')).toBe(false);
+    });
+
+    it('matches when receipt contains multiple plausible transaction identifiers and one matches', async () => {
+      const result = await PaymentFraudService.verifyPaymentEvidence({
+        transactionId: '428190123456',
+        expectedAmount: 500,
+        studentId: 77,
+        ocrFixture: {
+          success: true,
+          fullText: 'Order ID: pay_99887711 UTR: 428190123456 Ref: SBI12345678',
+          references: ['pay_99887711', '428190123456', 'SBI12345678'],
+          amounts: [500],
+          statuses: ['SUCCESSFUL']
+        }
+      });
+
+      expect(result.flags).not.toContain(FRAUD_FLAGS.OCR_DISCREPANCY);
+    });
+
+    it('does not flag OCR_DISCREPANCY when OCR returns empty references', async () => {
+      const result = await PaymentFraudService.verifyPaymentEvidence({
+        transactionId: '428190123456',
+        expectedAmount: 500,
+        studentId: 77,
+        ocrFixture: {
+          success: true,
+          fullText: 'No readable transaction id found',
+          references: [],
+          amounts: [500],
+          statuses: []
+        }
+      });
+
+      expect(result.flags).not.toContain(FRAUD_FLAGS.OCR_DISCREPANCY);
+      expect(result.flags).toContain(FRAUD_FLAGS.UNVERIFIED_EVIDENCE);
+    });
+
+    it('filters malformed or ambiguous text without fabricating OCR_DISCREPANCY', async () => {
+      const result = await PaymentFraudService.verifyPaymentEvidence({
+        transactionId: '428190123456',
+        expectedAmount: 500,
+        studentId: 77,
+        ocrFixture: {
+          success: true,
+          fullText: 'Garbled symbols ?? ## @@ 12',
+          references: ['##@@', '12', 'abc'], // All too short or malformed (< 8 chars)
+          amounts: [500],
+          statuses: []
+        }
+      });
+
+      expect(result.flags).not.toContain(FRAUD_FLAGS.OCR_DISCREPANCY);
+    });
+
+    it('handles OCR extraction errors gracefully without fabricating false discrepancy', async () => {
+      const result = await PaymentFraudService.verifyPaymentEvidence({
+        transactionId: '428190123456',
+        expectedAmount: 500,
+        studentId: 77,
+        ocrFixture: {
+          success: false,
+          fullText: '',
+          references: [],
+          amounts: [],
+          error: 'Tesseract timed out'
+        }
+      });
+
+      expect(result.flags).not.toContain(FRAUD_FLAGS.OCR_DISCREPANCY);
+      expect(result.flags).toContain(FRAUD_FLAGS.UNVERIFIED_EVIDENCE);
+      expect(result.status).toBe(PAYMENT_VERIFICATION_STATUS.NEEDS_REVIEW);
+    });
+  });
+
+  describe('Developer Path Portability & Test Environment Isolation', () => {
+    it('verifies unit test files do not contain machine-specific /home/ scratch paths', async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+
+      const testDir = path.resolve(process.cwd(), 'tests/unit');
+      function scanDir(dir) {
+        const files = fs.readdirSync(dir);
+        for (const file of files) {
+          const fullPath = path.join(dir, file);
+          const stat = fs.statSync(fullPath);
+          if (stat.isDirectory()) {
+            scanDir(fullPath);
+          } else if (file.endsWith('.test.js')) {
+            const content = fs.readFileSync(fullPath, 'utf8');
+            expect(content).not.toMatch(/\/home\/[a-zA-Z0-9._-]+\/\.gemini/);
+          }
+        }
+      }
+      scanDir(testDir);
+    });
   });
 
   describe('Reconciliation Failure & Manual Decision Security', () => {

@@ -43,6 +43,24 @@ export class PaymentFraudService {
   }
 
   /**
+   * Compares two transaction references, accounting for permitted formatting variations
+   * such as spaces, hyphens, UPI/ prefixes, and casing, without over-normalizing
+   * distinct references into equivalent ones.
+   */
+  static areReferencesEquivalent(ref1, ref2) {
+    if (!ref1 || !ref2) return false;
+    const s1 = String(ref1).trim();
+    const s2 = String(ref2).trim();
+    if (s1 === s2) return true;
+
+    // Normalize permitted formatting: strip optional "UPI/" prefix, whitespace, hyphens, uppercase
+    const norm1 = s1.toUpperCase().replace(/^UPI\//i, '').replace(/[\s\-_]/g, '');
+    const norm2 = s2.toUpperCase().replace(/^UPI\//i, '').replace(/[\s\-_]/g, '');
+
+    return norm1 === norm2;
+  }
+
+  /**
    * Classifies an identifier into UPI_VPA, UTR_BANK_REF, ORDER_ID, or UNKNOWN.
    */
   static classifyIdentifier(raw) {
@@ -200,14 +218,16 @@ export class PaymentFraudService {
     const tmpFile = path.join(os.tmpdir(), `kucet_ocr_${Date.now()}_${crypto.randomUUID().slice(0, 8)}.png`);
 
     try {
-      // Normalize and write clean PNG to temp file for OCR
+      // Normalize and write clean preprocessed PNG to temp file for faster, more accurate OCR
       await sharp(buffer)
+        .grayscale()
+        .normalise()
         .png()
         .toFile(tmpFile);
 
       const ocrOutput = await new Promise((resolve) => {
         const proc = spawn('tesseract', [tmpFile, 'stdout', '--psm', '6'], {
-          timeout: 8000 // 8 second timeout
+          timeout: 25000 // 25 second timeout for concurrent test environments
         });
 
         let stdout = '';
@@ -236,16 +256,21 @@ export class PaymentFraudService {
       // Pattern extraction from visible text
       // 1. Transaction references / UTR numbers (12-digit numeric or UPI/XXXX)
       const utrMatches = fullText.match(/\b\d{12}\b/g) || [];
-      const labeledUtr = fullText.match(/(?:UTR|Ref(?:erence)?|Txn(?:\s*ID)?|UPI\s*Ref)[:\s#]*([a-zA-Z0-9]+)/gi) || [];
+      const labeledUtr = fullText.match(/(?:UTR(?:\s*No\.?)?|Ref(?:erence)?(?:\s*No\.?)?|Txn(?:\s*ID|\s*Ref)?|UPI\s*(?:Ref|Txn(?:\s*ID)?)?|RRN)[:\s#]*([a-zA-Z0-9/\-_ ]+)/gi) || [];
+      const cleanedLabeled = labeledUtr.map(m =>
+        m.replace(/^(?:UTR(?:\s*No\.?)?|Ref(?:erence)?(?:\s*No\.?)?|Txn(?:\s*ID|\s*Ref)?|UPI\s*(?:Ref|Txn(?:\s*ID)?)?|RRN)[:\s#]*/i, '')
+         .replace(/[\s\-_]/g, '')
+         .trim()
+      );
       const extractedReferences = Array.from(new Set([
         ...utrMatches,
-        ...labeledUtr.map(m => m.replace(/^(?:UTR|Ref(?:erence)?|Txn(?:\s*ID)?|UPI\s*Ref)[:\s#]*/i, '').trim())
+        ...cleanedLabeled
       ])).filter(r => r.length >= 8);
 
-      // 2. Amounts (e.g. ₹500, Rs. 500, INR 500, %500, 500.00)
-      const amountMatches = fullText.match(/(?:[₹%]|Rs\.?|INR)\s*([0-9,]+(?:\.[0-9]{2})?)/gi) || fullText.match(/\b([0-9,]+\.[0-9]{2})\b/g) || [];
+      // 2. Amounts (e.g. ₹500, Rs. 500, INR 500, %500, ¥500, 500.00)
+      const amountMatches = fullText.match(/(?:[₹¥%]|Rs\.?|INR|Re\.?|Amount[:\s]*|Paid[:\s]*)\s*([0-9,]+(?:\.[0-9]{2})?)/gi) || fullText.match(/\b([0-9,]+\.[0-9]{2})\b/g) || [];
       const extractedAmounts = amountMatches.map(m => {
-        const cleaned = m.replace(/[^\d.]/g, '');
+        const cleaned = m.replace(/^[^\d]*/, '').replace(/,/g, '');
         return parseFloat(cleaned);
       }).filter(a => !isNaN(a) && a > 0);
 
@@ -293,7 +318,8 @@ export class PaymentFraudService {
     studentId,
     requestId,
     _draftId,
-    reconciliationFixture = null
+    reconciliationFixture = null,
+    ocrFixture = null
   }) {
     const flags = [];
     const explanations = [];
@@ -377,32 +403,55 @@ export class PaymentFraudService {
       }
     }
 
-    // 5. Perceptual Similarity & OCR Extraction (if image provided)
+    // 5. Perceptual Similarity & OCR Extraction (if image provided or fixture supplied)
     let ocrResult = null;
-    if (imageBuffer) {
+    if (ocrFixture) {
+      ocrResult = ocrFixture;
+    } else if (imageBuffer) {
       ocrResult = await this.extractTextWithOCR(imageBuffer);
+    }
 
+    if (ocrResult) {
       // OCR Reference Comparison
-      if (normalizedTxId && ocrResult.references.length > 0) {
-        const matchesEntered = ocrResult.references.some(r => r === normalizedTxId || r.includes(normalizedTxId));
-        if (!matchesEntered) {
-          flags.push(FRAUD_FLAGS.OCR_DISCREPANCY);
-          explanations.push(
-            `Entered reference (${normalizedTxId}) does not match the reference number (${ocrResult.references.join(', ')}) visibly extracted from the screenshot.`
-          );
-          riskScore += 30;
+      if (normalizedTxId && Array.isArray(ocrResult.references) && ocrResult.references.length > 0) {
+        // Filter out malformed or ambiguous text (< 8 alphanumeric chars)
+        const validExtractedRefs = ocrResult.references.filter(r => {
+          if (!r || typeof r !== 'string') return false;
+          const cleaned = r.replace(/[^a-zA-Z0-9]/g, '');
+          return cleaned.length >= 8;
+        });
+
+        if (validExtractedRefs.length > 0) {
+          const matchesEntered = validExtractedRefs.some(r => this.areReferencesEquivalent(r, normalizedTxId));
+          if (!matchesEntered) {
+            flags.push(FRAUD_FLAGS.OCR_DISCREPANCY);
+            explanations.push(
+              `Entered reference (${normalizedTxId}) does not match the reference number (${validExtractedRefs.join(', ')}) visibly extracted from the screenshot.`
+            );
+            riskScore += 30;
+          }
         }
       }
 
       // OCR Amount Comparison
-      if (expectedAmount && ocrResult.amounts.length > 0) {
-        const amountFound = ocrResult.amounts.some(a => Math.abs(a - expectedAmount) < 1.0);
-        if (!amountFound) {
-          flags.push(FRAUD_FLAGS.AMOUNT_MISMATCH);
-          explanations.push(
-            `Visible amount in screenshot (₹${ocrResult.amounts[0]}) differs from the expected institutional fee of ₹${expectedAmount}.`
-          );
-          riskScore += 25;
+      if (expectedAmount !== undefined && expectedAmount !== null && Array.isArray(ocrResult.amounts) && ocrResult.amounts.length > 0) {
+        const numExpected = Number(expectedAmount);
+        if (!isNaN(numExpected) && numExpected > 0) {
+          const minorExpected = Math.round(numExpected * 100);
+          const amountFound = ocrResult.amounts.some(a => {
+            const numA = Number(a);
+            if (isNaN(numA) || numA <= 0) return false;
+            const minorA = Math.round(numA * 100);
+            return Math.abs(minorA - minorExpected) <= 100; // Within 1.00 rupee / minor unit tolerance
+          });
+
+          if (!amountFound) {
+            flags.push(FRAUD_FLAGS.AMOUNT_MISMATCH);
+            explanations.push(
+              `Visible amount in screenshot (₹${ocrResult.amounts[0]}) differs from the expected institutional fee of ₹${numExpected}.`
+            );
+            riskScore += 25;
+          }
         }
       }
     }
