@@ -37,6 +37,9 @@ export async function POST(req) {
       student_mobile: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v.length === 10),
       guardian_mobile: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v === '' || v.length === 10).nullable().optional(),
       aadhaar_no: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v === '' || v.length === 12).nullable().optional(),
+      apaar_id: z.string().transform(v => (v || '').replace(/\s+/g, '')).refine(v => v === '' || /^\d{12}$/.test(v), {
+        message: 'APAAR ID must be exactly 12 numeric digits'
+      }).nullable().optional(),
       dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       gender: z.enum(['MALE', 'FEMALE', 'Male', 'Female']).transform(val => val.toUpperCase()),
       father_name: z.string().trim().max(255).nullable().optional(),
@@ -109,7 +112,7 @@ export async function POST(req) {
     const { 
       name, admission_year, entrance_exam, branch, seat_allotted_category, 
       religion, mother_tongue, email, student_mobile, guardian_mobile, 
-      aadhaar_no, dob, gender, father_name, mother_name, exam_rank,
+      aadhaar_no, apaar_id, dob, gender, father_name, mother_name, exam_rank,
       area_status, category, sub_caste, ssc_marks, inter_diploma_marks,
       nationality, blood_group, place_of_birth, father_occupation, 
       annual_income, fee_reimbursement, identification_mark_1, 
@@ -281,6 +284,7 @@ export async function POST(req) {
           annual_income: annual_income || null,
           aadhaar_no: encryptedAadhaar,
           aadhaar_hash: aHash,
+          apaar_id: apaar_id || null,
           fee_reimbursement: fee_reimbursement || null,
           identification_mark_1: identification_mark_1 || null,
           identification_mark_2: identification_mark_2 || null,

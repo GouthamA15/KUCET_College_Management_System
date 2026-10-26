@@ -140,6 +140,7 @@ const ExportStudents = () => {
         'Father Occupation': s.father_occupation,
         'Annual Income': s.annual_income,
         'Aadhaar Number': s.aadhaar_no || 'N/A',
+        'APAAR ID': s.apaar_id || 'N/A',
         'Guardian Mobile': s.guardian_mobile || 'N/A',
         'Permanent Address': s.permanent_address ? s.permanent_address.split(',')[0] : 'N/A',
         'Identification Marks': s.identification_marks,
@@ -174,7 +175,7 @@ const ExportStudents = () => {
     const columnWidths = [
       { wch: 16 }, { wch: 18 }, { wch: 14 }, { wch: 28 }, { wch: 12 }, { wch: 16 }, { wch: 30 }, { wch: 16 },
       { wch: 26 }, { wch: 26 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 14 },
-      { wch: 16 }, { wch: 20 }, { wch: 22 }, { wch: 18 }, { wch: 20 }, { wch: 16 }, { wch: 40 },
+      { wch: 16 }, { wch: 20 }, { wch: 22 }, { wch: 18 }, { wch: 20 }, { wch: 18 }, { wch: 16 }, { wch: 40 },
       { wch: 32 }, { wch: 22 }, { wch: 14 }, { wch: 18 }, { wch: 16 }, { wch: 14 }, { wch: 18 },
       { wch: 18 }, { wch: 30 }, { wch: 16 }, { wch: 20 }
     ];

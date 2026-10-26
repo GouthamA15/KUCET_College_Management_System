@@ -54,7 +54,9 @@ async function fetchImageBuffer(assetPath, imageBufferCache) {
         imageBufferCache.set(clean, res);
         return res;
       }
-    } catch (_e) {}
+    } catch (_e) {
+      /* ignore and try next source */
+    }
   }
 
   // 2. Local VPS persistent storage disk check
@@ -73,7 +75,9 @@ async function fetchImageBuffer(assetPath, imageBufferCache) {
         return res;
       }
     }
-  } catch (_e) {}
+  } catch (_e) {
+    /* ignore and try next source */
+  }
 
   // 3. Remote URL check (getAssetUrl)
   try {
@@ -91,7 +95,9 @@ async function fetchImageBuffer(assetPath, imageBufferCache) {
         }
       }
     }
-  } catch (_e) {}
+  } catch (_e) {
+    /* ignore and try next source */
+  }
 
   // 4. Cloudinary direct fallback
   try {
@@ -117,7 +123,9 @@ async function fetchImageBuffer(assetPath, imageBufferCache) {
         return res;
       }
     }
-  } catch (_e) {}
+  } catch (_e) {
+    /* ignore and fallback to null */
+  }
 
   return null;
 }
@@ -191,6 +199,7 @@ export async function GET(req) {
         { header: 'Father Occupation', key: 'father_occupation', width: 22 },
         { header: 'Annual Income', key: 'annual_income', width: 18 },
         { header: 'Aadhaar Number', key: 'aadhaar_no', width: 20 },
+        { header: 'APAAR ID', key: 'apaar_id', width: 18 },
         { header: 'Guardian Mobile', key: 'guardian_mobile', width: 16 },
         { header: 'Permanent Address', key: 'permanent_address', width: 40 },
         { header: 'Identification Marks', key: 'identification_marks', width: 32 },
@@ -276,6 +285,7 @@ export async function GET(req) {
           father_occupation: s.father_occupation || '',
           annual_income: s.annual_income || '',
           aadhaar_no: finalAadhaar,
+          apaar_id: s.apaar_id || 'N/A',
           guardian_mobile: s.guardian_mobile || '',
           permanent_address: s.permanent_address || '',
           identification_marks: s.identification_marks || '',

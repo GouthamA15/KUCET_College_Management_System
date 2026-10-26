@@ -70,6 +70,13 @@ export class StudentService {
   }
 
   /**
+   * Normalize an APAAR ID
+   */
+  static normalizeApaarId(apaarId) {
+    return StudentProfileService.normalizeApaarId(apaarId);
+  }
+
+  /**
    * Fetch students filtered by year and branch
    * @param {string} year Academic year (e.g., '2025-26')
    * @param {string} branch Branch code (e.g., 'CSE')

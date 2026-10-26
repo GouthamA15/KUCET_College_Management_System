@@ -70,6 +70,19 @@ export class StudentProfileService {
   }
 
   /**
+   * Helper to normalize and validate APAAR ID (12 numeric digits)
+   */
+  static normalizeApaarId(val) {
+    if (!val) return null;
+    const clean = String(val).replace(/\s+/g, '');
+    if (!clean) return null;
+    if (!/^\d{12}$/.test(clean)) {
+      throw new Error('INVALID_APAAR_ID');
+    }
+    return clean;
+  }
+
+  /**
    * Fetch full student registry data for export or admin review
    */
   static async getFullStudentDataForExport(year, branch) {
@@ -107,6 +120,7 @@ export class StudentProfileService {
       identification_marks: studentPersonalDetails.identification_marks,
       annual_income: studentPersonalDetails.annual_income,
       aadhaar_no: studentPersonalDetails.aadhaar_no,
+      apaar_id: studentPersonalDetails.apaar_id,
       guardian_mobile: studentPersonalDetails.guardian_mobile,
       perm_house_no: studentPersonalDetails.perm_house_no,
       perm_street: studentPersonalDetails.perm_street,
@@ -155,6 +169,7 @@ export class StudentProfileService {
       dob: row.date_of_birth,
       mobile: row.mobile ? decrypt(row.mobile) : null,
       aadhaar_no: row.aadhaar_no ? decrypt(row.aadhaar_no) : null,
+      apaar_id: row.apaar_id || null,
       guardian_mobile: row.guardian_mobile ? decrypt(row.guardian_mobile) : null,
       permanent_address: getPermanentAddressFromDetails(row),
       contact_address: getContactAddressFromDetails(row)
@@ -246,6 +261,7 @@ export class StudentProfileService {
       guardian_mobile: normGuardianMobile ? encrypt(normGuardianMobile) : null,
       aadhaar_no: normAadhaar ? encrypt(normAadhaar) : null,
       aadhaar_hash: normAadhaar ? hashForIndex(normAadhaar) : null,
+      ...(data.apaar_id !== undefined ? { apaar_id: data.apaar_id ? StudentProfileService.normalizeApaarId(data.apaar_id) : null } : {}),
       ...addressFields,
       seat_allotted_category: seat_allotted_category || null,
       blood_group: StudentProfileService.normalizeBloodGroup(blood_group),

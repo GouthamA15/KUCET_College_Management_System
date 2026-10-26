@@ -20,6 +20,7 @@ export const studentPersonalDetails = mysqlTable('student_personal_details', {
   annual_income: varchar('annual_income', { length: 50 }),
   aadhaar_no: varchar('aadhaar_no', { length: 255 }), // Encrypted
   aadhaar_hash: varchar('aadhaar_hash', { length: 64 }), // Searchable Blind Index
+  apaar_id: varchar('apaar_id', { length: 20 }),
 
   perm_house_no: varchar('perm_house_no', { length: 255 }),
   perm_street: varchar('perm_street', { length: 255 }),
@@ -46,6 +47,7 @@ export const studentPersonalDetails = mysqlTable('student_personal_details', {
   studentIdIdx: index('idx_spd_student_id').on(table.student_id),
   studentIdUniq: uniqueIndex('uq_spd_student_id').on(table.student_id),
   aadhaarHashIdx: index('idx_spd_aadhaar_hash').on(table.aadhaar_hash),
+  apaarIdx: index('idx_spd_apaar_id').on(table.apaar_id),
 }));
 
 export const studentAcademicBackground = mysqlTable('student_academic_background', {
@@ -95,6 +97,7 @@ export const studentAdmissionDrafts = mysqlTable('student_admission_drafts', {
   annual_income: varchar('annual_income', { length: 50 }),
   aadhaar_no: varchar('aadhaar_no', { length: 255 }), // Encrypted
   aadhaar_hash: varchar('aadhaar_hash', { length: 64 }), // Searchable Index
+  apaar_id: varchar('apaar_id', { length: 20 }),
   fee_reimbursement: mysqlEnum('fee_reimbursement', ['YES', 'NO', 'GOV']),
   identification_mark_1: text('identification_mark_1'),
   identification_mark_2: text('identification_mark_2'),
@@ -132,6 +135,7 @@ export const studentAdmissionDrafts = mysqlTable('student_admission_drafts', {
   emailIdx: index('idx_draft_email').on(table.email),
   mobileHashIdx: index('idx_draft_mobile_hash').on(table.mobile_hash),
   aadhaarHashIdx: index('idx_draft_aadhaar_hash').on(table.aadhaar_hash),
+  apaarIdx: index('idx_draft_apaar_id').on(table.apaar_id),
   statusIdx: index('idx_draft_status').on(table.status),
 }));
 

@@ -41,6 +41,7 @@ const AdmissionPage = () => {
         father_occupation: '',
         annual_income: '',
         aadhaar_no: '',
+        apaar_id: '',
         student_mobile: '',
         guardian_mobile: '',
         email: '',
@@ -302,6 +303,11 @@ const AdmissionPage = () => {
         return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
     };
 
+    const formatApaar = (val) => {
+        const digits = (val || '').replace(/\D/g, '').slice(0, 12);
+        return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+    };
+
     const handleFileChange = async (e, type) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -427,6 +433,7 @@ const AdmissionPage = () => {
             email: form.email.trim().toLowerCase(),
             verification_token: emailState.verificationToken,
             aadhaar_no: form.aadhaar_no.replace(/\s/g, ''),
+            apaar_id: form.apaar_id ? form.apaar_id.replace(/\s/g, '') : undefined,
             annual_income: form.annual_income,
             admission_year: admissionYear,
             pfp: files.pfp,
@@ -795,6 +802,22 @@ const AdmissionPage = () => {
                                 title="Enter a valid 12-digit Aadhaar number" 
                                 value={form.aadhaar_no} 
                                 onChange={e => setForm({...form, aadhaar_no: formatAadhaar(e.target.value)})} 
+                                maxLength={14} 
+                                className={inputClasses} 
+                                placeholder="XXXX XXXX XXXX" 
+                            />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label htmlFor="apaar_id" className={labelClasses}>
+                                Student APAAR ID (Academic Bank of Credits) <span className="text-xs text-slate-500 font-normal">(Optional - 12 Digits)</span>
+                            </label>
+                            <input 
+                                id="apaar_id"
+                                pattern="[0-9]{4}\s[0-9]{4}\s[0-9]{4}" 
+                                title="Enter a valid 12-digit APAAR ID" 
+                                value={form.apaar_id || ''} 
+                                onChange={e => setForm({...form, apaar_id: formatApaar(e.target.value)})} 
                                 maxLength={14} 
                                 className={inputClasses} 
                                 placeholder="XXXX XXXX XXXX" 

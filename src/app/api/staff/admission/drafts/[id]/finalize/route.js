@@ -82,6 +82,7 @@ export const POST = wrapHandler({
           mobile: decrypt(draft.student_mobile),
           guardian_mobile: draft.guardian_mobile ? decrypt(draft.guardian_mobile) : null,
           aadhaar_no: draft.aadhaar_no ? decrypt(draft.aadhaar_no) : null,
+          apaar_id: draft.apaar_id || null,
           permanent_address: getPermanentAddressFromDetails(draft),
           contact_address: getContactAddressFromDetails(draft),
           identification_marks: `${draft.identification_mark_1 || ''}\n${draft.identification_mark_2 || ''}`.trim(),

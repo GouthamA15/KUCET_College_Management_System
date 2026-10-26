@@ -1,20 +1,26 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import _toast from 'react-hot-toast';
 import { formatDate } from '@/lib/date';
 import { getEntranceExamQualified, getBranchFromRoll, getAdmissionTypeFromRoll, validateRollNo } from '@/lib/rollNumber';
 
 export default function FetchStudent({ setActiveAction, setFetchedStudent, setPersonalFull, setAcademicsList, setFeesList, setFeeDetails, setEditValues, setOriginalEditValues, setOriginalPersonalFull, setOriginalAcademicsList }) {
+  const searchParams = useSearchParams();
   const [fetchRoll, setFetchRoll] = useState('');
   const [fetchRollNoError, setFetchRollNoError] = useState('');
   const [fetchAdmission, setFetchAdmission] = useState('');
   const [fetchName, setFetchName] = useState('');
+  const [fetchApaar, setFetchApaar] = useState('');
+  const [filterMissingApaar, setFilterMissingApaar] = useState(() => {
+    return searchParams?.get('missing_apaar') === 'true' || searchParams?.get('missing_apaar') === '1';
+  });
   const [fetchLoading, setFetchLoading] = useState(false);
   const [fetchError, setFetchError] = useState('');
   const [fetchedList, setFetchedList] = useState([]);
 
   const canFetch = () => {
-    return fetchRoll.trim() || fetchAdmission.trim() || fetchName.trim();
+    return fetchRoll.trim() || fetchAdmission.trim() || fetchName.trim() || fetchApaar.trim() || filterMissingApaar;
   };
 
   const MAX_ROLL = 10;
@@ -30,6 +36,13 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
     if (input == null) return '';
     const s = String(input).replace(/\D/g, '');
     return s.slice(0, maxLen);
+  };
+
+  const formatApaar = (val) => {
+    if (val == null) return '';
+    const digits = String(val).replace(/\D/g, '').slice(0, 12);
+    if (!digits) return '';
+    return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
   };
 
   const loadFullProfileByRoll = async (roll) => {
@@ -61,6 +74,7 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
         annual_income: pd.annual_income || '',
         guardian_mobile: pd.guardian_mobile || '',
         aadhaar_no: pd.aadhaar_no || '',
+        apaar_id: pd.apaar_id || '',
         curr_house_no: pd.curr_house_no || '',
         curr_street: pd.curr_street || '',
         curr_apartment: pd.curr_apartment || '',
@@ -147,6 +161,7 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
         annual_income: pd.annual_income || null,
         guardian_mobile: pd.guardian_mobile || null,
         aadhaar_no: pd.aadhaar_no || null,
+        apaar_id: pd.apaar_id || null,
         curr_house_no: pd.curr_house_no || null,
         curr_street: pd.curr_street || null,
         curr_apartment: pd.curr_apartment || null,
@@ -173,15 +188,18 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
     }
   };
 
-  const handleFetch = async () => {
+  const handleFetch = useCallback(async (overrideFilterMissing = null) => {
     setFetchError('');
     setFetchedStudent(null);
     setFetchedList([]);
-    if (!canFetch()) { setFetchError('Please enter at least one search field.'); return; }
+    const isMissingFilter = overrideFilterMissing !== null ? overrideFilterMissing : filterMissingApaar;
+    if (!fetchRoll.trim() && !fetchAdmission.trim() && !fetchName.trim() && !fetchApaar.trim() && !isMissingFilter) {
+      setFetchError('Please enter at least one search field or select a filter.');
+      return;
+    }
     setFetchLoading(true);
     try{
       if (fetchRoll.trim()) {
-        // Validate roll client-side similar to LoginPanel
         const rn = fetchRoll.trim();
         const { isValid } = validateRollNo(rn);
         if (!isValid) {
@@ -193,14 +211,20 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
         return;
       }
       const params = new URLSearchParams();
-      if (fetchAdmission.trim()) params.set('admission_no', fetchAdmission.trim());
-      if (fetchName.trim()) params.set('name', fetchName.trim());
+      if (isMissingFilter) {
+        params.set('missing_apaar', 'true');
+      } else if (fetchApaar.trim()) {
+        params.set('apaar_id', fetchApaar.trim().replace(/\s/g, ''));
+      } else {
+        if (fetchAdmission.trim()) params.set('admission_no', fetchAdmission.trim());
+        if (fetchName.trim()) params.set('name', fetchName.trim());
+      }
       const res = await fetch(`/api/staff/students/search?${params.toString()}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || data.message || 'Search failed');
       if (!data.students || data.students.length === 0) {
-        setFetchError('No students found');
-      } else if (data.students.length === 1) {
+        setFetchError(isMissingFilter ? 'No active students missing APAAR ID found.' : 'No students found');
+      } else if (data.students.length === 1 && !isMissingFilter) {
         await loadFullProfileByRoll(data.students[0].roll_no);
       } else {
         setFetchedList(data.students);
@@ -209,21 +233,58 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
       console.error(err);
       setFetchError(err.message || 'Fetch failed');
     }finally{ setFetchLoading(false); }
-  };
+  }, [filterMissingApaar, fetchRoll, fetchAdmission, fetchName, fetchApaar]);
+
+  // Support direct deep link from Admission Dashboard for Missing APAAR
+  useEffect(() => {
+    if (searchParams?.get('missing_apaar') === 'true' || searchParams?.get('missing_apaar') === '1') {
+      const id = setTimeout(() => {
+        handleFetch(true);
+      }, 0);
+      return () => clearTimeout(id);
+    }
+  }, [searchParams, handleFetch]);
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); handleFetch(); }} className="animate-fadeIn text-sm">
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold text-gray-800">Search Student</h2>
-        <p className="text-sm text-gray-600">Search using Roll Number, Application Number, or Student Name.</p>
+      <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-800">Search Student Registry</h2>
+          <p className="text-sm text-gray-600">Search using Roll Number, Application Number, Name, or APAAR ID.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const nextState = !filterMissingApaar;
+              setFilterMissingApaar(nextState);
+              if (nextState) {
+                setFetchRoll('');
+                setFetchAdmission('');
+                setFetchName('');
+                setFetchApaar('');
+                handleFetch(true);
+              }
+            }}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md border transition-colors flex items-center gap-1.5 cursor-pointer ${
+              filterMissingApaar 
+                ? 'bg-amber-100 text-amber-800 border-amber-300 shadow-sm' 
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${filterMissingApaar ? 'bg-amber-500' : 'bg-gray-400'}`}></span>
+            <span>{filterMissingApaar ? 'Filtering: Missing APAAR' : 'Filter Missing APAAR'}</span>
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
           <label className="text-sm font-medium text-gray-700 block mb-1">Roll Number</label>
           <input
             placeholder="e.g. 21B81A0501"
             value={fetchRoll}
+            disabled={filterMissingApaar}
             onChange={(e) => {
               const v = sanitizeRoll(e.target.value);
               setFetchRoll(v);
@@ -235,7 +296,7 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
                 setFetchRollNoError(`Must be ${MAX_ROLL} chars.`);
               } else setFetchRollNoError('');
             }}  
-            className="w-full h-10 bg-white border border-gray-300 rounded-md px-3 text-sm text-gray-800 focus:outline-none focus:border-[#0b3578] uppercase"
+            className="w-full h-10 bg-white border border-gray-300 rounded-md px-3 text-sm text-gray-800 focus:outline-none focus:border-[#0b3578] uppercase disabled:bg-gray-100 disabled:text-gray-400"
             maxLength={MAX_ROLL}
           />
           {fetchRollNoError && <div className="text-red-600 text-xs mt-1">{fetchRollNoError}</div>}
@@ -246,8 +307,9 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
           <input 
             placeholder="e.g. ADM2023001" 
             value={fetchAdmission} 
+            disabled={filterMissingApaar}
             onChange={e=>setFetchAdmission(e.target.value)} 
-            className="w-full h-10 bg-white border border-gray-300 rounded-md px-3 text-sm text-gray-800 focus:outline-none focus:border-[#0b3578] uppercase" 
+            className="w-full h-10 bg-white border border-gray-300 rounded-md px-3 text-sm text-gray-800 focus:outline-none focus:border-[#0b3578] uppercase disabled:bg-gray-100 disabled:text-gray-400" 
           />
         </div>
         
@@ -256,8 +318,21 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
           <input 
             placeholder="Enter full or partial name" 
             value={fetchName} 
+            disabled={filterMissingApaar}
             onChange={e=>setFetchName(e.target.value)} 
-            className="w-full h-10 bg-white border border-gray-300 rounded-md px-3 text-sm text-gray-800 focus:outline-none focus:border-[#0b3578]" 
+            className="w-full h-10 bg-white border border-gray-300 rounded-md px-3 text-sm text-gray-800 focus:outline-none focus:border-[#0b3578] disabled:bg-gray-100 disabled:text-gray-400" 
+          />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-gray-700 block mb-1">APAAR ID (12 Digits)</label>
+          <input 
+            placeholder="e.g. 1234 5678 9012" 
+            value={fetchApaar} 
+            disabled={filterMissingApaar}
+            onChange={e=>setFetchApaar(formatApaar(e.target.value))} 
+            className="w-full h-10 bg-white border border-gray-300 rounded-md px-3 text-sm text-gray-800 focus:outline-none focus:border-[#0b3578] font-mono disabled:bg-gray-100 disabled:text-gray-400" 
+            maxLength={14}
           />
         </div>
       </div>
@@ -265,7 +340,16 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
       <div className="flex items-center justify-end gap-2 mt-4">
         <button 
           type="button"
-          onClick={()=>{setFetchRoll(''); setFetchAdmission(''); setFetchName(''); setFetchError(''); setFetchRollNoError(''); setFetchedList([]);}} 
+          onClick={()=>{
+            setFetchRoll('');
+            setFetchAdmission('');
+            setFetchName('');
+            setFetchApaar('');
+            setFilterMissingApaar(false);
+            setFetchError('');
+            setFetchRollNoError('');
+            setFetchedList([]);
+          }} 
           className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
         >
           Clear
@@ -300,13 +384,18 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
         </div>
       )}
 
-      {fetchedList && fetchedList.length > 1 && (
+      {fetchedList && fetchedList.length > 0 && (
         <div className="mt-6 bg-white border border-gray-300 rounded-md overflow-hidden">
-          <div className="bg-gray-50 px-4 py-3 border-b border-gray-300">
+          <div className="bg-gray-50 px-4 py-3 border-b border-gray-300 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
               <span className="bg-[#0b3578] text-white px-2 py-0.5 rounded-full text-xs">{fetchedList.length}</span>
-              Multiple Results Found
+              {filterMissingApaar ? 'Students Missing APAAR ID' : (fetchedList.length === 1 ? 'Matching Result' : 'Multiple Results Found')}
             </h3>
+            {filterMissingApaar && (
+              <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-medium">
+                Showing active students requiring APAAR entry
+              </span>
+            )}
           </div>
           <div className="divide-y divide-gray-200">
             {fetchedList.map(s => (
@@ -316,18 +405,30 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
                     {s.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <div className="font-medium text-gray-800 text-sm">{s.name}</div>
-                    <div className="text-xs text-gray-500 mt-0.5 flex gap-3">
+                    <div className="font-medium text-gray-800 text-sm flex flex-wrap items-center gap-2">
+                      <span>{s.name}</span>
+                      {s.apaar_id ? (
+                        <span className="inline-flex items-center gap-1 font-mono bg-blue-50 text-[#0b3578] border border-blue-200 px-2 py-0.5 rounded text-[11px] font-medium">
+                          APAAR: {formatApaar(s.apaar_id)}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded text-[11px] font-medium">
+                          Missing APAAR
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1 flex gap-3">
                       <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">{s.roll_no}</span>
                       <span>Adm: {s.admission_no || 'N/A'}</span>
                     </div>
                   </div>
                 </div>
                 <button 
+                  type="button"
                   onClick={()=>loadFullProfileByRoll(s.roll_no)} 
                   className="px-3 py-1.5 bg-white border border-gray-300 text-[#0b3578] hover:bg-gray-50 rounded-md text-xs font-medium transition-colors cursor-pointer"
                 >
-                  Open Profile
+                  Edit Record
                 </button>
               </div>
             ))}

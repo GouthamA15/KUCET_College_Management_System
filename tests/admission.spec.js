@@ -85,6 +85,7 @@ test.describe('Student Admission Flow', () => {
     await page.getByLabel('20. Annual Income').selectOption('Less than 1,00,000');
 
     await page.getByLabel('21. Student Aadhaar Number').fill('1234 5678 9012');
+    await page.locator('#apaar_id').fill('9876 5432 1098');
     
     // Mobile numbers
     await page.getByLabel('22. Student Mobile Number').fill('9876543210');

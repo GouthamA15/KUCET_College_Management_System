@@ -118,13 +118,13 @@ export async function PUT(req, context) {
 
       // 2. Update Personal Details
       const personalFields = [
-        'father_name', 'mother_name', 'nationality', 'religion', 'category', 'sub_caste', 'area_status', 'mother_tongue', 'place_of_birth', 'father_occupation', 'annual_income', 'guardian_mobile', 'aadhaar_no', 'seat_allotted_category', 'identification_marks', 'blood_group',
+        'father_name', 'mother_name', 'nationality', 'religion', 'category', 'sub_caste', 'area_status', 'mother_tongue', 'place_of_birth', 'father_occupation', 'annual_income', 'guardian_mobile', 'aadhaar_no', 'apaar_id', 'seat_allotted_category', 'identification_marks', 'blood_group',
         'perm_house_no', 'perm_street', 'perm_apartment', 'perm_city', 'perm_state', 'perm_pincode', 'perm_country',
         'curr_house_no', 'curr_street', 'curr_apartment', 'curr_city', 'curr_state', 'curr_pincode', 'curr_country',
         'is_current_same_as_permanent'
       ];
       const personalUpdate = { /* empty */ };
-      personalFields.forEach(col => {
+      for (const col of personalFields) {
         if (updatedData[col] !== undefined) {
           let val = toNull(updatedData[col]);
           
@@ -132,6 +132,16 @@ export async function PUT(req, context) {
             val = String(val).replace(/\D/g, '');
             personalUpdate.aadhaar_no = encrypt(val);
             personalUpdate.aadhaar_hash = hashForIndex(val);
+          } else if (col === 'apaar_id') {
+            if (val !== null && val !== undefined && String(val).trim() !== '') {
+              const clean = String(val).replace(/\s+/g, '');
+              if (!/^\d{12}$/.test(clean)) {
+                return apiError('Invalid APAAR ID. Must be exactly 12 numeric digits', 400);
+              }
+              personalUpdate.apaar_id = clean;
+            } else {
+              personalUpdate.apaar_id = null;
+            }
           } else if (col === 'guardian_mobile' && val !== null) {
             personalUpdate.guardian_mobile = encrypt(val);
           } else if (col === 'is_current_same_as_permanent') {
@@ -150,7 +160,7 @@ export async function PUT(req, context) {
             personalUpdate[col] = val;
           }
         }
-      });
+      }
 
       // Handle address mapping
       if (updatedData.contact_address !== undefined || updatedData.permanent_address !== undefined || updatedData.address !== undefined) {
