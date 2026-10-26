@@ -15,6 +15,17 @@ const maskAadhaar = (val) => {
 };
 
 /**
+ * Escapes characters that Excel and spreadsheet software evaluate as formulas (=, +, -, @)
+ * to prevent CSV/Excel Formula Injection attacks.
+ */
+function sanitizeSpreadsheetValue(val) {
+  if (typeof val === 'string' && /^[=+\-@]/.test(val)) {
+    return `'${val}`;
+  }
+  return val;
+}
+
+/**
  * Validates image buffer magic bytes and returns the ExcelJS-compatible extension.
  */
 function detectImageExtension(buffer) {
@@ -265,38 +276,38 @@ export async function GET(req) {
           : 'Not available';
 
         const rowValues = {
-          roll_no: s.roll_no || '',
-          admission_no: s.admission_no || '',
-          batch: getBatchFromRoll(s.roll_no) || year,
-          name: s.name || '',
-          gender: s.gender || '',
-          date_of_birth: formattedDob,
-          email: s.email || '',
-          mobile: s.mobile || '',
-          father_name: s.father_name || '',
-          mother_name: s.mother_name || '',
-          nationality: s.nationality || 'Indian',
-          religion: s.religion || '',
-          category: s.category || '',
-          sub_caste: s.sub_caste || '',
-          area_status: s.area_status || '',
-          mother_tongue: s.mother_tongue || '',
-          place_of_birth: s.place_of_birth || '',
-          father_occupation: s.father_occupation || '',
-          annual_income: s.annual_income || '',
-          aadhaar_no: finalAadhaar,
-          apaar_id: s.apaar_id || 'N/A',
-          guardian_mobile: s.guardian_mobile || '',
-          permanent_address: s.permanent_address || '',
-          identification_marks: s.identification_marks || '',
-          seat_allotted_category: s.seat_allotted_category || '',
-          blood_group: bloodGroupDisplay,
-          fee_reimbursement: s.fee_reimbursement || 'NO',
-          qualifying_exam: s.qualifying_exam || '',
-          ssc_marks: s.ssc_marks || '',
-          inter_marks: s.inter_marks || '',
-          entrance_exam_rank: s.entrance_exam_rank || '',
-          previous_college: s.previous_college || '',
+          roll_no: sanitizeSpreadsheetValue(s.roll_no || ''),
+          admission_no: sanitizeSpreadsheetValue(s.admission_no || ''),
+          batch: sanitizeSpreadsheetValue(getBatchFromRoll(s.roll_no) || year),
+          name: sanitizeSpreadsheetValue(s.name || ''),
+          gender: sanitizeSpreadsheetValue(s.gender || ''),
+          date_of_birth: sanitizeSpreadsheetValue(formattedDob),
+          email: sanitizeSpreadsheetValue(s.email || ''),
+          mobile: sanitizeSpreadsheetValue(s.mobile || ''),
+          father_name: sanitizeSpreadsheetValue(s.father_name || ''),
+          mother_name: sanitizeSpreadsheetValue(s.mother_name || ''),
+          nationality: sanitizeSpreadsheetValue(s.nationality || 'Indian'),
+          religion: sanitizeSpreadsheetValue(s.religion || ''),
+          category: sanitizeSpreadsheetValue(s.category || ''),
+          sub_caste: sanitizeSpreadsheetValue(s.sub_caste || ''),
+          area_status: sanitizeSpreadsheetValue(s.area_status || ''),
+          mother_tongue: sanitizeSpreadsheetValue(s.mother_tongue || ''),
+          place_of_birth: sanitizeSpreadsheetValue(s.place_of_birth || ''),
+          father_occupation: sanitizeSpreadsheetValue(s.father_occupation || ''),
+          annual_income: sanitizeSpreadsheetValue(s.annual_income || ''),
+          aadhaar_no: sanitizeSpreadsheetValue(finalAadhaar),
+          apaar_id: sanitizeSpreadsheetValue(s.apaar_id || 'Not Submitted'),
+          guardian_mobile: sanitizeSpreadsheetValue(s.guardian_mobile || ''),
+          permanent_address: sanitizeSpreadsheetValue(s.permanent_address || ''),
+          identification_marks: sanitizeSpreadsheetValue(s.identification_marks || ''),
+          seat_allotted_category: sanitizeSpreadsheetValue(s.seat_allotted_category || ''),
+          blood_group: sanitizeSpreadsheetValue(bloodGroupDisplay),
+          fee_reimbursement: sanitizeSpreadsheetValue(s.fee_reimbursement || 'NO'),
+          qualifying_exam: sanitizeSpreadsheetValue(s.qualifying_exam || ''),
+          ssc_marks: sanitizeSpreadsheetValue(s.ssc_marks || ''),
+          inter_marks: sanitizeSpreadsheetValue(s.inter_marks || ''),
+          entrance_exam_rank: sanitizeSpreadsheetValue(s.entrance_exam_rank || ''),
+          previous_college: sanitizeSpreadsheetValue(s.previous_college || ''),
           photo: '', // placeholder, will embed image or set text
           signature: '' // placeholder
         };
@@ -399,12 +410,11 @@ export async function GET(req) {
     }
 
     // Default JSON response for UI preview table
-    const sanitizedStudents = isAuthorizedForFullAadhaar 
-      ? students 
-      : students.map(s => ({
-          ...s,
-          aadhaar_no: maskAadhaar(s.aadhaar_no)
-        }));
+    const sanitizedStudents = students.map(s => ({
+      ...s,
+      apaar_id: s.apaar_id || 'Not Submitted',
+      aadhaar_no: isAuthorizedForFullAadhaar ? (s.aadhaar_no || 'N/A') : maskAadhaar(s.aadhaar_no)
+    }));
 
     return apiResponse({ 
       students: sanitizedStudents,

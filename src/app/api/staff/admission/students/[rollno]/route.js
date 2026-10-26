@@ -5,7 +5,8 @@ import {
   studentPersonalDetails, 
   studentAcademicBackground,
   studentImages,
-  studentSignatures
+  studentSignatures,
+  auditLogs
 } from '@/db/schema';
 import { eq, _sql } from 'drizzle-orm';
 import { toMySQLDate } from '@/lib/date';
@@ -22,9 +23,19 @@ const toNull = (value) => (value === undefined || value === '' ? null : value);
  * Fetch full student profile for admission staff
  */
 export async function GET(req, context) {
-  const user = await getAuthUser('admission');
-  if (!user || (user.role !== 'admission' && user.role !== 'admin')) {
-    return apiError('Forbidden: Only admission staff can access this data', 403);
+  const user = await getAuthUser('staff');
+  if (!user) {
+    return apiError('Unauthorized', 401);
+  }
+  const userRole = (user.role || '').toLowerCase();
+  const isAuthorized = [
+    'admin', 'super_admin', 'principal',
+    'admission', 'admission_clerk',
+    'scholarship', 'scholarship_clerk'
+  ].includes(userRole) || user.is_first_year_coordinator || user.is_hod || user.isHod;
+
+  if (!isAuthorized) {
+    return apiError('Forbidden: Insufficient permissions to view student profile', 403);
   }
 
   try {
@@ -37,19 +48,24 @@ export async function GET(req, context) {
 
     return apiResponse(profile);
   } catch (error) {
-    logger.error(error, 'Error fetching student profile for admission staff');
+    logger.error(error, 'Error fetching student profile for staff');
     return apiError('Failed to fetch student details', 500, error.message);
   }
 }
 
 /**
  * PUT /api/staff/admission/students/[rollno]
- * Update student details by admission staff
+ * Update student details and APAAR ID corrections by authorized admission/scholarship staff
  */
 export async function PUT(req, context) {
-  const user = await getAuthUser('admission');
-  if (!user || (user.role !== 'admission' && user.role !== 'admin')) {
-    return apiError('Forbidden: Only admission staff can update student details', 403);
+  const user = await getAuthUser('staff');
+  if (!user) {
+    return apiError('Unauthorized', 401);
+  }
+  const userRole = (user.role || '').toLowerCase();
+  const allowedRoles = ['admission', 'admission_clerk', 'scholarship', 'scholarship_clerk', 'admin', 'super_admin'];
+  if (!allowedRoles.includes(userRole)) {
+    return apiError('Forbidden: Only admission and scholarship staff can update student details and perform APAAR corrections', 403);
   }
 
   const staffId = user?.staffId || user?.id || null;
@@ -178,7 +194,10 @@ export async function PUT(req, context) {
       }
 
       if (Object.keys(personalUpdate).length > 0) {
-        const existing = await tx.select({ id: studentPersonalDetails.id })
+        const existing = await tx.select({ 
+          id: studentPersonalDetails.id,
+          apaar_id: studentPersonalDetails.apaar_id
+        })
           .from(studentPersonalDetails)
           .where(eq(studentPersonalDetails.student_id, studentId))
           .limit(1);
@@ -190,6 +209,31 @@ export async function PUT(req, context) {
         } else {
           await tx.insert(studentPersonalDetails)
             .values({ student_id: studentId, ...personalUpdate });
+        }
+
+        // Audit Trail for APAAR ID correction by staff
+        if (personalUpdate.apaar_id !== undefined) {
+          const oldApaar = existing[0]?.apaar_id || null;
+          const newApaar = personalUpdate.apaar_id || null;
+          if (oldApaar !== newApaar) {
+            await tx.insert(auditLogs).values({
+              user_id: staffId,
+              user_type: userRole === 'admin' || userRole === 'super_admin' ? 'admin' : 'staff',
+              action: 'APAAR_ID_CORRECTED',
+              target_id: String(studentId),
+              target_type: 'student',
+              payload_before: { apaar_id: oldApaar, roll_no: rollno },
+              payload_after: { 
+                apaar_id: newApaar, 
+                roll_no: rollno,
+                correction_reason: updatedData.correction_reason || 'Staff administrative correction',
+                corrected_by_role: userRole,
+                timestamp: new Date().toISOString()
+              },
+              ip_address: req.headers.get('x-forwarded-for') || '127.0.0.1',
+              user_agent: req.headers.get('user-agent') || 'KUCET Staff Console'
+            });
+          }
         }
       }
 

@@ -237,6 +237,7 @@ export default function DashboardActionCenter({ student }) {
   };
 
   const showSecurityWarning = !!student && (!student.email || !student.is_email_verified || !student.password_hash);
+  const hasApaarId = Boolean(student?.apaar_id || student?.personal_details?.apaar_id);
   
   const hasAttendanceSessions = attendanceSessions.length > 0;
   
@@ -248,6 +249,15 @@ export default function DashboardActionCenter({ student }) {
       title: 'Account Security Required',
       desc: (!student.email ? 'Email not added.' : !student.is_email_verified ? 'Email verification pending.' : 'Password not set.') + ' Complete setup to access all portal features.',
       action: { label: 'Secure Account', href: '/student/settings/security' },
+      dismissible: false
+    }] : []),
+    ...(!hasApaarId && student ? [{
+      id: 'apaar_registration_missing',
+      type: 'warning',
+      icon: '🪪',
+      title: 'APAAR ID Pending',
+      desc: 'Your APAAR ID has not been submitted yet. KUCET needs this information for scholarship processing and other authorized administrative purposes. You can submit it now or return later if your university roll number or required academic identity details are not yet available.',
+      action: { label: 'Submit APAAR ID', href: '/student/apaar' },
       dismissible: false
     }] : []),
     ...(hasAttendanceSessions ? attendanceSessions.map(session => ({

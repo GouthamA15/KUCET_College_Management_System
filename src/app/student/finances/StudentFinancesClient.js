@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Info, X, ShieldCheck, CheckCircle2, AlertCircle, CreditCard, Lock } from 'lucide-react';
-import toast from 'react-hot-toast';
+import Link from 'next/link';
+import { Info, X, ShieldCheck, CheckCircle2, AlertCircle, CreditCard, Lock, ArrowRight } from 'lucide-react';
 import { useStudent } from '@/context/StudentContext';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import FinancialSummaryTable from '@/components/student/FinancialSummaryTable';
@@ -11,14 +11,8 @@ import FeeTransactionHistory from '@/components/student/FeeTransactionHistory';
 import useFinancialRows from '@/components/student/useFinancialRows';
 
 export default function StudentFinancesClient() {
-  const { studentData, loading: contextLoading, refreshData } = useStudent();
+  const { studentData, loading: contextLoading } = useStudent();
   const [activeTab, setActiveTab] = useState('summary');
-
-  // APAAR ID submission state
-  const [apaarInput, setApaarInput] = useState('');
-  const [submittingApaar, setSubmittingApaar] = useState(false);
-  const [apaarError, setApaarError] = useState('');
-  const [localApaarId, setLocalApaarId] = useState(null);
 
   // Help Icon / Bottom Sheet state
   const [isMobileDevice, setIsMobileDevice] = useState(false);
@@ -45,46 +39,13 @@ export default function StudentFinancesClient() {
 
   const student = studentData?.student || null;
   const branch = student ? getBranchFromRoll(student.roll_no) : null;
-  const effectiveApaarId = localApaarId || student?.apaar_id || student?.personal_details?.apaar_id || null;
+  const effectiveApaarId = student?.apaar_id || student?.personal_details?.apaar_id || null;
 
   const formatApaar = (val) => {
     if (val == null) return '';
     const digits = String(val).replace(/\D/g, '').slice(0, 12);
     if (!digits) return '';
     return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
-  };
-
-  const handleApaarSubmit = async (e) => {
-    e.preventDefault();
-    setApaarError('');
-    const clean = apaarInput.replace(/\s+/g, '');
-    if (!/^\d{12}$/.test(clean)) {
-      setApaarError('Please enter a valid 12-digit numeric APAAR ID.');
-      return;
-    }
-    setSubmittingApaar(true);
-    const toastId = toast.loading('Registering APAAR ID...');
-    try {
-      const res = await fetch('/api/student/apaar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apaar_id: clean })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || data.message || 'Failed to submit APAAR ID');
-      }
-      toast.success('APAAR ID registered successfully!', { id: toastId });
-      setLocalApaarId(clean);
-      if (refreshData) {
-        await refreshData();
-      }
-    } catch (err) {
-      setApaarError(err.message || 'Submission failed');
-      toast.error(err.message || 'Submission failed', { id: toastId });
-    } finally {
-      setSubmittingApaar(false);
-    }
   };
 
   const scholarshipList = studentData?.scholarship || [];
@@ -322,38 +283,23 @@ export default function StudentFinancesClient() {
                     <AlertCircle className="w-3 h-3 text-amber-600" /> Action Required
                   </span>
                 </div>
-                <h3 className="text-base font-semibold text-slate-800 mt-0.5">Register Your 12-Digit APAAR ID</h3>
+                <h3 className="text-base font-semibold text-slate-800 mt-0.5">APAAR ID Registration Pending</h3>
                 <p className="text-xs text-slate-600 mt-1 max-w-xl">
-                  APAAR ID is mandatory for national academic ledger sync and government scholarship benefits. Please verify carefully; once submitted, this record is locked.
+                  APAAR ID is mandatory for national academic credit accumulation and scholarship sanction audits. Visit the official guidance portal to generate and submit your verified 12-digit ID.
                 </p>
               </div>
             </div>
 
-            <form onSubmit={handleApaarSubmit} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0 w-full md:w-auto">
-              <input
-                type="text"
-                placeholder="1234 5678 9012"
-                value={apaarInput}
-                onChange={(e) => setApaarInput(formatApaar(e.target.value))}
-                maxLength={14}
-                className="font-mono text-sm border border-slate-300 rounded-md px-3 py-2 w-full sm:w-48 text-slate-800 focus:outline-none focus:border-[#0b3578]"
-              />
-              <button
-                type="submit"
-                disabled={submittingApaar || apaarInput.replace(/\s+/g, '').length !== 12}
-                className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors whitespace-nowrap flex items-center justify-center gap-2 ${
-                  submittingApaar || apaarInput.replace(/\s+/g, '').length !== 12
-                    ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                    : 'bg-[#0b3578] text-white hover:bg-[#082654] shadow-sm cursor-pointer'
-                }`}
+            <div className="flex items-center shrink-0">
+              <Link
+                href="/student/apaar"
+                className="px-4 py-2 text-sm font-semibold rounded-md bg-[#0b3578] text-white hover:bg-[#082654] shadow-sm transition-colors whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
               >
-                {submittingApaar ? 'Saving...' : 'Submit & Lock'}
-              </button>
-            </form>
+                <span>View Guidance &amp; Register</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
-          {apaarError && (
-            <p className="text-xs text-rose-600 font-medium mt-2.5">{apaarError}</p>
-          )}
         </div>
       )}
 

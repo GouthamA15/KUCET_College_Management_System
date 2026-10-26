@@ -14,7 +14,8 @@ import {
   SignatureGuidanceModal, 
   validateStudentSignatureFile 
 } from '@/components/admission/StudentSignatureGuidance';
-import { CheckCircle2, AlertCircle, Loader2, Mail, RefreshCw } from 'lucide-react';
+import { ApaarGuidanceModal } from '@/components/admission/ApaarGuidanceModal';
+import { CheckCircle2, AlertCircle, Loader2, Mail, RefreshCw, HelpCircle } from 'lucide-react';
 
 const AdmissionPage = () => {
     const [admissionYear, setAdmissionYear] = useState('');
@@ -98,6 +99,7 @@ const AdmissionPage = () => {
     const [files, setFiles] = useState({ pfp: null, signature: null });
     const [isPhotoGuidanceModalOpen, setIsPhotoGuidanceModalOpen] = useState(false);
     const [isSignatureGuidanceModalOpen, setIsSignatureGuidanceModalOpen] = useState(false);
+    const [isApaarGuidanceModalOpen, setIsApaarGuidanceModalOpen] = useState(false);
     const pfpInputRef = useRef(null);
     const sigInputRef = useRef(null);
     const [loading, setLoading] = useState(false);
@@ -809,9 +811,21 @@ const AdmissionPage = () => {
                         </div>
 
                         <div className="space-y-1">
-                            <label htmlFor="apaar_id" className={labelClasses}>
-                                Student APAAR ID (Academic Bank of Credits) <span className="text-xs text-slate-500 font-normal">(Optional - 12 Digits)</span>
-                            </label>
+                            <div className="flex items-center justify-between">
+                                <label htmlFor="apaar_id" className={labelClasses}>
+                                    Student APAAR ID (Academic Bank of Credits) <span className="text-xs text-slate-500 font-normal">(Optional - 12 Digits)</span>
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsApaarGuidanceModalOpen(true)}
+                                    className="inline-flex items-center gap-1 text-xs text-[#0b3578] hover:text-blue-700 font-semibold focus:outline-none focus:underline"
+                                    title="What is APAAR ID? How to get it?"
+                                    aria-label="APAAR ID Guidance"
+                                >
+                                    <HelpCircle className="w-3.5 h-3.5 text-blue-600" />
+                                    <span>Guidance</span>
+                                </button>
+                            </div>
                             <input 
                                 id="apaar_id"
                                 pattern="[0-9]{4}\s[0-9]{4}\s[0-9]{4}" 
@@ -1140,6 +1154,12 @@ const AdmissionPage = () => {
                     open={isSignatureGuidanceModalOpen} 
                     onClose={() => setIsSignatureGuidanceModalOpen(false)} 
                     onSelectSignature={() => sigInputRef.current?.click()} 
+                />
+
+                {/* On-Demand APAAR ID Guidance Modal */}
+                <ApaarGuidanceModal 
+                    open={isApaarGuidanceModalOpen} 
+                    onClose={() => setIsApaarGuidanceModalOpen(false)} 
                 />
             </main>
             </div>

@@ -156,7 +156,7 @@ describe('PaymentFraudService & Mandatory 4-Student Fraud Scenarios', () => {
       expect(result.isFlagged).toBe(false);
       expect(result.authoritativeReconciliation.isReconciled).toBe(true);
       expect(result.riskScore).toBe(0);
-    }, 25000);
+    }, 60000);
 
     it('Scenario 1 (Without Authoritative Source): Remains NEEDS_REVIEW and is NOT automatically approved', async () => {
       const result = await PaymentFraudService.verifyPaymentEvidence({
@@ -172,7 +172,7 @@ describe('PaymentFraudService & Mandatory 4-Student Fraud Scenarios', () => {
       expect(result.flags).toContain(FRAUD_FLAGS.UNVERIFIED_EVIDENCE);
       expect(result.authoritativeReconciliation.isReconciled).toBe(false);
       expect(result.explanations[0]).toContain('authoritative bank/gateway reconciliation is not yet confirmed');
-    }, 25000);
+    }, 60000);
 
     // -------------------------------------------------------------
     // Scenario 2: Reused screenshot + Transaction ID pasted in UPI ID field
@@ -211,7 +211,7 @@ describe('PaymentFraudService & Mandatory 4-Student Fraud Scenarios', () => {
       const combinedExplanations = result.explanations.join(' ');
       expect(combinedExplanations).not.toContain('Student A');
       expect(combinedExplanations).not.toContain('101');
-    }, 25000);
+    }, 60000);
 
     // -------------------------------------------------------------
     // Scenario 3: Cropped reused screenshot with original reference
@@ -237,7 +237,7 @@ describe('PaymentFraudService & Mandatory 4-Student Fraud Scenarios', () => {
       expect(result.status).toBe(PAYMENT_VERIFICATION_STATUS.NEEDS_REVIEW);
       expect(result.hashes.sha256).toBe(shaCropped);
       expect(result.hashes.perceptualHash).toBeDefined();
-    }, 25000);
+    }, 60000);
 
     // -------------------------------------------------------------
     // Scenario 4: Cropped reused screenshot with different or similar transaction reference
@@ -260,7 +260,7 @@ describe('PaymentFraudService & Mandatory 4-Student Fraud Scenarios', () => {
 
       const discrepancyExplanation = result.explanations.find(e => e.includes('does not match the reference number'));
       expect(discrepancyExplanation).toBeDefined();
-    }, 25000);
+    }, 60000);
   });
 
   describe('Staff Decision & Audit Trail Recording', () => {

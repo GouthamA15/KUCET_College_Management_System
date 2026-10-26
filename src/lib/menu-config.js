@@ -14,11 +14,13 @@ export const NAV_MENU_CONFIG = {
     { label: 'REQUESTS', children: [
         { label: 'Certificates', route: '/student/requests/certificates' }
       ]
+      
     },
 
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/student/settings/edit-profile' },
-        { label: 'Security & Privacy', route: '/student/settings/security' }
+        { label: 'Security & Privacy', route: '/student/settings/security' },
+        { label: 'APAAR ID Guidance', route: '/student/apaar' }
       ]
     }
   ],

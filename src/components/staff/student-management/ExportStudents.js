@@ -113,6 +113,13 @@ const ExportStudents = () => {
     }
   };
 
+  const sanitizeExcelCell = (val) => {
+    if (typeof val === 'string' && /^[=+\-@]/.test(val)) {
+      return `'${val}`;
+    }
+    return val;
+  };
+
   const exportToExcel = (students, branchCode, batch) => {
     const branchName = branchCodes[branchCode] || branchCode;
     
@@ -120,38 +127,38 @@ const ExportStudents = () => {
     const worksheetData = students.map(s => {
       const dobVal = s.date_of_birth || s.dob;
       return {
-        'Roll Number': s.roll_no,
-        'Admission Number': s.admission_no,
-        'Batch': getBatchFromRoll(s.roll_no) || batch,
-        'Full Name': s.name,
-        'Gender': s.gender,
-        'Date of Birth': dobVal ? formatDate(dobVal, 'N/A') : 'N/A',
-        'Email': s.email,
-        'Mobile Number': s.mobile,
-        'Father Name': s.father_name,
-        'Mother Name': s.mother_name,
-        'Nationality': s.nationality,
-        'Religion': s.religion,
-        'Category': s.category,
-        'Sub-Caste': s.sub_caste,
-        'Area Status': s.area_status,
-        'Mother Tongue': s.mother_tongue,
-        'Place of Birth': s.place_of_birth,
-        'Father Occupation': s.father_occupation,
-        'Annual Income': s.annual_income,
-        'Aadhaar Number': s.aadhaar_no || 'N/A',
-        'APAAR ID': s.apaar_id || 'N/A',
-        'Guardian Mobile': s.guardian_mobile || 'N/A',
-        'Permanent Address': s.permanent_address ? s.permanent_address.split(',')[0] : 'N/A',
-        'Identification Marks': s.identification_marks,
-        'Seat Allotted Category': s.seat_allotted_category,
-        'Blood Group': s.blood_group || 'Not available',
-        'Fee Reimbursement': s.fee_reimbursement,
-        'Qualifying Exam': s.qualifying_exam,
-        'SSC Marks': s.ssc_marks,
-        'Inter/Diploma Marks': s.inter_marks,
-        'Entrance Exam Rank': s.entrance_exam_rank,
-        'Previous College': s.previous_college,
+        'Roll Number': sanitizeExcelCell(s.roll_no),
+        'Admission Number': sanitizeExcelCell(s.admission_no),
+        'Batch': sanitizeExcelCell(getBatchFromRoll(s.roll_no) || batch),
+        'Full Name': sanitizeExcelCell(s.name),
+        'Gender': sanitizeExcelCell(s.gender),
+        'Date of Birth': sanitizeExcelCell(dobVal ? formatDate(dobVal, 'N/A') : 'N/A'),
+        'Email': sanitizeExcelCell(s.email),
+        'Mobile Number': sanitizeExcelCell(s.mobile),
+        'Father Name': sanitizeExcelCell(s.father_name),
+        'Mother Name': sanitizeExcelCell(s.mother_name),
+        'Nationality': sanitizeExcelCell(s.nationality),
+        'Religion': sanitizeExcelCell(s.religion),
+        'Category': sanitizeExcelCell(s.category),
+        'Sub-Caste': sanitizeExcelCell(s.sub_caste),
+        'Area Status': sanitizeExcelCell(s.area_status),
+        'Mother Tongue': sanitizeExcelCell(s.mother_tongue),
+        'Place of Birth': sanitizeExcelCell(s.place_of_birth),
+        'Father Occupation': sanitizeExcelCell(s.father_occupation),
+        'Annual Income': sanitizeExcelCell(s.annual_income),
+        'Aadhaar Number': sanitizeExcelCell(s.aadhaar_no || 'N/A'),
+        'APAAR ID': sanitizeExcelCell(s.apaar_id || 'Not Submitted'),
+        'Guardian Mobile': sanitizeExcelCell(s.guardian_mobile || 'N/A'),
+        'Permanent Address': sanitizeExcelCell(s.permanent_address ? s.permanent_address.split(',')[0] : 'N/A'),
+        'Identification Marks': sanitizeExcelCell(s.identification_marks),
+        'Seat Allotted Category': sanitizeExcelCell(s.seat_allotted_category),
+        'Blood Group': sanitizeExcelCell(s.blood_group || 'Not available'),
+        'Fee Reimbursement': sanitizeExcelCell(s.fee_reimbursement),
+        'Qualifying Exam': sanitizeExcelCell(s.qualifying_exam),
+        'SSC Marks': sanitizeExcelCell(s.ssc_marks),
+        'Inter/Diploma Marks': sanitizeExcelCell(s.inter_marks),
+        'Entrance Exam Rank': sanitizeExcelCell(s.entrance_exam_rank),
+        'Previous College': sanitizeExcelCell(s.previous_college),
         'Photo URL': s.photo ? getAssetUrl(s.photo) : 'N/A',
         'Signature URL': s.signature ? getAssetUrl(s.signature) : 'N/A'
       };

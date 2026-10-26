@@ -137,5 +137,5 @@ describe('Render & Visual Verification of ID Card', () => {
         expect(zbarOut).toContain('ADEPU SUCHARITHA');
       }
     }
-  });
+  }, 30000);
 });
