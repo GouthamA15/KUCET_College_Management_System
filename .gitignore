@@ -103,3 +103,11 @@ public/assets/principal-sign*.png
 public/assets/*signature*
 !public/assets/guidance/student-signature*
 
+# Media and Training Video / Audio Artifacts
+*.mp4
+*.mp3
+artifacts/**/*.mp4
+artifacts/**/*.mp3
+artifacts/**/scene*.png
+
+
