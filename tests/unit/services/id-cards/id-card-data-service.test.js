@@ -377,6 +377,17 @@ describe('IDCardDataService Authoritative Eligibility & Branch Export Suite', ()
     expect(card.studentName).toBe('KAVYA REDDY');
     expect(card.branch).toBe('CSE');
     expect(card.qrUrl).toMatch(/^data:image\/png;base64,/);
+
+    // Verify structured QR payload contents
+    const qrPayload = IDCardDataService.generateStudentQRPayload(card);
+    expect(qrPayload.schemaVersion).toBe(1);
+    expect(qrPayload.type).toBe('KUCET_STUDENT_ID');
+    expect(qrPayload.hallTicketNumber).toBe('26567T0901');
+    expect(qrPayload.roll).toBe('26567T0901');
+    expect(qrPayload.fullName).toBe('KAVYA REDDY');
+    expect(qrPayload.fatherName).toBe('RAMA REDDY');
+    expect(qrPayload.academicYear).toBe('2026-2030');
+    expect(qrPayload.collegeName).toBe('KU COLLEGE OF ENGINEERING & TECHNOLOGY');
   });
 
   it('14. bulk retrieval enforces departmental scoping', async () => {
