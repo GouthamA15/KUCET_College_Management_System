@@ -237,6 +237,7 @@ export default function DashboardActionCenter({ student }) {
   };
 
   const showSecurityWarning = !!student && (!student.email || !student.is_email_verified || !student.password_hash);
+  const hasApaarId = Boolean(student?.apaar_id || student?.personal_details?.apaar_id);
   
   const hasAttendanceSessions = attendanceSessions.length > 0;
   
@@ -248,6 +249,15 @@ export default function DashboardActionCenter({ student }) {
       title: 'Account Security Required',
       desc: (!student.email ? 'Email not added.' : !student.is_email_verified ? 'Email verification pending.' : 'Password not set.') + ' Complete setup to access all portal features.',
       action: { label: 'Secure Account', href: '/student/settings/security' },
+      dismissible: false
+    }] : []),
+    ...(!hasApaarId && student ? [{
+      id: 'apaar_registration_missing',
+      type: 'warning',
+      icon: '🪪',
+      title: 'APAAR ID Pending',
+      desc: 'Registration is required for academic credit banking & scholarships. You can submit now or return anytime if your roll number is pending.',
+      action: { label: 'Submit APAAR ID', href: '/student/apaar' },
       dismissible: false
     }] : []),
     ...(hasAttendanceSessions ? attendanceSessions.map(session => ({

@@ -2,6 +2,7 @@ export * from './identity/DeviceService.js';
 export * from './identity/StudentService.js';
 export * from './academic/FacultyService.js';
 export * from './finance/FinanceService.js';
+export * from './finance/PaymentFraudService.js';
 export * from './finance/ScholarshipService.js';
 export * from './finance/IdempotencyService.js';
 export * from './security/SecurityService.js';

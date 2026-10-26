@@ -292,3 +292,148 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
+
+// ==========================================
+// BACKGROUND SYNC API SUPPORT (PROGRESSIVE ENHANCEMENT)
+// ==========================================
+// Where supported by the browser engine (Chromium, Chrome on Android, Edge),
+// this event executes even after the browser window or tab has been closed,
+// as soon as reliable network connectivity is re-established.
+// On unsupported browsers (Safari, Firefox, iOS WebKit), the system gracefully
+// falls back to durable foreground synchronization (online event + mount refresh).
+
+const OFFLINE_DB_NAME = 'KUCET_CMS_OFFLINE';
+const OFFLINE_DB_VERSION = 2;
+const OFFLINE_PENDING_STORE = 'pending_attendance';
+
+function openOfflineDBForSync() {
+  return new Promise((resolve, reject) => {
+    if (!self.indexedDB) {
+      return reject(new Error('IndexedDB unavailable in Service Worker scope'));
+    }
+    const request = self.indexedDB.open(OFFLINE_DB_NAME, OFFLINE_DB_VERSION);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error('Failed to open IndexedDB in SW'));
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(OFFLINE_PENDING_STORE)) {
+        const pStore = db.createObjectStore(OFFLINE_PENDING_STORE, { keyPath: 'id', autoIncrement: true });
+        pStore.createIndex('idx_assignment_date_sess', ['assignment_id', 'date', 'session'], { unique: false });
+        pStore.createIndex('idx_client_op_id', 'client_op_id', { unique: false });
+        pStore.createIndex('idx_sync_status', 'sync_status', { unique: false });
+      }
+      if (!db.objectStoreNames.contains('attendance_drafts')) {
+        const dStore = db.createObjectStore('attendance_drafts', { keyPath: 'id' });
+        dStore.createIndex('idx_assignment', 'assignment_id', { unique: false });
+        dStore.createIndex('idx_faculty', 'faculty_id', { unique: false });
+        dStore.createIndex('idx_updated', 'updated_at', { unique: false });
+      }
+    };
+  });
+}
+
+async function syncPendingAttendanceFromSW() {
+  let db;
+  try {
+    db = await openOfflineDBForSync();
+  } catch (err) {
+    console.warn('[SW BackgroundSync] Could not open IndexedDB:', err);
+    return;
+  }
+
+  // 1. Read pending records
+  const pendingRecords = await new Promise((resolve, reject) => {
+    const tx = db.transaction([OFFLINE_PENDING_STORE], 'readonly');
+    const store = tx.objectStore(OFFLINE_PENDING_STORE);
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+
+  const validRecords = pendingRecords.filter((r) => r.sync_status !== 'FAILED');
+  if (validRecords.length === 0) {
+    return;
+  }
+
+  const payload = {
+    records: validRecords.map((item) => ({
+      id: item.client_op_id || item.id,
+      client_op_id: item.client_op_id,
+      assignment_id: Number(item.assignment_id),
+      date: item.date,
+      session: Number(item.session),
+      topic_covered: item.topic_covered,
+      attendance_data: item.attendance_data,
+    })),
+  };
+
+  try {
+    const res = await fetch('/api/staff/faculty/attendance/bulk-sync', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+
+    if (res.status === 401 || res.status === 403) {
+      console.warn('[SW BackgroundSync] Auth credentials invalid or expired. Preserving queue for foreground re-auth.');
+      return;
+    }
+
+    if (!res.ok) {
+      throw new Error(`Server returned HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const syncedIds = new Set(data.synced_ids || []);
+    const errorMap = new Map((data.errors || []).map((e) => [e.id, e.error]));
+
+    // Update / Delete in IndexedDB
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction([OFFLINE_PENDING_STORE], 'readwrite');
+      const store = tx.objectStore(OFFLINE_PENDING_STORE);
+      const getAllReq = store.getAll();
+
+      getAllReq.onsuccess = () => {
+        const allItems = getAllReq.result || [];
+        for (const item of allItems) {
+          const identifier = item.client_op_id || item.id;
+          if (syncedIds.has(identifier) || syncedIds.has(item.id)) {
+            store.delete(item.id);
+          } else if (errorMap.has(identifier) || errorMap.has(item.id)) {
+            store.put({
+              ...item,
+              sync_status: 'FAILED',
+              last_error: errorMap.get(identifier) || errorMap.get(item.id),
+              updated_at: Date.now(),
+            });
+          }
+        }
+      };
+
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+
+    // Notify any active clients that sync succeeded
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clients) {
+      client.postMessage({
+        type: 'ATTENDANCE_SYNCED',
+        synced_count: data.synced_count || syncedIds.size,
+      });
+    }
+  } catch (fetchErr) {
+    console.error('[SW BackgroundSync] Fetch failed, scheduling retry with backoff:', fetchErr);
+    // Rethrowing tells the browser engine to reschedule this sync event when connectivity permits
+    throw fetchErr;
+  }
+}
+
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-attendance') {
+    event.waitUntil(syncPendingAttendanceFromSW());
+  }
+});

@@ -94,6 +94,7 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
       annual_income: pd.annual_income || null,
       guardian_mobile: pd.guardian_mobile || null,
       aadhaar_no: pd.aadhaar_no || null,
+      apaar_id: pd.apaar_id || null,
       blood_group: pd.blood_group || null,
       curr_house_no: pd.curr_house_no || null,
       curr_street: pd.curr_street || null,
@@ -176,6 +177,13 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
     return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
   };
 
+  const formatApaar = (val) => {
+    if (val == null) return '';
+    const digits = String(val).replace(/\D/g, '').slice(0, 12);
+    if (!digits) return '';
+    return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+  };
+
   const handleCheckboxChange = (checked) => {
     setPersonalFull(prev => {
       const updated = { ...prev, is_current_same_as_permanent: checked };
@@ -233,6 +241,7 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
         academic_offset_years: editValues.academic_offset_years,
         guardian_mobile: personalFull.guardian_mobile,
         aadhaar_no: personalFull.aadhaar_no,
+        apaar_id: personalFull.apaar_id ? personalFull.apaar_id.replace(/\s/g, '') : null,
         curr_house_no: personalFull.curr_house_no,
         curr_street: personalFull.curr_street,
         curr_apartment: personalFull.curr_apartment,
@@ -552,6 +561,27 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Aadhaar Number</label>
                   <input placeholder="Aadhaar Number" value={personalFull.aadhaar_no || ''} onChange={e=>setPersonalFull({...personalFull, aadhaar_no: formatAadhaar(e.target.value)})} className="p-2 border rounded w-full" maxLength={14} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center justify-between">
+                    <span>APAAR ID (12 Digits)</span>
+                    {personalFull.apaar_id ? (
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                        Available
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                        Missing
+                      </span>
+                    )}
+                  </label>
+                  <input 
+                    placeholder="e.g. 1234 5678 9012" 
+                    value={formatApaar(personalFull.apaar_id || '')} 
+                    onChange={e => setPersonalFull({...personalFull, apaar_id: formatApaar(e.target.value)})} 
+                    className="p-2 border rounded w-full font-mono text-sm" 
+                    maxLength={14} 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Blood Group</label>

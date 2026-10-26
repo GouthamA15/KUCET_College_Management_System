@@ -12,10 +12,12 @@ import { isSemesterActive } from '@/lib/academic-utils';
 import { z } from 'zod';
 
 const itemSchema = z.object({
-  id: z.string().optional(),
+  id: z.union([z.string(), z.number()]).optional(),
+  client_op_id: z.string().optional(),
   assignment_id: z.preprocess(v => Number(v), z.number().int().positive()),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   session: z.number().int().min(1).max(8),
+  topic_covered: z.string().trim().max(500).optional().nullable(),
   attendance_data: z.array(z.object({
     student_id: z.number().int().positive(),
     status: z.enum(['PRESENT', 'ABSENT', 'NCC', 'MEDICAL'])
@@ -42,10 +44,12 @@ export async function POST(request) {
 
     const syncedIds = [];
     const errors = [];
+    const successfulEvents = [];
 
     await db.transaction(async (tx) => {
       for (const record of records) {
-        const { assignment_id, date, session, attendance_data, id: offlineId } = record;
+        const { assignment_id, date, session, attendance_data, id: offlineId, client_op_id, topic_covered } = record;
+        const recordIdentifier = offlineId ?? client_op_id;
 
         // 1. Verify assignment existence
         const assignments = await tx.select({
@@ -61,7 +65,7 @@ export async function POST(request) {
         .limit(1);
 
         if (assignments.length === 0) {
-          errors.push({ id: offlineId, error: `Assignment #${assignment_id} not found` });
+          errors.push({ id: recordIdentifier, error: `Assignment #${assignment_id} not found` });
           continue;
         }
 
@@ -89,14 +93,14 @@ export async function POST(request) {
         }
 
         if (!isAuthorized) {
-          errors.push({ id: offlineId, error: `Unauthorized for assignment #${assignment_id}` });
+          errors.push({ id: recordIdentifier, error: `Unauthorized for assignment #${assignment_id}` });
           continue;
         }
 
         // 3. Semester Lock check
         const { subject_code, branch, course_semester, academic_year } = assignment;
         if (!await isSemesterActive(course_semester, academic_year, collegeInfo)) {
-          errors.push({ id: offlineId, error: `Semester ended for assignment #${assignment_id}` });
+          errors.push({ id: recordIdentifier, error: `Semester ended for assignment #${assignment_id}` });
           continue;
         }
 
@@ -114,7 +118,7 @@ export async function POST(request) {
             });
           }
         } catch (valErr) {
-          errors.push({ id: offlineId, error: valErr.message });
+          errors.push({ id: recordIdentifier, error: valErr.message });
           continue;
         }
 
@@ -146,9 +150,55 @@ export async function POST(request) {
             set: { status: sql`VALUES(status)` }
           });
 
-        if (offlineId) syncedIds.push(offlineId);
+        // AUTO-SAVE TOPIC COVERED IF PROVIDED
+        if (topic_covered && topic_covered.trim().length >= 2) {
+          try {
+            const { AttendanceService } = await import('@/services/AttendanceService');
+            await AttendanceService.updateLectureTopic({
+              assignmentId: assignment_id,
+              date,
+              sessionNumber: session,
+              topicCovered: topic_covered.trim(),
+              user
+            });
+          } catch (topicErr) {
+            logger.warn({ err: topicErr }, 'Bulk sync: saving lecture topic failed');
+          }
+        }
+
+        if (recordIdentifier !== undefined && recordIdentifier !== null) {
+          syncedIds.push(recordIdentifier);
+        }
+
+        successfulEvents.push({
+          assignment_id: targetAssignmentId,
+          date,
+          session,
+          attendance_data
+        });
       }
     });
+
+    // Fire domain events asynchronously
+    if (successfulEvents.length > 0) {
+      Promise.resolve().then(async () => {
+        try {
+          const { EventBus, DOMAIN_EVENTS } = await import('@/lib/events/EventBus');
+          for (const ev of successfulEvents) {
+            for (const item of ev.attendance_data) {
+              EventBus.publish(DOMAIN_EVENTS.ATTENDANCE_SUBMITTED, {
+                student_id: item.student_id,
+                assignment_id: ev.assignment_id,
+                date: ev.date,
+                session: ev.session
+              });
+            }
+          }
+        } catch (ebErr) {
+          logger.warn({ err: ebErr }, '[EventBus] Bulk sync domain event publish failed');
+        }
+      }).catch(() => {});
+    }
 
     return apiResponse({
       message: `Bulk offline attendance processed successfully. Synced: ${syncedIds.length}`,

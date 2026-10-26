@@ -14,6 +14,8 @@ import {
   SignatureGuidanceModal, 
   validateStudentSignatureFile 
 } from '@/components/admission/StudentSignatureGuidance';
+import { ApaarGuidanceModal } from '@/components/admission/ApaarGuidanceModal';
+import { CheckCircle2, AlertCircle, Loader2, Mail, RefreshCw, HelpCircle } from 'lucide-react';
 
 const AdmissionPage = () => {
     const [admissionYear, setAdmissionYear] = useState('');
@@ -40,6 +42,7 @@ const AdmissionPage = () => {
         father_occupation: '',
         annual_income: '',
         aadhaar_no: '',
+        apaar_id: '',
         student_mobile: '',
         guardian_mobile: '',
         email: '',
@@ -96,11 +99,113 @@ const AdmissionPage = () => {
     const [files, setFiles] = useState({ pfp: null, signature: null });
     const [isPhotoGuidanceModalOpen, setIsPhotoGuidanceModalOpen] = useState(false);
     const [isSignatureGuidanceModalOpen, setIsSignatureGuidanceModalOpen] = useState(false);
+    const [isApaarGuidanceModalOpen, setIsApaarGuidanceModalOpen] = useState(false);
     const pfpInputRef = useRef(null);
     const sigInputRef = useRef(null);
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [_annualIncomeDisplay, _setAnnualIncomeDisplay] = useState('');
+
+    const [emailState, setEmailState] = useState({
+        status: 'IDLE', // 'IDLE' | 'SENDING' | 'SENT' | 'VERIFYING' | 'VERIFIED'
+        otp: '',
+        verificationToken: '',
+        error: '',
+        cooldown: 0,
+        maskedEmail: ''
+    });
+
+    // Cooldown countdown effect
+    useEffect(() => {
+        if (emailState.cooldown > 0) {
+            const timer = setTimeout(() => {
+                setEmailState(prev => ({ ...prev, cooldown: prev.cooldown - 1 }));
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [emailState.cooldown]);
+
+    const handleEmailChange = (newEmail) => {
+        setForm(prev => ({ ...prev, email: newEmail }));
+        if (emailState.status !== 'IDLE') {
+            setEmailState({
+                status: 'IDLE',
+                otp: '',
+                verificationToken: '',
+                error: '',
+                cooldown: 0,
+                maskedEmail: ''
+            });
+        }
+    };
+
+    const handleSendOtp = async () => {
+        const cleanEmail = form.email?.trim().toLowerCase();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+            setEmailState(prev => ({ ...prev, error: 'Please enter a valid email address first.' }));
+            toast.error('Please enter a valid email address first.');
+            return;
+        }
+
+        setEmailState(prev => ({ ...prev, status: 'SENDING', error: '' }));
+        try {
+            const res = await fetch('/api/public/admission/email/send-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: cleanEmail }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || data.message || 'Failed to send verification code.');
+            }
+            setEmailState(prev => ({
+                ...prev,
+                status: 'SENT',
+                cooldown: 60,
+                error: '',
+                maskedEmail: data.maskedEmail || cleanEmail,
+            }));
+            toast.success('Verification code sent to your email!');
+        } catch (err) {
+            setEmailState(prev => ({ ...prev, status: 'IDLE', error: err.message }));
+            toast.error(err.message);
+        }
+    };
+
+    const handleVerifyOtp = async () => {
+        const cleanOtp = emailState.otp?.trim();
+        if (!cleanOtp || cleanOtp.length !== 6) {
+            setEmailState(prev => ({ ...prev, error: 'Please enter the 6-digit verification code.' }));
+            return;
+        }
+
+        setEmailState(prev => ({ ...prev, status: 'VERIFYING', error: '' }));
+        try {
+            const res = await fetch('/api/public/admission/email/verify-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: form.email?.trim().toLowerCase(),
+                    otp: cleanOtp
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || data.message || 'Invalid or expired verification code.');
+            }
+            setEmailState(prev => ({
+                ...prev,
+                status: 'VERIFIED',
+                verificationToken: data.verificationToken,
+                error: '',
+            }));
+            toast.success('Email verified successfully!');
+        } catch (err) {
+            setEmailState(prev => ({ ...prev, status: 'SENT', error: err.message }));
+            toast.error(err.message);
+        }
+    };
 
     const initialNameRef = useRef(form.name);
 
@@ -200,6 +305,11 @@ const AdmissionPage = () => {
         return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
     };
 
+    const formatApaar = (val) => {
+        const digits = (val || '').replace(/\D/g, '').slice(0, 12);
+        return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+    };
+
     const handleFileChange = async (e, type) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -296,6 +406,16 @@ const AdmissionPage = () => {
             }
         }
 
+        if (emailState.status !== 'VERIFIED' || !emailState.verificationToken) {
+            toast.error('Please verify your email address before submitting the application.');
+            const emailElem = document.getElementById('email');
+            if (emailElem) {
+                emailElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                emailElem.focus();
+            }
+            return;
+        }
+
         setLoading(true);
         const toastId = toast.loading('Submitting application...');
 
@@ -312,7 +432,10 @@ const AdmissionPage = () => {
 
         const payload = {
             ...form,
+            email: form.email.trim().toLowerCase(),
+            verification_token: emailState.verificationToken,
             aadhaar_no: form.aadhaar_no.replace(/\s/g, ''),
+            apaar_id: form.apaar_id ? form.apaar_id.replace(/\s/g, '') : undefined,
             annual_income: form.annual_income,
             admission_year: admissionYear,
             pfp: files.pfp,
@@ -687,6 +810,37 @@ const AdmissionPage = () => {
                             />
                         </div>
 
+                        <div className="space-y-1.5">
+                            <div className="flex flex-wrap items-center justify-between gap-1.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                    <label htmlFor="apaar_id" className={`${labelClasses} mb-0`}>
+                                        Student APAAR ID (Academic Bank of Credits)
+                                    </label>
+                                    <span className="text-xs text-slate-500 font-normal">(Optional - 12 Digits)</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsApaarGuidanceModalOpen(true)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs text-[#0b3578] hover:text-blue-700 bg-blue-50/80 hover:bg-blue-100 border border-blue-200 rounded-md font-semibold focus:outline-none focus:ring-2 focus:ring-[#0b3578]/20 transition-colors cursor-pointer"
+                                    title="How to get your APAAR ID"
+                                    aria-label="How to get your APAAR ID"
+                                >
+                                    <HelpCircle className="w-3.5 h-3.5 text-[#0b3578] shrink-0" aria-hidden="true" />
+                                    <span>Guidance</span>
+                                </button>
+                            </div>
+                            <input 
+                                id="apaar_id"
+                                pattern="[0-9]{4}\s[0-9]{4}\s[0-9]{4}" 
+                                title="Enter a valid 12-digit APAAR ID" 
+                                value={form.apaar_id || ''} 
+                                onChange={e => setForm({...form, apaar_id: formatApaar(e.target.value)})} 
+                                maxLength={14} 
+                                className={inputClasses} 
+                                placeholder="XXXX XXXX XXXX" 
+                            />
+                        </div>
+
                         <div className="space-y-1">
                             <label htmlFor="student-mobile" className={labelClasses}>22. Student Mobile Number <span className="text-red-500">*</span></label>
                             <input id="student-mobile" required pattern="[0-9]{10}" title="Enter a valid 10-digit mobile number" value={form.student_mobile} onChange={e => setForm({...form, student_mobile: e.target.value})} maxLength={10} className={inputClasses} />
@@ -697,9 +851,129 @@ const AdmissionPage = () => {
                             <input id="guardian-mobile" required pattern="[0-9]{10}" title="Enter a valid 10-digit mobile number" value={form.guardian_mobile} onChange={e => setForm({...form, guardian_mobile: e.target.value})} maxLength={10} className={inputClasses} />
                         </div>
 
-                        <div className="space-y-1 md:col-span-2">
-                            <label htmlFor="email" className={labelClasses}>24. Mail ID of the Student <span className="text-red-500">*</span></label>
-                            <input id="email" type="email" required maxLength="50" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className={inputClasses} placeholder="example@email.com" />
+                        <div className="space-y-2 md:col-span-2 bg-gradient-to-br from-blue-50/50 to-indigo-50/30 p-4 rounded-xl border border-blue-100 shadow-sm">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <label htmlFor="email" className={labelClasses + " mb-0"}>
+                                    24. Mail ID of the Student <span className="text-red-500">*</span>
+                                </label>
+                                {emailState.status === 'VERIFIED' && (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                        Verified
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                <div className="relative flex-1">
+                                    <input
+                                        id="email"
+                                        type="email"
+                                        required
+                                        maxLength="255"
+                                        disabled={emailState.status === 'VERIFIED' || emailState.status === 'SENDING' || emailState.status === 'VERIFYING'}
+                                        value={form.email}
+                                        onChange={e => handleEmailChange(e.target.value)}
+                                        className={inputClasses + " mt-0 disabled:bg-gray-100/80 disabled:text-gray-600 disabled:cursor-not-allowed"}
+                                        placeholder="student@example.com"
+                                    />
+                                </div>
+
+                                {emailState.status === 'VERIFIED' ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleEmailChange(form.email)}
+                                        className="px-4 py-3 bg-white hover:bg-gray-50 text-gray-700 text-xs font-bold uppercase tracking-wider rounded-lg border border-gray-300 shadow-sm transition-colors whitespace-nowrap"
+                                        title="Change email and re-verify"
+                                    >
+                                        Change Email
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={handleSendOtp}
+                                        disabled={!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email?.trim() || '') || emailState.status === 'SENDING' || emailState.cooldown > 0}
+                                        className="px-5 py-3 bg-[#0b3578] hover:bg-[#082452] disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all duration-150 flex items-center justify-center gap-2 whitespace-nowrap"
+                                    >
+                                        {emailState.status === 'SENDING' ? (
+                                            <>
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                <span>Sending Code...</span>
+                                            </>
+                                        ) : emailState.cooldown > 0 ? (
+                                            <>
+                                                <RefreshCw className="w-3.5 h-3.5" />
+                                                <span>Resend in {emailState.cooldown}s</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Mail className="w-3.5 h-3.5" />
+                                                <span>{emailState.status === 'SENT' ? 'Resend OTP' : 'Verify Email'}</span>
+                                            </>
+                                        )}
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* OTP Entry Card */}
+                            {(emailState.status === 'SENT' || emailState.status === 'VERIFYING') && (
+                                <div className="mt-3 p-4 bg-white rounded-lg border border-blue-200 shadow-sm space-y-3">
+                                    <div className="flex items-start gap-2 text-xs text-gray-600">
+                                        <Mail className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                                        <p>
+                                            We sent a 6-digit verification code to <strong className="text-gray-900 font-semibold">{emailState.maskedEmail || form.email}</strong>. It expires in 10 minutes.
+                                        </p>
+                                    </div>
+
+                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                        <input
+                                            id="admission-otp"
+                                            type="text"
+                                            inputMode="numeric"
+                                            autoComplete="one-time-code"
+                                            maxLength={6}
+                                            value={emailState.otp}
+                                            onChange={e => setEmailState(prev => ({ ...prev, otp: e.target.value.replace(/\D/g, '').slice(0, 6), error: '' }))}
+                                            className="px-4 py-2.5 text-center font-mono text-lg tracking-[0.3em] font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 outline-none w-full sm:w-48"
+                                            placeholder="• • • • • •"
+                                            disabled={emailState.status === 'VERIFYING'}
+                                        />
+
+                                        <button
+                                            type="button"
+                                            onClick={handleVerifyOtp}
+                                            disabled={emailState.otp.trim().length !== 6 || emailState.status === 'VERIFYING'}
+                                            className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-sm transition-colors flex items-center justify-center gap-1.5"
+                                        >
+                                            {emailState.status === 'VERIFYING' ? (
+                                                <>
+                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                    <span>Verifying...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                                    <span>Submit Code</span>
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+
+                                    {emailState.error && (
+                                        <div className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
+                                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                            <span>{emailState.error}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {emailState.status === 'IDLE' && emailState.error && (
+                                <div className="flex items-center gap-1.5 text-xs text-red-600 font-medium mt-1">
+                                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                    <span>{emailState.error}</span>
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-1 md:col-span-2">
@@ -883,6 +1157,12 @@ const AdmissionPage = () => {
                     open={isSignatureGuidanceModalOpen} 
                     onClose={() => setIsSignatureGuidanceModalOpen(false)} 
                     onSelectSignature={() => sigInputRef.current?.click()} 
+                />
+
+                {/* On-Demand APAAR ID Guidance Modal */}
+                <ApaarGuidanceModal 
+                    open={isApaarGuidanceModalOpen} 
+                    onClose={() => setIsApaarGuidanceModalOpen(false)} 
                 />
             </main>
             </div>

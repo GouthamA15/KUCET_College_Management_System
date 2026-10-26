@@ -36,6 +36,7 @@
     "bcrypt": "^6.0.0",
     "chess.js": "^1.4.0",
     "cloudinary": "^2.9.0",
+    "date-holidays": "^3.38.0",
     "docxtemplater": "^3.67.6",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.1",

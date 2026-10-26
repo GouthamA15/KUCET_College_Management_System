@@ -33,6 +33,11 @@ export const studentCreateSchema = z.object({
     .refine((val) => val === '' || val.length === 12, "Aadhaar number must be exactly 12 digits")
     .optional()
     .or(z.literal('')),
+  apaar_id: z.string()
+    .transform((val) => val?.replace(/\s+/g, '') || '')
+    .refine((val) => val === '' || /^\d{12}$/.test(val), "APAAR ID must be exactly 12 numeric digits")
+    .optional()
+    .or(z.literal('')),
   admission_no: z.string()
     .trim()
     .max(100)

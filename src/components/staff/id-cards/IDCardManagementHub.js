@@ -783,13 +783,13 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
             {/* Modal Body: Physical Card Canvas Matching IDCardPDF */}
             <div className="p-4 bg-gray-100/70 flex justify-center">
               <div 
-                className="w-[242px] h-[385px] bg-white rounded-lg shadow border border-gray-300 relative overflow-hidden flex flex-col select-none"
+                className="w-[242px] h-[385px] bg-white rounded-[12px] shadow-md border-[1.5px] border-[#0b3578] relative overflow-hidden flex flex-col select-none"
                 style={{ fontFamily: 'sans-serif' }}
               >
                 {/* 1. Header Area: Navy Curve and Title */}
                 <div className="relative h-[82px] w-full">
                   <div 
-                    className="absolute top-0 left-0 w-[68px] h-[82px] bg-[#0b3578] rounded-br-[20px] flex items-center justify-center z-10"
+                    className="absolute top-0 left-0 w-[68px] h-[82px] bg-[#0b3578] rounded-tl-[10.5px] rounded-br-[20px] flex items-center justify-center z-10"
                   >
                     <div className="w-[48px] h-[48px] bg-white rounded-full flex items-center justify-center p-1">
                       <img
@@ -800,20 +800,20 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
                     </div>
                   </div>
 
-                  <div className="absolute top-1.5 left-[74px] right-2 z-10">
-                    <div className="text-[17px] font-black text-black leading-tight tracking-wider">
+                  <div className="absolute top-1 left-[72px] right-2 z-10">
+                    <div className="text-[17px] font-black text-black leading-none tracking-wider">
                       KUCE&amp;T
                     </div>
-                    <div className="text-[7.5px] font-bold text-[#0b3578] leading-tight mt-0.5">
-                      KU COLLEGE OF ENGINEERING &amp; TECHNOLOGY
+                    <div className="text-[7.2px] font-bold text-[#0b3578] leading-[1.15] mt-1 tracking-tight">
+                      KU COLLEGE OF ENGINEERING<br />&amp; TECHNOLOGY
                     </div>
-                    <div className="text-[6px] font-bold text-black mt-0.5 leading-tight">
+                    <div className="text-[6px] font-bold text-black mt-1 leading-[1.2]">
                       KAKATIYA UNIVERSITY CAMPUS
                     </div>
-                    <div className="text-[6px] font-bold text-black leading-tight">
+                    <div className="text-[6px] font-bold text-black leading-[1.2]">
                       VIDYARANYAPURI, WARANGAL 506 009
                     </div>
-                    <div className="text-[6px] font-bold text-black leading-tight">
+                    <div className="text-[6px] font-bold text-black leading-[1.2]">
                       Tel: 91- 870 - 2449191
                     </div>
                   </div>
@@ -876,33 +876,33 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
 
                 {/* 5. QR Code & Authentic Principal Signature */}
                 <div className="mt-1.5 px-2.5 flex items-end justify-between">
-                  <div className="w-[46px] h-[46px] border border-slate-300 p-0.5 bg-white rounded">
+                  <div className="w-[82px] h-[82px] border border-slate-300 p-1 bg-white rounded-xs flex-shrink-0 flex items-center justify-center">
                     {previewStudent.qrUrl ? (
                       <img src={previewStudent.qrUrl} alt="QR Code" className="w-full h-full object-contain" />
                     ) : (
-                      <div className="w-full h-full bg-slate-100 flex items-center justify-center text-[7px] text-slate-400">QR</div>
+                      <div className="w-full h-full bg-slate-100 flex items-center justify-center text-[8px] text-slate-400 font-bold">QR</div>
                     )}
                   </div>
 
-                  <div className="w-[85px] flex flex-col items-center justify-end">
-                    <div className="flex items-center gap-1 px-1.5 py-0.5 mb-1 rounded bg-emerald-50 border border-emerald-300/80 shadow-xs">
+                  <div className="w-[80px] flex flex-col items-center justify-end">
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 mb-1.5 rounded bg-emerald-50 border border-emerald-300/80 shadow-xs">
                       <ShieldCheck className="w-3 h-3 text-emerald-600 shrink-0" />
                       <span className="text-[7.5px] font-bold text-emerald-800 tracking-tight leading-none whitespace-nowrap">
                         Verified Seal
                       </span>
                     </div>
-                    <div className="border-t border-black text-[8px] font-black text-black w-[65px] text-center pt-0.5">
+                    <div className="border-t border-black text-[8px] font-black text-black w-[70px] text-center pt-0.5">
                       Principal
                     </div>
                   </div>
                 </div>
 
-                {/* 6. Footer Address & Cell */}
-                <div className="mt-auto pb-1.5 px-2 text-center border-t border-slate-100 pt-0.5">
-                  <p className="text-[6.5px] font-bold text-black line-clamp-2 leading-tight">
+                {/* 6. Address & Contact */}
+                <div className="mt-2.5 px-2.5 pb-2 text-center">
+                  <p className="text-[9.5px] font-bold text-slate-900 line-clamp-2 leading-tight">
                     {previewStudent.studentAddress}
                   </p>
-                  <p className="text-[7.5px] font-black text-black mt-0.5">
+                  <p className="text-[10px] font-black text-slate-900 mt-1">
                     Cell: {previewStudent.studentPhone}
                   </p>
                 </div>

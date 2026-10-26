@@ -1,6 +1,6 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { studentAdmissionDrafts, students, staffAccounts, studentPersonalDetails } from '@/db/schema';
+import { studentAdmissionDrafts, students, staffAccounts, studentPersonalDetails, otpCodes } from '@/db/schema';
 import { eq, and, ne } from 'drizzle-orm';
 import { apiError, apiResponse } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
@@ -9,6 +9,8 @@ import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 import { encrypt, hashForIndex } from '@/lib/encryption';
 import { normalizeAreaStatus } from '@/lib/college-config';
 import { z } from 'zod';
+import { jwtVerify } from 'jose';
+import crypto from 'crypto';
 
 export async function POST(req) {
   try {
@@ -30,10 +32,15 @@ export async function POST(req) {
       seat_allotted_category: z.string().trim().max(50).nullable().optional().or(z.literal('')),
       religion: z.string().trim().min(1).max(100),
       mother_tongue: z.string().trim().min(1).max(100),
-      email: z.string().trim().email().toLowerCase().nullable().optional().or(z.literal('')),
+      email: z.string().trim().email('Valid email address is required').toLowerCase(),
+      verification_token: z.string().optional(),
+      verificationToken: z.string().optional(),
       student_mobile: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v.length === 10),
       guardian_mobile: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v === '' || v.length === 10).nullable().optional(),
       aadhaar_no: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v === '' || v.length === 12).nullable().optional(),
+      apaar_id: z.string().transform(v => (v || '').replace(/\s+/g, '')).refine(v => v === '' || /^\d{12}$/.test(v), {
+        message: 'APAAR ID must be exactly 12 numeric digits'
+      }).nullable().optional(),
       dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       gender: z.enum(['MALE', 'FEMALE', 'Male', 'Female']).transform(val => val.toUpperCase()),
       father_name: z.string().trim().max(255).nullable().optional(),
@@ -106,7 +113,7 @@ export async function POST(req) {
     const { 
       name, admission_year, entrance_exam, branch, seat_allotted_category, 
       religion, mother_tongue, email, student_mobile, guardian_mobile, 
-      aadhaar_no, dob, gender, father_name, mother_name, exam_rank,
+      aadhaar_no, apaar_id, dob, gender, father_name, mother_name, exam_rank,
       area_status, category, sub_caste, ssc_marks, inter_diploma_marks,
       nationality, blood_group, place_of_birth, father_occupation, 
       annual_income, fee_reimbursement, identification_mark_1, 
@@ -115,6 +122,46 @@ export async function POST(req) {
       curr_house_no, curr_street, curr_apartment, curr_city, curr_state, curr_pincode, curr_country,
       is_current_same_as_permanent, pfp, signature, legal_consent: _legal_consent
     } = validatedData;
+
+    // --- SECURE EMAIL OWNERSHIP VERIFICATION ---
+    const verificationToken = validatedData.verification_token || validatedData.verificationToken || json.verification_token || json.verificationToken;
+    if (!verificationToken) {
+      return apiError('Email verification is required before submitting your application.', 400);
+    }
+
+    let jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('FATAL: JWT_SECRET must be configured in production environment.');
+      }
+      jwtSecret = 'temporary_admission_secret_at_least_32_chars!';
+    }
+    const secret = new TextEncoder().encode(jwtSecret);
+
+    let jwtPayload;
+    try {
+      const { payload } = await jwtVerify(verificationToken, secret);
+      if (payload.verifiedEmail !== email || payload.purpose !== 'student_admission_email') {
+        return apiError('Email verification does not match the submitted email address.', 400);
+      }
+      jwtPayload = payload;
+    } catch (_jwtError) {
+      return apiError('Invalid or expired email verification token. Please verify your email again.', 400);
+    }
+
+    const tokenIdentifier = jwtPayload.jti || crypto.createHash('sha256').update(verificationToken).digest('hex');
+    const tokenRecordKey = `consumed_admission_token:${tokenIdentifier}`;
+    const tokenExpiresAt = jwtPayload.exp ? new Date(jwtPayload.exp * 1000) : new Date(Date.now() + 2 * 3600 * 1000);
+
+    // Fast pre-check to prevent redundant image uploads if token is already consumed
+    if (db.query?.otpCodes?.findFirst) {
+      const alreadyConsumed = await db.query.otpCodes.findFirst({
+        where: eq(otpCodes.identifier, tokenRecordKey),
+      });
+      if (alreadyConsumed) {
+        return apiError('Verification token has already been used. Please verify your email again.', 400);
+      }
+    }
     
     // 1. Email Uniqueness Check (Exclude REJECTED drafts so student can re-apply)
     if (email) {
@@ -221,8 +268,38 @@ export async function POST(req) {
       addressFields = mapAddressStringsToFields(finalContactAddr, finalPermAddr);
     }
 
+    const runInTransaction = async (callback) => {
+      if (typeof db.transaction === 'function') {
+        return db.transaction(callback);
+      }
+      return callback(db);
+    };
+
     try {
-      const [result] = await db.insert(studentAdmissionDrafts).values({
+      const result = await runInTransaction(async (tx) => {
+        // 1. Transactional check to enforce single-use atomically
+        if (tx.query?.otpCodes?.findFirst) {
+          const isConsumed = await tx.query.otpCodes.findFirst({
+            where: eq(otpCodes.identifier, tokenRecordKey),
+          });
+          if (isConsumed) {
+            const err = new Error('Verification token has already been used. Please verify your email again.');
+            err.code = 'TOKEN_ALREADY_CONSUMED';
+            throw err;
+          }
+        }
+
+        // 2. Mark token as consumed in same transaction
+        if (tx.insert) {
+          await tx.insert(otpCodes).values({
+            identifier: tokenRecordKey,
+            otp_code: 'CONSUMED',
+            expires_at: tokenExpiresAt,
+          });
+        }
+
+        // 3. Insert student admission draft
+        const insertRes = await tx.insert(studentAdmissionDrafts).values({
           status: 'DRAFT',
           admission_year,
           entrance_exam,
@@ -254,18 +331,23 @@ export async function POST(req) {
           annual_income: annual_income || null,
           aadhaar_no: encryptedAadhaar,
           aadhaar_hash: aHash,
+          apaar_id: apaar_id || null,
           fee_reimbursement: fee_reimbursement || null,
           identification_mark_1: identification_mark_1 || null,
           identification_mark_2: identification_mark_2 || null,
           data_policy_consented_at: new Date(),
           ...addressFields
+        });
+
+        const draftRow = Array.isArray(insertRes) ? insertRes[0] : insertRes;
+        return draftRow;
       });
 
       // Realtime Broadcast for Admission Staff
       try {
         const { broadcastUpdate } = await import('@/lib/sse');
         await broadcastUpdate('ADMISSION_DRAFT_CREATED', {
-          id: result.insertId,
+          id: result?.insertId,
           name,
           father_name: father_name || null,
           exam_rank: exam_rank || null,
@@ -279,10 +361,14 @@ export async function POST(req) {
         // Non-blocking
       }
 
-      return apiResponse({ success: true, draftId: result.insertId, message: 'Your application has been submitted successfully.' });
+      return apiResponse({ success: true, draftId: result?.insertId, message: 'Your application has been submitted successfully.' });
     } catch (insertError) {
       if (pfpUrl) await storage.delete(pfpUrl).catch(e => logger.error(e, 'Failed to cleanup orphaned pfp in admission draft db insert failure'));
       if (signatureUrl) await storage.delete(signatureUrl).catch(e => logger.error(e, 'Failed to cleanup orphaned signature in admission draft db insert failure'));
+
+      if (insertError.code === 'TOKEN_ALREADY_CONSUMED' || insertError.message?.includes('already been used')) {
+        return apiError('Verification token has already been used. Please verify your email again.', 400);
+      }
       throw insertError;
     }
 

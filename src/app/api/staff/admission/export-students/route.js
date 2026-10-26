@@ -15,6 +15,17 @@ const maskAadhaar = (val) => {
 };
 
 /**
+ * Escapes characters that Excel and spreadsheet software evaluate as formulas (=, +, -, @)
+ * to prevent CSV/Excel Formula Injection attacks.
+ */
+function sanitizeSpreadsheetValue(val) {
+  if (typeof val === 'string' && /^[=+\-@]/.test(val)) {
+    return `'${val}`;
+  }
+  return val;
+}
+
+/**
  * Validates image buffer magic bytes and returns the ExcelJS-compatible extension.
  */
 function detectImageExtension(buffer) {
@@ -54,7 +65,9 @@ async function fetchImageBuffer(assetPath, imageBufferCache) {
         imageBufferCache.set(clean, res);
         return res;
       }
-    } catch (_e) {}
+    } catch (_e) {
+      /* ignore and try next source */
+    }
   }
 
   // 2. Local VPS persistent storage disk check
@@ -73,7 +86,9 @@ async function fetchImageBuffer(assetPath, imageBufferCache) {
         return res;
       }
     }
-  } catch (_e) {}
+  } catch (_e) {
+    /* ignore and try next source */
+  }
 
   // 3. Remote URL check (getAssetUrl)
   try {
@@ -91,7 +106,9 @@ async function fetchImageBuffer(assetPath, imageBufferCache) {
         }
       }
     }
-  } catch (_e) {}
+  } catch (_e) {
+    /* ignore and try next source */
+  }
 
   // 4. Cloudinary direct fallback
   try {
@@ -117,10 +134,19 @@ async function fetchImageBuffer(assetPath, imageBufferCache) {
         return res;
       }
     }
-  } catch (_e) {}
+  } catch (_e) {
+    /* ignore and fallback to null */
+  }
 
   return null;
 }
+
+export const EXPORT_SCOPES = {
+  MASTER: 'master',
+  SCHOLARSHIP: 'scholarship',
+  DEPARTMENT: 'department',
+  FIRST_YEAR: 'first_year'
+};
 
 export async function GET(req) {
   try {
@@ -133,29 +159,408 @@ export async function GET(req) {
     const branch = searchParams.get('branch');
     const year = searchParams.get('year');
     const format = searchParams.get('format');
+    const scope = searchParams.get('scope')?.toLowerCase()?.trim() || EXPORT_SCOPES.MASTER;
 
     if (!branch || !year) {
       return apiError('Branch and Year are required.', 400);
     }
 
-    // Role-based access control for Student Master Export (Category 03)
+    // Role-based access control per Scope
     const userRole = (user.role || '').toLowerCase();
-    const isAuthorizedForExport = [
-      'admin',
-      'super_admin',
-      'principal',
-      'admission',
-      'admission_clerk'
-    ].includes(userRole);
+    const isSuperAdminOrPrincipal = ['admin', 'super_admin', 'principal'].includes(userRole);
+    const isAdmissionStaff = ['admission', 'admission_clerk'].includes(userRole);
+    const isScholarshipStaff = ['scholarship', 'scholarship_clerk'].includes(userRole);
+    const isHod = Boolean(user.is_hod || user.isHod);
+    const isCoordinator = Boolean(user.is_first_year_coordinator);
 
-    if (!isAuthorizedForExport) {
-      return apiError('Forbidden: Access denied. Only admission staff and administrators can export student records.', 403);
+    if (scope === EXPORT_SCOPES.MASTER) {
+      if (!isSuperAdminOrPrincipal && !isAdmissionStaff) {
+        return apiError('Forbidden: Access denied. Only admission staff and administrators can export student records.', 403);
+      }
+    } else if (scope === EXPORT_SCOPES.SCHOLARSHIP) {
+      if (!isSuperAdminOrPrincipal && !isScholarshipStaff) {
+        return apiError('Forbidden: Access denied. Only scholarship staff and administrators can export scholarship data.', 403);
+      }
+    } else if (scope === EXPORT_SCOPES.DEPARTMENT) {
+      if (!isSuperAdminOrPrincipal && !isHod) {
+        return apiError('Forbidden: Access denied. Only Heads of Department (HOD) and administrators can export departmental student data.', 403);
+      }
+      if (!isSuperAdminOrPrincipal) {
+        const allowedBranches = (user.authorized_branches || user.hod_branches || (user.branch ? [user.branch] : []))
+          .map(b => String(b).toUpperCase().trim());
+        
+        if (allowedBranches.length === 0) {
+          return apiError('Forbidden: No departmental branch assignments found for HOD', 403);
+        }
+
+        const reqUpper = String(branch).toUpperCase().trim();
+        const reqName = (branchCodes[reqUpper] || reqUpper).toUpperCase();
+        const reqCode = (Object.keys(branchCodes).find(k => branchCodes[k].toUpperCase() === reqUpper) || reqUpper).toUpperCase();
+
+        const isAllowed = allowedBranches.some(b => {
+          const bName = (branchCodes[b] || b).toUpperCase();
+          const bCode = (Object.keys(branchCodes).find(k => branchCodes[k].toUpperCase() === b) || b).toUpperCase();
+          return b === reqUpper || bName === reqName || bCode === reqCode;
+        });
+
+        if (!isAllowed) {
+          return apiError(`Forbidden: You do not have permission to export students for branch ${reqName || branch}`, 403);
+        }
+      }
+    } else if (scope === EXPORT_SCOPES.FIRST_YEAR) {
+      if (!isSuperAdminOrPrincipal && !isCoordinator) {
+        return apiError('Forbidden: Access denied. Only First-Year Coordinators and administrators can export first-year cohort data.', 403);
+      }
+      if (!isSuperAdminOrPrincipal) {
+        const strYear = String(year).trim();
+        const isFirstYear = strYear === '1' || strYear === 'I' || strYear.toLowerCase().includes('1st') || strYear.toLowerCase().includes('first');
+        const batchStart = parseInt(strYear.split('-')[0], 10);
+        const currentYear = new Date().getFullYear();
+        const isCurrentFirstYearBatch = !isNaN(batchStart) && batchStart >= currentYear;
+
+        if (!isFirstYear && !isCurrentFirstYearBatch) {
+          return apiError('Forbidden: First-Year Coordinators can only export the first-year cohort', 403);
+        }
+      }
+    } else {
+      return apiError(`Invalid export scope: ${scope}`, 400);
     }
 
-    const isAuthorizedForFullAadhaar = isAuthorizedForExport;
+    const isAuthorizedForFullAadhaar = isSuperAdminOrPrincipal || isAdmissionStaff;
 
     const students = await StudentService.getFullStudentDataForExport(year, branch);
+    const branchName = branchCodes[branch] || branch;
 
+    // --- SCOPE: SCHOLARSHIP EXPORT ---
+    if (scope === EXPORT_SCOPES.SCHOLARSHIP) {
+      if (format === 'excel') {
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'KUCET College Management System';
+        workbook.lastModifiedBy = user.name || user.email || 'KUCET Scholarship Section';
+        workbook.created = new Date();
+        workbook.modified = new Date();
+
+        const worksheet = workbook.addWorksheet('Scholarship_Students', { views: [{ showGridLines: true }] });
+        worksheet.columns = [
+          { header: 'Roll Number', key: 'roll_no', width: 16 },
+          { header: 'Admission Number', key: 'admission_no', width: 18 },
+          { header: 'Batch', key: 'batch', width: 14 },
+          { header: 'Full Name', key: 'name', width: 28 },
+          { header: 'Gender', key: 'gender', width: 12 },
+          { header: 'Email', key: 'email', width: 30 },
+          { header: 'Academic Branch', key: 'branch', width: 16 },
+          { header: 'Category', key: 'category', width: 12 },
+          { header: 'Sub-Caste', key: 'sub_caste', width: 16 },
+          { header: 'Seat Allotted Category', key: 'seat_allotted_category', width: 22 },
+          { header: 'Fee Reimbursement', key: 'fee_reimbursement', width: 18 },
+          { header: 'APAAR ID', key: 'apaar_id', width: 18 },
+          { header: 'Academic Status', key: 'academic_status', width: 16 }
+        ];
+
+        const headerRow = worksheet.getRow(1);
+        headerRow.height = 30;
+        headerRow.eachCell((cell) => {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B3578' } };
+          cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            right: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+          };
+        });
+
+        for (const s of students) {
+          const rowValues = {
+            roll_no: sanitizeSpreadsheetValue(s.roll_no || ''),
+            admission_no: sanitizeSpreadsheetValue(s.admission_no || ''),
+            batch: sanitizeSpreadsheetValue(getBatchFromRoll(s.roll_no) || year),
+            name: sanitizeSpreadsheetValue(s.name || ''),
+            gender: sanitizeSpreadsheetValue(s.gender || ''),
+            email: sanitizeSpreadsheetValue(s.email || ''),
+            branch: sanitizeSpreadsheetValue(branchCodes[branch] || branch),
+            category: sanitizeSpreadsheetValue(s.category || ''),
+            sub_caste: sanitizeSpreadsheetValue(s.sub_caste || ''),
+            seat_allotted_category: sanitizeSpreadsheetValue(s.seat_allotted_category || ''),
+            fee_reimbursement: sanitizeSpreadsheetValue(s.fee_reimbursement || 'NO'),
+            apaar_id: sanitizeSpreadsheetValue(s.apaar_id || 'Not Submitted'),
+            academic_status: sanitizeSpreadsheetValue(s.academic_status || 'ACTIVE'),
+          };
+
+          const addedRow = worksheet.addRow(rowValues);
+          addedRow.height = 24;
+          addedRow.eachCell({ includeEmpty: true }, (cell) => {
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+              left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+              bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+              right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            };
+          });
+        }
+
+        const fileBuffer = await workbook.xlsx.writeBuffer();
+        const exportFilename = `KUCET_Scholarship_Students_${branchName}_Batch_${year}.xlsx`;
+        return new NextResponse(fileBuffer, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': `attachment; filename="${exportFilename}"`,
+            'Cache-Control': 'private, no-cache, no-store, max-age=0, must-revalidate',
+          }
+        });
+      }
+
+      const scholarshipStudents = students.map(s => ({
+        roll_no: sanitizeSpreadsheetValue(s.roll_no || ''),
+        admission_no: sanitizeSpreadsheetValue(s.admission_no || ''),
+        batch: sanitizeSpreadsheetValue(getBatchFromRoll(s.roll_no) || year),
+        name: sanitizeSpreadsheetValue(s.name || ''),
+        gender: sanitizeSpreadsheetValue(s.gender || ''),
+        email: sanitizeSpreadsheetValue(s.email || ''),
+        branch: sanitizeSpreadsheetValue(branchCodes[branch] || branch),
+        category: sanitizeSpreadsheetValue(s.category || ''),
+        sub_caste: sanitizeSpreadsheetValue(s.sub_caste || ''),
+        seat_allotted_category: sanitizeSpreadsheetValue(s.seat_allotted_category || ''),
+        fee_reimbursement: sanitizeSpreadsheetValue(s.fee_reimbursement || 'NO'),
+        apaar_id: sanitizeSpreadsheetValue(s.apaar_id || 'Not Submitted'),
+        academic_status: sanitizeSpreadsheetValue(s.academic_status || 'ACTIVE'),
+      }));
+
+      return apiResponse({
+        students: scholarshipStudents,
+        scope: EXPORT_SCOPES.SCHOLARSHIP,
+        canViewFullAadhaar: false
+      });
+    }
+
+    // --- SCOPE: DEPARTMENT (HOD) EXPORT ---
+    if (scope === EXPORT_SCOPES.DEPARTMENT) {
+      if (format === 'excel') {
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'KUCET College Management System';
+        workbook.lastModifiedBy = user.name || user.email || 'KUCET Head of Department';
+        workbook.created = new Date();
+        workbook.modified = new Date();
+
+        const worksheet = workbook.addWorksheet('Department_Students', { views: [{ showGridLines: true }] });
+        worksheet.columns = [
+          { header: 'Roll Number', key: 'roll_no', width: 16 },
+          { header: 'Admission Number', key: 'admission_no', width: 18 },
+          { header: 'Batch', key: 'batch', width: 14 },
+          { header: 'Full Name', key: 'name', width: 28 },
+          { header: 'Gender', key: 'gender', width: 12 },
+          { header: 'Date of Birth', key: 'date_of_birth', width: 16 },
+          { header: 'Email', key: 'email', width: 30 },
+          { header: 'Academic Branch', key: 'branch', width: 16 },
+          { header: 'Category', key: 'category', width: 12 },
+          { header: 'Blood Group', key: 'blood_group', width: 14 },
+          { header: 'APAAR ID', key: 'apaar_id', width: 18 },
+          { header: 'Qualifying Exam', key: 'qualifying_exam', width: 16 },
+          { header: 'Entrance Exam Rank', key: 'entrance_exam_rank', width: 18 }
+        ];
+
+        const headerRow = worksheet.getRow(1);
+        headerRow.height = 30;
+        headerRow.eachCell((cell) => {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B3578' } };
+          cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            right: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+          };
+        });
+
+        for (const s of students) {
+          const rawDob = s.date_of_birth || s.dob;
+          const formattedDob = rawDob ? formatDate(rawDob, 'N/A') : 'N/A';
+          const bloodGroupDisplay = s.blood_group && s.blood_group !== 'Not available' ? s.blood_group : 'Not available';
+
+          const rowValues = {
+            roll_no: sanitizeSpreadsheetValue(s.roll_no || ''),
+            admission_no: sanitizeSpreadsheetValue(s.admission_no || ''),
+            batch: sanitizeSpreadsheetValue(getBatchFromRoll(s.roll_no) || year),
+            name: sanitizeSpreadsheetValue(s.name || ''),
+            gender: sanitizeSpreadsheetValue(s.gender || ''),
+            date_of_birth: sanitizeSpreadsheetValue(formattedDob),
+            email: sanitizeSpreadsheetValue(s.email || ''),
+            branch: sanitizeSpreadsheetValue(branchCodes[branch] || branch),
+            category: sanitizeSpreadsheetValue(s.category || ''),
+            blood_group: sanitizeSpreadsheetValue(bloodGroupDisplay),
+            apaar_id: sanitizeSpreadsheetValue(s.apaar_id || 'Not Submitted'),
+            qualifying_exam: sanitizeSpreadsheetValue(s.qualifying_exam || ''),
+            entrance_exam_rank: sanitizeSpreadsheetValue(s.entrance_exam_rank || '')
+          };
+
+          const addedRow = worksheet.addRow(rowValues);
+          addedRow.height = 24;
+          addedRow.eachCell({ includeEmpty: true }, (cell) => {
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+              left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+              bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+              right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            };
+          });
+        }
+
+        const fileBuffer = await workbook.xlsx.writeBuffer();
+        const exportFilename = `KUCET_Department_Students_${branchName}_Batch_${year}.xlsx`;
+        return new NextResponse(fileBuffer, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': `attachment; filename="${exportFilename}"`,
+            'Cache-Control': 'private, no-cache, no-store, max-age=0, must-revalidate',
+          }
+        });
+      }
+
+      const departmentStudents = students.map(s => ({
+        roll_no: sanitizeSpreadsheetValue(s.roll_no || ''),
+        admission_no: sanitizeSpreadsheetValue(s.admission_no || ''),
+        batch: sanitizeSpreadsheetValue(getBatchFromRoll(s.roll_no) || year),
+        name: sanitizeSpreadsheetValue(s.name || ''),
+        gender: sanitizeSpreadsheetValue(s.gender || ''),
+        date_of_birth: sanitizeSpreadsheetValue(s.date_of_birth || s.dob ? formatDate(s.date_of_birth || s.dob, 'N/A') : 'N/A'),
+        email: sanitizeSpreadsheetValue(s.email || ''),
+        branch: sanitizeSpreadsheetValue(branchCodes[branch] || branch),
+        category: sanitizeSpreadsheetValue(s.category || ''),
+        blood_group: sanitizeSpreadsheetValue(s.blood_group && s.blood_group !== 'Not available' ? s.blood_group : 'Not available'),
+        apaar_id: sanitizeSpreadsheetValue(s.apaar_id || 'Not Submitted'),
+        qualifying_exam: sanitizeSpreadsheetValue(s.qualifying_exam || ''),
+        entrance_exam_rank: sanitizeSpreadsheetValue(s.entrance_exam_rank || '')
+      }));
+
+      return apiResponse({
+        students: departmentStudents,
+        scope: EXPORT_SCOPES.DEPARTMENT,
+        canViewFullAadhaar: false
+      });
+    }
+
+    // --- SCOPE: FIRST YEAR COORDINATOR EXPORT ---
+    if (scope === EXPORT_SCOPES.FIRST_YEAR) {
+      if (format === 'excel') {
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'KUCET College Management System';
+        workbook.lastModifiedBy = user.name || user.email || 'KUCET First Year Coordinator';
+        workbook.created = new Date();
+        workbook.modified = new Date();
+
+        const worksheet = workbook.addWorksheet('FirstYear_Students', { views: [{ showGridLines: true }] });
+        worksheet.columns = [
+          { header: 'Roll Number', key: 'roll_no', width: 16 },
+          { header: 'Admission Number', key: 'admission_no', width: 18 },
+          { header: 'Batch', key: 'batch', width: 14 },
+          { header: 'Full Name', key: 'name', width: 28 },
+          { header: 'Gender', key: 'gender', width: 12 },
+          { header: 'Date of Birth', key: 'date_of_birth', width: 16 },
+          { header: 'Email', key: 'email', width: 30 },
+          { header: 'Academic Branch', key: 'branch', width: 16 },
+          { header: 'Category', key: 'category', width: 12 },
+          { header: 'Blood Group', key: 'blood_group', width: 14 },
+          { header: 'APAAR ID', key: 'apaar_id', width: 18 },
+          { header: 'Qualifying Exam', key: 'qualifying_exam', width: 16 },
+          { header: 'SSC Marks', key: 'ssc_marks', width: 14 },
+          { header: 'Inter/Diploma Marks', key: 'inter_marks', width: 18 },
+          { header: 'Entrance Exam Rank', key: 'entrance_exam_rank', width: 18 }
+        ];
+
+        const headerRow = worksheet.getRow(1);
+        headerRow.height = 30;
+        headerRow.eachCell((cell) => {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B3578' } };
+          cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            right: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+          };
+        });
+
+        for (const s of students) {
+          const rawDob = s.date_of_birth || s.dob;
+          const formattedDob = rawDob ? formatDate(rawDob, 'N/A') : 'N/A';
+          const bloodGroupDisplay = s.blood_group && s.blood_group !== 'Not available' ? s.blood_group : 'Not available';
+
+          const rowValues = {
+            roll_no: sanitizeSpreadsheetValue(s.roll_no || ''),
+            admission_no: sanitizeSpreadsheetValue(s.admission_no || ''),
+            batch: sanitizeSpreadsheetValue(getBatchFromRoll(s.roll_no) || year),
+            name: sanitizeSpreadsheetValue(s.name || ''),
+            gender: sanitizeSpreadsheetValue(s.gender || ''),
+            date_of_birth: sanitizeSpreadsheetValue(formattedDob),
+            email: sanitizeSpreadsheetValue(s.email || ''),
+            branch: sanitizeSpreadsheetValue(branchCodes[branch] || branch),
+            category: sanitizeSpreadsheetValue(s.category || ''),
+            blood_group: sanitizeSpreadsheetValue(bloodGroupDisplay),
+            apaar_id: sanitizeSpreadsheetValue(s.apaar_id || 'Not Submitted'),
+            qualifying_exam: sanitizeSpreadsheetValue(s.qualifying_exam || ''),
+            ssc_marks: sanitizeSpreadsheetValue(s.ssc_marks || ''),
+            inter_marks: sanitizeSpreadsheetValue(s.inter_marks || ''),
+            entrance_exam_rank: sanitizeSpreadsheetValue(s.entrance_exam_rank || '')
+          };
+
+          const addedRow = worksheet.addRow(rowValues);
+          addedRow.height = 24;
+          addedRow.eachCell({ includeEmpty: true }, (cell) => {
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+              left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+              bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+              right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            };
+          });
+        }
+
+        const fileBuffer = await workbook.xlsx.writeBuffer();
+        const exportFilename = `KUCET_FirstYear_Students_${branchName}_Batch_${year}.xlsx`;
+        return new NextResponse(fileBuffer, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': `attachment; filename="${exportFilename}"`,
+            'Cache-Control': 'private, no-cache, no-store, max-age=0, must-revalidate',
+          }
+        });
+      }
+
+      const firstYearStudents = students.map(s => ({
+        roll_no: sanitizeSpreadsheetValue(s.roll_no || ''),
+        admission_no: sanitizeSpreadsheetValue(s.admission_no || ''),
+        batch: sanitizeSpreadsheetValue(getBatchFromRoll(s.roll_no) || year),
+        name: sanitizeSpreadsheetValue(s.name || ''),
+        gender: sanitizeSpreadsheetValue(s.gender || ''),
+        date_of_birth: sanitizeSpreadsheetValue(s.date_of_birth || s.dob ? formatDate(s.date_of_birth || s.dob, 'N/A') : 'N/A'),
+        email: sanitizeSpreadsheetValue(s.email || ''),
+        branch: sanitizeSpreadsheetValue(branchCodes[branch] || branch),
+        category: sanitizeSpreadsheetValue(s.category || ''),
+        blood_group: sanitizeSpreadsheetValue(s.blood_group && s.blood_group !== 'Not available' ? s.blood_group : 'Not available'),
+        apaar_id: sanitizeSpreadsheetValue(s.apaar_id || 'Not Submitted'),
+        qualifying_exam: sanitizeSpreadsheetValue(s.qualifying_exam || ''),
+        ssc_marks: sanitizeSpreadsheetValue(s.ssc_marks || ''),
+        inter_marks: sanitizeSpreadsheetValue(s.inter_marks || ''),
+        entrance_exam_rank: sanitizeSpreadsheetValue(s.entrance_exam_rank || '')
+      }));
+
+      return apiResponse({
+        students: firstYearStudents,
+        scope: EXPORT_SCOPES.FIRST_YEAR,
+        canViewFullAadhaar: false
+      });
+    }
+
+    // --- SCOPE: MASTER EXPORT (ADMISSION & SUPER ADMIN ONLY) ---
     // If Excel format requested, generate and stream complete Excel workbook with embedded photographs
     if (format === 'excel') {
       const branchName = branchCodes[branch] || branch;
@@ -191,6 +596,7 @@ export async function GET(req) {
         { header: 'Father Occupation', key: 'father_occupation', width: 22 },
         { header: 'Annual Income', key: 'annual_income', width: 18 },
         { header: 'Aadhaar Number', key: 'aadhaar_no', width: 20 },
+        { header: 'APAAR ID', key: 'apaar_id', width: 18 },
         { header: 'Guardian Mobile', key: 'guardian_mobile', width: 16 },
         { header: 'Permanent Address', key: 'permanent_address', width: 40 },
         { header: 'Identification Marks', key: 'identification_marks', width: 32 },
@@ -256,37 +662,38 @@ export async function GET(req) {
           : 'Not available';
 
         const rowValues = {
-          roll_no: s.roll_no || '',
-          admission_no: s.admission_no || '',
-          batch: getBatchFromRoll(s.roll_no) || year,
-          name: s.name || '',
-          gender: s.gender || '',
-          date_of_birth: formattedDob,
-          email: s.email || '',
-          mobile: s.mobile || '',
-          father_name: s.father_name || '',
-          mother_name: s.mother_name || '',
-          nationality: s.nationality || 'Indian',
-          religion: s.religion || '',
-          category: s.category || '',
-          sub_caste: s.sub_caste || '',
-          area_status: s.area_status || '',
-          mother_tongue: s.mother_tongue || '',
-          place_of_birth: s.place_of_birth || '',
-          father_occupation: s.father_occupation || '',
-          annual_income: s.annual_income || '',
-          aadhaar_no: finalAadhaar,
-          guardian_mobile: s.guardian_mobile || '',
-          permanent_address: s.permanent_address || '',
-          identification_marks: s.identification_marks || '',
-          seat_allotted_category: s.seat_allotted_category || '',
-          blood_group: bloodGroupDisplay,
-          fee_reimbursement: s.fee_reimbursement || 'NO',
-          qualifying_exam: s.qualifying_exam || '',
-          ssc_marks: s.ssc_marks || '',
-          inter_marks: s.inter_marks || '',
-          entrance_exam_rank: s.entrance_exam_rank || '',
-          previous_college: s.previous_college || '',
+          roll_no: sanitizeSpreadsheetValue(s.roll_no || ''),
+          admission_no: sanitizeSpreadsheetValue(s.admission_no || ''),
+          batch: sanitizeSpreadsheetValue(getBatchFromRoll(s.roll_no) || year),
+          name: sanitizeSpreadsheetValue(s.name || ''),
+          gender: sanitizeSpreadsheetValue(s.gender || ''),
+          date_of_birth: sanitizeSpreadsheetValue(formattedDob),
+          email: sanitizeSpreadsheetValue(s.email || ''),
+          mobile: sanitizeSpreadsheetValue(s.mobile || ''),
+          father_name: sanitizeSpreadsheetValue(s.father_name || ''),
+          mother_name: sanitizeSpreadsheetValue(s.mother_name || ''),
+          nationality: sanitizeSpreadsheetValue(s.nationality || 'Indian'),
+          religion: sanitizeSpreadsheetValue(s.religion || ''),
+          category: sanitizeSpreadsheetValue(s.category || ''),
+          sub_caste: sanitizeSpreadsheetValue(s.sub_caste || ''),
+          area_status: sanitizeSpreadsheetValue(s.area_status || ''),
+          mother_tongue: sanitizeSpreadsheetValue(s.mother_tongue || ''),
+          place_of_birth: sanitizeSpreadsheetValue(s.place_of_birth || ''),
+          father_occupation: sanitizeSpreadsheetValue(s.father_occupation || ''),
+          annual_income: sanitizeSpreadsheetValue(s.annual_income || ''),
+          aadhaar_no: sanitizeSpreadsheetValue(finalAadhaar),
+          apaar_id: sanitizeSpreadsheetValue(s.apaar_id || 'Not Submitted'),
+          guardian_mobile: sanitizeSpreadsheetValue(s.guardian_mobile || ''),
+          permanent_address: sanitizeSpreadsheetValue(s.permanent_address || ''),
+          identification_marks: sanitizeSpreadsheetValue(s.identification_marks || ''),
+          seat_allotted_category: sanitizeSpreadsheetValue(s.seat_allotted_category || ''),
+          blood_group: sanitizeSpreadsheetValue(bloodGroupDisplay),
+          fee_reimbursement: sanitizeSpreadsheetValue(s.fee_reimbursement || 'NO'),
+          qualifying_exam: sanitizeSpreadsheetValue(s.qualifying_exam || ''),
+          ssc_marks: sanitizeSpreadsheetValue(s.ssc_marks || ''),
+          inter_marks: sanitizeSpreadsheetValue(s.inter_marks || ''),
+          entrance_exam_rank: sanitizeSpreadsheetValue(s.entrance_exam_rank || ''),
+          previous_college: sanitizeSpreadsheetValue(s.previous_college || ''),
           photo: '', // placeholder, will embed image or set text
           signature: '' // placeholder
         };
@@ -389,15 +796,15 @@ export async function GET(req) {
     }
 
     // Default JSON response for UI preview table
-    const sanitizedStudents = isAuthorizedForFullAadhaar 
-      ? students 
-      : students.map(s => ({
-          ...s,
-          aadhaar_no: maskAadhaar(s.aadhaar_no)
-        }));
+    const sanitizedStudents = students.map(s => ({
+      ...s,
+      apaar_id: s.apaar_id || 'Not Submitted',
+      aadhaar_no: isAuthorizedForFullAadhaar ? (s.aadhaar_no || 'N/A') : maskAadhaar(s.aadhaar_no)
+    }));
 
     return apiResponse({ 
       students: sanitizedStudents,
+      scope: EXPORT_SCOPES.MASTER,
       canViewFullAadhaar: isAuthorizedForFullAadhaar 
     });
 

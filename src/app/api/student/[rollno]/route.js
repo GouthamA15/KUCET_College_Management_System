@@ -58,11 +58,13 @@ export async function GET(req, context) {
     // Nest the data as expected by the frontend
     const student = { 
       ...studentData,
-      mobile: decrypt(studentData.mobile) // Decrypt student mobile
+      mobile: decrypt(studentData.mobile), // Decrypt student mobile
+      apaar_id: row.student_personal_details?.apaar_id || null
     };
     
     student.personal_details = row.student_personal_details ? {
       ...row.student_personal_details,
+      apaar_id: row.student_personal_details.apaar_id || null,
       guardian_mobile: decrypt(row.student_personal_details.guardian_mobile), // Decrypt guardian mobile
       aadhaar_no: decrypt(row.student_personal_details.aadhaar_no) // Decrypt Aadhaar
     } : { /* empty */ };

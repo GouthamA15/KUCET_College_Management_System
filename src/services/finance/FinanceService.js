@@ -136,7 +136,8 @@ export class FinanceService {
             'action_by_role', ${studentRequests.action_by_role},
             'reject_reason', ${studentRequests.reject_reason},
             'payment_screenshot', ${studentRequestImages.payment_screenshot},
-            'is_flagged', ${studentRequests.is_flagged}
+            'is_flagged', ${studentRequests.is_flagged},
+            'flag_details', ${studentRequests.flag_details}
           )`
         })
         .from(studentRequests)
@@ -197,19 +198,34 @@ export class FinanceService {
   }
 
   /**
-   * Verify transaction integrity (UTR uniqueness and Screenshot fingerprinting)
-   * @param {Object} params { transactionId, paymentHash, studentId, requestId }
+   * Verify transaction integrity (UTR uniqueness, Format verification, and Screenshot fingerprinting)
+   * @param {Object} params { transactionId, paymentHash, studentId, requestId, feePaymentId, upiId, amount }
    * @returns {Promise<{ isFlagged: boolean, flagDetails: Object | null }>}
    */
-  static async verifyTransactionIntegrity({ transactionId, paymentHash, studentId, requestId, feePaymentId }) {
+  static async verifyTransactionIntegrity({ transactionId, paymentHash, studentId, requestId, feePaymentId, upiId, _amount }) {
     let isFlagged = false;
     let flagDetails = null;
 
+    const cleanTxId = transactionId && typeof transactionId === 'string' ? transactionId.trim() : transactionId;
+
+    // 0. Field / Format Mismatch Check
+    if (upiId || cleanTxId) {
+      const { PaymentFraudService, FRAUD_FLAGS } = await import('./PaymentFraudService.js');
+      const mismatch = PaymentFraudService.detectFieldMismatch({ upiId, transactionRef: cleanTxId });
+      if (mismatch.hasMismatch) {
+        isFlagged = true;
+        flagDetails = {
+          type: FRAUD_FLAGS.IDENTIFIER_TYPE_MISMATCH,
+          explanations: mismatch.explanations
+        };
+      }
+    }
+
     // 1. Transaction ID Conflict (UTR uniqueness)
-    if (transactionId) {
+    if (cleanTxId && !isFlagged) {
       // Check in fee payments
       const conflictFee = await db.query.studentFeePayments.findFirst({
-        where: eq(studentFeePayments.transaction_ref_no, transactionId)
+        where: eq(studentFeePayments.transaction_ref_no, cleanTxId)
       });
 
       if (conflictFee) {
@@ -224,7 +240,7 @@ export class FinanceService {
       if (!isFlagged) {
         const conflictReq = await db.query.studentRequests.findFirst({
           where: and(
-            eq(studentRequests.transaction_id, transactionId),
+            eq(studentRequests.transaction_id, cleanTxId),
             ne(studentRequests.status, 'REJECTED')
           )
         });
