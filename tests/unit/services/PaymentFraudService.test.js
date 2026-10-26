@@ -250,7 +250,14 @@ describe('PaymentFraudService & Mandatory 4-Student Fraud Scenarios', () => {
         upiId: 'studentD@upi',
         expectedAmount: 500,
         studentId: 104, // Student D
-        reconciliationFixture: null
+        reconciliationFixture: null,
+        ocrFixture: {
+          success: true,
+          fullText: 'Amount: ₹500.00 Payment Status: SUCCESSFUL UTR: 428190123456',
+          references: ['428190123456'],
+          amounts: [500.00],
+          statuses: ['SUCCESSFUL']
+        }
       });
 
       expect(result.status).toBe(PAYMENT_VERIFICATION_STATUS.NEEDS_REVIEW);

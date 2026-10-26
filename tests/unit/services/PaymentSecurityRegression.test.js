@@ -95,7 +95,14 @@ describe('Payment Fraud & Security Regression Suite', () => {
         imageBuffer: buffer,
         transactionId: '428190123456',
         expectedAmount: 500, // Expected 500, screenshot shows 200
-        studentId: 77
+        studentId: 77,
+        ocrFixture: {
+          success: true,
+          fullText: 'Rs. 200.00 UTR: 428190123456',
+          references: ['428190123456'],
+          amounts: [200.00],
+          statuses: ['SUCCESSFUL']
+        }
       });
 
       expect(result.flags).toContain(FRAUD_FLAGS.AMOUNT_MISMATCH);
