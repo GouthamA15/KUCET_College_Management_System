@@ -148,4 +148,35 @@ describe('Multi-Environment Drizzle Baseline Rules Registry', () => {
     };
     expect(await rule0024.isSatisfied(mockVarcharStudents)).toBe(false);
   });
+
+  it('resolves and evaluates 0028_add_apaar_id baseline rule', async () => {
+    const rule0028 = BASELINE_RULES.find((r) => r.id === 28);
+    expect(rule0028).toBeDefined();
+
+    const mockEntries = [
+      { idx: 27, tag: '0027_remove_class_section', when: 270 },
+      { idx: 28, tag: '0028_add_apaar_id', when: 280 },
+    ];
+
+    const matched = rule0028.getEntries(mockEntries);
+    expect(matched.length).toBe(1);
+    expect(matched[0].idx).toBe(28);
+    expect(rule0028.getReason(matched[0])).toContain('student_personal_details.apaar_id');
+
+    // Both tables already have apaar_id and index
+    const mockBothHaveApaar = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce([[{ count: '1' }]]) // student_personal_details has apaar_id
+        .mockResolvedValueOnce([[{ count: '1' }]]) // student_admission_drafts has apaar_id
+        .mockResolvedValueOnce([[{ count: '1' }]]), // idx_spd_apaar_id exists
+    };
+    expect(await rule0028.isSatisfied(mockBothHaveApaar)).toBe(true);
+
+    // Missing from student_personal_details
+    const mockMissingSpd = {
+      query: vi.fn().mockResolvedValueOnce([[{ count: '0' }]]),
+    };
+    expect(await rule0028.isSatisfied(mockMissingSpd)).toBe(false);
+  });
 });

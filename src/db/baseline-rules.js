@@ -173,6 +173,46 @@ const BASELINE_RULES = [
     },
     getReason: () => 'branch_timetable.section is dropped and uq_timetable_slot matches canonical 5-column definition',
   },
+  {
+    id: 28,
+    description: '0028_add_apaar_id',
+    getEntries: (entries) => entries.filter((e) => e.idx === 28),
+    isSatisfied: async (conn) => {
+      const [spd] = await conn.query(
+        'SELECT COUNT(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = "student_personal_details" AND column_name = "apaar_id"'
+      );
+      const hasSpd = Number(spd?.[0]?.count || 0) > 0;
+      if (!hasSpd) return false;
+
+      // If student_personal_details already has apaar_id, ensure student_admission_drafts has it too
+      try {
+        const [drafts] = await conn.query(
+          'SELECT COUNT(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = "student_admission_drafts" AND column_name = "apaar_id"'
+        );
+        if (Number(drafts?.[0]?.count || 0) === 0) {
+          await conn.query('ALTER TABLE `student_admission_drafts` ADD COLUMN `apaar_id` varchar(20)');
+          try {
+            await conn.query('CREATE INDEX `idx_draft_apaar_id` ON `student_admission_drafts` (`apaar_id`)');
+          } catch (_) {}
+        }
+      } catch (draftErr) {
+        console.warn('⚠️ Draft table apaar_id check skipped:', draftErr.message);
+      }
+
+      // Ensure idx_spd_apaar_id exists if missing
+      try {
+        const [idxSpd] = await conn.query(
+          'SELECT COUNT(*) as count FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = "student_personal_details" AND index_name = "idx_spd_apaar_id"'
+        );
+        if (Number(idxSpd?.[0]?.count || 0) === 0) {
+          await conn.query('CREATE INDEX `idx_spd_apaar_id` ON `student_personal_details` (`apaar_id`)');
+        }
+      } catch (_) {}
+
+      return true;
+    },
+    getReason: () => 'student_personal_details.apaar_id column already exists',
+  },
 ];
 
 module.exports = {
