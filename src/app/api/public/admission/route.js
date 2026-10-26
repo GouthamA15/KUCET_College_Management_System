@@ -9,6 +9,7 @@ import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 import { encrypt, hashForIndex } from '@/lib/encryption';
 import { normalizeAreaStatus } from '@/lib/college-config';
 import { z } from 'zod';
+import { jwtVerify } from 'jose';
 
 export async function POST(req) {
   try {
@@ -30,7 +31,9 @@ export async function POST(req) {
       seat_allotted_category: z.string().trim().max(50).nullable().optional().or(z.literal('')),
       religion: z.string().trim().min(1).max(100),
       mother_tongue: z.string().trim().min(1).max(100),
-      email: z.string().trim().email().toLowerCase().nullable().optional().or(z.literal('')),
+      email: z.string().trim().email('Valid email address is required').toLowerCase(),
+      verification_token: z.string().optional(),
+      verificationToken: z.string().optional(),
       student_mobile: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v.length === 10),
       guardian_mobile: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v === '' || v.length === 10).nullable().optional(),
       aadhaar_no: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v === '' || v.length === 12).nullable().optional(),
@@ -115,6 +118,30 @@ export async function POST(req) {
       curr_house_no, curr_street, curr_apartment, curr_city, curr_state, curr_pincode, curr_country,
       is_current_same_as_permanent, pfp, signature, legal_consent: _legal_consent
     } = validatedData;
+
+    // --- SECURE EMAIL OWNERSHIP VERIFICATION ---
+    const verificationToken = validatedData.verification_token || validatedData.verificationToken || json.verification_token || json.verificationToken;
+    if (!verificationToken) {
+      return apiError('Email verification is required before submitting your application.', 400);
+    }
+
+    let jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('FATAL: JWT_SECRET must be configured in production environment.');
+      }
+      jwtSecret = 'temporary_admission_secret_at_least_32_chars!';
+    }
+    const secret = new TextEncoder().encode(jwtSecret);
+
+    try {
+      const { payload } = await jwtVerify(verificationToken, secret);
+      if (payload.verifiedEmail !== email || payload.purpose !== 'student_admission_email') {
+        return apiError('Email verification does not match the submitted email address.', 400);
+      }
+    } catch (_jwtError) {
+      return apiError('Invalid or expired email verification token. Please verify your email again.', 400);
+    }
     
     // 1. Email Uniqueness Check (Exclude REJECTED drafts so student can re-apply)
     if (email) {

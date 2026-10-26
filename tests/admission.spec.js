@@ -23,12 +23,30 @@ test.describe('Student Admission Flow', () => {
     // Mock image 404s to avoid noise and potential interruptions
     await page.route('**/*.{png,jpg,jpeg,svg}', route => route.fulfill({ status: 200, body: '' }));
 
-    // Mock the admission submission API
-    await page.route('**/api/public/admission*', async (route) => {
+    // Mock Send OTP
+    await page.route('**/api/public/admission/email/send-otp*', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ message: 'Success' }),
+        body: JSON.stringify({ success: true, message: 'OTP sent successfully', maskedEmail: 't***t@example.com' }),
+      });
+    });
+
+    // Mock Verify OTP
+    await page.route('**/api/public/admission/email/verify-otp*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, verificationToken: 'mock-valid-admission-jwt' }),
+      });
+    });
+
+    // Mock the admission submission API
+    await page.route('**/api/public/admission', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, message: 'Success', draftId: 101 }),
       });
     });
 
@@ -73,6 +91,11 @@ test.describe('Student Admission Flow', () => {
     await page.getByLabel('23. Father / Guardian Mobile Number').fill('9876543211');
     
     await page.getByLabel('24. Mail ID of the Student').fill(`teststudent_${Date.now()}@example.com`);
+    await page.getByRole('button', { name: 'Verify Email' }).click();
+    await expect(page.locator('#admission-otp')).toBeVisible();
+    await page.locator('#admission-otp').fill('123456');
+    await page.getByRole('button', { name: 'Submit Code' }).click();
+    await expect(page.getByText('Verified', { exact: true })).toBeVisible();
     
     // Current Address
     await page.locator('#curr_house_no').fill('123');
