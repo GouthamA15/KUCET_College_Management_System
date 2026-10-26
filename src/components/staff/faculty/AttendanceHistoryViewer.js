@@ -204,8 +204,8 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-400">
                             {formatDate(session.date)}
                           </td>
-                          <td colSpan="5" className="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-500 uppercase tracking-widest">
-                            {session.holiday_name ? `${session.day_type} - ${session.holiday_name}` : session.day_type}
+                          <td colSpan="5" className="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-500 uppercase tracking-widest" title={session.holiday_name || session.day_type}>
+                            {session.holiday_name ? (session.holiday_name === 'Weekend' ? 'WEEKEND' : `${session.day_type} - ${session.holiday_name}`) : session.day_type}
                           </td>
                         </tr>
                       );
@@ -338,8 +338,8 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                       <div className="flex justify-between items-center mb-2">
                         <span className="font-bold text-gray-400">{formatDate(session.date)}</span>
                       </div>
-                      <div className="text-center py-2 text-sm font-bold text-gray-500 uppercase tracking-widest">
-                        {session.holiday_name ? `${session.day_type} - ${session.holiday_name}` : session.day_type}
+                      <div className="text-center py-2 text-sm font-bold text-gray-500 uppercase tracking-widest" title={session.holiday_name || session.day_type}>
+                        {session.holiday_name ? (session.holiday_name === 'Weekend' ? 'WEEKEND' : `${session.day_type} - ${session.holiday_name}`) : session.day_type}
                       </div>
                     </div>
                   );

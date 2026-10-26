@@ -31,7 +31,7 @@ export default function AddNewStudent() {
   const [_annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
   const [personal, setPersonal] = useState({ 
     father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', 
-    mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', 
+    mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', apaar_id:'', 
     curr_house_no: '', curr_street: '', curr_apartment: '', curr_city: '', curr_state: '', curr_pincode: '', curr_country: 'India',
     perm_house_no: '', perm_street: '', perm_apartment: '', perm_city: '', perm_state: '', perm_pincode: '', perm_country: 'India',
     is_current_same_as_permanent: false,
@@ -112,6 +112,13 @@ export default function AddNewStudent() {
     return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
   };
 
+  const formatApaar = (val) => {
+    if (val == null) return '';
+    const digits = String(val).replace(/\D/g, '').slice(0, 12);
+    if (!digits) return '';
+    return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+  };
+
   const handleFileChange = async (e, type) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -181,6 +188,7 @@ export default function AddNewStudent() {
         annual_income: personal.annual_income ? personal.annual_income.toString().replace(/,/g, '') : null,
         guardian_mobile: personal.guardian_mobile || null,
         aadhaar_no: personal.aadhaar_no || null,
+        apaar_id: personal.apaar_id ? personal.apaar_id.replace(/\s/g, '') : null,
         ranks: academic.ranks ? Number(academic.ranks) : null,
         ssc_marks: academic.ssc_marks || null,
         inter_marks: academic.inter_marks || null,
@@ -204,7 +212,7 @@ export default function AddNewStudent() {
       setBasic({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'MALE', email:''});
       setPersonal({ 
         father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', 
-        mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', 
+        mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', apaar_id:'', 
         curr_house_no: '', curr_street: '', curr_apartment: '', curr_city: '', curr_state: '', curr_pincode: '', curr_country: 'India',
         perm_house_no: '', perm_street: '', perm_apartment: '', perm_city: '', perm_state: '', perm_pincode: '', perm_country: 'India',
         is_current_same_as_permanent: false,
@@ -337,6 +345,18 @@ export default function AddNewStudent() {
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-1">Aadhaar Number</label>
               <input value={personal.aadhaar_no} onChange={e=>setPersonal({...personal, aadhaar_no: formatAadhaar(e.target.value)})} className="w-full p-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-[#0b3578]" maxLength={14} />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">
+                APAAR ID <span className="text-xs text-gray-400 font-normal">(12 Digits)</span>
+              </label>
+              <input 
+                placeholder="XXXX XXXX XXXX"
+                value={personal.apaar_id || ''} 
+                onChange={e=>setPersonal({...personal, apaar_id: formatApaar(e.target.value)})} 
+                className="w-full p-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-[#0b3578] font-mono" 
+                maxLength={14} 
+              />
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-1">Nationality</label>

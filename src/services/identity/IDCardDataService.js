@@ -401,6 +401,53 @@ export class IDCardDataService {
   }
 
   /**
+   * Generates a structured, versioned QR payload encoding complete student details
+   * matching the physical ID card, backward-compatible with attendance scanners.
+   */
+  static generateStudentQRPayload(student) {
+    if (!student) return null;
+
+    const admissionYear = student.batch && String(student.batch).includes('-')
+      ? String(student.batch).split('-')[0].trim()
+      : (student.admissionDate ? new Date(student.admissionDate).getFullYear().toString() : 'N/A');
+
+    return {
+      schemaVersion: 1,
+      type: 'KUCET_STUDENT_ID',
+      studentId: student.id ? String(student.id) : String(student.rollNo),
+      hallTicketNumber: student.rollNo,
+      roll: student.rollNo, // Backward compatibility alias
+      fullName: student.studentName || 'N/A',
+      fatherName: student.fatherName || 'N/A',
+      branch: student.branch,
+      course: student.courseDisplay || `B.Tech (${student.branch})`,
+      academicYear: student.batch || 'N/A',
+      admissionYear,
+      collegeName: 'KU COLLEGE OF ENGINEERING & TECHNOLOGY',
+      collegeAddress: 'Kakatiya University Campus, Vidyaranyapuri, Warangal 506 009',
+      studentAddress: student.studentAddress || 'N/A',
+      phone: student.studentPhone || 'N/A',
+      bloodGroup: student.bloodGroup || 'N/A',
+    };
+  }
+
+  /**
+   * Generates a high-contrast, scannable QR Code Data URL with standard quiet zone
+   */
+  static async generateStudentQRDataUrl(student) {
+    const payload = this.generateStudentQRPayload(student);
+    if (!payload) return null;
+
+    const jsonString = JSON.stringify(payload);
+    return QRCode.toDataURL(jsonString, {
+      errorCorrectionLevel: 'M',
+      margin: 2,
+      width: 320,
+      color: { dark: '#000000', light: '#ffffff' },
+    });
+  }
+
+  /**
    * Retrieves single student details for ID card preview or generation
    */
   static async getStudentRecordByRollNo(rollNo, { firstYearOnly = false } = {}) {
@@ -459,17 +506,7 @@ export class IDCardDataService {
     // Generate Verification QR Code
     let qrUrl = null;
     try {
-      const qrPayload = JSON.stringify({
-        roll: student.rollNo,
-        name: student.studentName,
-        branch: student.branch,
-        batch: student.batch,
-      });
-      qrUrl = await QRCode.toDataURL(qrPayload, {
-        margin: 1,
-        width: 120,
-        color: { dark: '#000000', light: '#ffffff' },
-      });
+      qrUrl = await this.generateStudentQRDataUrl(student);
     } catch (err) {
       logger.warn({ roll: student.rollNo, err: err.message }, 'Failed to generate QR code for ID card');
     }
@@ -551,17 +588,7 @@ export class IDCardDataService {
       matches.map(async (student) => {
         let qrUrl = null;
         try {
-          const qrPayload = JSON.stringify({
-            roll: student.rollNo,
-            name: student.studentName,
-            branch: student.branch,
-            batch: student.batch,
-          });
-          qrUrl = await QRCode.toDataURL(qrPayload, {
-            margin: 1,
-            width: 120,
-            color: { dark: '#000000', light: '#ffffff' },
-          });
+          qrUrl = await this.generateStudentQRDataUrl(student);
         } catch (_err) {
           logger.debug({ roll: student.rollNo }, 'Bulk QR generation skipped');
         }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStaff } from '@/context/StaffContext';
 import toast from 'react-hot-toast';
@@ -8,6 +8,7 @@ import { StaffDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
 
 export default function AdmissionDashboardClient() {
   const router = useRouter();
+  const [missingApaarCount, setMissingApaarCount] = useState(0);
   const { 
     staffData: staff, 
     loading: isLoading, 
@@ -67,6 +68,27 @@ export default function AdmissionDashboardClient() {
       return new Date(r.actionTime).toDateString() === todayStr;
     }).length;
   }, [studentHistory]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchStats() {
+      try {
+        const res = await fetch('/api/staff/admission/apaar-stats');
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted) {
+            setMissingApaarCount(Number(data.missing_count || 0));
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load APAAR stats', e);
+      }
+    }
+    if (staff?.role === 'admission' || staff?.role === 'admin') {
+      fetchStats();
+    }
+    return () => { isMounted = false; };
+  }, [staff?.role]);
 
   useEffect(() => {
     if (!isLoading && staff && staff.role !== 'admission') {
@@ -203,6 +225,28 @@ export default function AdmissionDashboardClient() {
             </div>
           </div>
         </header>
+
+        {missingApaarCount > 0 && (
+          <div 
+            onClick={() => router.push('/staff/admission/student-management?missing_apaar=true')}
+            className="cursor-pointer bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 text-amber-900 px-4 py-3 rounded-lg flex items-center justify-between gap-3 shadow-sm hover:border-amber-400 transition-all group shrink-0"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-xl">⚠️</span>
+              <div>
+                <p className="text-sm font-bold text-amber-900">
+                  {missingApaarCount} Active Student{missingApaarCount > 1 ? 's' : ''} Missing APAAR ID
+                </p>
+                <p className="text-xs text-amber-700">
+                  Academic Bank of Credits compliance requires 12-digit APAAR registration. Click to open Student Registry with filtered records.
+                </p>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-200/70 px-2.5 py-1 rounded-md group-hover:bg-amber-200 transition-colors shrink-0">
+              Resolve Registry &rarr;
+            </span>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-4 lg:flex lg:flex-col lg:gap-3 lg:flex-1 lg:min-h-0">
           <div className="order-1 lg:order-none lg:contents flex flex-col gap-4 lg:gap-3 lg:min-h-0">

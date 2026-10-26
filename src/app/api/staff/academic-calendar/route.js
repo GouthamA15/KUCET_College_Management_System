@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { academicCalendar } from '@/db/schema';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
+import { clearCalendarSessionCache } from '@/lib/academic-utils';
 
 export async function GET(request) {
   try {
@@ -79,6 +80,7 @@ export async function POST(request) {
         }
       });
 
+      clearCalendarSessionCache();
       return apiResponse({ message: 'Calendar updated successfully' });
     } catch (error) {
       logger.error('API_POST_ACADEMIC_CALENDAR_ERROR:', error);

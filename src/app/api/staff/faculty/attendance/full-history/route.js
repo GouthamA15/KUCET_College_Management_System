@@ -63,6 +63,7 @@ export async function GET(request) {
       return apiError('Assignment not found', 404);
     }
     const assignment = assignments[0];
+    const calendarTerm = ((Number(assignment.course_semester) - 1) % 2) + 1;
 
     // Get all generated dates for this semester from the Academic Calendar
     const { academicCalendar } = await import('@/db/schema');
@@ -84,7 +85,7 @@ export async function GET(request) {
     ))
     .where(and(
       eq(academicCalendar.academic_year, assignment.academic_year),
-      eq(academicCalendar.semester, assignment.course_semester)
+      eq(academicCalendar.semester, calendarTerm)
     ))
     .orderBy(asc(academicCalendar.date), asc(sql`COALESCE(${attendanceSessions.session_number}, 1)`));
 

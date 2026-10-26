@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Info, X } from 'lucide-react';
+import Link from 'next/link';
+import { Info, X, ShieldCheck, CheckCircle2, AlertCircle, CreditCard, Lock, ArrowRight } from 'lucide-react';
 import { useStudent } from '@/context/StudentContext';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import FinancialSummaryTable from '@/components/student/FinancialSummaryTable';
@@ -38,6 +39,14 @@ export default function StudentFinancesClient() {
 
   const student = studentData?.student || null;
   const branch = student ? getBranchFromRoll(student.roll_no) : null;
+  const effectiveApaarId = student?.apaar_id || student?.personal_details?.apaar_id || null;
+
+  const formatApaar = (val) => {
+    if (val == null) return '';
+    const digits = String(val).replace(/\D/g, '').slice(0, 12);
+    if (!digits) return '';
+    return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+  };
 
   const scholarshipList = studentData?.scholarship || [];
   const feeRecords = studentData?.fees || [];
@@ -232,6 +241,67 @@ export default function StudentFinancesClient() {
         <Info className="w-5 h-5 shrink-0 mt-0.5" />
         <span>The Finances module and its core features (Academic ledger, Fee payments, and Transactions) are currently in the construction stage. Data shown may be for testing purposes and not final.</span>
       </div>
+
+      {/* Institutional APAAR ID Card */}
+      {effectiveApaarId ? (
+        <div className="bg-white rounded-md border border-slate-200 shadow-sm p-4 sm:p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-lg bg-[#0b3578]/10 text-[#0b3578] flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-5 h-5 text-[#0b3578]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Academic Bank of Credits</span>
+                <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[11px] font-semibold">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified &amp; Locked
+                </span>
+              </div>
+              <h3 className="text-base font-semibold text-slate-800 mt-0.5">APAAR ID (Automated Permanent Academic Account Registry)</h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-xl">
+                Officially linked to your student identity for national academic credit accumulation and scholarship sanction audits. To request updates, contact the Admission Office.
+              </p>
+            </div>
+          </div>
+          <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 flex items-center gap-2 self-start md:self-center shrink-0">
+            <Lock className="w-4 h-4 text-slate-400" />
+            <span className="font-mono text-base font-bold text-[#0b3578] tracking-wider">
+              {formatApaar(effectiveApaarId)}
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-md border border-amber-200 shadow-sm p-4 sm:p-5">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shrink-0 border border-amber-200">
+                <CreditCard className="w-5 h-5 text-amber-700" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Academic Bank of Credits</span>
+                  <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded text-[11px] font-semibold">
+                    <AlertCircle className="w-3 h-3 text-amber-600" /> Action Required
+                  </span>
+                </div>
+                <h3 className="text-base font-semibold text-slate-800 mt-0.5">APAAR ID Registration Pending</h3>
+                <p className="text-xs text-slate-600 mt-1 max-w-xl">
+                  APAAR ID is mandatory for national academic credit accumulation and scholarship sanction audits. Visit the official guidance portal to generate and submit your verified 12-digit ID.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center shrink-0 w-full sm:w-auto">
+              <Link
+                href="/student/apaar"
+                className="w-full sm:w-auto px-4 py-2 text-xs sm:text-sm font-semibold rounded-md bg-[#0b3578] text-white hover:bg-[#082654] shadow-sm transition-colors whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>View Guidance &amp; Register</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Responsive 2x2 Mobile / 4x1 Desktop Grid with subtle border designs */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

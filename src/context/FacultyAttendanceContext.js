@@ -1,8 +1,27 @@
 'use client';
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+
+import { 
+  createContext, 
+  useContext, 
+  useState, 
+  useEffect, 
+  useCallback, 
+  useRef, 
+  useMemo 
+} from 'react';
 import toast from 'react-hot-toast';
+import { 
+  savePendingAttendance, 
+  getPendingAttendance, 
+  deletePendingAttendance,
+  updatePendingAttendance,
+  saveAttendanceDraft,
+  getAttendanceDraft,
+  getLatestAttendanceDraft,
+  clearAttendanceDraft,
+  requestBackgroundSync
+} from '@/lib/idb-attendance';
 import RealtimeListener from '@/components/RealtimeListener';
-import { getPendingAttendance, savePendingAttendance, deletePendingAttendance } from '@/lib/idb-attendance';
 
 const FacultyAttendanceContext = createContext(null);
 
@@ -12,6 +31,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
   const [baseStudents, setBaseStudents] = useState([]);
   const [attendanceStatusMap, setAttendanceStatusMap] = useState({});
   const [currentTopicCovered, setCurrentTopicCovered] = useState('');
+  const [isDraftDirty, setIsDraftDirty] = useState(false);
 
   const [existingSessionsForSelectedDate, setExistingSessionsForSelectedDate] = useState([]);
   const [dayInfo, setDayInfo] = useState(null);
@@ -27,6 +47,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
   const [verifiedStudentIds, setVerifiedStudentIds] = useState(new Set());
   const [pendingSyncs, setPendingSyncs] = useState([]);
   const [topicModalSession, setTopicModalSession] = useState(null);
+  const autoSaveTimerRef = useRef(null);
 
   // --- ACTIONS (useCallback) ---
 
@@ -49,7 +70,6 @@ export function FacultyAttendanceProvider({ assignment, children }) {
         pfp: s.pfp || null,
       }));
       setBaseStudents(base);
-      setAttendanceStatusMap({});
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -85,7 +105,9 @@ export function FacultyAttendanceProvider({ assignment, children }) {
       const cached = attendanceCacheRef.current[cacheKey];
       setAttendanceStatusMap(cached.statusMap || {});
       setExistingSessionsForSelectedDate(cached.sessions || []);
-      setCurrentTopicCovered(cached.topicCovered || '');
+      if (cached.topicCovered) {
+        setCurrentTopicCovered(cached.topicCovered);
+      }
       return;
     }
 
@@ -102,7 +124,9 @@ export function FacultyAttendanceProvider({ assignment, children }) {
       setVerifiedStudentIds(verifiedIds);
 
       const topicFromApi = data.topic_covered || '';
-      setCurrentTopicCovered(topicFromApi);
+      if (topicFromApi) {
+        setCurrentTopicCovered(topicFromApi);
+      }
 
       if (dateToUse) {
         const serverStatusMap = (data.data || []).reduce((acc, r) => {
@@ -136,7 +160,22 @@ export function FacultyAttendanceProvider({ assignment, children }) {
         }
       }
     } catch (error) {
-      if (dateToUse) toast.error(error.message);
+      if (dateToUse) {
+        // If offline or network error, attempt to load local draft
+        if (!navigator.onLine || error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+          try {
+            const draft = await getAttendanceDraft(assignment.staff_account_id, assignment.id, dateToUse, sessionToUse);
+            if (draft) {
+              if (draft.status_map) setAttendanceStatusMap(draft.status_map);
+              if (draft.topic) setCurrentTopicCovered(draft.topic);
+            }
+          } catch (_e) {
+            // Silently fall through if draft lookup fails in offline mode
+          }
+        } else {
+          toast.error(error.message);
+        }
+      }
     } finally {
       setStatusLoading(false);
     }
@@ -154,11 +193,12 @@ export function FacultyAttendanceProvider({ assignment, children }) {
   const syncOfflineAttendance = useCallback(async (idToSync = null) => {
     try {
       const allPending = await getPendingAttendance();
-      const toSync = idToSync ? allPending.filter((p) => p.id === idToSync) : allPending;
+      const toSync = idToSync ? allPending.filter((p) => p.id === idToSync || p.client_op_id === idToSync) : allPending;
 
       if (toSync.length === 0) return;
 
       setSubmitting(true);
+      toast.loading('Syncing offline attendance...', { id: 'bulk-sync' });
 
       const res = await fetch('/api/staff/faculty/attendance/bulk-sync', {
         method: 'POST',
@@ -173,13 +213,26 @@ export function FacultyAttendanceProvider({ assignment, children }) {
         for (const syncedId of data.synced_ids) {
           await deletePendingAttendance(syncedId);
         }
-        toast.success(`Successfully synced ${data.synced_ids.length} offline attendance records.`);
-        await refreshPendingSyncs();
-        fetchAttendanceStatus(null, null, true);
+        toast.success(`Successfully synced ${data.synced_ids.length} offline attendance records.`, { id: 'bulk-sync' });
       }
+
+      if (data.errors && data.errors.length > 0) {
+        for (const errItem of data.errors) {
+          if (errItem.id) {
+            await updatePendingAttendance(errItem.id, {
+              sync_status: 'FAILED',
+              last_error: errItem.error
+            });
+          }
+        }
+        toast.error(`Some records failed to sync: ${data.errors[0].error}`, { id: 'bulk-sync-err' });
+      }
+
+      await refreshPendingSyncs();
+      fetchAttendanceStatus(null, null, true);
     } catch (err) {
       console.error('Bulk Offline Sync Error:', err);
-      toast.error(err.message || 'Failed to sync offline attendance records.');
+      toast.error(err.message || 'Failed to sync offline attendance records.', { id: 'bulk-sync' });
     } finally {
       setSubmitting(false);
     }
@@ -319,6 +372,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
 
   const handleSaveAttendance = useCallback(async (explicitTopic = undefined) => {
     if (!assignment?.id) return;
+    if (submitting) return; // Prevent duplicate rapid submission
     
     // 1. Strict topic normalization (defends against React SyntheticMouseEvent from onClick)
     const topicToSave = typeof explicitTopic === 'string' 
@@ -365,15 +419,17 @@ export function FacultyAttendanceProvider({ assignment, children }) {
           attendance_data: attendanceData,
         }),
       }).catch(async (err) => {
-        if (!navigator.onLine || err.message?.includes('Failed to fetch')) {
+        if (!navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')) {
           const payload = {
             assignment_id: assignment.id,
             subject_name: assignment.subject_name,
             date: selectedDate,
             session: selectedSession,
+            topic_covered: cleanTopic,
             attendance_data: attendanceData,
           };
           await savePendingAttendance(payload);
+          await requestBackgroundSync('sync-attendance');
           await refreshPendingSyncs();
           throw new Error('OFFLINE_SAVED');
         }
@@ -387,6 +443,16 @@ export function FacultyAttendanceProvider({ assignment, children }) {
 
       if (data.topic_covered) {
         setCurrentTopicCovered(data.topic_covered);
+      } else if (cleanTopic) {
+        setCurrentTopicCovered(cleanTopic);
+      }
+
+      // Clear draft on successful save
+      try {
+        await clearAttendanceDraft(assignment.staff_account_id, assignment.id, selectedDate, selectedSession);
+        setIsDraftDirty(false);
+      } catch (_e) {
+        // Silently continue if draft cleanup fails
       }
 
       if (activeSession) {
@@ -394,17 +460,28 @@ export function FacultyAttendanceProvider({ assignment, children }) {
       }
 
       await fetchAttendanceStatus(selectedDate, selectedSession, true);
-      setTopicModalSession({
-        assignmentId: assignment.id,
-        date: selectedDate,
-        session: selectedSession,
-        initialTopic: data.topic_covered || cleanTopic || ''
-      });
+
+      // Topic Popup logic: ONLY prompt modal if topic is genuinely missing/empty!
+      const effectiveTopic = data.topic_covered || cleanTopic || currentTopicCovered;
+      const hasValidTopic = typeof effectiveTopic === 'string' && effectiveTopic.trim().length >= 2;
+
+      if (!hasValidTopic) {
+        setTopicModalSession({
+          assignmentId: assignment.id,
+          date: selectedDate,
+          session: selectedSession,
+          initialTopic: ''
+        });
+      } else {
+        setTopicModalSession(null);
+      }
     } catch (error) {
       if (error.message === 'OFFLINE_SAVED') {
         toast.success('Offline: Attendance saved to device. It will sync automatically when you are back online.', { duration: 5000, id: 'attendance-save' });
         setActiveSession(null);
         setSubmitting(false);
+        setIsDraftDirty(false);
+        setTopicModalSession(null);
         return;
       }
 
@@ -416,7 +493,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     } finally {
       setSubmitting(false);
     }
-  }, [assignment, baseStudents, attendanceStatusMap, dateValidation?.isValid, selectedDate, selectedSession, activeSession, endSession, refreshPendingSyncs, currentTopicCovered, fetchAttendanceStatus]);
+  }, [assignment, baseStudents, attendanceStatusMap, dateValidation?.isValid, selectedDate, selectedSession, activeSession, endSession, refreshPendingSyncs, currentTopicCovered, fetchAttendanceStatus, submitting]);
 
   const handleDeleteAttendance = useCallback(async () => {
     if (!assignment?.id) return;
@@ -441,6 +518,14 @@ export function FacultyAttendanceProvider({ assignment, children }) {
       if (!res.ok) throw new Error(data.error || 'Failed to delete attendance');
 
       toast.success('Attendance deleted successfully');
+
+      // Clear draft for this session
+      try {
+        await clearAttendanceDraft(assignment.staff_account_id, assignment.id, selectedDate, selectedSession);
+        setIsDraftDirty(false);
+      } catch (_e) {
+        // Silently continue if draft cleanup fails
+      }
 
       const cacheKey = `${selectedDate}-${selectedSession}`;
       delete attendanceCacheRef.current[cacheKey];
@@ -520,6 +605,45 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     }
   }, [assignment.id, fetchAttendanceStatus]);
 
+  // --- AUTO-SAVE DRAFTS TO INDEXEDDB ---
+  useEffect(() => {
+    if (!assignment?.id || !selectedDate || !dateValidation?.isValid) return;
+
+    const hasMarks = Object.keys(attendanceStatusMap).length > 0;
+    const hasTopic = Boolean(currentTopicCovered && currentTopicCovered.trim().length > 0);
+
+    if (!hasMarks && !hasTopic) return;
+
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+
+    autoSaveTimerRef.current = setTimeout(async () => {
+      try {
+        await saveAttendanceDraft({
+          facultyId: assignment.staff_account_id,
+          assignmentId: assignment.id,
+          date: selectedDate,
+          session: selectedSession,
+          topic: currentTopicCovered,
+          statusMap: attendanceStatusMap,
+          dayInfo,
+          dateValidation,
+          isDirty: true
+        });
+        setIsDraftDirty(true);
+      } catch (e) {
+        console.warn('Auto-save draft error:', e);
+      }
+    }, 600);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [attendanceStatusMap, currentTopicCovered, selectedDate, selectedSession, assignment?.id, assignment?.staff_account_id, dayInfo, dateValidation]);
+
   // --- SYNCS (useEffect) ---
 
   useEffect(() => {
@@ -534,10 +658,32 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     };
 
     window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, [refreshPendingSyncs, syncOfflineAttendance]);
 
+    const handleSWMessage = (event) => {
+      if (event.data?.type === 'ATTENDANCE_SYNCED') {
+        refreshPendingSyncs();
+        fetchAttendanceStatus(null, null, true);
+        if (event.data.synced_count > 0) {
+          toast.success(`Background sync: ${event.data.synced_count} offline record(s) synchronized.`, { id: 'sw-sync-complete' });
+        }
+      }
+    };
+
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleSWMessage);
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleSWMessage);
+      }
+    };
+  }, [refreshPendingSyncs, syncOfflineAttendance, fetchAttendanceStatus]);
+
+  // --- INITIALIZATION & DRAFT RECOVERY ---
   useEffect(() => {
+    let isCancelled = false;
     const init = async () => {
       setSelectedDate(null);
       setSelectedSession(1);
@@ -554,8 +700,28 @@ export function FacultyAttendanceProvider({ assignment, children }) {
 
       await fetchBaseStudents();
       await fetchActiveSession();
+
+      // Check for saved local draft to restore unfinished session
+      try {
+        const latestDraft = await getLatestAttendanceDraft(assignment?.staff_account_id, assignment?.id);
+        if (latestDraft && !isCancelled && latestDraft.date) {
+          setSelectedDate(latestDraft.date);
+          setSelectedSession(latestDraft.session || 1);
+          if (latestDraft.day_info) setDayInfo(latestDraft.day_info);
+          if (latestDraft.date_validation) setDateValidation(latestDraft.date_validation);
+          if (latestDraft.topic) setCurrentTopicCovered(latestDraft.topic);
+          if (latestDraft.status_map && Object.keys(latestDraft.status_map).length > 0) {
+            setAttendanceStatusMap(latestDraft.status_map);
+            setIsDraftDirty(Boolean(latestDraft.is_dirty));
+            toast.success(`Restored draft for ${latestDraft.date} (Session ${latestDraft.session || 1})`, { id: 'draft-restored', duration: 4000 });
+          }
+        }
+      } catch (draftErr) {
+        console.warn('Draft recovery check:', draftErr);
+      }
     };
     init();
+    return () => { isCancelled = true; };
   }, [assignment, fetchBaseStudents, fetchActiveSession]);
 
   useEffect(() => {
@@ -623,7 +789,8 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     pendingSyncs,
     syncOfflineAttendance,
     topicModalSession,
-    setTopicModalSession
+    setTopicModalSession,
+    isDraftDirty,
   };
 
   return (

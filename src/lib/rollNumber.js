@@ -129,9 +129,58 @@ function canonicalizeRollNo(rollNo) {
   return rollNo.trim().toUpperCase().replace(/^(\d{2}567)T?/i, '$1T');
 }
 
+/**
+ * Extracts and canonicalizes the student Roll Number from raw QR scanner output.
+ * Fully backward-compatible with structured JSON, legacy JSON, labeled text, and raw regex.
+ */
+function extractRollNumberFromQR(decodedText) {
+  if (!decodedText || typeof decodedText !== 'string') return null;
+
+  let extractedRoll = null;
+
+  // 0. Structured JSON Parse (preferred for versioned ID Card QR payloads)
+  const trimmed = decodedText.trim();
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      const candidate = parsed.hallTicketNumber || parsed.roll || parsed.rollNo;
+      if (candidate && typeof candidate === 'string') {
+        extractedRoll = candidate.trim();
+      }
+    } catch (_) {
+      // Fall through to regex
+    }
+  }
+
+  // 1. Direct Regex Search: Look for the specific KUCET roll number pattern anywhere in the text
+  // Note: Removed word boundaries (\b) and restricted serial to exactly 2 chars to extract safely from squashed text (e.g. 255671862LNAME)
+  if (!extractedRoll) {
+    const rollPatternMatch = decodedText.match(/(\d{2}567T?(?:09|30|15|12|00|18|03)[A-Za-z0-9]{2}L?)/i);
+    
+    if (rollPatternMatch) {
+      extractedRoll = rollPatternMatch[1].trim();
+    } else {
+      // Fallback: If it's formatted weirdly but has a clear label, extract exactly 10 characters (KUCET roll length)
+      const labelMatch = decodedText.match(/(?:HALL-TICKET-NO|HT-No|HT NO|ROLL NO)\s*[:-]?\s*([A-Za-z0-9]{10})/i);
+      if (labelMatch) {
+        extractedRoll = labelMatch[1].trim();
+      } else if (decodedText.length < 10) {
+        extractedRoll = decodedText.trim();
+      } else {
+        // Log internally and ignore to prevent polluting the scanner with giant strings
+        return null;
+      }
+    }
+  }
+
+  const rollNo = extractedRoll.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  return rollNo || null;
+}
+
 export {
   validateRollNo,
   canonicalizeRollNo,
+  extractRollNumberFromQR,
   getEntryYearFromRoll,
   getBranchFromRoll,
   getAdmissionTypeFromRoll,
