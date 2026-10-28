@@ -20,11 +20,11 @@ export function isValidSubjectType(type) {
 }
 
 export async function runSubjectCatalogAudit() {
-  console.log('--- KUCET Academic Catalogue Consistency Audit ---\n');
+  console.info('--- KUCET Academic Catalogue Consistency Audit ---\n');
 
   // 1. Check syllabus_subjects validity
   const allSubjects = await query('SELECT subject_code, subject_name, subject_type FROM syllabus_subjects ORDER BY subject_code ASC');
-  console.log(`Total subjects in syllabus_subjects: ${allSubjects.length}`);
+  console.info(`Total subjects in syllabus_subjects: ${allSubjects.length}`);
 
   const invalidTypes = [];
   const suspiciousTheories = [];
@@ -71,22 +71,22 @@ export async function runSubjectCatalogAudit() {
   `);
 
   // Report Findings
-  console.log(`- Invalid subject_type count: ${invalidTypes.length}`);
-  console.log(`- Suspicious theory entries (name contains lab/practical or code ends in L): ${suspiciousTheories.length}`);
+  console.info(`- Invalid subject_type count: ${invalidTypes.length}`);
+  console.info(`- Suspicious theory entries (name contains lab/practical or code ends in L): ${suspiciousTheories.length}`);
   if (suspiciousTheories.length > 0) {
-    console.table(suspiciousTheories);
+    console.warn(JSON.stringify(suspiciousTheories, null, 2));
   }
-  console.log(`- Suspicious lab entries: ${suspiciousLabs.length}`);
+  console.info(`- Suspicious lab entries: ${suspiciousLabs.length}`);
   if (suspiciousLabs.length > 0) {
-    console.table(suspiciousLabs);
+    console.warn(JSON.stringify(suspiciousLabs, null, 2));
   }
-  console.log(`- Orphaned faculty assignments (no syllabus_subjects entry): ${orphanedAssignments.length}`);
+  console.info(`- Orphaned faculty assignments (no syllabus_subjects entry): ${orphanedAssignments.length}`);
   if (orphanedAssignments.length > 0) {
-    console.table(orphanedAssignments);
+    console.warn(JSON.stringify(orphanedAssignments, null, 2));
   }
-  console.log(`- Orphaned syllabus structure mappings: ${orphanedStructure.length}`);
+  console.info(`- Orphaned syllabus structure mappings: ${orphanedStructure.length}`);
   if (orphanedStructure.length > 0) {
-    console.table(orphanedStructure);
+    console.warn(JSON.stringify(orphanedStructure, null, 2));
   }
 
   const isClean = invalidTypes.length === 0 && 
@@ -95,7 +95,7 @@ export async function runSubjectCatalogAudit() {
                   orphanedAssignments.length === 0 && 
                   orphanedStructure.length === 0;
 
-  console.log(`\nAudit Result: ${isClean ? 'PASSED (Catalogue Consistent)' : 'WARNINGS FOUND'}`);
+  console.info(`\nAudit Result: ${isClean ? 'PASSED (Catalogue Consistent)' : 'WARNINGS FOUND'}`);
   return {
     isClean,
     totalSubjects: allSubjects.length,
