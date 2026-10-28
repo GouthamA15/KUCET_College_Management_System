@@ -5,6 +5,8 @@ import { GET as fullCsvGET } from '@/app/api/staff/faculty/attendance/export/csv
 import { getAuthUser } from '@/lib/api-utils';
 import { staffAccounts } from '@/db/schema';
 
+const hasLiveDb = Boolean(process.env.DB_HOST && process.env.SKIP_ENV_VALIDATION !== 'true');
+
 vi.mock('@/lib/api-utils', async (importOriginal) => {
   const actual = await importOriginal();
   return {
@@ -19,7 +21,7 @@ describe('Attendance Export Integration Suite against Live Assignment 450014', (
     expect(staffAccounts.full_name).toBeUndefined();
   });
 
-  it('generates real Attendance Session PDF for assignment 450014, date 2026-10-28, session 2', async () => {
+  it.skipIf(!hasLiveDb)('generates real Attendance Session PDF for assignment 450014, date 2026-10-28, session 2', async () => {
     getAuthUser.mockResolvedValue({
       id: 90001,
       role: 'faculty',
@@ -46,7 +48,7 @@ describe('Attendance Export Integration Suite against Live Assignment 450014', (
     expect(header).toBe('%PDF-');
   }, 30000);
 
-  it('generates real Full Attendance PDF for assignment 450014', async () => {
+  it.skipIf(!hasLiveDb)('generates real Full Attendance PDF for assignment 450014', async () => {
     getAuthUser.mockResolvedValue({
       id: 90001,
       role: 'faculty',
@@ -69,7 +71,7 @@ describe('Attendance Export Integration Suite against Live Assignment 450014', (
     expect(header).toBe('%PDF-');
   }, 30000);
 
-  it('generates real Full Attendance CSV for assignment 450014', async () => {
+  it.skipIf(!hasLiveDb)('generates real Full Attendance CSV for assignment 450014', async () => {
     getAuthUser.mockResolvedValue({
       id: 90001,
       role: 'faculty',
