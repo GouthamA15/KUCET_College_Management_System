@@ -225,6 +225,89 @@ const BASELINE_RULES = [
     },
     getReason: () => 'student_attendance.submitted_at column already exists',
   },
+  {
+    id: 30,
+    description: '0030_attendance_architecture_optimization',
+    getEntries: (entries) => entries.filter((e) => e.idx === 30),
+    isSatisfied: async (conn) => {
+      const [colAs] = await conn.query(
+        'SELECT COUNT(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = "attendance_sessions" AND column_name = "total_students"'
+      );
+      const hasAs = Number(colAs?.[0]?.count || 0) > 0;
+
+      const [colSa] = await conn.query(
+        'SELECT COUNT(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = "student_attendance" AND column_name = "session_id"'
+      );
+      const hasSa = Number(colSa?.[0]?.count || 0) > 0;
+
+      // Clean pre-migration schema: neither exists, let Drizzle run migration 0030
+      if (!hasAs && !hasSa) {
+        return false;
+      }
+
+      // Both already exist: fully migrated
+      if (hasAs && hasSa) {
+        return true;
+      }
+
+      // Partially migrated state: attendance_sessions has columns, but student_attendance pending
+      if (hasAs && !hasSa) {
+        console.info('ℹ️ Resolving partial migration 0030: Adding session_id to student_attendance...');
+        await conn.query('ALTER TABLE `student_attendance` ADD COLUMN `session_id` int NULL');
+
+        // Backfill session_id if records exist
+        try {
+          await conn.query(`
+            UPDATE student_attendance sa
+            JOIN attendance_sessions s
+              ON sa.assignment_id = s.assignment_id
+             AND sa.date = s.attendance_date
+             AND sa.session = s.session_number
+            SET sa.session_id = s.id
+            WHERE sa.session_id IS NULL
+          `);
+        } catch (bfErr) {
+          console.warn('⚠️ Attendance session_id backfill skipped:', bfErr.message);
+        }
+
+        // Apply remaining indexes and foreign key
+        try {
+          await conn.query('ALTER TABLE `student_attendance` ADD UNIQUE INDEX `uq_student_attendance` (`student_id`, `assignment_id`, `date`, `session`)');
+        } catch (idxErr) {
+          console.warn('⚠️ Unique index uq_student_attendance skipped:', idxErr.message);
+        }
+
+        try {
+          await conn.query('ALTER TABLE `student_attendance` ADD UNIQUE INDEX `uq_session_student` (`session_id`, `student_id`)');
+        } catch (idxErr) {
+          console.warn('⚠️ Unique index uq_session_student skipped:', idxErr.message);
+        }
+
+        try {
+          await conn.query('ALTER TABLE `student_attendance` ADD INDEX `idx_sa_student_assignment` (`student_id`, `assignment_id`)');
+        } catch (idxErr) {
+          console.warn('⚠️ Index idx_sa_student_assignment skipped:', idxErr.message);
+        }
+
+        try {
+          await conn.query('ALTER TABLE `student_attendance` ADD INDEX `idx_sa_session_status` (`session_id`, `status`)');
+        } catch (idxErr) {
+          console.warn('⚠️ Index idx_sa_session_status skipped:', idxErr.message);
+        }
+
+        try {
+          await conn.query('ALTER TABLE `student_attendance` ADD CONSTRAINT `fk_sa_session` FOREIGN KEY (`session_id`) REFERENCES `attendance_sessions` (`id`) ON DELETE CASCADE');
+        } catch (fkErr) {
+          console.warn('⚠️ Foreign key fk_sa_session skipped:', fkErr.message);
+        }
+
+        return true;
+      }
+
+      return false;
+    },
+    getReason: () => 'attendance_sessions and student_attendance architecture optimization verified',
+  },
 ];
 
 module.exports = {
