@@ -7,6 +7,14 @@ import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
 import { isValidFacultyBranch } from '@/lib/staff-config';
 import { z } from 'zod';
 
+class ValidationError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'ValidationError';
+    this.statusCode = 400;
+  }
+}
+
 export async function GET(req, context) {
   const user = await getAuthUser('admin');
   if (!user) return apiError('Unauthorized', 401);
@@ -212,9 +220,9 @@ export async function PUT(req, context) {
 
     // Validate with Zod
     const updateSchema = z.object({
-      name: z.string().optional(),
-      email: z.string().email().optional(),
-      employee_id: z.string().trim().min(1).max(50).optional(),
+      name: z.string().trim().min(1, 'Name cannot be empty').max(100).optional(),
+      email: z.string().trim().email('Invalid email address').optional(),
+      employee_id: z.string().trim().min(1, 'Employee ID cannot be empty').max(50).optional(),
       is_active: z.boolean().default(true).optional(),
       is_hod: z.boolean().optional(),
       hod_branches: z.array(z.string()).optional(),
@@ -268,10 +276,21 @@ export async function PUT(req, context) {
     await db.transaction(async (tx) => {
       // 1. Update Staff Account Details & Status
       const updatePayload = {};
-      if (name !== undefined) updatePayload.name = name;
-      if (email !== undefined) updatePayload.email = email.toLowerCase();
-      if (employee_id !== undefined) updatePayload.employee_id = employee_id;
-      if (is_active !== undefined) updatePayload.account_status = is_active ? 'ACTIVE' : 'SUSPENDED';
+      if (name !== undefined) updatePayload.name = name.trim();
+      if (email !== undefined) updatePayload.email = email.toLowerCase().trim();
+      if (employee_id !== undefined) updatePayload.employee_id = employee_id.trim();
+      if (is_active !== undefined) {
+        updatePayload.account_status = is_active ? 'ACTIVE' : 'SUSPENDED';
+        if (is_active === false) {
+          // Revoke active sessions and refresh tokens on deactivation
+          if (tx.userSessions) {
+            await tx.delete(tx.userSessions).where(and(eq(tx.userSessions.user_id, idNum), eq(tx.userSessions.user_type, 'staff')));
+          } else {
+            await tx.execute(sql`DELETE FROM user_sessions WHERE user_id = ${idNum} AND (user_type = 'staff' OR user_type = 'STAFF')`);
+          }
+          await tx.execute(sql`DELETE FROM refresh_tokens WHERE user_id = ${idNum.toString()} AND user_type = 'staff'`);
+        }
+      }
       
       if (Object.keys(updatePayload).length > 0) {
         await tx.update(staffAccounts).set(updatePayload).where(eq(staffAccounts.id, idNum));
@@ -295,10 +314,10 @@ export async function PUT(req, context) {
         });
         
         if (isTeaching && !newRoles.includes('faculty')) {
-          throw new Error('Teaching roles (faculty) cannot be shifted to non-teaching roles.');
+          throw new ValidationError('Teaching roles (faculty) cannot be shifted to non-teaching roles.');
         }
         if (!isTeaching && newRoles.includes('faculty')) {
-          throw new Error('Non-teaching roles cannot be shifted to teaching roles.');
+          throw new ValidationError('Non-teaching roles cannot be shifted to teaching roles.');
         }
 
         const allRolesDef = await tx.select().from(staffRoles);
@@ -458,7 +477,7 @@ export async function PUT(req, context) {
         if (targetHodBranches.length > 0) {
           // Validate staff is ACTIVE
           if (staffBefore.account_status !== 'ACTIVE' && is_active !== true) {
-            throw new Error('Cannot enable HOD access for an inactive staff account.');
+            throw new ValidationError('Cannot enable HOD access for an inactive staff account.');
           }
 
           // Validate staff has FACULTY role
@@ -466,7 +485,7 @@ export async function PUT(req, context) {
             .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
             .where(and(eq(staffAccountRoles.staff_account_id, idNum), eq(staffRoles.role_code, 'FACULTY')));
           if (hasFaculty.length === 0) {
-            throw new Error('Staff must have the FACULTY role to be assigned as HOD.');
+            throw new ValidationError('Staff must have the FACULTY role to be assigned as HOD.');
           }
         }
 
@@ -684,7 +703,7 @@ export async function PUT(req, context) {
 
         if (is_first_year_coordinator === true) {
           if (staffBefore.account_status !== 'ACTIVE' && is_active !== true) {
-            throw new Error('Cannot assign coordinator role to an inactive staff account.');
+            throw new ValidationError('Cannot assign coordinator role to an inactive staff account.');
           }
           const hasFaculty = await tx.select().from(staffAccountRoles)
             .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
@@ -693,14 +712,14 @@ export async function PUT(req, context) {
               eq(staffRoles.role_code, 'FACULTY')
             ));
           if (hasFaculty.length === 0) {
-            throw new Error('Only active faculty members are eligible for First Year Coordinator assignment.');
+            throw new ValidationError('Only active faculty members are eligible for First Year Coordinator assignment.');
           }
 
           if (existingCoord.length === 0) {
             const startD = coordinator_start_date || todayStr;
             const endD = coordinator_end_date || null;
             if (endD && startD && endD < startD) {
-              throw new Error('End date cannot be earlier than start date');
+              throw new ValidationError('End date cannot be earlier than start date');
             }
             await tx.insert(facultyCoordinatorAssignments).values({
               staff_account_id: idNum,
@@ -725,7 +744,7 @@ export async function PUT(req, context) {
             const startD = coordinator_start_date || existingCoord[0].start_date;
             const endD = coordinator_end_date !== undefined ? coordinator_end_date : existingCoord[0].end_date;
             if (endD && startD && endD < startD) {
-              throw new Error('End date cannot be earlier than start date');
+              throw new ValidationError('End date cannot be earlier than start date');
             }
             await tx.update(facultyCoordinatorAssignments).set({
               start_date: startD,
@@ -807,6 +826,23 @@ export async function PUT(req, context) {
     if (error instanceof z.ZodError) {
       return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
     }
+    if (error.statusCode === 400 || error.name === 'ValidationError') {
+      return apiError(error.message, 400);
+    }
+    const clientValidationMessages = [
+      'Teaching roles (faculty) cannot be shifted to non-teaching roles',
+      'Non-teaching roles cannot be shifted to teaching roles',
+      'Cannot enable HOD access for an inactive staff account',
+      'Staff must have the FACULTY role to be assigned as HOD',
+      'Cannot assign coordinator role to an inactive staff account',
+      'Only active faculty members are eligible for First Year Coordinator assignment',
+      'End date cannot be earlier than start date',
+      'Invalid branch',
+      'Invalid HOD branch'
+    ];
+    if (clientValidationMessages.some(msg => error.message?.includes(msg))) {
+      return apiError(error.message, 400);
+    }
     if (error.conflictDetails) {
       return NextResponse.json({
         error: error.message,
@@ -824,10 +860,10 @@ export async function PUT(req, context) {
     if (error.message && error.message.startsWith('Conflict:')) {
       return apiError(error.message, 409);
     }
-    logger.error('Error updating staff:', error);
     if (error && error.code === 'ER_DUP_ENTRY') {
       return apiError('Email or Employee ID already exists', 409);
     }
-    return apiError(error.message || 'Internal Server Error', 500);
+    logger.error('Error updating staff:', error);
+    return apiError('Internal Server Error', 500);
   }
 }

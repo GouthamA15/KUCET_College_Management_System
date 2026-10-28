@@ -11,6 +11,7 @@ export function AdminProvider({ children }) {
   const lastFetchTimeRef = useRef(0);
   const activePromiseRef = useRef(null);
   const isInitializingRef = useRef(false);
+  const adminDataRef = useRef(null);
 
   const [adminData, setAdminData] = useState(null);
   const [collegeInfo, setCollegeInfo] = useState(cachedCollegeInfo);
@@ -21,6 +22,10 @@ export function AdminProvider({ children }) {
   const [isLoadingFaculty, setIsLoadingFaculty] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, _setError] = useState(null);
+
+  useEffect(() => {
+    adminDataRef.current = adminData;
+  }, [adminData]);
 
   const fetchCollegeInfo = useCallback(async () => {
     if (cachedCollegeInfo) {
@@ -42,6 +47,7 @@ export function AdminProvider({ children }) {
   }, []);
 
   const fetchStaff = useCallback(async () => {
+    if (!adminDataRef.current) return [];
     try {
       const res = await fetch('/api/admin/staff');
       if (res.ok) {
@@ -52,6 +58,8 @@ export function AdminProvider({ children }) {
           setActiveHodDirectory(json.active_hod_directory);
         }
         return payload;
+      } else if (res.status === 401 || res.status === 403) {
+        setAdminData(null);
       }
     } catch (e) {
       console.error('Failed to fetch staff', e);
@@ -60,6 +68,7 @@ export function AdminProvider({ children }) {
   }, []);
 
   const fetchStudentStats = useCallback(async () => {
+    if (!adminDataRef.current) return null;
     try {
       const res = await fetch('/api/admin/student-stats');
       if (res.ok) {
@@ -67,6 +76,8 @@ export function AdminProvider({ children }) {
         const payload = json?.data ?? json ?? null;
         setStudentStats(payload);
         return payload;
+      } else if (res.status === 401 || res.status === 403) {
+        setAdminData(null);
       }
     } catch (e) {
       console.error('Failed to fetch student stats', e);
@@ -82,6 +93,10 @@ export function AdminProvider({ children }) {
         const payload = json?.admin ?? json ?? null;
         setAdminData(payload);
         return payload;
+      }
+      if (res.status === 401 || res.status === 403) {
+        setAdminData(null);
+        return null;
       }
     } catch (e) {
       console.error('Failed to verify admin', e);
@@ -158,16 +173,11 @@ export function AdminProvider({ children }) {
     } else if (['STAFF_STATUS_CHANGED', 'staff:status-changed'].includes(type)) {
       if (payload) setStaffActiveStatus(payload.id, payload.is_active);
     } else if (['STAFF_REGISTRATION_CREATED', 'staff:registration:created'].includes(type)) {
-      fetchStaff();
+      if (adminDataRef.current) fetchStaff();
     } else if (['STUDENT_STATS_UPDATED', 'student:stats:updated', 'ADMISSION_FINALIZED', 'admission:finalized'].includes(type)) {
-      fetchStudentStats();
+      if (adminDataRef.current) fetchStudentStats();
     }
   }, [addStaffToList, updateStaffInList, setStaffActiveStatus, fetchStaff, fetchStudentStats]);
-
-  const adminDataRef = useRef(adminData);
-  useEffect(() => {
-    adminDataRef.current = adminData;
-  }, [adminData]);
 
   const refreshAll = useCallback(async () => {
     if (activePromiseRef.current) {
@@ -178,7 +188,7 @@ export function AdminProvider({ children }) {
       try {
         if (!adminDataRef.current) setLoading(true);
         // Step 1: Validate Admin Identity & Basic Config (fast path)
-        await Promise.all([
+        const [admin] = await Promise.all([
           fetchAdminMe(),
           fetchCollegeInfo()
         ]);
@@ -186,6 +196,11 @@ export function AdminProvider({ children }) {
         // Unblock Admin layout and sidebar immediately!
         setLoading(false);
         lastFetchTimeRef.current = Date.now();
+
+        // If admin authentication failed or session expired, abort querying admin data
+        if (!admin) {
+          return;
+        }
 
         // Step 2: Load aggregate staff and student stats in background
         await Promise.all([

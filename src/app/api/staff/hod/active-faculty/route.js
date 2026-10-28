@@ -8,19 +8,29 @@ import {
 } from '@/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { apiResponse, apiError, wrapHandler } from '@/lib/api-utils';
+import { getAuthorizedAcademicBranches } from '@/lib/academic-authorization';
 
 export const GET = wrapHandler({
-  auth: 'hod',
+  auth: ['hod', 'first_year_coordinator', 'faculty', 'admin'],
   handler: async (request, { user }) => {
-    const requestedDept = request.nextUrl?.searchParams?.get('branch') || request.nextUrl?.searchParams?.get('department');
+    const isHod = !!user.is_hod;
+    const isCoord = !!user.is_first_year_coordinator;
+    const isAdmin = user.role === 'admin' || !!user.is_principal;
+
+    if (!isHod && !isCoord && !isAdmin) {
+      return apiError('Unauthorized - HOD or First Year Coordinator role required', 403);
+    }
+
+    const url = new URL(request.url);
+    const requestedDept = url.searchParams.get('branch') || url.searchParams.get('department') || request.nextUrl?.searchParams?.get('branch') || request.nextUrl?.searchParams?.get('department');
     const targetDept = requestedDept || user.hod_department_code || user.branch;
 
     if (!targetDept) {
-      return apiError('Unauthorized - Active HOD Assignment Required', 403);
+      return apiError('Department or branch parameter required', 400);
     }
 
-    const authorizedBranches = user.authorized_branches || (user.hod_department_code ? [user.hod_department_code] : [user.branch]);
-    if (user.role !== 'admin' && authorizedBranches.length > 0 && !authorizedBranches.includes(targetDept)) {
+    const authorizedBranches = getAuthorizedAcademicBranches(user);
+    if (authorizedBranches !== null && !authorizedBranches.includes(targetDept.toUpperCase())) {
       return apiError(`Forbidden - Not authorized for ${targetDept} department`, 403);
     }
 

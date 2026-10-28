@@ -41,6 +41,21 @@ export async function getInstitutionalBranches() {
 }
 
 /**
+ * Resolves the department branches a user oversees as HOD.
+ * Checks authorized_branches, hod_branches, hod_department_code, and branch fallback.
+ */
+export function getHodDepartmentBranches(user) {
+  if (!user || !user.is_hod) return [];
+  const authBranches = Array.isArray(user.authorized_branches) ? user.authorized_branches : [];
+  if (authBranches.length > 0) return authBranches.map(b => String(b).toUpperCase());
+  const hodBranches = Array.isArray(user.hod_branches) ? user.hod_branches : [];
+  if (hodBranches.length > 0) return hodBranches.map(b => String(b).toUpperCase());
+  if (user.hod_department_code) return [String(user.hod_department_code).toUpperCase()];
+  if (user.branch) return [String(user.branch).toUpperCase()];
+  return [];
+}
+
+/**
  * Returns the branches a user is authorized to manage academically.
  * Returns null if the user has unrestricted branch access across all branches.
  */
@@ -59,12 +74,7 @@ export function getAuthorizedAcademicBranches(user) {
 
   // HOD is restricted to their assigned department branches
   if (user.is_hod) {
-    const authBranches = Array.isArray(user.authorized_branches) ? user.authorized_branches : [];
-    if (authBranches.length > 0) return authBranches.map(b => String(b).toUpperCase());
-    const hodBranches = Array.isArray(user.hod_branches) ? user.hod_branches : [];
-    if (hodBranches.length > 0) return hodBranches.map(b => String(b).toUpperCase());
-    if (user.branch) return [String(user.branch).toUpperCase()];
-    if (user.hod_department_code) return [String(user.hod_department_code).toUpperCase()];
+    return getHodDepartmentBranches(user);
   }
 
   return [];
@@ -83,7 +93,7 @@ export function getAllowedAcademicSemesters(user, targetBranch = null) {
   }
 
   const normBranch = targetBranch ? String(targetBranch).toUpperCase().trim() : null;
-  const hodBranches = (user.hod_branches || (user.branch ? [user.branch] : [])).map(b => String(b).toUpperCase());
+  const hodBranches = getHodDepartmentBranches(user);
 
   const isHodForThisBranch = user.is_hod && (!normBranch || hodBranches.includes(normBranch));
 
@@ -121,7 +131,7 @@ export function isAcademicScopeAllowed(user, { branch, semester }) {
   }
 
   const normBranch = branch ? String(branch).toUpperCase().trim() : null;
-  const hodBranches = (user.hod_branches || (user.branch ? [user.branch] : [])).map(b => String(b).toUpperCase());
+  const hodBranches = getHodDepartmentBranches(user);
 
   // 2. Check HOD authority (Semesters 1-8 within authorized departmental branches)
   if (user.is_hod && normBranch && hodBranches.includes(normBranch)) {
