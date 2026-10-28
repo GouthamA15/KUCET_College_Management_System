@@ -1,6 +1,6 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { facultySubjectAssignments, facultySubstitutions } from '@/db/schema';
+import { facultySubjectAssignments, facultySubstitutions, syllabusSubjects } from '@/db/schema';
 import { eq, and, or, desc, asc, inArray } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { getCurrentCalendarSession } from '@/lib/academic-utils';
@@ -24,6 +24,7 @@ export async function GET(request) {
         staff_account_id: facultySubjectAssignments.staff_account_id,
         subject_code: facultySubjectAssignments.subject_code,
         subject_name: facultySubjectAssignments.subject_name,
+        subject_type: syllabusSubjects.subject_type,
         branch: facultySubjectAssignments.branch,
         course_semester: facultySubjectAssignments.course_semester,
         semester: facultySubjectAssignments.course_semester,
@@ -33,7 +34,8 @@ export async function GET(request) {
         is_active: facultySubjectAssignments.is_active,
         mid_max: facultySubjectAssignments.mid_max
       })
-      .from(facultySubjectAssignments);
+      .from(facultySubjectAssignments)
+      .leftJoin(syllabusSubjects, eq(facultySubjectAssignments.subject_code, syllabusSubjects.subject_code));
 
       if (specificId) {
         assignments = await query.where(eq(facultySubjectAssignments.id, specificId));
@@ -65,6 +67,7 @@ export async function GET(request) {
         staff_account_id: facultySubjectAssignments.staff_account_id,
         subject_code: facultySubjectAssignments.subject_code,
         subject_name: facultySubjectAssignments.subject_name,
+        subject_type: syllabusSubjects.subject_type,
         branch: facultySubjectAssignments.branch,
         course_semester: facultySubjectAssignments.course_semester,
         semester: facultySubjectAssignments.course_semester,
@@ -74,7 +77,8 @@ export async function GET(request) {
         is_active: facultySubjectAssignments.is_active,
         mid_max: facultySubjectAssignments.mid_max
       })
-      .from(facultySubjectAssignments);
+      .from(facultySubjectAssignments)
+      .leftJoin(syllabusSubjects, eq(facultySubjectAssignments.subject_code, syllabusSubjects.subject_code));
 
       if (specificId) {
         assignments = await baseQuery.where(and(

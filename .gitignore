@@ -64,6 +64,7 @@ next-env.d.ts
 /scripts/*
 !/scripts/deployment/
 !/scripts/prepare-standalone.mjs
+!/scripts/audit-subject-catalog-consistency.mjs
 /scratch
 
 # Playwright

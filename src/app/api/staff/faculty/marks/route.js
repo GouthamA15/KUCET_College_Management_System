@@ -5,11 +5,12 @@ import {
   students as studentsTable, 
   studentMarks, 
   branchConfig, 
-  collegeInfo as collegeInfoTable 
+  collegeInfo as collegeInfoTable,
+  syllabusSubjects
 } from '@/db/schema';
 import { eq, and, asc, desc, or, like, inArray, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
-import { isSemesterActive } from '@/lib/academic-utils';
+import { isSemesterActive, resolveCanonicalSubjectType } from '@/lib/academic-utils';
 import { branchCodes } from '@/lib/rollNumber';
 import { FacultyService } from '@/services/FacultyService';
 import { _internalMarksSchema } from '@/lib/validations/staff';
@@ -29,7 +30,7 @@ export async function GET(request) {
       return apiError('Missing assignment_id', 400);
     }
 
-    // Fetch assignment details
+    // Fetch assignment details with canonical syllabus subject type
     const assignments = await db.select({
       id: facultySubjectAssignments.id,
       faculty_id: facultySubjectAssignments.staff_account_id,
@@ -38,9 +39,11 @@ export async function GET(request) {
       course_semester: facultySubjectAssignments.course_semester,
       academic_year: facultySubjectAssignments.academic_year,
       subject_name: facultySubjectAssignments.subject_name,
-      subject_code: facultySubjectAssignments.subject_code
+      subject_code: facultySubjectAssignments.subject_code,
+      canonical_subject_type: syllabusSubjects.subject_type
     })
     .from(facultySubjectAssignments)
+    .leftJoin(syllabusSubjects, eq(facultySubjectAssignments.subject_code, syllabusSubjects.subject_code))
     .where(eq(facultySubjectAssignments.id, assignment_id))
     .limit(1);
 
@@ -52,9 +55,22 @@ export async function GET(request) {
     if (assignment.faculty_id !== user.id && !(user.is_hod && (user.branch === assignment.branch || !assignment.branch))) {
       return apiError('Unauthorized for this assignment', 403);
     }
-    const { branch, course_semester, academic_year, subject_name, subject_code } = assignment;
+    const { branch, course_semester, academic_year, subject_name, subject_code, canonical_subject_type } = assignment;
     const midMax = assignment.mid_max || 20;
-    const isLab = subject_name?.toLowerCase().includes('lab');
+
+    const classification = resolveCanonicalSubjectType({
+      subject_code,
+      subject_name,
+      canonical_subject_type
+    });
+
+    if (classification.status === 'UNRESOLVED') {
+      logger.warn({ assignmentId: assignment_id, subject_code, subject_name }, '[SUBJECT_TYPE_UNRESOLVED] Evaluation requested for subject without canonical syllabus type');
+    } else if (classification.status === 'CONTRADICTORY') {
+      logger.warn({ assignmentId: assignment_id, subject_code, subject_name, canonical_subject_type }, '[SUBJECT_TYPE_CONTRADICTORY] Apparent discrepancy between subject naming/code and canonical syllabus type');
+    }
+
+    const _isLab = classification.is_lab;
 
     // --- SHARED DATA LOGIC: Canonical ID ---
     const canonicalRows = await db.select({ id: facultySubjectAssignments.id })
@@ -159,7 +175,8 @@ export async function GET(request) {
       data: cleanedStudents, 
       mid_max: midMax, 
       recommended_mid_max: recommendedMidMax,
-      subject_type: isLab ? 'lab' : 'theory',
+      subject_type: classification.subject_type,
+      subject_type_status: classification.status,
       canonical_id: canonicalId 
     });
   } catch (error) {
@@ -202,7 +219,7 @@ export async function POST(request) {
     const validatedData = validationSchema.parse(json);
     const { assignment_id, marks_data, mid_max, publish: publishFlag } = validatedData;
 
-    // Fetch assignment details
+    // Fetch assignment details with canonical syllabus subject type
     const assignments = await db.select({
       id: facultySubjectAssignments.id,
       faculty_id: facultySubjectAssignments.staff_account_id,
@@ -210,9 +227,11 @@ export async function POST(request) {
       branch: facultySubjectAssignments.branch,
       course_semester: facultySubjectAssignments.course_semester,
       academic_year: facultySubjectAssignments.academic_year,
-      subject_name: facultySubjectAssignments.subject_name
+      subject_name: facultySubjectAssignments.subject_name,
+      canonical_subject_type: syllabusSubjects.subject_type
     })
     .from(facultySubjectAssignments)
+    .leftJoin(syllabusSubjects, eq(facultySubjectAssignments.subject_code, syllabusSubjects.subject_code))
     .where(eq(facultySubjectAssignments.id, assignment_id))
     .limit(1);
 
@@ -224,8 +243,24 @@ export async function POST(request) {
     if (assignment.faculty_id !== user.id && !(user.is_hod && (user.branch === assignment.branch || !assignment.branch))) {
       return apiError('Unauthorized for this assignment', 403);
     }
-    const { subject_code, branch, course_semester, academic_year, subject_name } = assignment;
-    const isLab = subject_name?.toLowerCase().includes('lab');
+    const { subject_code, branch, course_semester, academic_year, subject_name, canonical_subject_type } = assignment;
+
+    const classification = resolveCanonicalSubjectType({
+      subject_code,
+      subject_name,
+      canonical_subject_type
+    });
+
+    if (classification.status === 'UNRESOLVED' || !classification.subject_type) {
+      logger.error({ assignmentId: assignment_id, subject_code, subject_name }, '[MARKS_SAVE_REJECTED] Unresolved subject type in syllabus catalogue');
+      return apiError('Cannot save marks: Subject classification is unresolved in syllabus catalogue. Please contact the administrator.', 422);
+    }
+
+    if (classification.status === 'CONTRADICTORY') {
+      logger.warn({ assignmentId: assignment_id, subject_code, subject_name, canonical_subject_type }, '[SUBJECT_TYPE_CONTRADICTORY] Apparent discrepancy between subject naming/code and canonical syllabus type during marks save');
+    }
+
+    const isLab = classification.is_lab;
 
     // --- SHARED DATA LOGIC: Target Canonical ID ---
     const canonicalRows = await db.select({ id: facultySubjectAssignments.id })

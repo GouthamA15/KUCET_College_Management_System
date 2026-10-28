@@ -195,3 +195,54 @@ export async function isSemesterActive(semester, assignmentAcademicYear) {
   return session.academicYear === assignmentAcademicYear && 
          (session.semester % 2 === semester % 2);
 }
+
+export const CANONICAL_SUBJECT_TYPES = ['theory', 'lab'];
+
+/**
+ * Validates whether a subject type string belongs to canonical enum ['theory', 'lab'].
+ */
+export function isValidSubjectType(type) {
+  if (!type || typeof type !== 'string') return false;
+  return CANONICAL_SUBJECT_TYPES.includes(type.trim().toLowerCase());
+}
+
+/**
+ * Authoritatively resolves subject classification from canonical syllabus metadata.
+ * Does NOT silently invent 'theory' if metadata is absent or invalid.
+ *
+ * @param {Object} params
+ * @param {string} params.subject_code - Code of the subject (e.g., 'BSC101L')
+ * @param {string} params.subject_name - Display name of the subject (e.g., 'Physics-Practical')
+ * @param {string} [params.canonical_subject_type] - The type stored in syllabus_subjects
+ * @returns {{ subject_type: 'theory' | 'lab' | null, is_lab: boolean, status: 'RESOLVED' | 'UNRESOLVED' | 'CONTRADICTORY', source: string }}
+ */
+export function resolveCanonicalSubjectType({ subject_code, subject_name, canonical_subject_type } = {}) {
+  const normType = canonical_subject_type ? String(canonical_subject_type).trim().toLowerCase() : null;
+  const valid = isValidSubjectType(normType);
+
+  if (valid) {
+    const isLab = normType === 'lab';
+    const sName = (subject_name || '').toLowerCase();
+    const sCode = (subject_code || '').toUpperCase();
+
+    // Check for potential catalogue contradiction (e.g., stored as 'theory' but named 'Practical' or ending with 'L')
+    const looksLikeLab = sName.includes('lab') || sName.includes('practical') || sName.includes('laboratory') || sCode.endsWith('L');
+    const isContradictory = (!isLab && looksLikeLab) || (isLab && !looksLikeLab && sName.includes('theory'));
+
+    return {
+      subject_type: normType,
+      is_lab: isLab,
+      status: isContradictory ? 'CONTRADICTORY' : 'RESOLVED',
+      source: 'syllabus_subjects'
+    };
+  }
+
+  // If canonical syllabus subject type is not provided or invalid
+  return {
+    subject_type: null,
+    is_lab: false,
+    status: 'UNRESOLVED',
+    source: 'missing'
+  };
+}
+

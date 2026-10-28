@@ -9,7 +9,8 @@ export default function MarksEntrySheet({ assignment, onBack }) {
   const [dirty, setDirty] = useState(false);
   const [midMax, setMidMax] = useState(20);
   const [_recommendedMidMax, setRecommendedMidMax] = useState(null);
-  const [subjectType, setSubjectType] = useState('theory'); // 'theory' | 'lab'
+  const [subjectType, setSubjectType] = useState(assignment?.subject_type || null);
+  const [_subjectTypeStatus, setSubjectTypeStatus] = useState(assignment?.subject_type ? 'RESOLVED' : null);
   const [marksMode, setMarksMode] = useState('overview'); // 'overview' | 'mid1' | 'mid2' | 'assignment'
   const [isMobile, setIsMobile] = useState(false);
   const [_scrollLeft, setScrollLeft] = useState(0);
@@ -26,8 +27,10 @@ export default function MarksEntrySheet({ assignment, onBack }) {
       if (!res.ok) throw new Error(data.error || 'Failed to fetch students');
       
       const payload = data.data || [];
-      const detectedType = data.subject_type || 'theory';
-      const isLab = detectedType === 'lab';
+      const rawType = data.subject_type || assignment?.subject_type || null;
+      const validTypes = ['lab', 'theory'];
+      const resolvedType = validTypes.includes(rawType) ? rawType : null;
+      const isLab = resolvedType === 'lab';
       const studentsWithMarks = payload.map(s => ({
         ...s,
         is_published: Boolean(s.is_published),
@@ -40,13 +43,14 @@ export default function MarksEntrySheet({ assignment, onBack }) {
       setDirty(false);
       if (data.mid_max) setMidMax(data.mid_max);
       if (data.recommended_mid_max) setRecommendedMidMax(data.recommended_mid_max);
-      setSubjectType(detectedType);
+      setSubjectType(resolvedType);
+      setSubjectTypeStatus(data.subject_type_status || (resolvedType ? 'RESOLVED' : 'UNRESOLVED'));
     } catch (error) {
       toast.error(error.message);
     } finally {
       setLoading(false);
     }
-  }, [assignment.id]);
+  }, [assignment]);
 
   const hasAnyMarks = students.some(s => 
     (s.mid1_marks !== '' && s.mid1_marks !== null && s.mid1_marks !== undefined) || 
@@ -152,6 +156,10 @@ export default function MarksEntrySheet({ assignment, onBack }) {
 
   const handleSave = async (publish) => {
     if (!assignment.is_active) return;
+    if (!subjectType || !['lab', 'theory'].includes(subjectType)) {
+      toast.error('Cannot save marks: Subject classification is unresolved in syllabus catalogue. Please contact administration.');
+      return;
+    }
     if (isPublishedLocked) {
       toast.error('Marks already published and locked.');
       return;
@@ -246,7 +254,13 @@ export default function MarksEntrySheet({ assignment, onBack }) {
           </button>
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-bold text-slate-800 leading-tight">{assignment.subject_name}</h2>
-            <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-sm border ${subjectType === 'lab' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>{subjectType === 'lab' ? 'LAB' : 'THEORY'}</span>
+            {subjectType === 'lab' ? (
+              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-sm border bg-amber-50 border-amber-200 text-amber-700">PRACTICAL / LAB</span>
+            ) : subjectType === 'theory' ? (
+              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-sm border bg-indigo-50 border-indigo-200 text-indigo-700">THEORY</span>
+            ) : (
+              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-sm border bg-rose-50 border-rose-200 text-rose-700">UNRESOLVED</span>
+            )}
             {isPublishedLocked ? (
               <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-sm border bg-rose-50 border-rose-200 text-rose-700">PUBLISHED</span>
             ) : hasAnyMarks ? (
@@ -277,6 +291,8 @@ export default function MarksEntrySheet({ assignment, onBack }) {
           {assignment.is_active ? (
             isPublishedLocked ? (
               <div className="bg-rose-50 text-rose-700 px-3 py-1.5 rounded-sm text-[9px] font-bold uppercase border border-rose-200">LOCKED</div>
+            ) : !subjectType ? (
+              <div className="bg-amber-50 text-amber-700 px-3 py-1.5 rounded-sm text-[9px] font-bold uppercase border border-amber-200">UNRESOLVED CLASSIFICATION</div>
             ) : (
               <div className="flex items-center gap-2">
                 <button
@@ -300,6 +316,12 @@ export default function MarksEntrySheet({ assignment, onBack }) {
           )}
         </div>
       </div>
+
+      {!subjectType && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+          <strong>Subject Classification Unresolved:</strong> This subject does not have a confirmed theory or practical/lab classification in the academic catalogue. Marks entry is disabled to prevent record corruption. Please contact the administrator or HOD.
+        </div>
+      )}
 
       {/* Mobile Card Layout */}
       <div className="md:hidden flex flex-col gap-3 mt-4">

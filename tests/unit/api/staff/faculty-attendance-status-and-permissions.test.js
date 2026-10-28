@@ -375,11 +375,15 @@ describe('Faculty Attendance Status, Permissions & Topic Persistence Suite', () 
         // Assignment query
         .mockReturnValueOnce({
           from: () => ({
+            leftJoin: function () {
+              return this;
+            },
             where: () => Promise.resolve([{
               id: 450014,
               staff_account_id: 10,
               subject_code: 'CS301',
               subject_name: 'Operating Systems',
+              subject_type: 'theory',
               branch: 'CSE',
               course_semester: 5,
               semester: 5,
