@@ -254,6 +254,10 @@ export default function ManageStaffClient() {
         throw new Error(data.error || 'Failed to update staff record');
       }
 
+      if (data.data && typeof updateStaffInList === 'function') {
+        updateStaffInList(data.data);
+      }
+
       // Refresh list to update all states & HOD directory
       if (typeof refreshStaff === 'function') {
         await refreshStaff();

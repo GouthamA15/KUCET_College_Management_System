@@ -38,6 +38,23 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.addEventListener('error', function(e) {
+                var src = (e && (e.filename || (e.error && e.error.stack))) || '';
+                var msg = (e && e.message) || '';
+                if (src.indexOf('share-modal.js') !== -1 || msg.indexOf('share-modal') !== -1 || src.indexOf('extension') !== -1) {
+                  e.stopImmediatePropagation();
+                  e.preventDefault();
+                  return true;
+                }
+              }, true);
+            `,
+          }}
+        />
+      </head>
       <body className={`${inter.className} antialiased bg-institutional min-h-screen`} suppressHydrationWarning>
         <a
           href="#main-content"

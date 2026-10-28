@@ -471,7 +471,7 @@ function WorkloadView({ data, branch }) {
                     {f.name.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-base text-slate-800 group-hover:text-[#0b3578] transition-colors uppercase tracking-wider truncate">{f.name}</h4>
+                    <h4 className="font-bold text-base text-slate-800 group-hover:text-[#0b3578] transition-colors uppercase tracking-wider break-words" title={f.name}>{f.name}</h4>
                     <p className="text-xs text-slate-400 font-medium tracking-widest uppercase mt-0.5 truncate">{f.email}</p>
                   </div>
                 </div>
@@ -637,7 +637,7 @@ function TimetableManager({ data, onEditSlot }) {
                           <div className={`font-bold text-[10px] mb-1 line-clamp-2 uppercase tracking-tight leading-tight ${isActivity ? 'text-amber-800' : 'text-[#0b3578]'}`}>
                             {isActivity ? INSTITUTIONAL_ACTIVITIES.find(a => a.code === slot.subject_code)?.name : (slot.subject_name || slot.subject_code)}
                           </div>
-                          <div className="text-[9px] text-slate-500 font-bold mb-2 line-clamp-1 opacity-90">{slot.faculty_name || (isActivity ? 'N/A' : 'NOT ASSIGNED')}</div>
+                          <div className="text-[9px] text-slate-500 font-bold mb-2 line-clamp-1 opacity-90" title={slot.faculty_name || ''}>{slot.faculty_name || (isActivity ? 'N/A' : 'NOT ASSIGNED')}</div>
                           <div className="flex items-center justify-center gap-1.5">
                             <span className={`text-[8px] px-2 py-0.5 border font-bold uppercase tracking-widest ${isActivity ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
                               {slot.room_no || 'TBD'}
@@ -790,7 +790,7 @@ function TimetableManager({ data, onEditSlot }) {
                               {slot.faculty_name && (
                                 <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center gap-1.5 text-xs text-slate-600 font-medium truncate">
                                   <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider flex-shrink-0">Faculty:</span>
-                                  <span className="truncate font-semibold text-slate-800">{slot.faculty_name}</span>
+                                  <span className="truncate font-semibold text-slate-800" title={slot.faculty_name}>{slot.faculty_name}</span>
                                 </div>
                               )}
                             </>

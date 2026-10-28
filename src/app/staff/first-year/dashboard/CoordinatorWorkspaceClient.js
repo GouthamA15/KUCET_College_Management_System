@@ -6,6 +6,7 @@ import { useStaff } from '@/context/StaffContext';
 import SyllabusManager from '@/components/staff/faculty/SyllabusManager';
 import IDCardManagementHub from '@/components/staff/id-cards/IDCardManagementHub';
 import CoordinatorApaarDashboard from '@/components/staff/first-year/CoordinatorApaarDashboard';
+import SubjectAssignmentsList from '@/components/staff/faculty/SubjectAssignmentsList';
 import toast from 'react-hot-toast';
 import { 
   GraduationCap, 
@@ -185,8 +186,8 @@ export default function CoordinatorWorkspaceClient() {
     }
   };
 
-  const handleReviewSubmit = async (e) => {
-    e.preventDefault();
+  const handleReviewSubmit = async (e, override = false, overrideReason = '') => {
+    if (e?.preventDefault) e.preventDefault();
     if (!reviewModal.interest) return;
 
     setIsSubmittingReview(true);
@@ -197,13 +198,26 @@ export default function CoordinatorWorkspaceClient() {
         body: JSON.stringify({
           interest_id: reviewModal.interest.id,
           status: reviewModal.action,
-          rejection_reason: reviewModal.action === 'REJECTED' ? reviewModal.reason : undefined
+          rejection_reason: reviewModal.action === 'REJECTED' ? reviewModal.reason : undefined,
+          override_conflict: override,
+          override_reason: overrideReason
         })
       });
       const json = await res.json();
+
+      if (res.status === 409 && json.canOverride) {
+        setReviewModal(prev => ({
+          ...prev,
+          hasConflict: true,
+          conflicts: json.conflicts || [],
+          overrideReason: ''
+        }));
+        return;
+      }
+
       if (!res.ok) throw new Error(json.error || 'Failed to submit review');
-      toast.success(`Request ${reviewModal.action.toLowerCase()} successfully`);
-      setReviewModal({ isOpen: false, interest: null, action: 'APPROVED', reason: '' });
+      toast.success(json.message || `Request ${reviewModal.action.toLowerCase()} successfully`);
+      setReviewModal({ isOpen: false, interest: null, action: 'APPROVED', reason: '', hasConflict: false, conflicts: [], overrideReason: '' });
       fetchInterests();
     } catch (err) {
       toast.error(err.message);
@@ -253,6 +267,7 @@ export default function CoordinatorWorkspaceClient() {
       <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-1.5 flex flex-wrap gap-1.5">
         {[
           { id: 'overview', label: 'Overview', icon: Layers },
+          { id: 'allocations', label: 'Subject Allocations', icon: GraduationCap },
           { id: 'apaar', label: 'APAAR Monitoring & Reports', icon: ShieldCheck },
           { id: 'syllabus', label: 'Subjects & Syllabus', icon: BookOpen },
           { id: 'timetable', label: 'First-Year Timetables', icon: Calendar },
@@ -322,6 +337,23 @@ export default function CoordinatorWorkspaceClient() {
 
           {/* Quick Action Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div 
+              onClick={() => setActiveTab('allocations')}
+              className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs hover:border-[#0b3578]/50 hover:shadow-sm transition-all cursor-pointer group"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm group-hover:text-[#0b3578] transition-colors">
+                    🎓 Direct Subject Allocations
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                    Directly assign faculty members or self-allocate Semesters 1 and 2 subjects across all 7 institutional engineering branches.
+                  </p>
+                </div>
+                <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-[#0b3578] shrink-0" />
+              </div>
+            </div>
+
             <div 
               onClick={() => setActiveTab('syllabus')}
               className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs hover:border-[#0b3578]/50 hover:shadow-sm transition-all cursor-pointer group"
@@ -417,10 +449,25 @@ export default function CoordinatorWorkspaceClient() {
             <ul className="list-disc pl-5 space-y-1">
               <li><strong>HOD Non-Interference:</strong> Department HODs retain exclusive authority over Semesters 3 through 8 for their assigned departments. First Year Coordinator cannot modify upper-year curricula or timetables.</li>
               <li><strong>Dual-Role Protection:</strong> Holding both an HOD appointment and First Year Coordinator sub-role grants a harmonious union of authorities without degradation.</li>
-              <li><strong>Self-Review Invariant:</strong> Coordinators are prohibited from approving or rejecting their own faculty subject-interest applications.</li>
+              <li><strong>Self-Allocation Governance:</strong> Coordinators and HODs may directly allocate or self-approve subject requests within their authorized scope. Direct self-allocations automatically trigger Principal leadership notifications and audit logging.</li>
               <li><strong>ID Card Scoping:</strong> ID card access is dynamically constrained to first-year students using authoritative student semester calculation.</li>
             </ul>
           </div>
+        </div>
+      )}
+
+      {/* ─── TAB: SUBJECT ALLOCATIONS ─────────────────────────────────────────── */}
+      {activeTab === 'allocations' && (
+        <div className="space-y-4">
+          <div className="bg-indigo-50/70 border border-indigo-200/80 rounded-xl p-4 flex items-center justify-between text-xs text-indigo-900">
+            <div className="flex items-center gap-2.5">
+              <GraduationCap className="w-4 h-4 text-indigo-700 shrink-0" />
+              <span>
+                <strong>First-Year Subject Allocation Authority:</strong> Directly assign faculty members (or self-allocate) to Semester 1 and 2 subjects across all 7 institutional branches.
+              </span>
+            </div>
+          </div>
+          <SubjectAssignmentsList />
         </div>
       )}
 
@@ -560,7 +607,7 @@ export default function CoordinatorWorkspaceClient() {
                                   {entry ? (
                                     <div className="bg-blue-50 border border-blue-200 rounded p-1 text-[11px]">
                                       <div className="font-bold text-[#0b3578] truncate">{entry.subject_code}</div>
-                                      <div className="text-[10px] text-slate-500 truncate">{entry.faculty_name}</div>
+                                      <div className="text-[10px] text-slate-500 truncate" title={entry.faculty_name}>{entry.faculty_name}</div>
                                     </div>
                                   ) : (
                                     <span className="text-slate-300">—</span>
@@ -707,26 +754,24 @@ export default function CoordinatorWorkspaceClient() {
                           </td>
                           <td className="px-4 py-3 text-right">
                             {item.status === 'PENDING' ? (
-                              isOwn ? (
-                                <span className="text-[10px] text-slate-400 italic">Self-review prohibited</span>
-                              ) : (
-                                <div className="flex items-center justify-end gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => setReviewModal({ isOpen: true, interest: item, action: 'APPROVED', reason: '' })}
-                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-semibold cursor-pointer"
-                                  >
-                                    Approve
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setReviewModal({ isOpen: true, interest: item, action: 'REJECTED', reason: '' })}
-                                    className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-[11px] font-semibold cursor-pointer"
-                                  >
-                                    Reject
-                                  </button>
-                                </div>
-                              )
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setReviewModal({ isOpen: true, interest: item, action: 'APPROVED', reason: '', isSelfAllocation: isOwn })}
+                                  className={`px-2.5 py-1 text-white rounded text-[11px] font-semibold cursor-pointer ${
+                                    isOwn ? 'bg-[#0b3578] hover:bg-[#0a2d66]' : 'bg-emerald-600 hover:bg-emerald-700'
+                                  }`}
+                                >
+                                  {isOwn ? 'Self-Allocate' : 'Approve'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setReviewModal({ isOpen: true, interest: item, action: 'REJECTED', reason: '' })}
+                                  className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-[11px] font-semibold cursor-pointer"
+                                >
+                                  Reject
+                                </button>
+                              </div>
                             ) : (
                               <span className="text-[10px] text-slate-400">Reviewed</span>
                             )}
@@ -757,12 +802,41 @@ export default function CoordinatorWorkspaceClient() {
                   <div><strong>Faculty:</strong> {reviewModal.interest.faculty_name}</div>
                   <div><strong>Subject:</strong> {reviewModal.interest.subject_name} ({reviewModal.interest.subject_code})</div>
                   <div><strong>Cohort:</strong> {reviewModal.interest.branch} Sem {reviewModal.interest.semester}</div>
-                  {reviewModal.action === 'APPROVED' && (
+                  {reviewModal.action === 'APPROVED' && !reviewModal.hasConflict && (
                     <p className="text-[11px] text-emerald-700 pt-1 border-t border-slate-200 mt-2 font-medium">
-                      ✓ Approval will create an active teaching assignment for this faculty member.
+                      ✓ {reviewModal.isSelfAllocation ? 'Self-allocation will directly assign this subject to you.' : 'Approval will create an active teaching assignment for this faculty member.'}
                     </p>
                   )}
                 </div>
+
+                {reviewModal.hasConflict && (
+                  <div className="space-y-3 pt-2">
+                    <div className="bg-amber-50 border border-amber-200 rounded p-2.5 text-xs text-amber-900 space-y-1">
+                      <div className="font-bold flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        Detected Conflicts:
+                      </div>
+                      <ul className="list-disc pl-4 space-y-0.5">
+                        {reviewModal.conflicts?.map((c, i) => (
+                          <li key={i}>{c.message}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                        Override Reason (min 5 characters)
+                      </label>
+                      <textarea
+                        rows={2}
+                        required
+                        value={reviewModal.overrideReason || ''}
+                        onChange={e => setReviewModal({ ...reviewModal, overrideReason: e.target.value })}
+                        placeholder="e.g. Co-teaching approved by First Year Coordinator..."
+                        className="w-full text-xs border border-slate-300 rounded p-2 focus:outline-none focus:border-[#0b3578]"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {reviewModal.action === 'REJECTED' && (
                   <div>
@@ -782,21 +856,32 @@ export default function CoordinatorWorkspaceClient() {
                 <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="button"
-                    onClick={() => setReviewModal({ isOpen: false, interest: null, action: 'APPROVED', reason: '' })}
+                    onClick={() => setReviewModal({ isOpen: false, interest: null, action: 'APPROVED', reason: '', hasConflict: false, conflicts: [], overrideReason: '' })}
                     className="px-3 py-1.5 border border-slate-300 rounded text-slate-600 hover:bg-slate-50 text-xs"
                   >
                     Cancel
                   </button>
-                  <button
-                    type="button"
-                    disabled={isSubmittingReview}
-                    onClick={handleReviewSubmit}
-                    className={`px-4 py-1.5 text-white rounded font-semibold text-xs disabled:opacity-50 ${
-                      reviewModal.action === 'APPROVED' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
-                    }`}
-                  >
-                    {isSubmittingReview ? 'Submitting...' : `Confirm ${reviewModal.action === 'APPROVED' ? 'Approval' : 'Rejection'}`}
-                  </button>
+                  {reviewModal.hasConflict ? (
+                    <button
+                      type="button"
+                      disabled={isSubmittingReview || !reviewModal.overrideReason?.trim() || reviewModal.overrideReason.trim().length < 5}
+                      onClick={() => handleReviewSubmit(null, true, reviewModal.overrideReason.trim())}
+                      className="px-4 py-1.5 bg-amber-700 hover:bg-amber-800 text-white rounded font-semibold text-xs disabled:opacity-50 cursor-pointer"
+                    >
+                      {isSubmittingReview ? 'Overriding...' : 'Confirm Override & Approve'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={isSubmittingReview}
+                      onClick={handleReviewSubmit}
+                      className={`px-4 py-1.5 text-white rounded font-semibold text-xs disabled:opacity-50 cursor-pointer ${
+                        reviewModal.action === 'APPROVED' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
+                      }`}
+                    >
+                      {isSubmittingReview ? 'Submitting...' : (reviewModal.isSelfAllocation ? 'Confirm Self-Allocation' : `Confirm ${reviewModal.action === 'APPROVED' ? 'Approval' : 'Rejection'}`)}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

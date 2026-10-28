@@ -23,7 +23,7 @@ export default function AdmissionDashboardClient() {
     refreshAdmissionDrafts
   } = useStaff();
 
-  const firstName = staff?.name?.split(' ')[0] || 'Staff';
+  const fullName = (staff?.name || '').trim() || 'Staff';
   const employeeLabel = staff?.employee_id || (staff?.role ? staff.role.toUpperCase() : 'ADMISSION');
   const profilePendingCount = Array.isArray(pendingProfileRequests) ? pendingProfileRequests.length : 0;
   const certificatePendingCount = Array.isArray(pendingCertificateRequests) ? pendingCertificateRequests.length : 0;
@@ -200,7 +200,7 @@ export default function AdmissionDashboardClient() {
             <div className="lg:hidden flex flex-col justify-between gap-2.5">
               <div className="space-y-1 text-left text-white">
                 <h1 className="text-2xl font-bold tracking-tight text-white leading-tight select-none">
-                  Welcome, {firstName}
+                  Welcome, {fullName}
                 </h1>
                 <div className="flex flex-wrap items-center justify-start gap-2 pt-1">
                   <span className="text-[10px] font-semibold uppercase tracking-wider bg-white/10 text-white border border-white/20 px-1.5 py-0.5 rounded-full">
@@ -216,7 +216,7 @@ export default function AdmissionDashboardClient() {
 
             <div className="hidden lg:block text-left text-white">
               <h1 className="text-2xl font-bold tracking-tight text-white select-none">
-                Welcome back, {firstName}
+                Welcome back, {fullName}
               </h1>
               <div className="mt-2 text-xs font-medium text-blue-100/90 space-y-0.5 select-none">
                 <div>{employeeLabel}</div>

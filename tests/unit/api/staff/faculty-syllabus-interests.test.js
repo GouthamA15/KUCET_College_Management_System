@@ -1,5 +1,18 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
+import { canExpressSubjectInterest } from '@/lib/academic-authorization';
+
+vi.mock('@/db', () => ({
+  db: {
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(() => [{ subject_code: 'TEST101' }])
+        }))
+      }))
+    }))
+  }
+}));
 
 describe('Faculty Syllabus & Subject Interests Suite', () => {
   const interestSubmissionSchema = z.object({
@@ -71,25 +84,37 @@ describe('Faculty Syllabus & Subject Interests Suite', () => {
     });
   });
 
-  describe('Affiliation Authorization Boundary Logic', () => {
-    it('allows interest submission when requested branch is in allowed affiliations', () => {
-      const affiliations = [
-        { dept_code: 'CSE', prog_code: null },
-        { dept_code: 'CSE', prog_code: 'CSD' }
-      ];
-      const allowedBranches = Array.from(new Set(
-        affiliations.flatMap(a => [a.dept_code, a.prog_code]).filter(Boolean)
-      ));
-      expect(allowedBranches).toContain('CSE');
-      expect(allowedBranches).toContain('CSD');
-      expect(allowedBranches).not.toContain('ECE');
+  describe('Cross-Branch Subject Interest Authorization Logic', () => {
+    it('allows interest submission across any valid institutional branch regardless of faculty affiliation', async () => {
+      const user = { id: 101, role: 'faculty', branch: 'CSE' };
+      const branches = ['CSE', 'IT', 'CSD', 'ECE', 'EEE', 'CIVIL', 'MECH'];
+
+      for (const branch of branches) {
+        const result = await canExpressSubjectInterest(user, {
+          branch,
+          semester: 1,
+          subject_code: 'TEST101'
+        });
+        expect(result.allowed).toBe(true);
+      }
     });
 
-    it('blocks interest submission when requested branch is outside affiliated departments', () => {
-      const allowedBranches = ['CSE', 'CSD'];
-      const requestedBranch = 'MECH';
-      const isAuthorized = allowedBranches.includes(requestedBranch);
-      expect(isAuthorized).toBe(false);
+    it('rejects invalid semester out of range 1-8', async () => {
+      const user = { id: 101, role: 'faculty', branch: 'CSE' };
+      const res0 = await canExpressSubjectInterest(user, { branch: 'ECE', semester: 0 });
+      expect(res0.allowed).toBe(false);
+      expect(res0.reason).toContain('Semester must be between 1 and 8');
+
+      const res9 = await canExpressSubjectInterest(user, { branch: 'ECE', semester: 9 });
+      expect(res9.allowed).toBe(false);
+      expect(res9.reason).toContain('Semester must be between 1 and 8');
+    });
+
+    it('rejects non-faculty or unauthenticated users', async () => {
+      const studentUser = { id: 50, role: 'student' };
+      const res = await canExpressSubjectInterest(studentUser, { branch: 'CSE', semester: 1 });
+      expect(res.allowed).toBe(false);
+      expect(res.reason).toContain('Authentication required as active faculty');
     });
   });
 

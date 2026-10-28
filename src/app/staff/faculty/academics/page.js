@@ -168,15 +168,18 @@ function AcademicsContent() {
   const router = useRouter();
   const { loading, isLoadingFaculty, facultyAssignments, staffData, refreshFaculty, hasFetchedFaculty } = useStaff();
 
+  const canAssign = Boolean(staffData?.is_hod || staffData?.is_first_year_coordinator || staffData?.is_principal);
+
   const tabs = [
     { id: 'subjects', label: 'My Subjects' },
+    ...(canAssign ? [
+      { id: 'assign-subjects', label: 'Assign Subjects' }
+    ] : []),
+    { id: 'requests', label: 'Request Subjects' },
     ...(staffData?.is_hod ? [
-      { id: 'assign-subjects', label: 'Assign Subjects' },
       { id: 'syllabus', label: 'Syllabus Management' },
       { id: 'reactivations', label: 'Reactivations' }
-    ] : [
-      { id: 'requests', label: 'Request Subjects' }
-    ]),
+    ] : []),
     { id: 'roster', label: 'Students' },
     { id: 'disputes', label: 'Disputes' },
     { id: 'hod', label: 'HOD Access' },
@@ -407,13 +410,13 @@ function AcademicsContent() {
         </div>
       )}
 
-      {/* ── Request Subjects (Normal Faculty) ── */}
-      {!staffData?.is_hod && activeTab === 'requests' && (
+      {/* ── Request Subjects ── */}
+      {activeTab === 'requests' && (
         <div className="space-y-5">
           <div className="bg-gradient-to-br from-blue-50/50 via-white to-blue-50/50 border border-blue-100 shadow-sm rounded-sm p-4 sm:p-6">
             <div className="mb-5">
-              <h2 className="text-base font-semibold text-gray-800">Subject Request Workflow</h2>
-              <p className="text-xs text-gray-500 mt-1">Submit teaching preferences below. Requests are routed to the department HOD for approval and formal assignment.</p>
+              <h2 className="text-base font-semibold text-gray-800">Subject Request & Interest Workflow</h2>
+              <p className="text-xs text-gray-500 mt-1">Submit teaching preferences across branches and semesters. First-Year requests are routed to the First-Year Coordinator; higher semesters are routed to the departmental HOD.</p>
             </div>
             <SubjectInterestForm />
           </div>
@@ -427,8 +430,8 @@ function AcademicsContent() {
         </div>
       )}
 
-      {/* ── Assign Subjects (HOD) ── */}
-      {staffData?.is_hod && activeTab === 'assign-subjects' && (
+      {/* ── Assign Subjects (HOD & First-Year Coordinator) ── */}
+      {canAssign && activeTab === 'assign-subjects' && (
         <div className="bg-gradient-to-br from-blue-50/50 via-white to-blue-50/50 border border-blue-100 shadow-sm rounded-sm p-4 sm:p-6">
           <SubjectAssignmentsList />
         </div>

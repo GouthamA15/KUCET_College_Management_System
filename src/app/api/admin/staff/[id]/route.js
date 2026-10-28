@@ -4,7 +4,126 @@ import { db } from '@/db';
 import { staffAccounts, staffAcademicAffiliations, academicDepartments, academicPrograms, facultyHodAssignments, facultyCoordinatorAssignments, staffRoles, staffAccountRoles, semesters, auditLogs } from '@/db/schema';
 import { eq, and, ne, sql, inArray } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
+import { isValidFacultyBranch } from '@/lib/staff-config';
 import { z } from 'zod';
+
+export async function GET(req, context) {
+  const user = await getAuthUser('admin');
+  if (!user) return apiError('Unauthorized', 401);
+
+  try {
+    const params = await context.params;
+    const idNum = parseInt(params?.id, 10);
+    if (isNaN(idNum) || idNum <= 0) {
+      return apiError('Invalid staff ID', 400);
+    }
+
+    const staff = await db.query.staffAccounts.findFirst({
+      where: eq(staffAccounts.id, idNum),
+    });
+
+    if (!staff) {
+      return apiError('Staff not found', 404);
+    }
+
+    // Resolve roles
+    const rolesData = await db.select({
+      role_code: staffRoles.role_code,
+    })
+      .from(staffAccountRoles)
+      .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
+      .where(eq(staffAccountRoles.staff_account_id, idNum));
+
+    const roles = new Set();
+    let isPrincipal = false;
+    for (const r of rolesData) {
+      if (r.role_code) {
+        let mappedRole = 'faculty';
+        if (r.role_code === 'ADMISSION_STAFF') mappedRole = 'admission';
+        else if (r.role_code === 'SCHOLARSHIP_STAFF') mappedRole = 'scholarship';
+        else if (r.role_code === 'PRINCIPAL') {
+          isPrincipal = true;
+        }
+        roles.add(mappedRole);
+      }
+    }
+
+    // Resolve branches
+    const affilData = await db.select({
+      branch: sql`COALESCE(${academicPrograms.program_code}, ${academicDepartments.department_code})`.as('branch'),
+    })
+      .from(staffAcademicAffiliations)
+      .leftJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
+      .leftJoin(academicPrograms, eq(staffAcademicAffiliations.program_id, academicPrograms.id))
+      .where(eq(staffAcademicAffiliations.staff_account_id, idNum));
+
+    const branches = new Set();
+    for (const a of affilData) {
+      if (a.branch) branches.add(a.branch);
+    }
+
+    // Resolve active HOD assignments
+    const hodRows = await db.select({
+      dept: facultyHodAssignments.department_code,
+      academic_year: facultyHodAssignments.academic_year,
+    })
+      .from(facultyHodAssignments)
+      .where(and(
+        eq(facultyHodAssignments.staff_account_id, idNum),
+        eq(facultyHodAssignments.is_active, true)
+      ));
+
+    const hodBranches = Array.from(new Set(hodRows.map(h => h.dept)));
+
+    // Resolve active Coordinator assignment
+    const todayStr = new Date().toISOString().split('T')[0];
+    const coordRows = await db.select({
+      id: facultyCoordinatorAssignments.id,
+      coordinator_type: facultyCoordinatorAssignments.coordinator_type,
+      academic_year: facultyCoordinatorAssignments.academic_year,
+      start_date: facultyCoordinatorAssignments.start_date,
+      end_date: facultyCoordinatorAssignments.end_date,
+    })
+      .from(facultyCoordinatorAssignments)
+      .where(and(
+        eq(facultyCoordinatorAssignments.staff_account_id, idNum),
+        eq(facultyCoordinatorAssignments.is_active, true)
+      ));
+
+    let activeCoord = null;
+    for (const c of coordRows) {
+      if (c.start_date && todayStr < c.start_date) continue;
+      if (c.end_date && todayStr > c.end_date) continue;
+      activeCoord = c;
+      break;
+    }
+
+    const formattedStaff = {
+      id: staff.id,
+      name: staff.name,
+      email: staff.email,
+      employee_id: staff.employee_id,
+      staff_category: staff.staff_category,
+      designation: staff.designation,
+      is_active: staff.account_status === 'ACTIVE',
+      account_status: staff.account_status,
+      roles: Array.from(roles),
+      branches: Array.from(branches),
+      hod_branches: hodBranches,
+      is_hod: hodBranches.length > 0,
+      is_principal: isPrincipal,
+      is_first_year_coordinator: !!activeCoord,
+      coordinator_assignment: activeCoord,
+      created_at: staff.created_at,
+      updated_at: staff.updated_at,
+    };
+
+    return apiResponse({ data: formattedStaff });
+  } catch (error) {
+    logger.error('Error fetching staff record:', error);
+    return apiError('Internal Server Error', 500);
+  }
+}
 
 export async function DELETE(req, context) {
   const user = await getAuthUser('admin');
@@ -12,7 +131,10 @@ export async function DELETE(req, context) {
 
   try {
     const params = await context.params;
-    const idNum = parseInt(params.id);
+    const idNum = parseInt(params?.id, 10);
+    if (isNaN(idNum) || idNum <= 0) {
+      return apiError('Invalid staff ID', 400);
+    }
 
     const staffBefore = await db.query.staffAccounts.findFirst({
       where: eq(staffAccounts.id, idNum)
@@ -78,7 +200,14 @@ export async function PUT(req, context) {
 
   try {
     const params = await context.params;
-    const idNum = parseInt(params.id);
+    const idNum = parseInt(params?.id, 10);
+    if (isNaN(idNum) || idNum <= 0) {
+      return apiError('Invalid staff ID', 400);
+    }
+
+    const clientIp = (req.headers.get('x-forwarded-for')?.split(',')[0] || req.headers.get('x-real-ip') || '127.0.0.1').trim().slice(0, 45);
+    const userAgent = (req.headers.get('user-agent') || 'system').slice(0, 500);
+
     const json = await req.json();
 
     // Validate with Zod
@@ -105,6 +234,28 @@ export async function PUT(req, context) {
       branches, roles,
       is_first_year_coordinator, coordinator_start_date, coordinator_end_date
     } = validatedData;
+
+    if (branches !== undefined) {
+      if (!Array.isArray(branches)) {
+        return apiError('Branches must be an array of branch codes', 400);
+      }
+      for (const b of branches) {
+        if (!isValidFacultyBranch(b.toUpperCase().trim())) {
+          return apiError(`Invalid branch: ${b}`, 400);
+        }
+      }
+    }
+
+    if (hod_branches !== undefined) {
+      if (!Array.isArray(hod_branches)) {
+        return apiError('HOD branches must be an array of branch codes', 400);
+      }
+      for (const b of hod_branches) {
+        if (!isValidFacultyBranch(b.toUpperCase().trim())) {
+          return apiError(`Invalid HOD branch: ${b}`, 400);
+        }
+      }
+    }
 
     const staffBefore = await db.query.staffAccounts.findFirst({
       where: eq(staffAccounts.id, idNum)
@@ -250,8 +401,8 @@ export async function PUT(req, context) {
               target_type: 'staff_accounts',
               target_id: String(idNum),
               payload_after: { designation: 'Principal Supervisor across CSE, IT, and CSD' },
-              ip_address: req.headers.get('x-forwarded-for') || '127.0.0.1',
-              user_agent: req.headers.get('user-agent') || 'system'
+              ip_address: clientIp,
+              user_agent: userAgent
             });
           }
         } else {
@@ -266,8 +417,8 @@ export async function PUT(req, context) {
             target_type: 'staff_accounts',
             target_id: String(idNum),
             payload_after: { designation: 'Revoked Principal Supervisory Authority' },
-            ip_address: req.headers.get('x-forwarded-for') || '127.0.0.1',
-            user_agent: req.headers.get('user-agent') || 'system'
+            ip_address: clientIp,
+            user_agent: userAgent
           });
         }
       }
@@ -428,8 +579,8 @@ export async function PUT(req, context) {
                 branch: dCode, 
                 academic_year: currentAcademicYear 
               },
-              ip_address: req.headers.get('x-forwarded-for') || '127.0.0.1',
-              user_agent: req.headers.get('user-agent') || 'system'
+              ip_address: clientIp,
+              user_agent: userAgent
             });
           }
 
@@ -513,8 +664,8 @@ export async function PUT(req, context) {
           target_type: 'STAFF_ACCOUNT',
           target_id: String(idNum),
           payload_after: { targetHodBranches },
-          ip_address: req.headers.get('x-forwarded-for') || '127.0.0.1',
-          user_agent: req.headers.get('user-agent') || 'system'
+          ip_address: clientIp,
+          user_agent: userAgent
         });
       }
 
@@ -567,8 +718,8 @@ export async function PUT(req, context) {
               target_type: 'faculty_coordinator_assignments',
               target_id: String(idNum),
               payload_after: { coordinator_type: 'FIRST_YEAR', academic_year: currentAcademicYear, start_date: startD, end_date: endD },
-              ip_address: req.headers.get('x-forwarded-for') || '127.0.0.1',
-              user_agent: req.headers.get('user-agent') || 'system'
+              ip_address: clientIp,
+              user_agent: userAgent
             });
           } else if (coordinator_start_date || coordinator_end_date !== undefined) {
             const startD = coordinator_start_date || existingCoord[0].start_date;
@@ -597,8 +748,8 @@ export async function PUT(req, context) {
             target_type: 'faculty_coordinator_assignments',
             target_id: String(idNum),
             payload_after: { is_active: false, end_date: todayStr },
-            ip_address: req.headers.get('x-forwarded-for') || '127.0.0.1',
-            user_agent: req.headers.get('user-agent') || 'system'
+            ip_address: clientIp,
+            user_agent: userAgent
           });
         }
       }
@@ -634,7 +785,24 @@ export async function PUT(req, context) {
       // Non-blocking
     }
 
-    return apiResponse({ success: true, message: 'Staff record and assignments updated successfully' });
+    const updatedStaff = {
+      id: idNum,
+      name: name !== undefined ? name : staffBefore.name,
+      email: email !== undefined ? email.toLowerCase() : staffBefore.email,
+      employee_id: employee_id !== undefined ? employee_id : staffBefore.employee_id,
+      is_active: is_active !== undefined ? is_active : (staffBefore.account_status === 'ACTIVE'),
+      branches: branches !== undefined ? branches : (staffBefore.branches || []),
+      is_hod: hod_branches ? hod_branches.length > 0 : (is_hod !== undefined ? is_hod : false),
+      hod_branches: hod_branches !== undefined ? hod_branches : [],
+      is_principal: is_principal !== undefined ? is_principal : false,
+      is_first_year_coordinator: is_first_year_coordinator !== undefined ? is_first_year_coordinator : false,
+    };
+
+    return apiResponse({ 
+      success: true, 
+      message: 'Staff record and assignments updated successfully',
+      data: updatedStaff
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);

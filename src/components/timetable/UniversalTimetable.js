@@ -268,7 +268,7 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
                           {(slot.room_no || slot.faculty_name) && (
                             <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-slate-500">
                               {slot.room_no && <span className="rounded-md bg-slate-100 px-2 py-1">Room {slot.room_no}</span>}
-                              {slot.faculty_name && <span className="max-w-full truncate rounded-md bg-slate-100 px-2 py-1">{slot.faculty_name}</span>}
+                              {slot.faculty_name && <span className="max-w-full truncate rounded-md bg-slate-100 px-2 py-1" title={slot.faculty_name}>{slot.faculty_name}</span>}
                             </div>
                           )}
                         </>

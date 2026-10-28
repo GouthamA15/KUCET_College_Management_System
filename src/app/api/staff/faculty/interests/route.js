@@ -1,8 +1,16 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { facultySubjectInterests } from '@/db/schema';
+import { 
+  facultySubjectInterests, 
+  facultySubjectAssignments,
+  syllabusStructure,
+  academicDepartments, 
+  academicPrograms, 
+  collegeInfo as collegeInfoTable 
+} from '@/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
+import { getCollegeAcademicYear } from '@/lib/academic-utils';
 
 export async function GET(_request) {
   try {
@@ -29,54 +37,73 @@ export async function POST(request) {
     const body = await request.json();
     const { subject_code, subject_name, branch, department_code, semester, academic_year } = body;
 
-    if (!subject_code || !subject_name || !branch || !department_code || !semester) {
-      return apiError('Missing required fields, including department_code', 400);
+    if (!subject_code || !subject_name || !branch || !semester) {
+      return apiError('Missing required fields: subject_code, subject_name, branch, and semester are required.', 400);
+    }
+
+    const normBranch = String(branch).toUpperCase().trim();
+    const parsedSemester = parseInt(semester, 10);
+
+    if (isNaN(parsedSemester) || parsedSemester < 1 || parsedSemester > 8) {
+      return apiError('Semester must be between 1 and 8', 400);
     }
 
     if (academic_year && !academic_year.match(/^\d{4}-\d{2}$/)) {
       return apiError('Invalid academic_year format. Expected YYYY-YY', 400);
     }
 
-    const { staffAcademicAffiliations, academicDepartments, academicPrograms, collegeInfo: collegeInfoTable } = await import('@/db/schema');
-    
     // Resolve academic year if not provided
     let resolvedAcademicYear = academic_year;
     if (!resolvedAcademicYear) {
-       const { getCollegeAcademicYear } = await import('@/lib/academic-utils');
        const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1)).limit(1);
        const collegeInfo = collegeRows[0] || null;
        resolvedAcademicYear = await getCollegeAcademicYear(collegeInfo) || '2025-26';
     }
 
-    const affil = await db.select({ 
-      dept_id: academicDepartments.id,
-      dept_code: academicDepartments.department_code, 
-      prog_code: academicPrograms.program_code 
-    })
-    .from(staffAcademicAffiliations)
-    .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
-    .leftJoin(academicPrograms, eq(staffAcademicAffiliations.program_id, academicPrograms.id))
-    .where(eq(staffAcademicAffiliations.staff_account_id, user.id));
+    // Validate subject exists in the specified branch and semester
+    const subjectCheck = await db.select({ subject_code: syllabusStructure.subject_code })
+      .from(syllabusStructure)
+      .where(and(
+        eq(syllabusStructure.subject_code, subject_code),
+        eq(syllabusStructure.branch, normBranch),
+        eq(syllabusStructure.semester, parsedSemester)
+      ))
+      .limit(1);
 
-    if (affil.length === 0) {
-      return apiError('No academic affiliations found for this staff member', 403);
+    if (subjectCheck.length === 0) {
+      return apiError(`Subject ${subject_code} does not exist in ${normBranch} Semester ${parsedSemester} syllabus.`, 400);
     }
 
-    const allocatedProgramCodes = Array.from(new Set(affil.map(a => a.prog_code).filter(Boolean)));
-
-    if (!allocatedProgramCodes.includes(branch)) {
-      return apiError(`Invalid program. You can only request subjects for your allocated teaching programs: ${allocatedProgramCodes.join(', ')}`, 403);
+    // Resolve authoritative department_code for the branch
+    let resolvedDeptCode = department_code ? String(department_code).toUpperCase().trim() : null;
+    if (!resolvedDeptCode) {
+      // Check if branch matches academicDepartments
+      const deptMatch = await db.select({ code: academicDepartments.department_code })
+        .from(academicDepartments)
+        .where(eq(academicDepartments.department_code, normBranch))
+        .limit(1);
+      
+      if (deptMatch.length > 0) {
+        resolvedDeptCode = deptMatch[0].code;
+      } else {
+        // Check if branch matches academicPrograms and get parent department
+        const progMatch = await db.select({ code: academicDepartments.department_code })
+          .from(academicPrograms)
+          .innerJoin(academicDepartments, eq(academicPrograms.department_id, academicDepartments.id))
+          .where(eq(academicPrograms.program_code, normBranch))
+          .limit(1);
+        
+        resolvedDeptCode = progMatch.length > 0 ? progMatch[0].code : normBranch;
+      }
     }
 
-    const { facultySubjectAssignments } = await import('@/db/schema');
-    
     // 1. Check if already actively assigned
     const existingAssignment = await db.query.facultySubjectAssignments.findFirst({
       where: and(
         eq(facultySubjectAssignments.staff_account_id, user.id),
         eq(facultySubjectAssignments.subject_code, subject_code),
-        eq(facultySubjectAssignments.branch, branch),
-        eq(facultySubjectAssignments.course_semester, semester),
+        eq(facultySubjectAssignments.branch, normBranch),
+        eq(facultySubjectAssignments.course_semester, parsedSemester),
         eq(facultySubjectAssignments.academic_year, resolvedAcademicYear),
         eq(facultySubjectAssignments.is_active, true)
       )
@@ -91,8 +118,8 @@ export async function POST(request) {
       where: and(
         eq(facultySubjectInterests.staff_account_id, user.id),
         eq(facultySubjectInterests.subject_code, subject_code),
-        eq(facultySubjectInterests.branch, branch),
-        eq(facultySubjectInterests.semester, semester),
+        eq(facultySubjectInterests.branch, normBranch),
+        eq(facultySubjectInterests.semester, parsedSemester),
         eq(facultySubjectInterests.academic_year, resolvedAcademicYear)
       )
     });
@@ -105,9 +132,9 @@ export async function POST(request) {
       staff_account_id: user.id,
       subject_code,
       subject_name,
-      branch,
-      department_code,
-      semester: parseInt(semester),
+      branch: normBranch,
+      department_code: resolvedDeptCode,
+      semester: parsedSemester,
       academic_year: resolvedAcademicYear,
       status: 'PENDING'
     });
@@ -118,3 +145,4 @@ export async function POST(request) {
     return apiError('Internal Server Error', 500);
   }
 }
+

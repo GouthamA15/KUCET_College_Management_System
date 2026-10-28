@@ -5,18 +5,26 @@ import {
   staffAccounts, 
   collegeInfo as collegeInfoTable, 
   facultySubjectAssignments,
-  staffAcademicAffiliations,
   academicDepartments
 } from '@/db/schema';
-import { eq, and, desc, or, inArray } from 'drizzle-orm';
+import { eq, and, desc, or, inArray, notInArray } from 'drizzle-orm';
 import { apiResponse, apiError, wrapHandler } from '@/lib/api-utils';
 import { getCollegeAcademicYear } from '@/lib/academic-utils';
+import { 
+  canReviewSubjectInterest,
+  assertAcademicYearNotLocked,
+  checkAllocationConflicts,
+  canOverrideAllocationConflict,
+  notifyPrincipalLeadershipSelfAllocation
+} from '@/lib/academic-authorization';
 import { z } from 'zod';
 
 const interestUpdateSchema = z.object({
   interest_id: z.coerce.number().int().positive(),
   status: z.enum(['APPROVED', 'REJECTED']),
-  rejection_reason: z.string().optional()
+  rejection_reason: z.string().optional(),
+  override_conflict: z.boolean().optional(),
+  override_reason: z.string().optional()
 });
 
 export const GET = wrapHandler({
@@ -58,22 +66,30 @@ export const GET = wrapHandler({
         }
       }
 
-      // 2. Build where condition based on role capabilities
-      // Coordinator sees semesters 1 & 2 across ALL branches.
-      // HOD sees authorizedCodes across all semesters.
-      // Admin sees all.
+      // 2. Build where condition based on role capabilities:
+      // - Coordinator sees Semesters 1 & 2 across ALL branches.
+      // - HOD sees authorizedCodes across Semesters 3-8 (or all if also coordinator).
+      // - Admin sees all.
       let scopeCondition;
       if (isAdmin) {
         scopeCondition = undefined;
       } else if (isCoordinator && isHod) {
         scopeCondition = or(
           inArray(facultySubjectInterests.department_code, authorizedCodes),
+          inArray(facultySubjectInterests.branch, authorizedCodes),
           inArray(facultySubjectInterests.semester, [1, 2])
         );
       } else if (isCoordinator) {
         scopeCondition = inArray(facultySubjectInterests.semester, [1, 2]);
       } else {
-        scopeCondition = inArray(facultySubjectInterests.department_code, authorizedCodes);
+        // HOD responsible for subject branch: Semesters 3-8 routed to HOD
+        scopeCondition = and(
+          or(
+            inArray(facultySubjectInterests.department_code, authorizedCodes),
+            inArray(facultySubjectInterests.branch, authorizedCodes)
+          ),
+          notInArray(facultySubjectInterests.semester, [1, 2])
+        );
       }
 
       const yearCondition = or(
@@ -140,6 +156,7 @@ export const GET = wrapHandler({
           subject_code: i.subject_code,
           subject_name: i.subject_name,
           branch: i.branch,
+          department_code: i.department_code,
           semester: i.semester,
           academic_year: i.academic_year,
           status: i.status,
@@ -170,9 +187,19 @@ export const POST = wrapHandler({
   auth: ['hod', 'first_year_coordinator', 'faculty'],
   schema: interestUpdateSchema,
   handler: async (_request, { user, data }) => {
-    const { interest_id, status, rejection_reason } = data;
+    const { 
+      interest_id, 
+      status, 
+      rejection_reason,
+      override_conflict = false,
+      override_reason = ''
+    } = data;
 
     try {
+      let createdAssignmentId = null;
+      let isSelfAllocation = false;
+      let interestRecord = null;
+
       await db.transaction(async (tx) => {
         const interest = await tx.query.facultySubjectInterests.findFirst({
           where: eq(facultySubjectInterests.id, interest_id)
@@ -184,11 +211,7 @@ export const POST = wrapHandler({
           throw err;
         }
 
-        if (interest.staff_account_id === user.id) {
-          const err = new Error('You cannot review your own request');
-          err.status = 403;
-          throw err;
-        }
+        interestRecord = interest;
 
         if (interest.status !== 'PENDING') {
           const err = new Error('Only PENDING requests can be reviewed');
@@ -196,45 +219,89 @@ export const POST = wrapHandler({
           throw err;
         }
 
-        let isAuthorized = false;
-        if (user.role === 'admin' || user.is_principal) {
-          isAuthorized = true;
-        } else if (user.is_first_year_coordinator && [1, 2].includes(interest.semester)) {
-          isAuthorized = true;
-        } else if (user.hod_department_code) {
-          const affil = await tx.select({ dept_code: academicDepartments.department_code })
-            .from(staffAcademicAffiliations)
-            .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
-            .where(eq(staffAcademicAffiliations.staff_account_id, interest.staff_account_id));
-          
-          const validDepartments = affil.map(a => a.dept_code);
-          if (validDepartments.includes(user.hod_department_code) || interest.department_code === user.hod_department_code) {
-            isAuthorized = true;
-          }
-        }
-
-        if (!isAuthorized) {
-          const err = new Error('Not authorized for this department or academic scope');
+        // Authoritative Review & Self-Allocation Permission Check
+        const reviewCheck = canReviewSubjectInterest(user, interest);
+        if (!reviewCheck.allowed) {
+          const err = new Error(reviewCheck.reason || 'Not authorized for this department or academic scope');
           err.status = 403;
           throw err;
         }
 
+        isSelfAllocation = !!reviewCheck.isSelfAllocation;
+
         if (status === 'APPROVED') {
+          // Academic-Year Locking Protection
+          await assertAcademicYearNotLocked({
+            academic_year: interest.academic_year,
+            branch: interest.branch,
+            semester: interest.semester
+          });
+
+          // Conflict & Workload Detection
+          const conflictResult = await checkAllocationConflicts({
+            faculty_id: interest.staff_account_id,
+            subject_code: interest.subject_code,
+            branch: interest.branch,
+            semester: interest.semester,
+            academic_year: interest.academic_year
+          });
+
+          if (conflictResult.hasConflict) {
+            if (!override_conflict) {
+              const err = new Error('Allocation conflict detected');
+              err.status = 409;
+              err.conflictDetails = {
+                conflicts: conflictResult.conflicts,
+                warnings: conflictResult.warnings,
+                canOverride: true
+              };
+              throw err;
+            }
+
+            const overrideCheck = canOverrideAllocationConflict(user, {
+              branch: interest.branch,
+              semester: interest.semester,
+              reason: override_reason
+            });
+
+            if (!overrideCheck.allowed) {
+              const err = new Error(overrideCheck.reason || 'Insufficient override authorization or reason');
+              err.status = 403;
+              throw err;
+            }
+          }
+
           const existingAssignment = await tx.query.facultySubjectAssignments.findFirst({
             where: and(
               eq(facultySubjectAssignments.staff_account_id, interest.staff_account_id),
               eq(facultySubjectAssignments.subject_code, interest.subject_code),
               eq(facultySubjectAssignments.branch, interest.branch),
               eq(facultySubjectAssignments.course_semester, interest.semester),
-              eq(facultySubjectAssignments.academic_year, interest.academic_year),
-              eq(facultySubjectAssignments.is_active, true)
+              eq(facultySubjectAssignments.academic_year, interest.academic_year)
             )
           });
 
           if (existingAssignment) {
-            const err = new Error('An active assignment already exists for this subject');
-            err.status = 409;
-            throw err;
+            createdAssignmentId = existingAssignment.id;
+            if (!existingAssignment.is_active) {
+              await tx.update(facultySubjectAssignments)
+                .set({ is_active: true })
+                .where(eq(facultySubjectAssignments.id, existingAssignment.id));
+            }
+          } else {
+            const academicTerm = interest.semester % 2 === 0 ? 2 : 1;
+            
+            const [insertRes] = await tx.insert(facultySubjectAssignments).values({
+              staff_account_id: interest.staff_account_id,
+              subject_code: interest.subject_code,
+              subject_name: interest.subject_name,
+              branch: interest.branch,
+              course_semester: interest.semester,
+              academic_term: academicTerm,
+              academic_year: interest.academic_year,
+              is_active: true
+            });
+            createdAssignmentId = insertRes?.insertId;
           }
         }
 
@@ -246,33 +313,46 @@ export const POST = wrapHandler({
              rejection_reason: status === 'REJECTED' ? (rejection_reason || null) : null
           })
           .where(eq(facultySubjectInterests.id, interest_id));
-
-        if (status === 'APPROVED') {
-          const academicTerm = interest.semester % 2 === 0 ? 2 : 1;
-          
-          await tx.insert(facultySubjectAssignments).values({
-            staff_account_id: interest.staff_account_id,
-            subject_code: interest.subject_code,
-            subject_name: interest.subject_name,
-            branch: interest.branch,
-            course_semester: interest.semester,
-            academic_term: academicTerm,
-            academic_year: interest.academic_year,
-            is_active: true
-          });
-        }
       });
 
-      return apiResponse({ message: `Interest ${status.toLowerCase()} successfully` });
+      // Post-transaction notifications and audit logs
+      if (status === 'APPROVED' && isSelfAllocation && interestRecord) {
+        await notifyPrincipalLeadershipSelfAllocation(_request, {
+          actor: user,
+          subject_code: interestRecord.subject_code,
+          subject_name: interestRecord.subject_name,
+          branch: interestRecord.branch,
+          semester: interestRecord.semester,
+          academic_year: interestRecord.academic_year,
+          assignment_id: createdAssignmentId,
+          override_reason: override_conflict ? override_reason : null
+        });
+      }
+
+      return apiResponse({ 
+        message: isSelfAllocation 
+          ? 'Subject request self-allocated and assigned successfully' 
+          : `Interest ${status.toLowerCase()} successfully`,
+        assignment_id: createdAssignmentId
+      });
     } catch (error) {
       if (error.status === 404 || error.message === 'Interest not found') return apiError('Interest not found', 404);
       if (error.status === 403 || error.message?.includes('Not authorized') || error.message?.includes('cannot review your own request')) {
         return apiError(error.message, 403);
       }
-      if (error.status === 409) return apiError(error.message, 409);
+      if (error.status === 409) {
+        return apiResponse({ 
+          error: error.message || 'Allocation conflict detected',
+          hasConflict: true,
+          canOverride: true,
+          conflicts: error.conflictDetails?.conflicts || [],
+          warnings: error.conflictDetails?.warnings || []
+        }, 409);
+      }
       if (error.status === 400) return apiError(error.message, 400);
       logger.error('Approve Interest Error:', error);
       throw error;
     }
   }
 });
+

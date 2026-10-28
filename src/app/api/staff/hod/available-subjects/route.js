@@ -53,7 +53,9 @@ export const GET = wrapHandler({
         const validBranches = affil.map(a => a.prog_code).filter(Boolean);
         validBranches.push(...affil.map(a => a.dept_code).filter(Boolean));
         if (user.hod_department_code) validBranches.push(user.hod_department_code);
-        branchesList = [...new Set(validBranches)];
+        if (Array.isArray(user.authorized_branches)) validBranches.push(...user.authorized_branches);
+        if (Array.isArray(user.hod_branches)) validBranches.push(...user.hod_branches);
+        branchesList = [...new Set(validBranches.map(b => String(b).toUpperCase()))];
       }
 
       let conditions = [inArray(syllabusStructure.branch, branchesList)];
