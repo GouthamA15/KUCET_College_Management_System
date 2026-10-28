@@ -45,10 +45,29 @@ export default function AcademicCoverageDashboard({
   const [selectedSemester, setSelectedSemester] = useState(availableSemesters[0] ? String(availableSemesters[0]) : '1');
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('2025-26');
 
+  // Synchronize branch and semester selection with role authorization
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (availableBranches.length > 0 && !availableBranches.includes(selectedBranch)) {
+        setSelectedBranch(availableBranches[0]);
+      }
+    }, 0);
+    return () => clearTimeout(id);
+  }, [availableBranches, selectedBranch]);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (availableSemesters.length > 0 && !availableSemesters.includes(Number(selectedSemester))) {
+        setSelectedSemester(String(availableSemesters[0]));
+      }
+    }, 0);
+    return () => clearTimeout(id);
+  }, [availableSemesters, selectedSemester]);
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchCoverage = useCallback(async () => {
+  const fetchCoverage = useCallback(async (signal) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -56,11 +75,12 @@ export default function AcademicCoverageDashboard({
         semester: selectedSemester,
         academic_year: selectedAcademicYear
       });
-      const res = await fetch(`/api/staff/hod/academic-coverage?${params.toString()}`);
+      const res = await fetch(`/api/staff/hod/academic-coverage?${params.toString()}`, { signal });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to load coverage analysis');
       setData(json.data);
     } catch (err) {
+      if (err.name === 'AbortError') return;
       toast.error(err.message);
     } finally {
       setLoading(false);
@@ -68,15 +88,17 @@ export default function AcademicCoverageDashboard({
   }, [selectedBranch, selectedSemester, selectedAcademicYear]);
 
   useEffect(() => {
-    let ignore = false;
+    const controller = new AbortController();
     const id = setTimeout(() => {
-      if (!ignore) fetchCoverage();
+      fetchCoverage(controller.signal);
     }, 0);
     return () => {
-      ignore = true;
       clearTimeout(id);
+      controller.abort();
     };
   }, [fetchCoverage]);
+
+  const targetTab = isCoordinatorView ? 'allocations' : 'directory';
 
   return (
     <div className="space-y-6 w-full text-sm">
@@ -145,7 +167,7 @@ export default function AcademicCoverageDashboard({
           {/* ── KPI METRICS CARDS ────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div 
-              onClick={() => onNavigateToTab && onNavigateToTab('directory')}
+              onClick={() => onNavigateToTab && onNavigateToTab(targetTab)}
               className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs hover:border-[#0b3578]/50 transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between text-slate-500 text-xs font-bold uppercase tracking-wider">
@@ -159,7 +181,7 @@ export default function AcademicCoverageDashboard({
             </div>
 
             <div 
-              onClick={() => onNavigateToTab && onNavigateToTab('directory')}
+              onClick={() => onNavigateToTab && onNavigateToTab(targetTab)}
               className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs hover:border-emerald-500/50 transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between text-emerald-600 text-xs font-bold uppercase tracking-wider">
@@ -175,7 +197,7 @@ export default function AcademicCoverageDashboard({
             </div>
 
             <div 
-              onClick={() => onNavigateToTab && onNavigateToTab('directory')}
+              onClick={() => onNavigateToTab && onNavigateToTab(targetTab)}
               className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs hover:border-rose-500/50 transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between text-rose-600 text-xs font-bold uppercase tracking-wider">
@@ -191,7 +213,7 @@ export default function AcademicCoverageDashboard({
             </div>
 
             <div 
-              onClick={() => onNavigateToTab && onNavigateToTab('interests')}
+              onClick={() => onNavigateToTab && onNavigateToTab(isCoordinatorView ? 'requests' : 'interests')}
               className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs hover:border-indigo-500/50 transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between text-indigo-600 text-xs font-bold uppercase tracking-wider">

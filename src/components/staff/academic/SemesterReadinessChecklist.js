@@ -43,10 +43,29 @@ export default function SemesterReadinessChecklist({
   const [selectedSemester, setSelectedSemester] = useState(availableSemesters[0] ? String(availableSemesters[0]) : '1');
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('2025-26');
 
+  // Synchronize branch and semester selection with role authorization
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (availableBranches.length > 0 && !availableBranches.includes(selectedBranch)) {
+        setSelectedBranch(availableBranches[0]);
+      }
+    }, 0);
+    return () => clearTimeout(id);
+  }, [availableBranches, selectedBranch]);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (availableSemesters.length > 0 && !availableSemesters.includes(Number(selectedSemester))) {
+        setSelectedSemester(String(availableSemesters[0]));
+      }
+    }, 0);
+    return () => clearTimeout(id);
+  }, [availableSemesters, selectedSemester]);
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchReadiness = useCallback(async () => {
+  const fetchReadiness = useCallback(async (signal) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -54,11 +73,12 @@ export default function SemesterReadinessChecklist({
         semester: selectedSemester,
         academic_year: selectedAcademicYear
       });
-      const res = await fetch(`/api/staff/hod/semester-readiness?${params.toString()}`);
+      const res = await fetch(`/api/staff/hod/semester-readiness?${params.toString()}`, { signal });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to load semester readiness');
       setData(json.data);
     } catch (err) {
+      if (err.name === 'AbortError') return;
       toast.error(err.message);
     } finally {
       setLoading(false);
@@ -66,13 +86,13 @@ export default function SemesterReadinessChecklist({
   }, [selectedBranch, selectedSemester, selectedAcademicYear]);
 
   useEffect(() => {
-    let ignore = false;
+    const controller = new AbortController();
     const id = setTimeout(() => {
-      if (!ignore) fetchReadiness();
+      fetchReadiness(controller.signal);
     }, 0);
     return () => {
-      ignore = true;
       clearTimeout(id);
+      controller.abort();
     };
   }, [fetchReadiness]);
 
@@ -179,7 +199,6 @@ export default function SemesterReadinessChecklist({
             {data.checklist.map((item) => {
               const isReady = item.status === 'READY';
               const isWarning = item.status === 'WARNING';
-              const isAction = item.status === 'ACTION_REQUIRED';
 
               return (
                 <div 
@@ -221,7 +240,7 @@ export default function SemesterReadinessChecklist({
                     <div className="self-end sm:self-center shrink-0">
                       {item.id === 'allocations' && !isReady && (
                         <button
-                          onClick={() => onNavigateToTab && onNavigateToTab('directory')}
+                          onClick={() => onNavigateToTab && onNavigateToTab(isCoordinatorView ? 'allocations' : 'directory')}
                           className="flex items-center gap-1 px-3 py-1.5 bg-[#0b3578] hover:bg-[#0a2d66] text-white rounded text-xs font-semibold cursor-pointer"
                         >
                           <span>Manage Allocations</span>
@@ -231,7 +250,7 @@ export default function SemesterReadinessChecklist({
 
                       {item.id === 'requests' && !isReady && (
                         <button
-                          onClick={() => onNavigateToTab && onNavigateToTab('interests')}
+                          onClick={() => onNavigateToTab && onNavigateToTab(isCoordinatorView ? 'requests' : 'interests')}
                           className="flex items-center gap-1 px-3 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white rounded text-xs font-semibold cursor-pointer"
                         >
                           <span>Review Requests</span>

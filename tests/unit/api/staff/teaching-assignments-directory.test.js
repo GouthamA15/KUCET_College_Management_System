@@ -51,20 +51,31 @@ vi.mock('@/lib/api-utils', async (importOriginal) => {
 vi.mock('@/db', () => ({
   db: {
     select: vi.fn(() => ({
-      from: vi.fn((table) => {
+      from: vi.fn((_table) => {
+        const makeList = () => {
+          const list = [...mockDbAssignments];
+          list.orderBy = vi.fn(() => list);
+          list.limit = vi.fn((lim) => {
+            const sub = list.slice(0, lim || 1);
+            sub.offset = vi.fn(() => sub);
+            return sub;
+          });
+          list.offset = vi.fn(() => list);
+          list.groupBy = vi.fn(() => list);
+          return list;
+        };
         const chain = {
           innerJoin: vi.fn(() => chain),
           leftJoin: vi.fn(() => chain),
-          where: vi.fn((cond) => {
-            const list = [...mockDbAssignments];
-            list.orderBy = vi.fn(() => list);
-            list.limit = vi.fn(() => list.slice(0, 1));
-            list.groupBy = vi.fn(() => list);
+          where: vi.fn(() => makeList()),
+          orderBy: vi.fn(() => makeList()),
+          groupBy: vi.fn(() => makeList()),
+          limit: vi.fn((lim) => {
+            const list = makeList().slice(0, lim || 1);
+            list.offset = vi.fn(() => list);
             return list;
           }),
-          orderBy: vi.fn(() => mockDbAssignments),
-          groupBy: vi.fn(() => mockDbAssignments),
-          limit: vi.fn(() => mockDbAssignments.slice(0, 1))
+          offset: vi.fn(() => makeList())
         };
         return chain;
       })
@@ -413,6 +424,63 @@ describe('Teaching Assignment Directory & Academic Coverage Audit Suite', () => 
       const text = await res.text();
       expect(text).toContain('Subject Code');
       expect(text).toContain('Faculty Name');
+    });
+
+    it('neutralizes spreadsheet formula injection payloads (=, +, -, @, \\t)', async () => {
+      mockCurrentUser = {
+        id: 10,
+        role: 'faculty',
+        is_hod: true,
+        branch: 'CSE',
+        authorized_branches: ['CSE']
+      };
+
+      // Add dangerous formula subject name
+      mockDbAssignments.push({
+        id: 99,
+        faculty_id: 101,
+        subject_code: '=cmd|/C calc',
+        subject_name: '+@Sum(A1:A10)',
+        course_semester: 1,
+        academic_term: 1,
+        academic_year: '2025-26',
+        branch: 'CSE',
+        faculty_name: '-Dr. Malicious',
+        employee_id: '@FAC99',
+        is_active: true,
+        created_at: new Date()
+      });
+
+      const req = new Request('http://localhost:3000/api/staff/hod/subject-assignments/export?branch=CSE&semester=1');
+      const res = await getExport(req);
+      const text = await res.text();
+
+      // Ensure formula prefixes are prepended with a neutralizing single quote
+      expect(text).toContain("\"'=cmd|/C calc\"");
+      expect(text).toContain("\"'+@Sum(A1:A10)\"");
+      expect(text).toContain("\"'-Dr. Malicious\"");
+      expect(text).toContain("\"'@FAC99\"");
+    });
+  });
+
+  describe('7. Server-Side Pagination & Performance Metadata', () => {
+    it('returns pagination metadata when page and limit are specified', async () => {
+      mockCurrentUser = {
+        id: 10,
+        role: 'faculty',
+        is_hod: true,
+        branch: 'CSE',
+        authorized_branches: ['CSE']
+      };
+
+      const req = new Request('http://localhost:3000/api/staff/hod/subject-assignments?branch=CSE&page=1&limit=2');
+      const res = await getAssignments(req);
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.meta.pagination).toBeDefined();
+      expect(json.meta.pagination.page).toBe(1);
+      expect(json.meta.pagination.limit).toBe(2);
     });
   });
 });

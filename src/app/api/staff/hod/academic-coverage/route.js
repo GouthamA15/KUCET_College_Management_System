@@ -8,7 +8,7 @@ import {
   branchTimetable,
   collegeInfo as collegeInfoTable
 } from '@/db/schema';
-import { eq, and, sql, inArray } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { apiResponse, apiError, wrapHandler } from '@/lib/api-utils';
 import { getCollegeAcademicYear } from '@/lib/academic-utils';
 import { 
@@ -56,8 +56,8 @@ export const GET = wrapHandler({
       return apiError(`Forbidden - Not authorized for ${targetBranch} Semester ${semInt}.`, 403);
     }
 
-    // 4. Query Syllabus Subjects for targetBranch and semester
-    const syllabusRows = await db.select({
+    // 4, 5, 6, 7. Query Syllabus, Active Assignments, Pending Requests, and Timetable Slots concurrently
+    const syllabusPromise = db.select({
       subject_code: syllabusStructure.subject_code,
       subject_name: syllabusSubjects.subject_name,
       subject_type: syllabusSubjects.subject_type,
@@ -71,8 +71,7 @@ export const GET = wrapHandler({
       eq(syllabusStructure.semester, semInt)
     ));
 
-    // 5. Query Active Teaching Assignments in this branch, semester, and academic year
-    const activeAssignments = await db.select({
+    const assignmentsPromise = db.select({
       id: facultySubjectAssignments.id,
       faculty_id: facultySubjectAssignments.staff_account_id,
       faculty_name: staffAccounts.name,
@@ -92,8 +91,7 @@ export const GET = wrapHandler({
       eq(facultySubjectAssignments.is_active, true)
     ));
 
-    // 6. Query Pending Requests for this branch and semester
-    const pendingInterests = await db.select({
+    const interestsPromise = db.select({
       id: facultySubjectInterests.id,
       faculty_id: facultySubjectInterests.staff_account_id,
       faculty_name: staffAccounts.name,
@@ -110,24 +108,25 @@ export const GET = wrapHandler({
       eq(facultySubjectInterests.status, 'PENDING')
     ));
 
-    // 7. Query Timetable Slots for scheduled readiness
-    let timetableSlots = [];
-    try {
-      timetableSlots = await db.select({
-        day_of_week: branchTimetable.day_of_week,
-        period_number: branchTimetable.period_number,
-        subject_code: branchTimetable.subject_code,
-        faculty_id: branchTimetable.faculty_id
-      })
-      .from(branchTimetable)
-      .where(and(
-        eq(branchTimetable.branch, targetBranch),
-        eq(branchTimetable.semester, semInt),
-        eq(branchTimetable.academic_year, academicYear)
-      ));
-    } catch (_e) {
-      // Non-fatal
-    }
+    const timetablePromise = db.select({
+      day_of_week: branchTimetable.day_of_week,
+      period_number: branchTimetable.period_number,
+      subject_code: branchTimetable.subject_code,
+      faculty_id: branchTimetable.faculty_id
+    })
+    .from(branchTimetable)
+    .where(and(
+      eq(branchTimetable.branch, targetBranch),
+      eq(branchTimetable.semester, semInt),
+      eq(branchTimetable.academic_year, academicYear)
+    ));
+
+    const [syllabusRows, activeAssignments, pendingInterests, timetableSlots] = await Promise.all([
+      syllabusPromise,
+      assignmentsPromise,
+      interestsPromise,
+      timetablePromise
+    ]);
 
     // 8. Map Syllabus Subjects to Assignments & Timetable Slots
     const assignmentsBySubject = new Map();

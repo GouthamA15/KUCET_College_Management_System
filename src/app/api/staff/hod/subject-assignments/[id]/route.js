@@ -63,10 +63,14 @@ export const GET = wrapHandler({
       return apiError(`Forbidden - Not authorized for ${assignment.branch} Semester ${assignment.course_semester}`, 403);
     }
 
-    // 3. Query timetable scheduled slots
+    // 3, 4, 5. Query timetable slots, attendance sessions, and change history in parallel
     let timetableSlots = [];
+    let sessionCount = 0;
+    let lastSessionDate = null;
+    let changeHistory = [];
+
     try {
-      timetableSlots = await db.select({
+      const timetablePromise = db.select({
         day_of_week: branchTimetable.day_of_week,
         period_number: branchTimetable.period_number,
         room_no: branchTimetable.room_no
@@ -76,35 +80,18 @@ export const GET = wrapHandler({
         eq(branchTimetable.faculty_id, assignment.faculty_id),
         eq(branchTimetable.subject_code, assignment.subject_code),
         eq(branchTimetable.branch, assignment.branch),
-        eq(branchTimetable.semester, assignment.course_semester)
+        eq(branchTimetable.semester, assignment.course_semester),
+        eq(branchTimetable.academic_year, assignment.academic_year)
       ));
-    } catch (_e) {
-      // Non-fatal
-    }
 
-    // 4. Query conducted attendance session count
-    let sessionCount = 0;
-    let lastSessionDate = null;
-    try {
-      const sessionRows = await db.select({
+      const sessionPromise = db.select({
         count: sql`COUNT(DISTINCT ${attendanceSessions.id})`.mapWith(Number),
         last_date: sql`MAX(${attendanceSessions.session_date})`.mapWith(String)
       })
       .from(attendanceSessions)
       .where(eq(attendanceSessions.assignment_id, assignmentId));
 
-      if (sessionRows.length > 0) {
-        sessionCount = sessionRows[0].count || 0;
-        lastSessionDate = sessionRows[0].last_date || null;
-      }
-    } catch (_e) {
-      // Non-fatal
-    }
-
-    // 5. Query Change History from auditLogs
-    let changeHistory = [];
-    try {
-      const logs = await db.select({
+      const auditPromise = db.select({
         id: auditLogs.id,
         action: auditLogs.action,
         user_id: auditLogs.user_id,
@@ -123,20 +110,33 @@ export const GET = wrapHandler({
       .orderBy(desc(auditLogs.created_at))
       .limit(20);
 
-      // Resolve actor names
-      const actorIds = [...new Set(logs.map(l => l.user_id).filter(Boolean))];
-      let actorMap = new Map();
-      if (actorIds.length > 0) {
-        const actors = await db.select({
-          id: staffAccounts.id,
-          name: staffAccounts.name
-        })
-        .from(staffAccounts)
-        .where(inArray(staffAccounts.id, actorIds));
-        actors.forEach(a => actorMap.set(a.id, a.name));
+      const [ttRes, sessionRows, logs] = await Promise.all([timetablePromise, sessionPromise, auditPromise]);
+
+      timetableSlots = ttRes || [];
+
+      if (sessionRows && sessionRows.length > 0) {
+        sessionCount = sessionRows[0].count || 0;
+        lastSessionDate = sessionRows[0].last_date || null;
       }
 
-      changeHistory = logs.map(l => {
+      // Resolve actor names if logs exist
+      const actorIds = [...new Set((logs || []).map(l => l.user_id).filter(Boolean))];
+      let actorMap = new Map();
+      if (actorIds.length > 0) {
+        try {
+          const actors = await db.select({
+            id: staffAccounts.id,
+            name: staffAccounts.name
+          })
+          .from(staffAccounts)
+          .where(inArray(staffAccounts.id, actorIds));
+          actors.forEach(a => actorMap.set(a.id, a.name));
+        } catch (_actorErr) {
+          // Non-fatal
+        }
+      }
+
+      changeHistory = (logs || []).map(l => {
         const payload = typeof l.payload_after === 'string' ? JSON.parse(l.payload_after || '{}') : (l.payload_after || {});
         return {
           id: l.id,
@@ -148,7 +148,7 @@ export const GET = wrapHandler({
         };
       });
     } catch (_e) {
-      // History non-fatal
+      // Non-fatal telemetry enrichment
     }
 
     return apiResponse({

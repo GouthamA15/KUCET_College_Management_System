@@ -5,11 +5,9 @@ import {
   staffAccounts, 
   syllabusStructure,
   syllabusSubjects,
-  branchTimetable,
-  attendanceSessions,
   collegeInfo as collegeInfoTable
 } from '@/db/schema';
-import { eq, and, desc, asc, inArray, sql } from 'drizzle-orm';
+import { eq, and, desc, asc, inArray } from 'drizzle-orm';
 import { apiError, getAuthUser } from '@/lib/api-utils';
 import { getCollegeAcademicYear } from '@/lib/academic-utils';
 import { 
@@ -21,7 +19,11 @@ import logger from '@/lib/logger';
 
 function escapeCSV(val) {
   if (val === null || val === undefined) return '""';
-  const str = String(val).replace(/[\r\n]+/g, ' ');
+  let str = String(val).replace(/[\r\n]+/g, ' ').trim();
+  // Prevent CSV Formula Injection: neutralize spreadsheet execution triggers
+  if (/^[=+\-@\t\r]/.test(str)) {
+    str = "'" + str;
+  }
   if (str.includes(',') || str.includes('"')) {
     return `"${str.replace(/"/g, '""')}"`;
   }
@@ -105,11 +107,9 @@ export async function GET(request) {
       conditions.push(eq(facultySubjectAssignments.academic_year, academicYear));
     }
 
-    if (requestedStatus === 'active') {
-      conditions.push(eq(facultySubjectAssignments.is_active, true));
-    } else if (requestedStatus === 'archived') {
-      conditions.push(eq(facultySubjectAssignments.is_active, false));
-    }
+    const statusCondition = requestedStatus === 'active' 
+      ? eq(facultySubjectAssignments.is_active, true) 
+      : (requestedStatus === 'archived' ? eq(facultySubjectAssignments.is_active, false) : null);
 
     const csvRows = [];
     let filename = '';
@@ -220,6 +220,7 @@ export async function GET(request) {
 
     } else {
       // ─── TEACHING ASSIGNMENTS DIRECTORY REPORT ───
+      const directoryConditions = statusCondition ? [...conditions, statusCondition] : conditions;
       const assignments = await db.select({
         id: facultySubjectAssignments.id,
         faculty_id: facultySubjectAssignments.staff_account_id,
@@ -238,7 +239,7 @@ export async function GET(request) {
       .from(facultySubjectAssignments)
       .innerJoin(staffAccounts, eq(facultySubjectAssignments.staff_account_id, staffAccounts.id))
       .leftJoin(syllabusSubjects, eq(facultySubjectAssignments.subject_code, syllabusSubjects.subject_code))
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .where(directoryConditions.length > 0 ? and(...directoryConditions) : undefined)
       .orderBy(
         desc(facultySubjectAssignments.is_active),
         asc(facultySubjectAssignments.branch),

@@ -57,8 +57,44 @@ export default function TeachingAssignmentDirectory({
   const [selectedSemester, setSelectedSemester] = useState(initialSemester ? String(initialSemester) : (availableSemesters[0] ? String(availableSemesters[0]) : '1'));
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('2025-26');
   const [statusFilter, setStatusFilter] = useState('active'); // 'active', 'archived', 'all'
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeView, setActiveView] = useState('assignments'); // 'assignments', 'coverage', 'faculty', 'branch', 'subject'
+
+  // Pagination state for Directory Table
+  const [page, setPage] = useState(1);
+  const pageSize = 25;
+  const [paginationMeta, setPaginationMeta] = useState(null);
+
+  // Synchronize debounced search input (300ms) to prevent keystroke network floods
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchInput.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchInput]);
+
+  // Synchronize branch and semester selection with role authorization
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (availableBranches.length > 0 && !availableBranches.includes(selectedBranch)) {
+        setSelectedBranch(availableBranches[0]);
+        setPage(1);
+      }
+    }, 0);
+    return () => clearTimeout(id);
+  }, [availableBranches, selectedBranch]);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (availableSemesters.length > 0 && !availableSemesters.includes(Number(selectedSemester))) {
+        setSelectedSemester(String(availableSemesters[0]));
+        setPage(1);
+      }
+    }, 0);
+    return () => clearTimeout(id);
+  }, [availableSemesters, selectedSemester]);
 
   // Data state
   const [assignments, setAssignments] = useState([]);
@@ -87,40 +123,50 @@ export default function TeachingAssignmentDirectory({
   const [syllabusOfferings, setSyllabusOfferings] = useState([]);
   const [activeFacultyList, setActiveFacultyList] = useState([]);
 
-  // Fetch Directory Data
-  const fetchDirectory = useCallback(async () => {
+  // Fetch Directory Data with AbortController and targeted coverage computation
+  const fetchDirectory = useCallback(async (signal) => {
     setLoading(true);
     try {
+      const isPagedView = activeView === 'assignments';
       const params = new URLSearchParams({
         branch: selectedBranch || '',
         semester: selectedSemester || '',
         academic_year: selectedAcademicYear || '',
         status: statusFilter,
-        include_coverage: 'true'
+        include_coverage: activeView === 'coverage' ? 'true' : 'false'
       });
-      if (searchQuery) params.append('search', searchQuery);
+      if (debouncedSearch) params.append('search', debouncedSearch);
 
-      const res = await fetch(`/api/staff/hod/subject-assignments?${params.toString()}`);
+      if (isPagedView) {
+        params.append('page', String(page));
+        params.append('limit', String(pageSize));
+      } else {
+        params.append('limit', 'all');
+      }
+
+      const res = await fetch(`/api/staff/hod/subject-assignments?${params.toString()}`, { signal });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to load teaching assignments');
 
       setAssignments(json.data || []);
       setCoverageData(json.coverage || null);
+      setPaginationMeta(json.meta?.pagination || null);
     } catch (err) {
+      if (err.name === 'AbortError') return;
       toast.error(err.message);
     } finally {
       setLoading(false);
     }
-  }, [selectedBranch, selectedSemester, selectedAcademicYear, statusFilter, searchQuery]);
+  }, [selectedBranch, selectedSemester, selectedAcademicYear, statusFilter, debouncedSearch, activeView, page]);
 
   useEffect(() => {
-    let ignore = false;
+    const controller = new AbortController();
     const id = setTimeout(() => {
-      if (!ignore) fetchDirectory();
+      fetchDirectory(controller.signal);
     }, 0);
     return () => {
-      ignore = true;
       clearTimeout(id);
+      controller.abort();
     };
   }, [fetchDirectory]);
 
@@ -175,7 +221,7 @@ export default function TeachingAssignmentDirectory({
       const url = `/api/staff/hod/subject-assignments/export?${params.toString()}`;
       window.open(url, '_blank');
       toast.success('Export initiated');
-    } catch (err) {
+    } catch (_err) {
       toast.error('Export failed');
     } finally {
       setIsExporting(false);
@@ -391,7 +437,10 @@ export default function TeachingAssignmentDirectory({
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Branch</label>
             <select
               value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value)}
+              onChange={(e) => {
+                setSelectedBranch(e.target.value);
+                setPage(1);
+              }}
               className="w-full h-9 px-3 border border-slate-300 rounded-md bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#0b3578]"
             >
               {availableBranches.map(b => (
@@ -405,7 +454,10 @@ export default function TeachingAssignmentDirectory({
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Semester</label>
             <select
               value={selectedSemester}
-              onChange={(e) => setSelectedSemester(e.target.value)}
+              onChange={(e) => {
+                setSelectedSemester(e.target.value);
+                setPage(1);
+              }}
               className="w-full h-9 px-3 border border-slate-300 rounded-md bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#0b3578]"
             >
               {availableSemesters.map(s => (
@@ -419,7 +471,10 @@ export default function TeachingAssignmentDirectory({
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Academic Year</label>
             <select
               value={selectedAcademicYear}
-              onChange={(e) => setSelectedAcademicYear(e.target.value)}
+              onChange={(e) => {
+                setSelectedAcademicYear(e.target.value);
+                setPage(1);
+              }}
               className="w-full h-9 px-3 border border-slate-300 rounded-md bg-white text-xs font-semibold text-slate-800 font-mono focus:outline-none focus:border-[#0b3578]"
             >
               {ACADEMIC_YEARS.map(y => (
@@ -433,7 +488,10 @@ export default function TeachingAssignmentDirectory({
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Status</label>
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
               className="w-full h-9 px-3 border border-slate-300 rounded-md bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#0b3578]"
             >
               <option value="active">Active Only</option>
@@ -450,8 +508,8 @@ export default function TeachingAssignmentDirectory({
               <input
                 type="text"
                 placeholder="Code, title, faculty..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 className="w-full h-9 pl-8 pr-3 border border-slate-300 rounded-md bg-white text-xs text-slate-800 focus:outline-none focus:border-[#0b3578]"
               />
             </div>
@@ -461,7 +519,7 @@ export default function TeachingAssignmentDirectory({
         {/* View Switcher Tabs */}
         <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-200">
           {[
-            { id: 'assignments', label: `Teaching Directory (${assignments.length})`, icon: BookOpen },
+            { id: 'assignments', label: `Teaching Directory (${paginationMeta ? paginationMeta.total_records : assignments.length})`, icon: BookOpen },
             { id: 'coverage', label: `Coverage Analysis ${coverageData ? `(${coverageData.coverage_percentage}%)` : ''}`, icon: CheckCircle2 },
             { id: 'faculty', label: `Faculty View (${facultyGroupedView.length})`, icon: Users },
             { id: 'subject', label: `Subject View (${subjectGroupedView.length})`, icon: Layers },
@@ -597,6 +655,34 @@ export default function TeachingAssignmentDirectory({
                   ))}
                 </tbody>
               </table>
+
+              {/* Pagination Controls */}
+              {paginationMeta && paginationMeta.total_pages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-600">
+                  <div className="font-medium">
+                    Showing <span className="font-bold text-slate-800">{(page - 1) * pageSize + 1}</span> to <span className="font-bold text-slate-800">{Math.min(page * pageSize, paginationMeta.total_records)}</span> of <span className="font-bold text-slate-800">{paginationMeta.total_records}</span> teaching assignments
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                      className="px-3 py-1.5 border border-slate-300 rounded-md bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors cursor-pointer"
+                    >
+                      Previous
+                    </button>
+                    <span className="px-2 py-1 font-semibold text-slate-700">
+                      Page {page} of {paginationMeta.total_pages}
+                    </span>
+                    <button
+                      onClick={() => setPage(p => Math.min(paginationMeta.total_pages, p + 1))}
+                      disabled={page >= paginationMeta.total_pages}
+                      className="px-3 py-1.5 border border-slate-300 rounded-md bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors cursor-pointer"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -59,6 +59,8 @@ export function getAuthorizedAcademicBranches(user) {
 
   // HOD is restricted to their assigned department branches
   if (user.is_hod) {
+    const authBranches = Array.isArray(user.authorized_branches) ? user.authorized_branches : [];
+    if (authBranches.length > 0) return authBranches.map(b => String(b).toUpperCase());
     const hodBranches = Array.isArray(user.hod_branches) ? user.hod_branches : [];
     if (hodBranches.length > 0) return hodBranches.map(b => String(b).toUpperCase());
     if (user.branch) return [String(user.branch).toUpperCase()];
@@ -325,7 +327,11 @@ export function canDirectlyAllocateSubject(user, { branch, semester, target_facu
 
   // 2. HOD: Semesters 1-8 within authorized departmental branches
   if (user.is_hod) {
-    const hodBranches = (user.hod_branches || (user.branch ? [user.branch] : [])).map(b => String(b).toUpperCase());
+    const hodBranches = (
+      user.authorized_branches || 
+      user.hod_branches || 
+      (user.branch ? [user.branch] : (user.hod_department_code ? [user.hod_department_code] : []))
+    ).map(b => String(b).toUpperCase());
     if (hodBranches.includes(normBranch)) {
       return { 
         allowed: true, 

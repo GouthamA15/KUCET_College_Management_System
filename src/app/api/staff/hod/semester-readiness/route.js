@@ -54,8 +54,8 @@ export const GET = wrapHandler({
       return apiError(`Forbidden - Not authorized for ${targetBranch} Semester ${semInt}.`, 403);
     }
 
-    // 1. Syllabus Catalogue Check
-    const syllabusItems = await db.select({
+    // Execute all 5 audit checks in parallel for optimal responsiveness
+    const syllabusPromise = db.select({
       subject_code: syllabusStructure.subject_code,
       subject_name: syllabusSubjects.subject_name
     })
@@ -66,14 +66,7 @@ export const GET = wrapHandler({
       eq(syllabusStructure.semester, semInt)
     ));
 
-    const totalSubjects = syllabusItems.length;
-    const syllabusStatus = totalSubjects > 0 ? 'READY' : 'ACTION_REQUIRED';
-    const syllabusMessage = totalSubjects > 0 
-      ? `Syllabus configured with ${totalSubjects} subject offerings.`
-      : `No subjects configured in syllabus for ${targetBranch} Sem ${semInt}.`;
-
-    // 2. Faculty Allocation Check
-    const assignments = await db.select({
+    const assignmentsPromise = db.select({
       id: facultySubjectAssignments.id,
       subject_code: facultySubjectAssignments.subject_code
     })
@@ -84,6 +77,53 @@ export const GET = wrapHandler({
       eq(facultySubjectAssignments.academic_year, academicYear),
       eq(facultySubjectAssignments.is_active, true)
     ));
+
+    const instancesPromise = db.select({
+      id: timetableInstances.id,
+      status: timetableInstances.status
+    })
+    .from(timetableInstances)
+    .where(and(
+      eq(timetableInstances.branch, targetBranch),
+      eq(timetableInstances.semester, semInt),
+      eq(timetableInstances.academic_year, academicYear)
+    ))
+    .limit(1);
+
+    const slotsPromise = db.select({
+      count: sql`COUNT(*)`.mapWith(Number)
+    })
+    .from(branchTimetable)
+    .where(and(
+      eq(branchTimetable.branch, targetBranch),
+      eq(branchTimetable.semester, semInt),
+      eq(branchTimetable.academic_year, academicYear)
+    ));
+
+    const pendingPromise = db.select({
+      count: sql`COUNT(*)`.mapWith(Number)
+    })
+    .from(facultySubjectInterests)
+    .where(and(
+      eq(facultySubjectInterests.branch, targetBranch),
+      eq(facultySubjectInterests.semester, semInt),
+      eq(facultySubjectInterests.academic_year, academicYear),
+      eq(facultySubjectInterests.status, 'PENDING')
+    ));
+
+    const [syllabusItems, assignments, ttInstances, timetableSlots, pendingInterests] = await Promise.all([
+      syllabusPromise,
+      assignmentsPromise,
+      instancesPromise,
+      slotsPromise,
+      pendingPromise
+    ]);
+
+    const totalSubjects = syllabusItems.length;
+    const syllabusStatus = totalSubjects > 0 ? 'READY' : 'ACTION_REQUIRED';
+    const syllabusMessage = totalSubjects > 0 
+      ? `Syllabus configured with ${totalSubjects} subject offerings.`
+      : `No subjects configured in syllabus for ${targetBranch} Sem ${semInt}.`;
 
     const assignedCodes = new Set(assignments.map(a => a.subject_code));
     const unassignedCodes = syllabusItems.filter(s => !assignedCodes.has(s.subject_code));
@@ -97,29 +137,6 @@ export const GET = wrapHandler({
       allocationStatus = 'ACTION_REQUIRED';
       allocationMessage = `${unassignedCodes.length} of ${totalSubjects} subjects require faculty allocation.`;
     }
-
-    // 3. Timetable Instance & Slot Check
-    const ttInstances = await db.select({
-      id: timetableInstances.id,
-      status: timetableInstances.status
-    })
-    .from(timetableInstances)
-    .where(and(
-      eq(timetableInstances.branch, targetBranch),
-      eq(timetableInstances.semester, semInt),
-      eq(timetableInstances.academic_year, academicYear)
-    ))
-    .limit(1);
-
-    const timetableSlots = await db.select({
-      count: sql`COUNT(*)`.mapWith(Number)
-    })
-    .from(branchTimetable)
-    .where(and(
-      eq(branchTimetable.branch, targetBranch),
-      eq(branchTimetable.semester, semInt),
-      eq(branchTimetable.academic_year, academicYear)
-    ));
 
     const slotCount = timetableSlots[0]?.count || 0;
     const instance = ttInstances[0] || null;
@@ -138,18 +155,6 @@ export const GET = wrapHandler({
       timetableStatus = 'ACTION_REQUIRED';
       timetableMessage = 'Timetable published but has 0 scheduled class slots.';
     }
-
-    // 4. Pending Requests Check
-    const pendingInterests = await db.select({
-      count: sql`COUNT(*)`.mapWith(Number)
-    })
-    .from(facultySubjectInterests)
-    .where(and(
-      eq(facultySubjectInterests.branch, targetBranch),
-      eq(facultySubjectInterests.semester, semInt),
-      eq(facultySubjectInterests.academic_year, academicYear),
-      eq(facultySubjectInterests.status, 'PENDING')
-    ));
 
     const pendingCount = pendingInterests[0]?.count || 0;
     const requestStatus = pendingCount === 0 ? 'READY' : 'ACTION_REQUIRED';
