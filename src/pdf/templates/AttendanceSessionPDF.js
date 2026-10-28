@@ -217,6 +217,8 @@ const styles = StyleSheet.create({
   },
 });
 
+const h = React.createElement;
+
 export default function AttendanceSessionPDF({
   logoUrl,
   collegeName = 'KU College of Engineering & Technology',
@@ -236,134 +238,169 @@ export default function AttendanceSessionPDF({
   students = [],
   totals = { total: 0, present: 0, absent: 0, percentage: 0 },
 }) {
-  return (
-    <Document title={`Attendance_${subjectCode}_${date}_S${session}`}>
-      <Page size="A4" style={styles.page}>
-        {/* Institutional Header */}
-        <View style={styles.header}>
-          {/* eslint-disable-next-line jsx-a11y/alt-text */}
-          {logoUrl ? <Image src={logoUrl} style={styles.logo} /> : null}
-          <View style={styles.headerText}>
-            <Text style={styles.collegeTitle}>{collegeName}</Text>
-            <Text style={styles.universitySubtitle}>{universityName}</Text>
-            <Text style={styles.reportTitle}>Official Attendance Record • Session S{session}</Text>
-          </View>
-        </View>
+  return h(
+    Document,
+    { title: `Attendance_${subjectCode}_${date}_S${session}` },
+    h(
+      Page,
+      { size: 'A4', style: styles.page },
+      // Institutional Header
+      h(
+        View,
+        { style: styles.header },
+        logoUrl ? h(Image, { src: logoUrl, style: styles.logo }) : null,
+        h(
+          View,
+          { style: styles.headerText },
+          h(Text, { style: styles.collegeTitle }, collegeName),
+          h(Text, { style: styles.universitySubtitle }, universityName),
+          h(Text, { style: styles.reportTitle }, `Official Attendance Record • Session S${session}`)
+        )
+      ),
 
-        {/* Academic Context & Metadata */}
-        <View style={styles.metaGrid}>
-          <View style={styles.metaColWide}>
-            <Text style={styles.metaLabel}>Subject</Text>
-            <Text style={styles.metaValue}>{subjectName} ({subjectCode})</Text>
-          </View>
-          <View style={styles.metaCol}>
-            <Text style={styles.metaLabel}>Branch & Semester</Text>
-            <Text style={styles.metaValue}>{branch} • Sem {semester}</Text>
-          </View>
-          <View style={styles.metaCol}>
-            <Text style={styles.metaLabel}>Academic Year</Text>
-            <Text style={styles.metaValue}>{academicYear}</Text>
-          </View>
-          <View style={styles.metaCol}>
-            <Text style={styles.metaLabel}>Attendance Date</Text>
-            <Text style={styles.metaValue}>{date}</Text>
-          </View>
-          <View style={styles.metaCol}>
-            <Text style={styles.metaLabel}>Session</Text>
-            <Text style={styles.metaValue}>Session {session}</Text>
-          </View>
-          <View style={styles.metaColWide}>
-            <Text style={styles.metaLabel}>Submitted Timestamp</Text>
-            <Text style={styles.metaValue}>
-              {submissionTimestamp} {isHistoricalFallback ? '(Historical Record)' : ''}
-            </Text>
-          </View>
-          {topicCovered ? (
-            <View style={{ width: '100%', marginTop: 3 }}>
-              <Text style={styles.metaLabel}>Topic Covered</Text>
-              <Text style={{ fontSize: 8, color: '#334155', marginTop: 1 }}>{topicCovered}</Text>
-            </View>
-          ) : null}
-        </View>
+      // Academic Context & Metadata
+      h(
+        View,
+        { style: styles.metaGrid },
+        h(
+          View,
+          { style: styles.metaColWide },
+          h(Text, { style: styles.metaLabel }, 'Subject'),
+          h(Text, { style: styles.metaValue }, `${subjectName} (${subjectCode})`)
+        ),
+        h(
+          View,
+          { style: styles.metaCol },
+          h(Text, { style: styles.metaLabel }, 'Branch & Semester'),
+          h(Text, { style: styles.metaValue }, `${branch} • Sem ${semester}`)
+        ),
+        h(
+          View,
+          { style: styles.metaCol },
+          h(Text, { style: styles.metaLabel }, 'Academic Year'),
+          h(Text, { style: styles.metaValue }, academicYear)
+        ),
+        h(
+          View,
+          { style: styles.metaCol },
+          h(Text, { style: styles.metaLabel }, 'Attendance Date'),
+          h(Text, { style: styles.metaValue }, date)
+        ),
+        h(
+          View,
+          { style: styles.metaCol },
+          h(Text, { style: styles.metaLabel }, 'Session'),
+          h(Text, { style: styles.metaValue }, `Session ${session}`)
+        ),
+        h(
+          View,
+          { style: styles.metaColWide },
+          h(Text, { style: styles.metaLabel }, 'Submitted Timestamp'),
+          h(Text, { style: styles.metaValue }, `${submissionTimestamp} ${isHistoricalFallback ? '(Historical Record)' : ''}`)
+        ),
+        topicCovered
+          ? h(
+              View,
+              { style: { width: '100%', marginTop: 3 } },
+              h(Text, { style: styles.metaLabel }, 'Topic Covered'),
+              h(Text, { style: { fontSize: 8, color: '#334155', marginTop: 1 } }, topicCovered)
+            )
+          : null
+      ),
 
-        {/* Summary Metric Counters */}
-        <View style={styles.summaryBar}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Total Enrolled</Text>
-            <Text style={styles.summaryValue}>{totals.total}</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Present</Text>
-            <Text style={[styles.summaryValue, { color: '#16a34a' }]}>{totals.present}</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Absent</Text>
-            <Text style={[styles.summaryValue, { color: '#dc2626' }]}>{totals.absent}</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Attendance %</Text>
-            <Text style={[styles.summaryValue, { color: '#0b3578' }]}>{totals.percentage}%</Text>
-          </View>
-        </View>
+      // Summary Metric Counters
+      h(
+        View,
+        { style: styles.summaryBar },
+        h(
+          View,
+          { style: styles.summaryItem },
+          h(Text, { style: styles.summaryLabel }, 'Total Enrolled'),
+          h(Text, { style: styles.summaryValue }, totals.total)
+        ),
+        h(
+          View,
+          { style: styles.summaryItem },
+          h(Text, { style: styles.summaryLabel }, 'Present'),
+          h(Text, { style: [styles.summaryValue, { color: '#16a34a' }] }, totals.present)
+        ),
+        h(
+          View,
+          { style: styles.summaryItem },
+          h(Text, { style: styles.summaryLabel }, 'Absent'),
+          h(Text, { style: [styles.summaryValue, { color: '#dc2626' }] }, totals.absent)
+        ),
+        h(
+          View,
+          { style: styles.summaryItem },
+          h(Text, { style: styles.summaryLabel }, 'Attendance %'),
+          h(Text, { style: [styles.summaryValue, { color: '#0b3578' }] }, `${totals.percentage}%`)
+        )
+      ),
 
-        {/* Student Attendance Table */}
-        <View style={styles.table}>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderCell, styles.colSNo]}>#</Text>
-            <Text style={[styles.tableHeaderCell, styles.colRoll]}>Roll Number</Text>
-            <Text style={[styles.tableHeaderCell, styles.colName]}>Student Name</Text>
-            <Text style={[styles.tableHeaderCell, styles.colStatus]}>Status</Text>
-          </View>
+      // Student Attendance Table
+      h(
+        View,
+        { style: styles.table },
+        h(
+          View,
+          { style: styles.tableHeader },
+          h(Text, { style: [styles.tableHeaderCell, styles.colSNo] }, '#'),
+          h(Text, { style: [styles.tableHeaderCell, styles.colRoll] }, 'Roll Number'),
+          h(Text, { style: [styles.tableHeaderCell, styles.colName] }, 'Student Name'),
+          h(Text, { style: [styles.tableHeaderCell, styles.colStatus] }, 'Status')
+        ),
+        students.map((st, index) => {
+          const isEven = index % 2 === 1;
+          const statusStyle =
+            st.status === 'PRESENT'
+              ? styles.statusPresent
+              : st.status === 'ABSENT'
+              ? styles.statusAbsent
+              : styles.statusOther;
 
-          {students.map((st, index) => {
-            const isEven = index % 2 === 1;
-            const statusStyle =
-              st.status === 'PRESENT'
-                ? styles.statusPresent
-                : st.status === 'ABSENT'
-                ? styles.statusAbsent
-                : styles.statusOther;
+          return h(
+            View,
+            { key: st.student_id || index, style: [styles.tableRow, isEven ? styles.tableRowEven : {}] },
+            h(Text, { style: [styles.cellText, styles.colSNo] }, index + 1),
+            h(Text, { style: [styles.cellMono, styles.colRoll] }, st.roll_no),
+            h(Text, { style: [styles.cellText, styles.colName] }, st.name || '—'),
+            h(
+              View,
+              { style: styles.colStatus },
+              h(Text, { style: [styles.statusBadge, statusStyle] }, st.status)
+            )
+          );
+        })
+      ),
 
-            return (
-              <View key={st.student_id || index} style={[styles.tableRow, isEven ? styles.tableRowEven : {}]}>
-                <Text style={[styles.cellText, styles.colSNo]}>{index + 1}</Text>
-                <Text style={[styles.cellMono, styles.colRoll]}>{st.roll_no}</Text>
-                <Text style={[styles.cellText, styles.colName]}>{st.name || '—'}</Text>
-                <View style={styles.colStatus}>
-                  <Text style={[styles.statusBadge, statusStyle]}>{st.status}</Text>
-                </View>
-              </View>
-            );
-          })}
-        </View>
-
-        {/* Footer & Endorsement Section */}
-        <View style={styles.footer}>
-          <View style={styles.signatureRow}>
-            <View style={styles.facultyInfo}>
-              <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#0f172a' }}>
-                Submitted by: {facultyName || 'Course Faculty'}
-              </Text>
-              <Text style={{ fontSize: 7, color: '#64748b', marginTop: 2 }}>
-                Submission Time: {submissionTimestamp} {isHistoricalFallback ? '(Historical Archive)' : ''}
-              </Text>
-              <Text style={{ fontSize: 7, color: '#64748b', marginTop: 1 }}>
-                Report Generated: {generationTimestamp}
-              </Text>
-            </View>
-            <View style={styles.signatureBlock}>
-              <View style={styles.signatureLine} />
-              <Text style={styles.signatureLabel}>Faculty Signature</Text>
-            </View>
-          </View>
-
-          <Text
-            style={styles.pageNumber}
-            render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
-            fixed
-          />
-        </View>
-      </Page>
-    </Document>
+      // Footer & Endorsement Section
+      h(
+        View,
+        { style: styles.footer },
+        h(
+          View,
+          { style: styles.signatureRow },
+          h(
+            View,
+            { style: styles.facultyInfo },
+            h(Text, { style: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#0f172a' } }, `Submitted by: ${facultyName || 'Course Faculty'}`),
+            h(Text, { style: { fontSize: 7, color: '#64748b', marginTop: 2 } }, `Submission Time: ${submissionTimestamp} ${isHistoricalFallback ? '(Historical Archive)' : ''}`),
+            h(Text, { style: { fontSize: 7, color: '#64748b', marginTop: 1 } }, `Report Generated: ${generationTimestamp}`)
+          ),
+          h(
+            View,
+            { style: styles.signatureBlock },
+            h(View, { style: styles.signatureLine }),
+            h(Text, { style: styles.signatureLabel }, 'Faculty Signature')
+          )
+        ),
+        h(Text, {
+          style: styles.pageNumber,
+          render: ({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`,
+          fixed: true
+        })
+      )
+    )
   );
 }

@@ -1,4 +1,4 @@
-import { getNowSync } from './clock';
+import { getNowSync } from './clock.js';
 
 const branchCodes = {
   '09': 'CSE',

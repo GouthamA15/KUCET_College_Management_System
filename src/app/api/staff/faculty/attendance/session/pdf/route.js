@@ -55,7 +55,7 @@ export async function GET(request) {
       course_semester: facultySubjectAssignments.course_semester,
       academic_year: facultySubjectAssignments.academic_year,
       faculty_id: facultySubjectAssignments.staff_account_id,
-      faculty_name: staffAccounts.full_name
+      faculty_name: staffAccounts.name
     })
     .from(facultySubjectAssignments)
     .leftJoin(staffAccounts, eq(facultySubjectAssignments.staff_account_id, staffAccounts.id))
@@ -208,7 +208,8 @@ export async function GET(request) {
       }
     });
   } catch (err) {
-    logger.error({ err }, 'Attendance Session PDF Export Error');
+    const requestId = request.headers.get('x-request-id') || request.headers.get('x-correlation-id') || null;
+    logger.error({ err, requestId, url: request.url }, 'Attendance Session PDF Export Error');
     return apiError('Failed to generate attendance session PDF', 500);
   }
 }

@@ -1,7 +1,7 @@
 import { db } from '@/db';
 import { semesters } from '@/db/schema';
 import { sql, desc, asc } from 'drizzle-orm';
-import { Clock } from './clock';
+import { Clock } from './clock.js';
 import { getEntryYearFromRoll, getAdmissionTypeFromRoll } from './rollNumber';
 
 // Helper to get YYYY-MM-DD

@@ -46,7 +46,7 @@ export async function GET(request) {
       course_semester: facultySubjectAssignments.course_semester,
       academic_year: facultySubjectAssignments.academic_year,
       faculty_id: facultySubjectAssignments.staff_account_id,
-      faculty_name: staffAccounts.full_name
+      faculty_name: staffAccounts.name
     })
     .from(facultySubjectAssignments)
     .leftJoin(staffAccounts, eq(facultySubjectAssignments.staff_account_id, staffAccounts.id))
@@ -269,7 +269,7 @@ export async function GET(request) {
     summaryRow.push('', '', '', '');
     csvRows.push(summaryRow.map(escapeCSV).join(','));
 
-    const csvContent = csvRows.join('\r\n');
+    const csvContent = '\uFEFF' + csvRows.join('\r\n');
     const safeSubject = (subject_code || 'SUB').replace(/[^a-zA-Z0-9_-]/g, '_');
     const filename = `attendance_register_${safeSubject}_Sem${course_semester}.csv`;
 
@@ -282,7 +282,8 @@ export async function GET(request) {
       }
     });
   } catch (err) {
-    logger.error({ err }, 'Attendance Full Export CSV Error');
+    const requestId = request.headers.get('x-request-id') || request.headers.get('x-correlation-id') || null;
+    logger.error({ err, requestId, url: request.url }, 'Attendance Full Export CSV Error');
     return apiError('Failed to generate full attendance CSV export', 500);
   }
 }
