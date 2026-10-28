@@ -134,7 +134,7 @@ export const facultySubjectAssignments = mysqlTable('faculty_subject_assignments
   academic_year: varchar('academic_year', { length: 9 }).notNull(),
   created_at: timestamp('created_at').defaultNow(),
   is_active: boolean('is_active').default(true),
-  mid_max: int('mid_max').default(20),
+  mid_max: int('mid_max'),
 }, (table) => ({
   branchIdx: index('idx_faculty_subject_active').on(table.branch, table.is_active),
   fsaBranchSemIdx: index('idx_fsa_branch_sem').on(table.branch, table.course_semester),

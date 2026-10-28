@@ -2,14 +2,20 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { Download, FileDown, Loader2 } from 'lucide-react';
+import PatternSelectionModal from '@/components/staff/faculty/PatternSelectionModal';
 
 export default function MarksEntrySheet({ assignment, onBack }) {
   const [students, setStudents] = useState([]);
+  const [savedStudents, setSavedStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [midMax, setMidMax] = useState(20);
+  const [showClearDraftConfirm, setShowClearDraftConfirm] = useState(false);
+  const [isOverrideMode, setIsOverrideMode] = useState(false);
+  const [midMax, setMidMax] = useState(assignment?.mid_max || 20);
+  const [hasExplicitPattern, setHasExplicitPattern] = useState(Boolean(assignment?.mid_max));
+  const [patternModalOpen, setPatternModalOpen] = useState(false);
   const [_recommendedMidMax, setRecommendedMidMax] = useState(null);
   const [subjectType, setSubjectType] = useState(assignment?.subject_type || null);
   const [_subjectTypeStatus, setSubjectTypeStatus] = useState(assignment?.subject_type ? 'RESOLVED' : null);
@@ -27,7 +33,7 @@ export default function MarksEntrySheet({ assignment, onBack }) {
       const res = await fetch(`/api/staff/faculty/marks?assignment_id=${assignment.id}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch students');
-      
+
       const payload = data.data || [];
       const rawType = data.subject_type || assignment?.subject_type || null;
       const validTypes = ['lab', 'theory'];
@@ -37,13 +43,22 @@ export default function MarksEntrySheet({ assignment, onBack }) {
         ...s,
         is_published: Boolean(s.is_published),
         mid1_marks: isLab ? (s.lab_execution_marks ?? '') : (s.mid1_marks ?? ''),
-        mid2_marks: isLab ? (s.lab_theory_marks ?? '') : (s.mid2_marks ?? ''),       
+        mid2_marks: isLab ? (s.lab_theory_marks ?? '') : (s.mid2_marks ?? ''),
         assignment_marks: isLab ? (s.lab_record_marks ?? '') : (s.assignment_marks ?? ''),
       }));
-      
+
       setStudents(studentsWithMarks);
+      setSavedStudents(studentsWithMarks);
       setDirty(false);
-      if (data.mid_max) setMidMax(data.mid_max);
+      if (data.mid_max !== undefined && data.mid_max !== null) {
+        setMidMax(data.mid_max);
+        setHasExplicitPattern(true);
+      } else {
+        setHasExplicitPattern(false);
+        if (resolvedType === 'theory') {
+          setPatternModalOpen(true);
+        }
+      }
       if (data.recommended_mid_max) setRecommendedMidMax(data.recommended_mid_max);
       setSubjectType(resolvedType);
       setSubjectTypeStatus(data.subject_type_status || (resolvedType ? 'RESOLVED' : 'UNRESOLVED'));
@@ -54,13 +69,28 @@ export default function MarksEntrySheet({ assignment, onBack }) {
     }
   }, [assignment]);
 
-  const hasAnyMarks = students.some(s => 
-    (s.mid1_marks !== '' && s.mid1_marks !== null && s.mid1_marks !== undefined) || 
-    (s.mid2_marks !== '' && s.mid2_marks !== null && s.mid2_marks !== undefined) || 
+  const hasSavedMarks = savedStudents.some(s =>
+    (s.mid1_marks !== '' && s.mid1_marks !== null && s.mid1_marks !== undefined) ||
+    (s.mid2_marks !== '' && s.mid2_marks !== null && s.mid2_marks !== undefined) ||
     (s.assignment_marks !== '' && s.assignment_marks !== null && s.assignment_marks !== undefined)
   );
 
+  const hasAnyMarks = students.some(s =>
+    (s.mid1_marks !== '' && s.mid1_marks !== null && s.mid1_marks !== undefined) ||
+    (s.mid2_marks !== '' && s.mid2_marks !== null && s.mid2_marks !== undefined) ||
+    (s.assignment_marks !== '' && s.assignment_marks !== null && s.assignment_marks !== undefined)
+  );
+
+  const hasUnsavedDraft = dirty && hasAnyMarks;
   const isPublishedLocked = students.some(s => Boolean(s.is_published));
+  const canOrdinaryChangePattern = !hasSavedMarks && !hasUnsavedDraft && !isPublishedLocked && Boolean(assignment.is_active);
+
+  const handleClearDraft = () => {
+    setStudents(savedStudents);
+    setDirty(false);
+    setShowClearDraftConfirm(false);
+    toast.success('Unsaved draft cleared. Assessment pattern selection unlocked.');
+  };
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -99,14 +129,21 @@ export default function MarksEntrySheet({ assignment, onBack }) {
     setScrollLeft(event.target.scrollLeft || 0);
   };
 
+  const isTheory = subjectType === 'theory';
+  const isPattern3 = isTheory && midMax === 30;
+  const currentMode = (isPattern3 && marksMode === 'assignment') ? 'overview' : marksMode;
+
   const getFieldMax = (field) => {
     if (subjectType === 'lab') {
       if (field === 'mid1_marks') return 10;
       if (field === 'mid2_marks') return 10;
       return 5;
     }
-    if (field === 'assignment_marks') return midMax === 25 ? 5 : 10;
-    return midMax;
+    if (field === 'assignment_marks') {
+      if (midMax === 30) return 0;
+      return midMax === 25 ? 5 : 10;
+    }
+    return midMax || 20;
   };
 
   const toNumberOrNull = (value) => {
@@ -120,7 +157,7 @@ export default function MarksEntrySheet({ assignment, onBack }) {
     const m2 = toNumberOrNull(student.mid2_marks);
     const a = toNumberOrNull(student.assignment_marks);
 
-    const hasAny = m1 !== null || m2 !== null || a !== null;
+    const hasAny = m1 !== null || m2 !== null || (!isPattern3 && a !== null);
     if (!hasAny) return null;
 
     if (subjectType === 'lab') {
@@ -128,13 +165,13 @@ export default function MarksEntrySheet({ assignment, onBack }) {
     }
 
     const best = Math.max(m1 ?? 0, m2 ?? 0);
-    return best + (a ?? 0);
+    return isPattern3 ? best : best + (a ?? 0);
   };
 
   const handleMarkChange = (studentId, field, value) => {
     if (value === '') {
       setDirty(true);
-      setStudents((prev) => prev.map(s => 
+      setStudents((prev) => prev.map(s =>
         s.id === studentId ? { ...s, [field]: '' } : s
       ));
       return;
@@ -151,7 +188,7 @@ export default function MarksEntrySheet({ assignment, onBack }) {
     if (numericValue > max) numericValue = max;
 
     setDirty(true);
-    setStudents((prev) => prev.map(s => 
+    setStudents((prev) => prev.map(s =>
       s.id === studentId ? { ...s, [field]: numericValue } : s
     ));
   };
@@ -228,18 +265,56 @@ export default function MarksEntrySheet({ assignment, onBack }) {
 
   if (loading) return <div className="text-center py-10 text-sm text-gray-600">Loading students and departmental recommendations...</div>;
 
-  const labels = subjectType === 'lab' 
+  const labels = subjectType === 'lab'
     ? { m1: 'Execution', m2: 'Writing', a: 'Record', m1m: 10, m2m: 10, am: 5, total: 25 }
-    : { m1: 'Mid-1', m2: 'Mid-2', a: 'Assignment', m1m: midMax, m2m: midMax, am: (midMax === 25 ? 5 : 10), total: 30 };
+    : {
+        m1: 'Mid-1',
+        m2: 'Mid-2',
+        a: isPattern3 ? 'Assignment (N/A)' : 'Assignment',
+        m1m: midMax || 20,
+        m2m: midMax || 20,
+        am: (midMax === 25 ? 5 : (midMax === 30 ? 0 : 10)),
+        total: 30
+      };
 
   const modeMeta = {
     overview: { label: 'Overview', field: 'all', max: labels.total },
     mid1: { label: labels.m1, field: 'mid1_marks', max: labels.m1m },
     mid2: { label: labels.m2, field: 'mid2_marks', max: labels.m2m },
-    assignment: { label: labels.a, field: 'assignment_marks', max: labels.am },
+    ...(!isPattern3 ? { assignment: { label: labels.a, field: 'assignment_marks', max: labels.am } } : {})
   };
 
-  const activeMode = modeMeta[marksMode] || modeMeta.overview;
+  const activeMode = modeMeta[currentMode] || modeMeta.overview;
+
+  const handleApplyPattern = async (selection) => {
+    const targetPattern = selection.pattern || selection;
+    const reason = selection.reason || undefined;
+    const isOverride = selection.isOverride || undefined;
+
+    const res = await fetch('/api/staff/faculty/evaluation/pattern', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        assignment_id: assignment.id,
+        pattern_id: targetPattern.id,
+        reason,
+        is_override: isOverride
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to apply assessment pattern');
+    }
+    toast.success(`Assessment pattern set to ${targetPattern.name}`);
+    setMidMax(targetPattern.midMax);
+    setHasExplicitPattern(true);
+    setPatternModalOpen(false);
+    setIsOverrideMode(false);
+    if (targetPattern.midMax === 30 && marksMode === 'assignment') {
+      setMarksMode('overview');
+    }
+    await fetchStudents();
+  };
 
   const handleDownloadPdf = async (viewOverride = null) => {
     if (downloadingPdf) return;
@@ -248,7 +323,11 @@ export default function MarksEntrySheet({ assignment, onBack }) {
       return;
     }
 
-    const targetView = viewOverride || marksMode || 'overview';
+    const targetView = viewOverride || currentMode || 'overview';
+    if (isPattern3 && targetView === 'assignment') {
+      toast.error('Assignment report is not applicable for Pattern 3 (30 for Mids).');
+      return;
+    }
     setDownloadingPdf(targetView);
 
     try {
@@ -305,7 +384,64 @@ export default function MarksEntrySheet({ assignment, onBack }) {
             {subjectType === 'lab' ? (
               <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-sm border bg-amber-50 border-amber-200 text-amber-700">PRACTICAL / LAB</span>
             ) : subjectType === 'theory' ? (
-              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-sm border bg-indigo-50 border-indigo-200 text-indigo-700">THEORY</span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-sm border bg-indigo-50 border-indigo-200 text-indigo-700">THEORY</span>
+                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-sm border bg-blue-50 border-blue-200 text-[#0b3578]">
+                  PATTERN: {midMax === 25 ? '25 + 5' : (midMax === 30 ? '30 FOR MIDS' : '20 + 10')}
+                </span>
+                {canOrdinaryChangePattern ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsOverrideMode(false);
+                      setPatternModalOpen(true);
+                    }}
+                    className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-sm border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 transition-colors cursor-pointer"
+                    title="Change assessment pattern"
+                  >
+                    CHANGE PATTERN
+                  </button>
+                ) : hasSavedMarks ? (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span
+                      className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-sm border bg-slate-100 border-slate-200 text-slate-600"
+                      title="Assessment pattern is permanently locked because marks have been saved for this subject."
+                    >
+                      LOCKED (MARKS SAVED)
+                    </span>
+                    {assignment.can_override && !isPublishedLocked && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsOverrideMode(true);
+                          setPatternModalOpen(true);
+                        }}
+                        className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-sm border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 transition-colors cursor-pointer"
+                        title="Override locked pattern (HOD / Admin only)"
+                      >
+                        OVERRIDE PATTERN
+                      </button>
+                    )}
+                  </div>
+                ) : hasUnsavedDraft ? (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span
+                      className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-sm border bg-amber-50 border-amber-200 text-amber-700"
+                      title="Pattern is locked while editing draft. Clear draft to change pattern."
+                    >
+                      LOCKED (DRAFT TYPING)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowClearDraftConfirm(true)}
+                      className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-sm border border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer"
+                      title="Discard unsaved marks draft and unlock pattern selection"
+                    >
+                      CLEAR DRAFT
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             ) : (
               <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-sm border bg-rose-50 border-rose-200 text-rose-700">UNRESOLVED</span>
             )}
@@ -319,7 +455,7 @@ export default function MarksEntrySheet({ assignment, onBack }) {
             {assignment.branch} • SEM {assignment.semester} • {assignment.academic_year}
           </p>
         </div>
-        
+
         <div className="flex flex-wrap items-center gap-3">
           {/* Mode Switching (Government Style) */}
           <div className="flex border border-slate-200 rounded-sm overflow-hidden">
@@ -328,7 +464,7 @@ export default function MarksEntrySheet({ assignment, onBack }) {
                 key={m}
                 type="button"
                 onClick={() => setMarksMode(m)}
-                className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors border-r last:border-r-0 border-slate-200 ${marksMode === m ? 'bg-slate-800 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors border-r last:border-r-0 border-slate-200 ${currentMode === m ? 'bg-slate-800 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
               >
                 {modeMeta[m].label}
               </button>
@@ -345,7 +481,7 @@ export default function MarksEntrySheet({ assignment, onBack }) {
               title={`Download ${activeMode.label} PDF Report`}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-white rounded-sm text-[10px] font-bold uppercase tracking-wider hover:bg-slate-700 disabled:opacity-50 transition-colors shadow-xs"
             >
-              {downloadingPdf === (marksMode || 'overview') ? (
+              {downloadingPdf === (currentMode || 'overview') ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   <span>GENERATING...</span>
@@ -353,12 +489,12 @@ export default function MarksEntrySheet({ assignment, onBack }) {
               ) : (
                 <>
                   <Download className="w-3.5 h-3.5" />
-                  <span>{marksMode === 'overview' ? 'DOWNLOAD OVERVIEW PDF' : `PDF: ${activeMode.label.toUpperCase()}`}</span>
+                  <span>{currentMode === 'overview' ? 'DOWNLOAD OVERVIEW PDF' : `PDF: ${activeMode.label.toUpperCase()}`}</span>
                 </>
               )}
             </button>
 
-            {marksMode !== 'overview' && (
+            {currentMode !== 'overview' && (
               <button
                 type="button"
                 onClick={() => handleDownloadPdf('overview')}
@@ -427,8 +563,8 @@ export default function MarksEntrySheet({ assignment, onBack }) {
                   <span className="text-sm font-mono font-bold text-slate-800">{fullRoll}</span>
                   <div className="text-xs font-semibold text-slate-600 uppercase tracking-wide mt-1">{student.name}</div>
                 </div>
-                
-                {marksMode === 'overview' && (
+
+                {currentMode === 'overview' && (
                   <div className="text-right">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Total</span>
                     <span className="text-sm font-black text-indigo-700 bg-indigo-50 px-2 py-1 rounded">
@@ -437,8 +573,8 @@ export default function MarksEntrySheet({ assignment, onBack }) {
                   </div>
                 )}
               </div>
-              
-              {marksMode !== 'overview' && (
+
+              {currentMode !== 'overview' && (
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{activeMode.label} ({activeMode.max})</span>
                   <input
@@ -466,8 +602,8 @@ export default function MarksEntrySheet({ assignment, onBack }) {
             <tr>
               <th ref={rollHeaderRef} className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200">Roll No</th>
               <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200">Student Name</th>
-              
-              {marksMode === 'overview' ? (
+
+              {currentMode === 'overview' ? (
                 <>
                   <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200">{labels.m1}</th>
                   <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200">{labels.m2}</th>
@@ -495,12 +631,18 @@ export default function MarksEntrySheet({ assignment, onBack }) {
                       {student.name}
                     </div>
                   </td>
-                  
-                  {marksMode === 'overview' ? (
+
+                  {currentMode === 'overview' ? (
                     <>
                       <td className="px-4 py-3 text-center font-mono text-slate-600 border-r border-slate-100">{student.mid1_marks === '' ? '-' : student.mid1_marks}</td>
                       <td className="px-4 py-3 text-center font-mono text-slate-600 border-r border-slate-100">{student.mid2_marks === '' ? '-' : student.mid2_marks}</td>
-                      <td className="px-4 py-3 text-center font-mono text-slate-600 border-r border-slate-100">{student.assignment_marks === '' ? '-' : student.assignment_marks}</td>
+                      <td className="px-4 py-3 text-center font-mono text-slate-600 border-r border-slate-100">
+                        {isPattern3 ? (
+                          <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">N/A</span>
+                        ) : (
+                          student.assignment_marks === '' ? '-' : student.assignment_marks
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-center font-mono font-bold text-indigo-700 bg-indigo-50/20">{internalTotal !== null ? internalTotal.toFixed(1) : '-'}</td>
                     </>
                   ) : (
@@ -524,6 +666,55 @@ export default function MarksEntrySheet({ assignment, onBack }) {
           </tbody>
         </table>
       </div>
+
+      {/* Pattern Selection / Change Modal */}
+      <PatternSelectionModal
+        isOpen={patternModalOpen}
+        assignment={assignment}
+        existingMarks={students}
+        currentPatternId={midMax === 25 ? 'MID_25_ASSIGNMENT_5' : (midMax === 30 ? 'MID_30_ONLY' : (hasExplicitPattern ? 'MID_20_ASSIGNMENT_10' : null))}
+        isPublished={isPublishedLocked}
+        isChanging={hasExplicitPattern}
+        isLocked={hasSavedMarks}
+        isOverride={isOverrideMode}
+        onSelectPattern={handleApplyPattern}
+        onClose={() => {
+          setIsOverrideMode(false);
+          if (!hasExplicitPattern) {
+            handleBack();
+          } else {
+            setPatternModalOpen(false);
+          }
+        }}
+      />
+
+      {/* Discard Draft Confirmation Dialog */}
+      {showClearDraftConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl border border-slate-200 flex flex-col gap-3">
+            <h3 className="text-sm font-bold text-slate-900">Discard Unsaved Marks Draft?</h3>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              You have unsaved marks entered in the active draft. Discarding will clear your unsaved changes and restore assessment pattern selection. Any previously saved marks will not be affected.
+            </p>
+            <div className="flex justify-end gap-2 mt-2">
+              <button
+                type="button"
+                onClick={() => setShowClearDraftConfirm(false)}
+                className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded cursor-pointer"
+              >
+                Keep Editing
+              </button>
+              <button
+                type="button"
+                onClick={handleClearDraft}
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded cursor-pointer"
+              >
+                Discard Draft & Unlock
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

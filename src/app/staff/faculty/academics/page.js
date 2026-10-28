@@ -12,6 +12,7 @@ import TeachingAssignmentDirectory from '@/components/staff/academic/TeachingAss
 import SyllabusManager from '@/components/staff/faculty/SyllabusManager';
 import AttendanceDisputesPanel from '@/components/staff/faculty/AttendanceDisputesPanel';
 import StudentReactivationsPanel from '@/components/staff/faculty/StudentReactivationsPanel';
+import PatternSelectionModal from '@/components/staff/faculty/PatternSelectionModal';
 
 import { Info, X, Search, ChevronDown } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -190,6 +191,7 @@ function AcademicsContent() {
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
+  const [selectedForPattern, setSelectedForPattern] = useState(null);
 
   // Filter state
   const [search, setSearch] = useState('');
@@ -252,8 +254,32 @@ function AcademicsContent() {
     if (mode === 'attendance') {
       router.push(`/staff/faculty/attendance/${assignment.id}`);
     } else if (mode === 'marks') {
-      router.push(`/staff/faculty/evaluation/${assignment.id}`);
+      const isLab = assignment.subject_type === 'lab' || assignment.subject_type === 'practical';
+      if (!isLab && (assignment.mid_max === null || assignment.mid_max === undefined)) {
+        setSelectedForPattern(assignment);
+      } else {
+        router.push(`/staff/faculty/evaluation/${assignment.id}`);
+      }
     }
+  };
+
+  const handlePatternSelectedAndContinue = async (targetPattern) => {
+    if (!selectedForPattern) return;
+    const targetId = selectedForPattern.id;
+    const res = await fetch('/api/staff/faculty/evaluation/pattern', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        assignment_id: targetId,
+        pattern_id: targetPattern.id
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to save assessment pattern');
+    }
+    setSelectedForPattern(null);
+    router.push(`/staff/faculty/evaluation/${targetId}`);
   };
 
   const bottomSheet = (
@@ -465,6 +491,20 @@ function AcademicsContent() {
       {/* ── HOD Access ── */}
       {activeTab === 'hod' && (
         <HodAccessManager />
+      )}
+
+      {/* Pattern Selection Modal for new theory evaluations */}
+      {selectedForPattern && (
+        <PatternSelectionModal
+          isOpen={Boolean(selectedForPattern)}
+          assignment={selectedForPattern}
+          existingMarks={[]}
+          currentPatternId={null}
+          isPublished={false}
+          isChanging={false}
+          onSelectPattern={handlePatternSelectedAndContinue}
+          onClose={() => setSelectedForPattern(null)}
+        />
       )}
 
       {typeof document !== 'undefined' && isBottomSheetOpen && isMobileDevice && createPortal(bottomSheet, document.body)}

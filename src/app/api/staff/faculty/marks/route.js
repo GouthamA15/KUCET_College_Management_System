@@ -1,16 +1,17 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { 
-  facultySubjectAssignments, 
-  students as studentsTable, 
-  studentMarks, 
-  branchConfig, 
+import {
+  facultySubjectAssignments,
+  students as studentsTable,
+  studentMarks,
+  branchConfig,
   collegeInfo as collegeInfoTable,
   syllabusSubjects
 } from '@/db/schema';
 import { eq, and, asc, desc, or, like, inArray, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
 import { isSemesterActive, resolveCanonicalSubjectType } from '@/lib/academic-utils';
+import { getTheoryPattern, validateTheoryMarks } from '@/lib/evaluation-utils';
 import { branchCodes } from '@/lib/rollNumber';
 import { FacultyService } from '@/services/FacultyService';
 import { _internalMarksSchema } from '@/lib/validations/staff';
@@ -56,7 +57,6 @@ export async function GET(request) {
       return apiError('Unauthorized for this assignment', 403);
     }
     const { branch, course_semester, academic_year, subject_name, subject_code, canonical_subject_type } = assignment;
-    const midMax = assignment.mid_max || 20;
 
     const classification = resolveCanonicalSubjectType({
       subject_code,
@@ -83,7 +83,7 @@ export async function GET(request) {
       ))
       .orderBy(asc(facultySubjectAssignments.created_at))
       .limit(1);
-    
+
     const canonicalId = canonicalRows[0]?.id || assignment_id;
 
     // --- PRECISE SEMESTER-AWARE STUDENT FILTERING ---
@@ -100,10 +100,10 @@ export async function GET(request) {
       like(studentsTable.roll_no, `%567${branchCode}%L`)
     ];
 
-    const dynamicYearCondition = sql`CASE 
-        WHEN ${studentsTable.roll_no} LIKE '%T%' THEN 
+    const dynamicYearCondition = sql`CASE
+        WHEN ${studentsTable.roll_no} LIKE '%T%' THEN
           (${startYear} - CAST(CONCAT('20', SUBSTRING(${studentsTable.roll_no}, 1, 2)) AS SIGNED) + 1) - ${studentsTable.academic_offset_years}
-        WHEN ${studentsTable.roll_no} LIKE '%L' THEN 
+        WHEN ${studentsTable.roll_no} LIKE '%L' THEN
           (${startYear} - CAST(CONCAT('20', SUBSTRING(${studentsTable.roll_no}, 1, 2)) AS SIGNED) + 2) - ${studentsTable.academic_offset_years}
         ELSE 0
       END = ${studyingYear}`;
@@ -171,13 +171,20 @@ export async function GET(request) {
       .limit(1);
     const recommendedMidMax = configRows[0]?.mid_max || null;
 
-    return apiResponse({ 
-      data: cleanedStudents, 
-      mid_max: midMax, 
+    const rawMidMax = assignment.mid_max;
+    const resolvedPattern = !_isLab ? getTheoryPattern(rawMidMax) : null;
+    const midMax = resolvedPattern ? resolvedPattern.midMax : (rawMidMax || 20);
+
+    return apiResponse({
+      data: cleanedStudents,
+      mid_max: rawMidMax,
+      effective_mid_max: midMax,
+      pattern: resolvedPattern,
+      has_saved_pattern: Boolean(resolvedPattern),
       recommended_mid_max: recommendedMidMax,
       subject_type: classification.subject_type,
       subject_type_status: classification.status,
-      canonical_id: canonicalId 
+      canonical_id: canonicalId
     });
   } catch (error) {
     logger.error('Marks Fetch Error:', error);
@@ -228,6 +235,7 @@ export async function POST(request) {
       course_semester: facultySubjectAssignments.course_semester,
       academic_year: facultySubjectAssignments.academic_year,
       subject_name: facultySubjectAssignments.subject_name,
+      mid_max: facultySubjectAssignments.mid_max,
       canonical_subject_type: syllabusSubjects.subject_type
     })
     .from(facultySubjectAssignments)
@@ -273,7 +281,7 @@ export async function POST(request) {
       ))
       .orderBy(asc(facultySubjectAssignments.created_at))
       .limit(1);
-    
+
     const targetAssignmentId = canonicalRows[0]?.id || assignment_id;
 
     const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1)).limit(1);
@@ -292,7 +300,7 @@ export async function POST(request) {
         eq(branchConfig.semester, course_semester)
       ))
       .limit(1);
-    
+
     if (branchConfigs.length > 0 && branchConfigs[0].is_locked) {
       return apiError('Marks for this branch and semester have been finalized and locked by the HOD.', 403);
     }
@@ -310,11 +318,36 @@ export async function POST(request) {
       return apiError('Marks already published and locked.', 403);
     }
 
+    // For theory subjects, resolve and validate assessment pattern
+    const effectivePattern = !isLab
+      ? getTheoryPattern(mid_max !== undefined ? mid_max : assignment.mid_max)
+      : null;
+
+    if (!isLab && !effectivePattern) {
+      return apiError('Theory assessment pattern must be selected before saving marks', 400);
+    }
+
+    if (!isLab && effectivePattern) {
+      for (const item of marks_data) {
+        const valRes = validateTheoryMarks(effectivePattern, {
+          mid1: item.mid1_marks,
+          mid2: item.mid2_marks,
+          assignment: item.assignment_marks
+        });
+        if (!valRes.valid) {
+          return apiError(`Validation error for student ID ${item.student_id}: ${valRes.error}`, 400);
+        }
+      }
+    }
+
     await db.transaction(async (tx) => {
-      if (mid_max !== undefined) {
+      if (effectivePattern) {
         await tx.update(facultySubjectAssignments)
-          .set({ mid_max: mid_max })
-          .where(eq(facultySubjectAssignments.id, targetAssignmentId));
+          .set({ mid_max: effectivePattern.midMax })
+          .where(or(
+            eq(facultySubjectAssignments.id, targetAssignmentId),
+            eq(facultySubjectAssignments.id, assignment_id)
+          ));
       }
 
       // Deduplicate payload by student_id (last write wins) to avoid accidental double updates.
@@ -365,7 +398,7 @@ export async function POST(request) {
           : {
               mid1_marks: item.mid1_marks ?? null,
               mid2_marks: item.mid2_marks ?? null,
-              assignment_marks: item.assignment_marks ?? null,
+              assignment_marks: (effectivePattern && !effectivePattern.hasAssignment) ? null : (item.assignment_marks ?? null),
               is_published: publishFlag,
             };
 
@@ -415,7 +448,7 @@ export async function POST(request) {
     } catch (ebErr) {
       logger.warn({ err: ebErr }, '[EventBus] Marks published event dispatch failed');
     }
-      
+
     return apiResponse({ message: `Successfully updated ${marks_data.length} records` });
   } catch (error) {
     if (error instanceof z.ZodError) {
