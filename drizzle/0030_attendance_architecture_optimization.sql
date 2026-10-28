@@ -11,7 +11,10 @@ ALTER TABLE `attendance_sessions`
 --> statement-breakpoint
 
 ALTER TABLE `student_attendance`
-  ADD COLUMN `session_id` int NULL,
+  ADD COLUMN `session_id` int NULL;
+--> statement-breakpoint
+
+ALTER TABLE `student_attendance`
   ADD UNIQUE INDEX `uq_student_attendance` (`student_id`, `assignment_id`, `date`, `session`),
   ADD UNIQUE INDEX `uq_session_student` (`session_id`, `student_id`),
   ADD INDEX `idx_sa_student_assignment` (`student_id`, `assignment_id`),

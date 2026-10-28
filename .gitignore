@@ -65,6 +65,7 @@ next-env.d.ts
 !/scripts/deployment/
 !/scripts/prepare-standalone.mjs
 !/scripts/audit-subject-catalog-consistency.mjs
+!/scripts/reconcile_attendance_oct28.mjs
 /scratch
 
 # Playwright
