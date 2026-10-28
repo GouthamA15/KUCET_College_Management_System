@@ -3,7 +3,7 @@ import { useState, useEffect, Fragment } from 'react';
 import toast from 'react-hot-toast';
 import { 
   ArrowLeft, Calendar, Users, Activity, History, BookOpen, 
-  Edit3, Plus, FileText, CheckCircle2, Clock 
+  Edit3, Plus, FileText, CheckCircle2, Clock, Download, FileSpreadsheet 
 } from 'lucide-react';
 import LectureTopicModal from './LectureTopicModal';
 import { formatDate, formatDateTime } from '@/lib/date';
@@ -11,8 +11,6 @@ import { formatDate, formatDateTime } from '@/lib/date';
 export default function AttendanceHistoryViewer({ assignment, onBack }) {
   const [historyData, setHistoryData] = useState([]);
   const [submittedSessions, setSubmittedSessions] = useState([]);
-  const [calendarDates, setCalendarDates] = useState([]);
-  const [activeTab, setActiveTab] = useState('submitted'); // 'submitted' | 'calendar'
   const [loading, setLoading] = useState(true);
   const [expandedSession, setExpandedSession] = useState(null);
   const [topicModalSession, setTopicModalSession] = useState(null);
@@ -37,15 +35,13 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
         
         if (isMounted) {
           const attendanceList = data.data.attendance || [];
-          const uniqueCalList = data.data.uniqueDates || [];
           setHistoryData(attendanceList);
-          setCalendarDates(uniqueCalList);
 
           // Resolve authoritative submitted sessions
           if (Array.isArray(data.data.submittedSessions) && data.data.submittedSessions.length > 0) {
             setSubmittedSessions(data.data.submittedSessions);
           } else {
-            // Robust client-side fallback: group attendance records by (date, session)
+            // Client-side fallback: group attendance records by (date, session)
             const map = new Map();
             for (const r of attendanceList) {
               const key = `${r.date}__${r.session}`;
@@ -68,18 +64,15 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
               }
             }
 
-            const derived = Array.from(map.values()).map(s => {
-              const matched = uniqueCalList.find(u => u.date === s.date && u.session === s.session);
-              return {
-                date: s.date,
-                session: s.session,
-                topic_covered: matched?.topic_covered || null,
-                submitted_at: s.submitted_at,
-                is_historical: !s.has_verified_submitted_at,
-                total_students: s.total_students,
-                present_count: s.present_count
-              };
-            }).sort((a, b) => {
+            const derived = Array.from(map.values()).map(s => ({
+              date: s.date,
+              session: s.session,
+              topic_covered: null,
+              submitted_at: s.submitted_at,
+              is_historical: !s.has_verified_submitted_at,
+              total_students: s.total_students,
+              present_count: s.present_count
+            })).sort((a, b) => {
               if (a.date !== b.date) return b.date.localeCompare(a.date);
               return b.session - a.session;
             });
@@ -123,14 +116,6 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
         return s;
       })
     );
-    setCalendarDates((prev) =>
-      prev.map((s) => {
-        if (s.date === topicModalSession.date && s.session === topicModalSession.session) {
-          return { ...s, topic_covered: newTopic };
-        }
-        return s;
-      })
-    );
   };
 
   // Authoritative Aggregate Statistics: strictly derived from SUBMITTED attendance sessions
@@ -154,15 +139,66 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
 
       {/* Subject Information Card */}
       <div className="bg-white border-2 border-gray-200 p-4 rounded-xl mb-6 shadow-sm">
-        <div className="flex justify-between items-center border-b-2 border-gray-100 pb-3 mb-4">
-          <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
-            <History className="w-6 h-6 text-indigo-500" />
-            Attendance History & Teaching Record
-          </h2>
-          <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-widest flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-            Official Academic Record
-          </span>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b-2 border-gray-100 pb-3 mb-4 gap-3">
+          <div className="flex items-center gap-2">
+            <History className="w-6 h-6 text-indigo-500 shrink-0" />
+            <div>
+              <h2 className="text-xl font-black text-gray-900">
+                Attendance History & Teaching Record
+              </h2>
+              <p className="text-xs text-gray-500">
+                Official log of submitted attendance sessions and covered syllabus topics
+              </p>
+            </div>
+          </div>
+          
+          {/* Action Buttons: Full Attendance Export (PDF & CSV) */}
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+            <a
+              href={submittedSessions.length > 0 ? `/api/staff/faculty/attendance/export/pdf?assignment_id=${assignment.id}` : '#'}
+              target={submittedSessions.length > 0 ? '_blank' : '_self'}
+              rel="noopener noreferrer"
+              onClick={(e) => {
+                if (submittedSessions.length === 0) {
+                  e.preventDefault();
+                  toast.error('No submitted attendance sessions to export.');
+                }
+              }}
+              className={`inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-bold rounded-lg shadow-sm transition-all ${
+                submittedSessions.length > 0
+                  ? 'text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 cursor-pointer'
+                  : 'text-gray-400 bg-gray-100 cursor-not-allowed opacity-60'
+              }`}
+              title="Download Full Semester Attendance Register (A4 Landscape PDF)"
+            >
+              <Download className="w-4 h-4" />
+              <span>Download Full Attendance</span>
+            </a>
+
+            <a
+              href={submittedSessions.length > 0 ? `/api/staff/faculty/attendance/export/csv?assignment_id=${assignment.id}` : '#'}
+              onClick={(e) => {
+                if (submittedSessions.length === 0) {
+                  e.preventDefault();
+                  toast.error('No submitted attendance sessions to export.');
+                }
+              }}
+              className={`inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border transition-all ${
+                submittedSessions.length > 0
+                  ? 'text-gray-700 bg-gray-50 hover:bg-gray-100 border-gray-200 active:scale-95 cursor-pointer'
+                  : 'text-gray-400 bg-gray-50 border-gray-200 cursor-not-allowed opacity-60'
+              }`}
+              title="Export Full Attendance Sheet as Spreadsheet (CSV)"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <span>Export CSV</span>
+            </a>
+
+            <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-widest hidden md:inline-flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              Official Academic Record
+            </span>
+          </div>
         </div>
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-6">
@@ -184,7 +220,7 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
           </div>
         </div>
 
-        {/* Analytics Summary */}
+        {/* Analytics Summary: strictly derived from genuine conducted sessions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
           <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex items-center gap-4">
             <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center shrink-0">
@@ -218,32 +254,29 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
         </div>
       </div>
 
-      {/* Main Container with Tabs */}
+      {/* Main Container: Strictly Submitted Sessions */}
       <div className="bg-white border-2 border-gray-200 rounded-xl shadow-sm overflow-hidden">
-        {/* Navigation Tabs */}
-        <div className="px-4 pt-3 border-b border-gray-200 bg-gray-50 flex gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveTab('submitted')}
-            className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider rounded-t-lg transition-colors border-t-2 border-x-2 -mb-[1px] ${
-              activeTab === 'submitted'
-                ? 'bg-white text-indigo-900 border-gray-200 border-b-transparent shadow-xs'
-                : 'bg-transparent text-gray-500 border-transparent hover:text-gray-900'
-            }`}
-          >
-            Submitted Sessions ({submittedSessions.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('calendar')}
-            className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider rounded-t-lg transition-colors border-t-2 border-x-2 -mb-[1px] ${
-              activeTab === 'calendar'
-                ? 'bg-white text-indigo-900 border-gray-200 border-b-transparent shadow-xs'
-                : 'bg-transparent text-gray-500 border-transparent hover:text-gray-900'
-            }`}
-          >
-            Calendar & Topics ({calendarDates.length})
-          </button>
+        {/* Table Section Header */}
+        <div className="px-5 py-3.5 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          <div>
+            <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">
+              Submitted Attendance Sessions ({submittedSessions.length})
+            </h3>
+            <p className="text-xs text-gray-500">
+              Showing authoritative conducted sessions with verified attendance records and timestamps
+            </p>
+          </div>
+          {submittedSessions.length > 0 && (
+            <a
+              href={`/api/staff/faculty/attendance/export/pdf?assignment_id=${assignment.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-all"
+            >
+              <FileText className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Export Full Register (PDF)</span>
+            </a>
+          )}
         </div>
         
         {loading ? (
@@ -251,369 +284,289 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
             <div className="inline-block h-8 w-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
             <p className="text-sm font-bold text-gray-500">Loading attendance history...</p>
           </div>
-        ) : activeTab === 'submitted' ? (
-          /* TAB 1: SUBMITTED SESSIONS ONLY */
-          submittedSessions.length === 0 ? (
-            <div className="text-center py-16 px-4">
-              <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <h4 className="text-base font-bold text-gray-800">No Submitted Attendance Sessions</h4>
-              <p className="text-xs text-gray-500 max-w-md mx-auto mt-1">
-                Attendance sessions will appear here once submitted by faculty. Unsubmitted calendar dates and empty sessions are excluded.
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Desktop Table View */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Session</th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Topic Covered</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Submission Time</th>
-                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Present / Total</th>
-                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Attendance %</th>
-                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-100">
-                    {submittedSessions.map((session, idx) => {
-                      const sessionRecords = historyData.filter(r => r.date === session.date && r.session === session.session);
-                      const presentCount = session.present_count ?? sessionRecords.filter(r => r.status === 'PRESENT').length;
-                      const totalCount = session.total_students ?? sessionRecords.length;
-                      const percentage = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
-                      
-                      const sessionKey = `${session.date}-${session.session}-${idx}`;
-                      const isExpanded = expandedSession === sessionKey;
-
-                      return (
-                        <Fragment key={sessionKey}>
-                          <tr onClick={() => toggleSession(sessionKey)} className="hover:bg-gray-50 transition-colors cursor-pointer group">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                              {formatDate(session.date)}
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-center">
-                              <span className="bg-indigo-50 text-indigo-900 text-xs font-black px-2.5 py-1 rounded-md uppercase border border-indigo-100">
-                                S{session.session}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-sm max-w-xs">
-                              {session.topic_covered ? (
-                                <div className="flex items-start justify-between gap-2">
-                                  <span className="font-medium text-gray-800 line-clamp-2 leading-relaxed" title={session.topic_covered}>
-                                    {session.topic_covered}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => handleOpenTopicModal(session, e)}
-                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded transition-colors shrink-0 cursor-pointer"
-                                    title="Edit Topic"
-                                  >
-                                    <Edit3 className="w-3 h-3" />
-                                    <span>Edit</span>
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="text-gray-400 italic text-xs font-medium">Not added yet</span>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => handleOpenTopicModal(session, e)}
-                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded border border-emerald-200 transition-colors shrink-0 cursor-pointer"
-                                    title="Add Topic Covered"
-                                  >
-                                    <Plus className="w-3 h-3" />
-                                    <span>Add Topic</span>
-                                  </button>
-                                </div>
-                              )}
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-xs text-gray-600">
-                              <div className="flex items-center gap-1.5">
-                                <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                                <span>{session.submitted_at ? formatDateTime(session.submitted_at) : 'Recorded'}</span>
-                                {session.is_historical ? (
-                                  <span className="text-[9px] font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded uppercase" title="Historical attendance record without authoritative submit timestamp">
-                                    Archive
-                                  </span>
-                                ) : null}
-                              </div>
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-900">
-                              <span className="text-emerald-600">{presentCount}</span>
-                              <span className="text-gray-400 font-normal"> / {totalCount}</span>
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-center">
-                              <div className="flex items-center justify-center gap-2">
-                                <div className="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                                  <div className="bg-indigo-500 h-1.5 rounded-full" style={{ width: `${percentage}%` }}></div>
-                                </div>
-                                <span className="text-xs font-bold text-gray-700 w-8">{percentage}%</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
-                              <a
-                                href={`/api/staff/faculty/attendance/session/pdf?assignment_id=${assignment.id}&date=${encodeURIComponent(session.date)}&session=${encodeURIComponent(session.session)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg shadow-2xs transition-all active:scale-95"
-                                title="Download Official A4 Attendance Report"
-                              >
-                                <FileText className="w-3.5 h-3.5 text-red-600" />
-                                <span>PDF</span>
-                              </a>
-                            </td>
-                          </tr>
-                          {isExpanded && (
-                            <tr>
-                              <td colSpan="7" className="px-6 py-4 bg-gray-50 border-t border-gray-100">
-                                <div className="max-h-64 overflow-y-auto pr-2 rounded border border-gray-200 bg-white shadow-inner">
-                                  <table className="min-w-full divide-y divide-gray-100 text-sm">
-                                    <thead className="bg-gray-100 sticky top-0">
-                                      <tr>
-                                        <th className="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Roll No</th>
-                                        <th className="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Name</th>
-                                        <th className="px-4 py-2 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Status</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-50">
-                                      {sessionRecords.sort((a, b) => (a.roll_no || '').localeCompare(b.roll_no || '')).map(record => (
-                                        <tr key={record.student_id} className="hover:bg-gray-50">
-                                          <td className="px-4 py-2 font-mono font-bold text-gray-700">{record.roll_no}</td>
-                                          <td className="px-4 py-2 font-medium text-gray-600">{record.name}</td>
-                                          <td className="px-4 py-2 text-center">
-                                            {record.status === 'PRESENT' ? (
-                                              <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                                                PRESENT
-                                              </span>
-                                            ) : record.status === 'NCC' ? (
-                                              <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
-                                                NCC
-                                              </span>
-                                            ) : record.status === 'MEDICAL' ? (
-                                              <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                                                MEDICAL
-                                              </span>
-                                            ) : (
-                                              <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">
-                                                ABSENT
-                                              </span>
-                                            )}
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile Card View */}
-              <div className="md:hidden flex flex-col divide-y divide-gray-100 bg-gray-50">
-                {submittedSessions.map((session, idx) => {
-                  const sessionRecords = historyData.filter(r => r.date === session.date && r.session === session.session);
-                  const presentCount = session.present_count ?? sessionRecords.filter(r => r.status === 'PRESENT').length;
-                  const totalCount = session.total_students ?? sessionRecords.length;
-                  const percentage = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
-                  
-                  const sessionKey = `${session.date}-${session.session}-${idx}`;
-                  const isExpanded = expandedSession === sessionKey;
-
-                  return (
-                    <div key={sessionKey} className="flex flex-col bg-white">
-                      <div onClick={() => toggleSession(sessionKey)} className="p-4 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
-                        <div className="flex justify-between items-center mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-gray-900">{formatDate(session.date)}</span>
-                            <span className="bg-indigo-50 text-indigo-900 text-[10px] font-black px-2 py-0.5 rounded-md uppercase border border-indigo-100">
-                              Session {session.session}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <a
-                              href={`/api/staff/faculty/attendance/session/pdf?assignment_id=${assignment.id}&date=${encodeURIComponent(session.date)}&session=${encodeURIComponent(session.session)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="text-[10px] font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-200 uppercase"
-                            >
-                              PDF
-                            </a>
-                            <span className="text-[10px] text-gray-400 font-bold">
-                              {isExpanded ? '▲ HIDE' : '▼ VIEW'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Submission Time */}
-                        <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mb-2">
-                          <Clock className="w-3 h-3 text-gray-400" />
-                          <span>Submitted: {session.submitted_at ? formatDateTime(session.submitted_at) : 'Recorded'}</span>
-                          {session.is_historical ? (
-                            <span className="text-[8px] bg-slate-100 text-slate-500 font-bold px-1 rounded uppercase">Archive</span>
-                          ) : null}
-                        </div>
-
-                        {/* Mobile Topic Section */}
-                        <div className="mb-3 p-2.5 bg-slate-50 rounded-lg border border-slate-200/80">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                              <BookOpen className="w-3 h-3 text-[#0b3578]" />
-                              Topic Covered
-                            </span>
-                            {session.topic_covered ? (
-                              <button
-                                type="button"
-                                onClick={(e) => handleOpenTopicModal(session, e)}
-                                className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 uppercase"
-                              >
-                                Edit
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={(e) => handleOpenTopicModal(session, e)}
-                                className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 uppercase"
-                              >
-                                + Add
-                              </button>
-                            )}
-                          </div>
-                          <p className="text-xs font-medium text-slate-800">
-                            {session.topic_covered || <span className="text-slate-400 italic">Not added yet</span>}
-                          </p>
-                        </div>
-
-                        <div className="flex justify-between items-end">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Attendance</span>
-                            <span className="text-sm font-black text-emerald-600">{presentCount} <span className="text-xs text-gray-400 font-medium">/ {totalCount} students</span></span>
-                          </div>
-                          <div className="flex flex-col items-end gap-1">
-                            <span className="text-sm font-black text-indigo-600">{percentage}%</span>
-                            <div className="w-16 bg-gray-200 rounded-full h-1 overflow-hidden">
-                              <div className="bg-indigo-500 h-1 rounded-full" style={{ width: `${percentage}%` }}></div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {isExpanded && (
-                        <div className="bg-gray-50 border-t border-gray-100 p-3 shadow-inner">
-                          <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
-                            {sessionRecords.sort((a, b) => (a.roll_no || '').localeCompare(b.roll_no || '')).map(record => (
-                              <div key={record.student_id} className="bg-white border border-gray-200 rounded p-2 flex justify-between items-center shadow-sm">
-                                <div>
-                                  <div className="text-[10px] font-mono font-bold text-gray-600 leading-none mb-1">{record.roll_no}</div>
-                                  <div className="text-xs font-semibold text-gray-800 leading-none">{record.name}</div>
-                                </div>
-                                <div>
-                                  {record.status === 'PRESENT' ? (
-                                    <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-sm bg-emerald-100 text-emerald-700">PRESENT</span>
-                                  ) : record.status === 'NCC' ? (
-                                    <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-sm bg-blue-100 text-blue-700">NCC</span>
-                                  ) : record.status === 'MEDICAL' ? (
-                                    <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-sm bg-amber-100 text-amber-700">MEDICAL</span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-sm bg-rose-100 text-rose-700">ABSENT</span>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )
+        ) : submittedSessions.length === 0 ? (
+          <div className="text-center py-16 px-4">
+            <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <h4 className="text-base font-bold text-gray-800">No Submitted Attendance Sessions</h4>
+            <p className="text-xs text-gray-500 max-w-md mx-auto mt-1">
+              Attendance sessions will appear here once submitted by faculty. Unsubmitted calendar dates, weekends, and holidays are excluded.
+            </p>
+          </div>
         ) : (
-          /* TAB 2: CALENDAR & TOPICS PROGRESSION */
-          calendarDates.length === 0 ? (
-            <div className="text-center py-16 px-4 text-gray-500 text-sm">
-              No academic calendar dates available for this semester.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Day Type</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Session</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Topic Covered</th>
-                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Attendance Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Submission Time</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Present / Total</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Attendance %</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-100 text-sm">
-                  {calendarDates.map((cal, idx) => {
-                    const isHoliday = cal.day_type && cal.day_type !== 'WORKING';
-                    const hasSubmittedAttendance = submittedSessions.some(s => s.date === cal.date && s.session === cal.session);
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {submittedSessions.map((session, idx) => {
+                    const sessionRecords = historyData.filter(r => r.date === session.date && r.session === session.session);
+                    const presentCount = session.present_count ?? sessionRecords.filter(r => r.status === 'PRESENT').length;
+                    const totalCount = session.total_students ?? sessionRecords.length;
+                    const percentage = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
+                    
+                    const sessionKey = `${session.date}-${session.session}-${idx}`;
+                    const isExpanded = expandedSession === sessionKey;
 
                     return (
-                      <tr key={`cal-${cal.date}-${cal.session}-${idx}`} className={isHoliday ? 'bg-red-50/20' : 'hover:bg-gray-50'}>
-                        <td className="px-6 py-3.5 whitespace-nowrap font-bold text-gray-900">
-                          {formatDate(cal.date)}
-                        </td>
-                        <td className="px-4 py-3.5 whitespace-nowrap text-center">
-                          {isHoliday ? (
-                            <span className="text-[10px] font-black text-red-600 bg-red-100/60 px-2 py-0.5 rounded">
-                              {cal.holiday_name || cal.day_type}
+                      <Fragment key={sessionKey}>
+                        <tr onClick={() => toggleSession(sessionKey)} className="hover:bg-gray-50 transition-colors cursor-pointer group">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                            {formatDate(session.date)}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-center">
+                            <span className="bg-indigo-50 text-indigo-900 text-xs font-black px-2.5 py-1 rounded-md uppercase border border-indigo-100">
+                              S{session.session}
                             </span>
-                          ) : (
-                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                              WORKING
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3.5 whitespace-nowrap text-center">
-                          <span className="text-xs font-black text-gray-700 bg-gray-100 px-2 py-0.5 rounded">
-                            S{cal.session}
-                          </span>
-                        </td>
-                        <td className="px-6 py-3.5">
-                          <div className="flex items-center justify-between gap-2 max-w-md">
-                            <span className="text-xs text-gray-800 line-clamp-1">
-                              {cal.topic_covered || <span className="text-gray-400 italic">No topic recorded</span>}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={(e) => handleOpenTopicModal(cal, e)}
-                              className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 shrink-0 cursor-pointer"
+                          </td>
+                          <td className="px-6 py-4 text-sm max-w-xs">
+                            {session.topic_covered ? (
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="font-medium text-gray-800 line-clamp-2 leading-relaxed" title={session.topic_covered}>
+                                  {session.topic_covered}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleOpenTopicModal(session, e)}
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded transition-colors shrink-0 cursor-pointer"
+                                  title="Edit Topic"
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                  <span>Edit</span>
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-gray-400 italic text-xs font-medium">Not added yet</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleOpenTopicModal(session, e)}
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded border border-emerald-200 transition-colors shrink-0 cursor-pointer"
+                                  title="Add Topic Covered"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                  <span>Add Topic</span>
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-xs text-gray-600">
+                            <div className="flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                              <span>{session.submitted_at ? formatDateTime(session.submitted_at) : 'Recorded'}</span>
+                              {session.is_historical ? (
+                                <span className="text-[9px] font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded uppercase" title="Historical attendance record without authoritative submit timestamp">
+                                  Archive
+                                </span>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-900">
+                            <span className="text-emerald-600">{presentCount}</span>
+                            <span className="text-gray-400 font-normal"> / {totalCount}</span>
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                                <div className="bg-indigo-500 h-1.5 rounded-full" style={{ width: `${percentage}%` }}></div>
+                              </div>
+                              <span className="text-xs font-bold text-gray-700 w-8">{percentage}%</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                            <a
+                              href={`/api/staff/faculty/attendance/session/pdf?assignment_id=${assignment.id}&date=${encodeURIComponent(session.date)}&session=${encodeURIComponent(session.session)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg shadow-2xs transition-all active:scale-95"
+                              title="Download Official A4 Attendance Report"
                             >
-                              {cal.topic_covered ? 'Edit' : '+ Add'}
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3.5 whitespace-nowrap text-center">
-                          {hasSubmittedAttendance ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                              SUBMITTED
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-medium text-gray-400 italic">
-                              Not recorded
-                            </span>
-                          )}
-                        </td>
-                      </tr>
+                              <FileText className="w-3.5 h-3.5 text-red-600" />
+                              <span>PDF</span>
+                            </a>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr>
+                            <td colSpan="7" className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                              <div className="max-h-64 overflow-y-auto pr-2 rounded border border-gray-200 bg-white shadow-inner">
+                                <table className="min-w-full divide-y divide-gray-100 text-sm">
+                                  <thead className="bg-gray-100 sticky top-0">
+                                    <tr>
+                                      <th className="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Roll No</th>
+                                      <th className="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Name</th>
+                                      <th className="px-4 py-2 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Status</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-gray-50">
+                                    {sessionRecords.sort((a, b) => (a.roll_no || '').localeCompare(b.roll_no || '')).map(record => (
+                                      <tr key={record.student_id} className="hover:bg-gray-50">
+                                        <td className="px-4 py-2 font-mono font-bold text-gray-700">{record.roll_no}</td>
+                                        <td className="px-4 py-2 font-medium text-gray-600">{record.name}</td>
+                                        <td className="px-4 py-2 text-center">
+                                          {record.status === 'PRESENT' ? (
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                                              PRESENT
+                                            </span>
+                                          ) : record.status === 'NCC' ? (
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                                              NCC
+                                            </span>
+                                          ) : record.status === 'MEDICAL' ? (
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                                              MEDICAL
+                                            </span>
+                                          ) : (
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">
+                                              ABSENT
+                                            </span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     );
                   })}
                 </tbody>
               </table>
             </div>
-          )
+
+            {/* Mobile Card View */}
+            <div className="md:hidden flex flex-col divide-y divide-gray-100 bg-gray-50">
+              {submittedSessions.map((session, idx) => {
+                const sessionRecords = historyData.filter(r => r.date === session.date && r.session === session.session);
+                const presentCount = session.present_count ?? sessionRecords.filter(r => r.status === 'PRESENT').length;
+                const totalCount = session.total_students ?? sessionRecords.length;
+                const percentage = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
+                
+                const sessionKey = `${session.date}-${session.session}-${idx}`;
+                const isExpanded = expandedSession === sessionKey;
+
+                return (
+                  <div key={sessionKey} className="flex flex-col bg-white">
+                    <div onClick={() => toggleSession(sessionKey)} className="p-4 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                      <div className="flex justify-between items-center mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-gray-900">{formatDate(session.date)}</span>
+                          <span className="bg-indigo-50 text-indigo-900 text-[10px] font-black px-2 py-0.5 rounded-md uppercase border border-indigo-100">
+                            Session {session.session}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <a
+                            href={`/api/staff/faculty/attendance/session/pdf?assignment_id=${assignment.id}&date=${encodeURIComponent(session.date)}&session=${encodeURIComponent(session.session)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-[10px] font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-200 uppercase"
+                          >
+                            PDF
+                          </a>
+                          <span className="text-[10px] text-gray-400 font-bold">
+                            {isExpanded ? '▲ HIDE' : '▼ VIEW'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Submission Time */}
+                      <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mb-2">
+                        <Clock className="w-3 h-3 text-gray-400" />
+                        <span>Submitted: {session.submitted_at ? formatDateTime(session.submitted_at) : 'Recorded'}</span>
+                        {session.is_historical ? (
+                          <span className="text-[8px] bg-slate-100 text-slate-500 font-bold px-1 rounded uppercase">Archive</span>
+                        ) : null}
+                      </div>
+
+                      {/* Mobile Topic Section */}
+                      <div className="mb-3 p-2.5 bg-slate-50 rounded-lg border border-slate-200/80">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                            <BookOpen className="w-3 h-3 text-[#0b3578]" />
+                            Topic Covered
+                          </span>
+                          {session.topic_covered ? (
+                            <button
+                              type="button"
+                              onClick={(e) => handleOpenTopicModal(session, e)}
+                              className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 uppercase"
+                            >
+                              Edit
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => handleOpenTopicModal(session, e)}
+                              className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 uppercase"
+                            >
+                              + Add
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-xs font-medium text-slate-800">
+                          {session.topic_covered || <span className="text-slate-400 italic">Not added yet</span>}
+                        </p>
+                      </div>
+
+                      <div className="flex justify-between items-end">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Attendance</span>
+                          <span className="text-sm font-black text-emerald-600">{presentCount} <span className="text-xs text-gray-400 font-medium">/ {totalCount} students</span></span>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-sm font-black text-indigo-600">{percentage}%</span>
+                          <div className="w-16 bg-gray-200 rounded-full h-1 overflow-hidden">
+                            <div className="bg-indigo-500 h-1 rounded-full" style={{ width: `${percentage}%` }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="bg-gray-50 border-t border-gray-100 p-3 shadow-inner">
+                        <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
+                          {sessionRecords.sort((a, b) => (a.roll_no || '').localeCompare(b.roll_no || '')).map(record => (
+                            <div key={record.student_id} className="bg-white border border-gray-200 rounded p-2 flex justify-between items-center shadow-sm">
+                              <div>
+                                <div className="text-[10px] font-mono font-bold text-gray-600 leading-none mb-1">{record.roll_no}</div>
+                                <div className="text-xs font-semibold text-gray-800 leading-none">{record.name}</div>
+                              </div>
+                              <div>
+                                {record.status === 'PRESENT' ? (
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-sm bg-emerald-100 text-emerald-700">PRESENT</span>
+                                ) : record.status === 'NCC' ? (
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-sm bg-blue-100 text-blue-700">NCC</span>
+                                ) : record.status === 'MEDICAL' ? (
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-sm bg-amber-100 text-amber-700">MEDICAL</span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-sm bg-rose-100 text-rose-700">ABSENT</span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 
