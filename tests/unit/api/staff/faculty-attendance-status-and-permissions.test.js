@@ -28,9 +28,22 @@ vi.mock('@/lib/academic-utils', () => ({
   getCurrentCalendarSession: vi.fn().mockResolvedValue({ academicYear: '2026-2027', semester: 1 }),
 }));
 
-vi.mock('@/lib/clock', () => ({
-  getNow: vi.fn(() => new Date('2026-09-04T10:00:00Z')),
-}));
+vi.mock('@/lib/clock', () => {
+  const mockNow = new Date('2026-09-04T10:00:00Z');
+  return {
+    getNow: vi.fn(() => mockNow),
+    Clock: {
+      now: vi.fn(() => mockNow),
+      nowString: vi.fn(() => '2026-09-04 10:00:00'),
+      toIST: vi.fn(() => mockNow),
+    },
+    default: {
+      now: vi.fn(() => mockNow),
+      nowString: vi.fn(() => '2026-09-04 10:00:00'),
+      toIST: vi.fn(() => mockNow),
+    },
+  };
+});
 
 describe('Faculty Attendance Status, Permissions & Topic Persistence Suite', () => {
   beforeEach(() => {
@@ -263,7 +276,19 @@ describe('Faculty Attendance Status, Permissions & Topic Persistence Suite', () 
             values: vi.fn().mockReturnValue({
               onDuplicateKeyUpdate: vi.fn().mockResolvedValue(true)
             })
-          })
+          }),
+          select: vi.fn().mockReturnValue({
+            from: () => ({
+              where: () => ({
+                limit: () => Promise.resolve([{ id: 101 }]),
+              }),
+            }),
+          }),
+          update: vi.fn().mockReturnValue({
+            set: () => ({
+              where: () => Promise.resolve(),
+            }),
+          }),
         };
         return callback(tx);
       });

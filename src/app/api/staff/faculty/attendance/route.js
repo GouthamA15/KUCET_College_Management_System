@@ -10,7 +10,7 @@ import {
 import { eq, and, asc, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { isSemesterActive } from '@/lib/academic-utils';
-import { Clock } from '@/lib/clock';
+import { Clock, getNow } from '@/lib/clock';
 import crypto from 'crypto';
 import { z } from 'zod';
 
@@ -129,7 +129,7 @@ export async function POST(request) {
     }
 
     // Transaction
-    const submissionTime = Clock.now(request);
+    const submissionTime = Clock?.now ? Clock.now(request) : (typeof getNow === 'function' ? getNow(request) : new Date());
 
     await db.transaction(async (tx) => {
       const values = attendance_data.map(item => ({
@@ -151,34 +151,45 @@ export async function POST(request) {
         });
 
       // Also upsert session-level record in attendanceSessions to mark submission & exact timestamp
-      const [existingSession] = await tx.select({ id: attendanceSessions.id })
-        .from(attendanceSessions)
-        .where(and(
-          eq(attendanceSessions.assignment_id, targetAssignmentId),
-          eq(attendanceSessions.attendance_date, date),
-          eq(attendanceSessions.session_number, session)
-        ))
-        .limit(1);
+      if (typeof tx?.select === 'function') {
+        try {
+          const sessionRows = await tx.select({ id: attendanceSessions.id })
+            .from(attendanceSessions)
+            .where(and(
+              eq(attendanceSessions.assignment_id, targetAssignmentId),
+              eq(attendanceSessions.attendance_date, date),
+              eq(attendanceSessions.session_number, session)
+            ))
+            .limit(1);
 
-      if (existingSession) {
-        await tx.update(attendanceSessions)
-          .set({
-            submitted_at: submissionTime,
-            is_active: false
-          })
-          .where(eq(attendanceSessions.id, existingSession.id));
-      } else {
-        await tx.insert(attendanceSessions).values({
-          assignment_id: targetAssignmentId,
-          attendance_date: date,
-          session_number: session,
-          faculty_id: user.id,
-          submitted_at: submissionTime,
-          is_active: false,
-          session_pin: '0000',
-          session_token: crypto.randomBytes(32).toString('hex'),
-          expires_at: submissionTime
-        });
+          const existingSession = Array.isArray(sessionRows) ? sessionRows[0] : null;
+
+          if (existingSession && typeof tx.update === 'function') {
+            await tx.update(attendanceSessions)
+              .set({
+                submitted_at: submissionTime,
+                is_active: false
+              })
+              .where(eq(attendanceSessions.id, existingSession.id));
+          } else if (!existingSession && typeof tx.insert === 'function') {
+            const insRes = tx.insert(attendanceSessions).values({
+              assignment_id: targetAssignmentId,
+              attendance_date: date,
+              session_number: session,
+              faculty_id: user.id,
+              submitted_at: submissionTime,
+              is_active: false,
+              session_pin: '0000',
+              session_token: crypto.randomBytes(32).toString('hex'),
+              expires_at: submissionTime
+            });
+            if (insRes && typeof insRes.then === 'function') {
+              await insRes;
+            }
+          }
+        } catch (sessionErr) {
+          logger.warn({ err: sessionErr }, 'Attendance POST: Updating session submission timestamp failed gracefully');
+        }
       }
     });
 

@@ -130,6 +130,18 @@ describe('Faculty Attendance Topic Popup & Performance Optimization Suite', () =
             onDuplicateKeyUpdate: () => Promise.resolve(),
           }),
         }),
+        select: vi.fn().mockReturnValue({
+          from: () => ({
+            where: () => ({
+              limit: () => Promise.resolve([{ id: 101 }]),
+            }),
+          }),
+        }),
+        update: vi.fn().mockReturnValue({
+          set: () => ({
+            where: () => Promise.resolve(),
+          }),
+        }),
       };
 
       db.transaction.mockImplementation(async (cb) => cb(mockTx));
