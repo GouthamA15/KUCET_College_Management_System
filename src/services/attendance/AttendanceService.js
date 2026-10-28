@@ -1,9 +1,9 @@
 import { db } from '@/db';
 import logger from '@/lib/logger';
-import { 
-  attendanceSessions, 
-  facultySubjectAssignments, 
-  facultySubstitutions 
+import {
+  attendanceSessions,
+  facultySubjectAssignments,
+  facultySubstitutions
 } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import crypto from 'crypto';
@@ -241,5 +241,35 @@ export class AttendanceService {
 
     return true;
   }
-}
 
+  /**
+   * Reconciles summary counters on attendance_sessions directly from the authoritative records in student_attendance
+   * @param {Object} params
+   * @param {number} params.sessionId
+   * @param {Object} [params.tx]
+   */
+  static async reconcileSessionCounters({ sessionId, tx = db }) {
+    const { studentAttendance, attendanceSessions } = await import('@/db/schema');
+    const { eq, sql } = await import('drizzle-orm');
+
+    const [aggregates] = await tx.select({
+      total: sql`COUNT(*)`.mapWith(Number),
+      present: sql`COUNT(CASE WHEN ${studentAttendance.status} = 'PRESENT' THEN 1 END)`.mapWith(Number),
+      absent: sql`COUNT(CASE WHEN ${studentAttendance.status} = 'ABSENT' THEN 1 END)`.mapWith(Number),
+    })
+    .from(studentAttendance)
+    .where(eq(studentAttendance.session_id, sessionId));
+
+    if (aggregates) {
+      await tx.update(attendanceSessions)
+        .set({
+          total_students: aggregates.total || 0,
+          present_count: aggregates.present || 0,
+          absent_count: aggregates.absent || 0,
+        })
+        .where(eq(attendanceSessions.id, sessionId));
+    }
+
+    return aggregates || { total: 0, present: 0, absent: 0 };
+  }
+}

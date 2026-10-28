@@ -1,8 +1,8 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { 
-  facultySubjectAssignments, 
-  studentAttendance, 
+import {
+  facultySubjectAssignments,
+  studentAttendance,
   attendanceSessions,
   collegeInfo as collegeInfoTable,
   facultySubstitutions
@@ -136,12 +136,65 @@ export async function POST(request) {
           ))
           .orderBy(asc(facultySubjectAssignments.created_at))
           .limit(1);
-        
+
         const targetAssignmentId = canonicalRows[0]?.id || assignment_id;
 
         const syncTime = Clock.now(request);
+        const totalStudents = attendance_data.length;
+        const presentCount = attendance_data.filter(i => i.status === 'PRESENT').length;
+        const absentCount = attendance_data.filter(i => i.status === 'ABSENT').length;
+        const cleanTopic = (topic_covered && topic_covered.trim().length >= 2) ? topic_covered.trim().slice(0, 500) : null;
 
+        // 1. Upsert session-level record in attendanceSessions
+        const [existingSession] = await tx.select({
+          id: attendanceSessions.id,
+          topic_covered: attendanceSessions.topic_covered
+        })
+        .from(attendanceSessions)
+        .where(and(
+          eq(attendanceSessions.assignment_id, targetAssignmentId),
+          eq(attendanceSessions.attendance_date, date),
+          eq(attendanceSessions.session_number, session)
+        ))
+        .limit(1);
+
+        let sessionId;
+        const finalTopic = cleanTopic || existingSession?.topic_covered || null;
+
+        if (existingSession) {
+          sessionId = existingSession.id;
+          await tx.update(attendanceSessions)
+            .set({
+              submitted_at: syncTime,
+              is_active: false,
+              total_students: totalStudents,
+              present_count: presentCount,
+              absent_count: absentCount,
+              topic_covered: finalTopic
+            })
+            .where(eq(attendanceSessions.id, sessionId));
+        } else {
+          const [insRes] = await tx.insert(attendanceSessions).values({
+            assignment_id: targetAssignmentId,
+            attendance_date: date,
+            session_number: session,
+            faculty_id: user.id,
+            submitted_at: syncTime,
+            is_active: false,
+            session_pin: '0000',
+            session_token: crypto.randomBytes(32).toString('hex'),
+            expires_at: syncTime,
+            total_students: totalStudents,
+            present_count: presentCount,
+            absent_count: absentCount,
+            topic_covered: finalTopic
+          });
+          sessionId = insRes.insertId;
+        }
+
+        // 2. Bulk upsert attendance records linking directly to session_id with unique constraint
         const values = attendance_data.map(item => ({
+          session_id: sessionId,
           student_id: item.student_id,
           assignment_id: targetAssignmentId,
           date: date,
@@ -153,52 +206,25 @@ export async function POST(request) {
         await tx.insert(studentAttendance)
           .values(values)
           .onDuplicateKeyUpdate({
-            set: { 
+            set: {
               status: sql`VALUES(status)`,
-              submitted_at: sql`VALUES(submitted_at)`
+              submitted_at: sql`VALUES(submitted_at)`,
+              session_id: sql`VALUES(session_id)`
             }
           });
 
-        // Upsert session-level record in attendanceSessions to mark submission & exact timestamp
-        const [existingSession] = await tx.select({ id: attendanceSessions.id })
-          .from(attendanceSessions)
-          .where(and(
-            eq(attendanceSessions.assignment_id, targetAssignmentId),
-            eq(attendanceSessions.attendance_date, date),
-            eq(attendanceSessions.session_number, session)
-          ))
-          .limit(1);
-
-        if (existingSession) {
-          await tx.update(attendanceSessions)
-            .set({
-              submitted_at: syncTime,
-              is_active: false
-            })
-            .where(eq(attendanceSessions.id, existingSession.id));
-        } else {
-          await tx.insert(attendanceSessions).values({
-            assignment_id: targetAssignmentId,
-            attendance_date: date,
-            session_number: session,
-            faculty_id: user.id,
-            submitted_at: syncTime,
-            is_active: false,
-            session_pin: '0000',
-            session_token: crypto.randomBytes(32).toString('hex'),
-            expires_at: syncTime
-          });
+        if (recordIdentifier !== undefined && recordIdentifier !== null) {
+          syncedIds.push(recordIdentifier);
         }
 
-        // AUTO-SAVE TOPIC COVERED IF PROVIDED
-        if (topic_covered && topic_covered.trim().length >= 2) {
+        if (cleanTopic) {
           try {
             const { AttendanceService } = await import('@/services/AttendanceService');
             await AttendanceService.updateLectureTopic({
               assignmentId: assignment_id,
               date,
               sessionNumber: session,
-              topicCovered: topic_covered.trim(),
+              topicCovered: cleanTopic,
               user
             });
           } catch (topicErr) {
@@ -206,36 +232,32 @@ export async function POST(request) {
           }
         }
 
-        if (recordIdentifier !== undefined && recordIdentifier !== null) {
-          syncedIds.push(recordIdentifier);
-        }
-
         successfulEvents.push({
           assignment_id: targetAssignmentId,
+          session_id: sessionId,
           date,
           session,
-          attendance_data
+          student_ids: attendance_data.map(item => item.student_id)
         });
       }
     });
 
-    // Fire domain events asynchronously
+    // Fire batched domain events asynchronously
     if (successfulEvents.length > 0) {
       Promise.resolve().then(async () => {
         try {
           const { EventBus, DOMAIN_EVENTS } = await import('@/lib/events/EventBus');
           for (const ev of successfulEvents) {
-            for (const item of ev.attendance_data) {
-              EventBus.publish(DOMAIN_EVENTS.ATTENDANCE_SUBMITTED, {
-                student_id: item.student_id,
-                assignment_id: ev.assignment_id,
-                date: ev.date,
-                session: ev.session
-              });
-            }
+            EventBus.publish(DOMAIN_EVENTS.ATTENDANCE_BATCH_SUBMITTED, {
+              assignment_id: ev.assignment_id,
+              session_id: ev.session_id,
+              date: ev.date,
+              session: ev.session,
+              student_ids: ev.student_ids
+            });
           }
         } catch (ebErr) {
-          logger.warn({ err: ebErr }, '[EventBus] Bulk sync domain event publish failed');
+          logger.warn({ err: ebErr }, '[EventBus] Bulk sync attendance batch publish failed');
         }
       }).catch(() => {});
     }

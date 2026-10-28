@@ -211,6 +211,13 @@
                         "when":  1790700000000,
                         "version":  "5",
                         "tag":  "0029_attendance_submission_timestamp"
+                    },
+                    {
+                        "idx":  30,
+                        "breakpoints":  true,
+                        "when":  1790800000000,
+                        "version":  "5",
+                        "tag":  "0030_attendance_architecture_optimization"
                     }
                 ]
 }

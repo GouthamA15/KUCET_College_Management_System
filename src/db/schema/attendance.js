@@ -5,6 +5,7 @@ import {
 
 export const studentAttendance = mysqlTable('student_attendance', {
   id: int('id').autoincrement().primaryKey().notNull(),
+  session_id: int('session_id'),
   student_id: int('student_id').notNull(),
   assignment_id: int('assignment_id').notNull(),
   date: date('date').notNull(),
@@ -17,7 +18,9 @@ export const studentAttendance = mysqlTable('student_attendance', {
   historyIdx: index('idx_student_attendance_history').on(table.student_id, table.date),
   studentAssignmentIdx: index('idx_sa_student_assignment').on(table.student_id, table.assignment_id),
   studentStatusDateIdx: index('idx_att_student_status_date').on(table.student_id, table.status, table.date),
+  sessionStatusIdx: index('idx_sa_session_status').on(table.session_id, table.status),
   uqAttendance: uniqueIndex('uq_student_attendance').on(table.student_id, table.assignment_id, table.date, table.session),
+  uqSessionStudent: uniqueIndex('uq_session_student').on(table.session_id, table.student_id),
 }));
 
 export const attendanceSessions = mysqlTable('attendance_sessions', {
@@ -36,11 +39,16 @@ export const attendanceSessions = mysqlTable('attendance_sessions', {
   accuracy: float('accuracy'),
   topic_covered: varchar('topic_covered', { length: 500 }),
   submitted_at: timestamp('submitted_at'),
+  total_students: int('total_students').default(0),
+  present_count: int('present_count').default(0),
+  absent_count: int('absent_count').default(0),
 }, (table) => ({
+  uqAssignmentSlot: uniqueIndex('uq_assignment_session_slot').on(table.assignment_id, table.attendance_date, table.session_number),
   assignmentActiveIdx: index('idx_assignment_active').on(table.assignment_id, table.is_active),
   sessionsActiveIdx: index('idx_sessions_active').on(table.is_active, table.expires_at),
   tokenIdx: index('idx_session_token').on(table.session_token),
   facultyIdx: index('idx_as_faculty').on(table.faculty_id),
+  assignmentDateIdx: index('idx_sessions_assignment_date').on(table.assignment_id, table.attendance_date),
 }));
 
 export const attendanceSessionLogs = mysqlTable('attendance_session_logs', {
