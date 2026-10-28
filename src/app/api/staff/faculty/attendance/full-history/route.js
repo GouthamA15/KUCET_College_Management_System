@@ -117,14 +117,33 @@ export async function GET(request) {
       }
     }
 
+    // Fetch session metadata directly from attendanceSessions for authoritative topic & timestamp mapping
+    let directSessionRows = [];
+    try {
+      directSessionRows = await db.select({
+        date: sql`DATE_FORMAT(${attendanceSessions.attendance_date}, '%Y-%m-%d')`,
+        session: attendanceSessions.session_number,
+        topic_covered: attendanceSessions.topic_covered,
+        submitted_at: attendanceSessions.submitted_at
+      })
+      .from(attendanceSessions)
+      .where(eq(attendanceSessions.assignment_id, assignment_id));
+    } catch (_e) {
+      // Graceful fallback if attendanceSessions query fails
+    }
+
     const submittedSessions = Array.from(sessionMap.values()).map(s => {
+      const directMatch = (directSessionRows || []).find(d => d.date === s.date && d.session === s.session);
       const matchedCal = (uniqueDates || []).find(u => u.date === s.date && u.session === s.session);
+      const resolvedTopic = directMatch?.topic_covered || matchedCal?.topic_covered || null;
+      const resolvedSubmittedAt = s.submitted_at || directMatch?.submitted_at || null;
+
       return {
         date: s.date,
         session: s.session,
-        topic_covered: matchedCal?.topic_covered || null,
-        submitted_at: s.submitted_at,
-        is_historical: !s.has_verified_submitted_at,
+        topic_covered: resolvedTopic,
+        submitted_at: resolvedSubmittedAt,
+        is_historical: !s.has_verified_submitted_at && !directMatch?.submitted_at,
         total_students: s.total_students,
         present_count: s.present_count
       };
