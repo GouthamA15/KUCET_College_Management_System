@@ -21,6 +21,23 @@ import FullAttendanceExportPDF from '@/pdf/templates/FullAttendanceExportPDF';
 import logger from '@/lib/logger';
 import { z } from 'zod';
 
+let cachedLogoDataUrl = null;
+function getCachedLogoDataUrl() {
+  if (cachedLogoDataUrl) return cachedLogoDataUrl;
+  const candidateLogoPaths = [
+    path.join(process.cwd(), 'public/assets/ku-college-logo.png'),
+    path.join(process.cwd(), 'public/assets/ku-logo.png')
+  ];
+  for (const logoPath of candidateLogoPaths) {
+    if (fs.existsSync(/*turbopackIgnore: true*/ logoPath)) {
+      const logoBuf = fs.readFileSync(/*turbopackIgnore: true*/ logoPath);
+      cachedLogoDataUrl = `data:image/png;base64,${logoBuf.toString('base64')}`;
+      break;
+    }
+  }
+  return cachedLogoDataUrl;
+}
+
 const querySchema = z.object({
   assignment_id: z.preprocess(v => Number(v), z.number().int().positive())
 });
@@ -175,6 +192,7 @@ export async function GET(request) {
           id: studentsTable.id,
           roll_no: studentsTable.roll_no,
           name: studentsTable.name,
+          academic_offset_years: studentsTable.academic_offset_years
         })
         .from(studentsTable)
         .where(and(
@@ -182,23 +200,31 @@ export async function GET(request) {
           or(
             like(studentsTable.roll_no, `%567T${branchCode}%`),
             like(studentsTable.roll_no, `%567${branchCode}%L`)
-          ),
-          sql`CASE 
-              WHEN ${studentsTable.roll_no} LIKE '%T%' THEN 
-                (${startYear} - CAST(CONCAT('20', SUBSTRING(${studentsTable.roll_no}, 1, 2)) AS SIGNED) + 1) - ${studentsTable.academic_offset_years}
-              WHEN ${studentsTable.roll_no} LIKE '%L' THEN 
-                (${startYear} - CAST(CONCAT('20', SUBSTRING(${studentsTable.roll_no}, 1, 2)) AS SIGNED) + 2) - ${studentsTable.academic_offset_years}
-              ELSE 0
-            END = ${studyingYear}`
+          )
         ))
         .orderBy(asc(studentsTable.roll_no));
 
         for (const st of eligibleCohort) {
-          studentMap.set(st.id, {
-            student_id: st.id,
-            roll_no: st.roll_no,
-            name: st.name
-          });
+          const roll = st.roll_no || '';
+          const entryYearShort = parseInt(roll.slice(0, 2), 10);
+          if (isNaN(entryYearShort)) continue;
+          const entryYearFull = 2000 + entryYearShort;
+          const offset = st.academic_offset_years || 0;
+          let calculatedYear = 0;
+
+          if (roll.includes('T')) {
+            calculatedYear = (startYear - entryYearFull + 1) - offset;
+          } else if (roll.endsWith('L')) {
+            calculatedYear = (startYear - entryYearFull + 2) - offset;
+          }
+
+          if (calculatedYear === studyingYear) {
+            studentMap.set(st.id, {
+              student_id: st.id,
+              roll_no: st.roll_no,
+              name: st.name
+            });
+          }
         }
       } catch (cohortErr) {
         logger.warn({ err: cohortErr }, 'Full Attendance Export: Error resolving cohort students, falling back to recorded students');
@@ -283,19 +309,8 @@ export async function GET(request) {
 
     const generationTimestamp = formatDateTime(Clock.now(request));
 
-    // 9. Institutional Logo
-    let logoDataUrl = null;
-    const candidateLogoPaths = [
-      path.join(process.cwd(), 'public/assets/ku-college-logo.png'),
-      path.join(process.cwd(), 'public/assets/ku-logo.png')
-    ];
-    for (const logoPath of candidateLogoPaths) {
-      if (fs.existsSync(/*turbopackIgnore: true*/ logoPath)) {
-        const logoBuf = fs.readFileSync(/*turbopackIgnore: true*/ logoPath);
-        logoDataUrl = `data:image/png;base64,${logoBuf.toString('base64')}`;
-        break;
-      }
-    }
+    // 9. Institutional Logo (In-Memory Cached Base64 data URI)
+    const logoDataUrl = getCachedLogoDataUrl();
 
     // 10. Generate PDF
     const pdfBuffer = await pdf(

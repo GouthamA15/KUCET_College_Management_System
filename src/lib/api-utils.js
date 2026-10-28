@@ -85,8 +85,8 @@ export async function logAudit(req, { userId, userType, action, targetId, target
     throw error;
   }
 
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
-  const userAgent = req.headers.get('user-agent') || 'Unknown Device';
+  const ip = (req.headers.get('x-forwarded-for')?.split(',')[0] || req.headers.get('x-real-ip') || '127.0.0.1').trim().slice(0, 45);
+  const userAgent = (req.headers.get('user-agent') || 'Unknown Device').slice(0, 500);
 
   try {
     await db.insert(auditLogs).values({

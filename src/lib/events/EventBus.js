@@ -3,6 +3,7 @@ import logger from '@/lib/logger';
 
 export const DOMAIN_EVENTS = Object.freeze({
   ATTENDANCE_SUBMITTED: 'attendance.submitted',
+  ATTENDANCE_BATCH_SUBMITTED: 'attendance.batch_submitted',
   TOPIC_UPDATED: 'topic.updated',
   MARKS_PUBLISHED: 'marks.published',
   FEE_PAID: 'fee.paid',
@@ -95,6 +96,27 @@ class CentralDomainEventBus {
         }
       } catch (err) {
         logger.warn({ err }, '[EventBus] Failed cache invalidation on attendance');
+      }
+    });
+
+    this.subscribe(DOMAIN_EVENTS.ATTENDANCE_BATCH_SUBMITTED, async (eventData) => {
+      try {
+        const { invalidateTags } = await import('@/lib/cache');
+        const tags = [];
+        if (Array.isArray(eventData.payload?.student_ids)) {
+          for (const sId of eventData.payload.student_ids) {
+            tags.push(`attendance:${sId}`);
+          }
+        }
+        if (eventData.payload?.assignment_id) {
+          tags.push(`attendance:topics:${eventData.payload.assignment_id}`);
+          tags.push(`attendance:assignment:${eventData.payload.assignment_id}`);
+        }
+        if (tags.length > 0) {
+          await invalidateTags(tags);
+        }
+      } catch (err) {
+        logger.warn({ err }, '[EventBus] Failed batched cache invalidation on attendance');
       }
     });
 

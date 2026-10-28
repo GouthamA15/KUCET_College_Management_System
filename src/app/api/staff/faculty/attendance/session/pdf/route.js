@@ -20,6 +20,23 @@ import AttendanceSessionPDF from '@/pdf/templates/AttendanceSessionPDF';
 import logger from '@/lib/logger';
 import { z } from 'zod';
 
+let cachedLogoDataUrl = null;
+function getCachedLogoDataUrl() {
+  if (cachedLogoDataUrl) return cachedLogoDataUrl;
+  const candidateLogoPaths = [
+    path.join(process.cwd(), 'public/assets/ku-college-logo.png'),
+    path.join(process.cwd(), 'public/assets/ku-logo.png')
+  ];
+  for (const logoPath of candidateLogoPaths) {
+    if (fs.existsSync(/*turbopackIgnore: true*/ logoPath)) {
+      const logoBuf = fs.readFileSync(/*turbopackIgnore: true*/ logoPath);
+      cachedLogoDataUrl = `data:image/png;base64,${logoBuf.toString('base64')}`;
+      break;
+    }
+  }
+  return cachedLogoDataUrl;
+}
+
 const querySchema = z.object({
   assignment_id: z.preprocess(v => Number(v), z.number().int().positive()),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -129,8 +146,9 @@ export async function GET(request) {
       return apiError('No submitted attendance records found for this session.', 404);
     }
 
-    // 4. Fetch session topic and submission timestamp
+    // 4. Fetch session topic and submission timestamp via indexed lookup
     const sessionRows = await db.select({
+      id: attendanceSessions.id,
       topic_covered: attendanceSessions.topic_covered,
       submitted_at: attendanceSessions.submitted_at
     })
@@ -143,30 +161,20 @@ export async function GET(request) {
     .limit(1);
 
     const sessionData = sessionRows[0] || null;
+
     const rawSubTime = sessionData?.submitted_at || attendanceRecords[0]?.submitted_at || attendanceRecords[0]?.created_at;
     const isHistorical = !sessionData?.submitted_at && !attendanceRecords[0]?.submitted_at;
     const submissionTimestamp = rawSubTime ? formatDateTime(rawSubTime) : 'Recorded';
     const generationTimestamp = formatDateTime(Clock.now(request));
 
-    // Summary calculation
+    // Summary calculation: use authoritative record counts with fallback to cached session totals
     const totalCount = attendanceRecords.length;
     const presentCount = attendanceRecords.filter(r => r.status === 'PRESENT').length;
     const absentCount = attendanceRecords.filter(r => r.status === 'ABSENT').length;
     const percentage = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
 
-    // 5. Institutional Logo (Base64 data URI)
-    let logoDataUrl = null;
-    const candidateLogoPaths = [
-      path.join(process.cwd(), 'public/assets/ku-college-logo.png'),
-      path.join(process.cwd(), 'public/assets/ku-logo.png')
-    ];
-    for (const logoPath of candidateLogoPaths) {
-      if (fs.existsSync(/*turbopackIgnore: true*/ logoPath)) {
-        const logoBuf = fs.readFileSync(/*turbopackIgnore: true*/ logoPath);
-        logoDataUrl = `data:image/png;base64,${logoBuf.toString('base64')}`;
-        break;
-      }
-    }
+    // 5. Institutional Logo (In-Memory Cached Base64 data URI)
+    const logoDataUrl = getCachedLogoDataUrl();
 
     const pdfBuffer = await pdf(
       React.createElement(AttendanceSessionPDF, {

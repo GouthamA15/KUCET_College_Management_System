@@ -288,6 +288,25 @@ export default function FullAttendanceExportPDF({
   const totalFixed = colSNoWidth + colRollWidth + colNameWidth + colSumCondWidth + colSumPresWidth + colSumAbsWidth + colSumPctWidth;
   const availableForSessions = 794 - totalFixed;
 
+  // Pre-generate static Meta Grid once for the entire report
+  const metaItems = [
+    { label: 'Subject Code & Name', val: `${subjectCode} — ${subjectName}` },
+    { label: 'Branch & Semester', val: `${branch} (Sem ${semester})` },
+    { label: 'Course Faculty', val: facultyName || 'Course Faculty' },
+    { label: 'Report Period (Conducted Dates)', val: reportPeriod || 'Current Semester' },
+    { label: 'Total Classes Conducted', val: `${totalConducted} Sessions`, color: '#0b3578' },
+    { label: 'Total Students Enrolled', val: `${students.length} Students` },
+    { label: 'Overall Class Attendance', val: `${overallPercentage}%`, color: '#16a34a' },
+    { label: 'Report Generated', val: generationTimestamp }
+  ];
+
+  const metaCols = metaItems.map((m, mIdx) =>
+    h(View, { key: `meta-${mIdx}`, style: styles.metaCol },
+      h(Text, { style: styles.metaLabel }, m.label),
+      h(Text, { style: [styles.metaValue, m.color ? { color: m.color } : {}] }, m.val)
+    )
+  );
+
   const pages = [];
 
   sessionChunks.forEach((chunkSessions, chunkIdx) => {
@@ -300,6 +319,42 @@ export default function FullAttendanceExportPDF({
     const chunkNoticeText = sessions.length > SESSIONS_PER_CHUNK
       ? `Attendance Matrix: Sessions ${startSessionNum} to ${endSessionNum} of ${sessions.length} conducted classes`
       : `Attendance Matrix: Complete semester history (${sessions.length} conducted classes)`;
+
+    // Pre-create static cell styles for this chunk to avoid thousands of inline array allocations
+    const cellStylePresent = { ...styles.tdCell, width: sessionColWidth, ...styles.statusPresent };
+    const cellStyleAbsent = { ...styles.tdCell, width: sessionColWidth, ...styles.statusAbsent };
+    const cellStyleOther = { ...styles.tdCell, width: sessionColWidth, ...styles.statusOther };
+    const cellStyleEmpty = { ...styles.tdCell, width: sessionColWidth, ...styles.statusEmpty };
+
+    const thCellStyle = { ...styles.thCell, width: sessionColWidth };
+    const thSubCellStyle = { ...styles.thCell, width: sessionColWidth, backgroundColor: '#1e3a8a' };
+
+    // Pre-create Table Header Rows once per chunk
+    const thCells = [
+      h(Text, { key: 'th-sno', style: [styles.thCell, { width: colSNoWidth }] }, '#'),
+      h(Text, { key: 'th-roll', style: [styles.thCell, { width: colRollWidth }] }, 'Roll Number'),
+      h(Text, { key: 'th-name', style: [styles.thCell, { width: colNameWidth, textAlign: 'left', paddingLeft: 4 }] }, 'Student Name'),
+      ...chunkSessions.map((s, sIdx) =>
+        h(Text, { key: `th-s-${s.key || sIdx}`, style: thCellStyle }, s.displayDate || s.date)
+      ),
+      h(Text, { key: 'th-cond', style: [styles.thCell, { width: colSumCondWidth }] }, 'Cond'),
+      h(Text, { key: 'th-pres', style: [styles.thCell, { width: colSumPresWidth }] }, 'Pres'),
+      h(Text, { key: 'th-abs', style: [styles.thCell, { width: colSumAbsWidth }] }, 'Abs'),
+      h(Text, { key: 'th-pct', style: [styles.thCell, { width: colSumPctWidth, borderRightWidth: 0 }] }, '%')
+    ];
+
+    const thSubCells = [
+      h(Text, { key: 'sub-sno', style: [styles.thCell, { width: colSNoWidth, backgroundColor: '#1e3a8a' }] }, '-'),
+      h(Text, { key: 'sub-roll', style: [styles.thCell, { width: colRollWidth, backgroundColor: '#1e3a8a' }] }, 'Canonical'),
+      h(Text, { key: 'sub-name', style: [styles.thCell, { width: colNameWidth, textAlign: 'left', paddingLeft: 4, backgroundColor: '#1e3a8a' }] }, `Roster (${students.length})`),
+      ...chunkSessions.map((s, sIdx) =>
+        h(Text, { key: `sub-s-${s.key || sIdx}`, style: thSubCellStyle }, `S${s.session}`)
+      ),
+      h(Text, { key: 'sub-cond', style: [styles.thCell, { width: colSumCondWidth, backgroundColor: '#1e3a8a' }] }, 'Tot'),
+      h(Text, { key: 'sub-pres', style: [styles.thCell, { width: colSumPresWidth, backgroundColor: '#1e3a8a' }] }, 'P'),
+      h(Text, { key: 'sub-abs', style: [styles.thCell, { width: colSumAbsWidth, backgroundColor: '#1e3a8a' }] }, 'A'),
+      h(Text, { key: 'sub-pct', style: [styles.thCell, { width: colSumPctWidth, backgroundColor: '#1e3a8a', borderRightWidth: 0 }] }, 'Att%')
+    ];
 
     studentPages.forEach((pageStudents, pageIdx) => {
       const isLastStudentPageOfChunk = pageIdx === studentPages.length - 1;
@@ -320,53 +375,6 @@ export default function FullAttendanceExportPDF({
         )
       ];
 
-      // Meta Grid Elements
-      const metaItems = [
-        { label: 'Subject Code & Name', val: `${subjectCode} — ${subjectName}` },
-        { label: 'Branch & Semester', val: `${branch} (Sem ${semester})` },
-        { label: 'Course Faculty', val: facultyName || 'Course Faculty' },
-        { label: 'Report Period (Conducted Dates)', val: reportPeriod || 'Current Semester' },
-        { label: 'Total Classes Conducted', val: `${totalConducted} Sessions`, color: '#0b3578' },
-        { label: 'Total Students Enrolled', val: `${students.length} Students` },
-        { label: 'Overall Class Attendance', val: `${overallPercentage}%`, color: '#16a34a' },
-        { label: 'Report Generated', val: generationTimestamp }
-      ];
-
-      const metaCols = metaItems.map((m, mIdx) =>
-        h(View, { key: `meta-${mIdx}`, style: styles.metaCol },
-          h(Text, { style: styles.metaLabel }, m.label),
-          h(Text, { style: [styles.metaValue, m.color ? { color: m.color } : {}] }, m.val)
-        )
-      );
-
-      // Table Header Row 1
-      const thCells = [
-        h(Text, { key: 'th-sno', style: [styles.thCell, { width: colSNoWidth }] }, '#'),
-        h(Text, { key: 'th-roll', style: [styles.thCell, { width: colRollWidth }] }, 'Roll Number'),
-        h(Text, { key: 'th-name', style: [styles.thCell, { width: colNameWidth, textAlign: 'left', paddingLeft: 4 }] }, 'Student Name'),
-        ...chunkSessions.map((s, sIdx) =>
-          h(Text, { key: `th-s-${s.key || sIdx}`, style: [styles.thCell, { width: sessionColWidth }] }, s.displayDate || s.date)
-        ),
-        h(Text, { key: 'th-cond', style: [styles.thCell, { width: colSumCondWidth }] }, 'Cond'),
-        h(Text, { key: 'th-pres', style: [styles.thCell, { width: colSumPresWidth }] }, 'Pres'),
-        h(Text, { key: 'th-abs', style: [styles.thCell, { width: colSumAbsWidth }] }, 'Abs'),
-        h(Text, { key: 'th-pct', style: [styles.thCell, { width: colSumPctWidth, borderRightWidth: 0 }] }, '%')
-      ];
-
-      // Table Header Row 2 (Sub-header)
-      const thSubCells = [
-        h(Text, { key: 'sub-sno', style: [styles.thCell, { width: colSNoWidth, backgroundColor: '#1e3a8a' }] }, '-'),
-        h(Text, { key: 'sub-roll', style: [styles.thCell, { width: colRollWidth, backgroundColor: '#1e3a8a' }] }, 'Canonical'),
-        h(Text, { key: 'sub-name', style: [styles.thCell, { width: colNameWidth, textAlign: 'left', paddingLeft: 4, backgroundColor: '#1e3a8a' }] }, `Roster (${students.length})`),
-        ...chunkSessions.map((s, sIdx) =>
-          h(Text, { key: `sub-s-${s.key || sIdx}`, style: [styles.thCell, { width: sessionColWidth, backgroundColor: '#1e3a8a' }] }, `S${s.session}`)
-        ),
-        h(Text, { key: 'sub-cond', style: [styles.thCell, { width: colSumCondWidth, backgroundColor: '#1e3a8a' }] }, 'Tot'),
-        h(Text, { key: 'sub-pres', style: [styles.thCell, { width: colSumPresWidth, backgroundColor: '#1e3a8a' }] }, 'P'),
-        h(Text, { key: 'sub-abs', style: [styles.thCell, { width: colSumAbsWidth, backgroundColor: '#1e3a8a' }] }, 'A'),
-        h(Text, { key: 'sub-pct', style: [styles.thCell, { width: colSumPctWidth, backgroundColor: '#1e3a8a', borderRightWidth: 0 }] }, 'Att%')
-      ];
-
       // Student Table Rows
       const studentRows = pageStudents.map((st, idx) => {
         const globalIdx = pageIdx * STUDENTS_PER_PAGE + idx + 1;
@@ -382,19 +390,19 @@ export default function FullAttendanceExportPDF({
             const isAbsent = status === 'ABSENT';
             const isOther = status && !isPresent && !isAbsent;
 
-            const cellStyle = isPresent
-              ? styles.statusPresent
+            const stStyle = isPresent
+              ? cellStylePresent
               : isAbsent
-              ? styles.statusAbsent
+              ? cellStyleAbsent
               : isOther
-              ? styles.statusOther
-              : styles.statusEmpty;
+              ? cellStyleOther
+              : cellStyleEmpty;
 
             const letter = isPresent ? 'P' : isAbsent ? 'A' : isOther ? (status === 'NCC' ? 'OD' : 'M') : '-';
 
             return h(Text, {
               key: `cell-${st.student_id}-${s.key || sIdx}`,
-              style: [styles.tdCell, { width: sessionColWidth }, cellStyle]
+              style: stStyle
             }, letter);
           }),
           h(Text, { key: 'td-cond', style: [styles.tdCell, { width: colSumCondWidth, fontFamily: 'Helvetica-Bold' }] }, String(totalConducted)),
@@ -416,7 +424,7 @@ export default function FullAttendanceExportPDF({
 
         return h(View, {
           key: st.student_id || st.roll_no || idx,
-          style: [styles.tableRow, isEven ? styles.tableRowEven : {}]
+          style: isEven ? [styles.tableRow, styles.tableRowEven] : styles.tableRow
         }, rowCells);
       });
 

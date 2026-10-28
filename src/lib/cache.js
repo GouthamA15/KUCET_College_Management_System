@@ -118,6 +118,57 @@ export async function invalidateTag(tag) {
 }
 
 /**
+ * Invalidates all keys associated with multiple tags in a batched manner
+ * @param {string[]} tags
+ */
+export async function invalidateTags(tags) {
+  if (!Array.isArray(tags) || tags.length === 0) return true;
+
+  // In-memory invalidation
+  for (const tag of tags) {
+    if (tagRegistry.has(tag)) {
+      const keys = tagRegistry.get(tag);
+      keys.forEach((key) => inMemoryCache.delete(key));
+      tagRegistry.delete(tag);
+    }
+  }
+
+  if (!redis) return true;
+
+  try {
+    if (typeof redis.pipeline === 'function') {
+      const pipeline = redis.pipeline();
+      for (const tag of tags) {
+        pipeline.smembers(`tag:${tag}`);
+      }
+      const results = await pipeline.exec();
+      const delPipeline = redis.pipeline();
+      const tagKeysToDelete = [];
+
+      if (Array.isArray(results)) {
+        results.forEach((res, idx) => {
+          const [err, keys] = res || [];
+          const tag = tags[idx];
+          tagKeysToDelete.push(`tag:${tag}`);
+          if (!err && Array.isArray(keys) && keys.length > 0) {
+            keys.forEach(k => delPipeline.del(k));
+          }
+        });
+      }
+
+      tagKeysToDelete.forEach(tk => delPipeline.del(tk));
+      await delPipeline.exec();
+    } else {
+      await Promise.all(tags.map(t => invalidateTag(t)));
+    }
+    return true;
+  } catch (err) {
+    logger.warn({ err }, '[Cache] Invalidate tags batch failed');
+    return false;
+  }
+}
+
+/**
  * Executes a function and caches its result in Upstash Redis using a Stale-While-Revalidate pattern.
  */
 export async function fetchWithSWR(key, fetcher, staleTimeSeconds = 60, maxCacheTimeSeconds = 3600) {
