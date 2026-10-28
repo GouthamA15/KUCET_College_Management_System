@@ -1,11 +1,13 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import { Download, FileDown, Loader2 } from 'lucide-react';
 
 export default function MarksEntrySheet({ assignment, onBack }) {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [midMax, setMidMax] = useState(20);
   const [_recommendedMidMax, setRecommendedMidMax] = useState(null);
@@ -239,6 +241,52 @@ export default function MarksEntrySheet({ assignment, onBack }) {
 
   const activeMode = modeMeta[marksMode] || modeMeta.overview;
 
+  const handleDownloadPdf = async (viewOverride = null) => {
+    if (downloadingPdf) return;
+    if (!subjectType || !['lab', 'theory'].includes(subjectType)) {
+      toast.error('Cannot download PDF: Subject classification is unresolved in syllabus catalogue.');
+      return;
+    }
+
+    const targetView = viewOverride || marksMode || 'overview';
+    setDownloadingPdf(targetView);
+
+    try {
+      const res = await fetch(`/api/staff/faculty/evaluation/export/pdf?assignment_id=${assignment.id}&view=${targetView}`);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Download failed with HTTP ${res.status}`);
+      }
+
+      // Extract filename from Content-Disposition if present
+      const disposition = res.headers.get('content-disposition');
+      let filename = `KUCET_${assignment.branch || 'BRANCH'}_${assignment.subject_code || 'SUB'}_${targetView}.pdf`;
+      if (disposition && disposition.includes('filename=')) {
+        const match = disposition.match(/filename=["']?([^"']+)["']?/);
+        if (match && match[1]) {
+          filename = match[1];
+        }
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      const viewLabel = targetView === 'overview' ? 'Overview' : (modeMeta[targetView]?.label || targetView);
+      toast.success(`${viewLabel} PDF downloaded successfully`);
+    } catch (err) {
+      toast.error(err.message || 'Failed to generate PDF report');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   const handleBack = () => {
     if (dirty && !confirm('You have unsaved changes. Go back without saving?')) return;
     onBack();
@@ -285,6 +333,48 @@ export default function MarksEntrySheet({ assignment, onBack }) {
                 {modeMeta[m].label}
               </button>
             ))}
+          </div>
+
+          {/* PDF Download Actions */}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleDownloadPdf()}
+              disabled={Boolean(downloadingPdf) || !subjectType}
+              aria-label={`Download ${activeMode.label} PDF Report`}
+              title={`Download ${activeMode.label} PDF Report`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-white rounded-sm text-[10px] font-bold uppercase tracking-wider hover:bg-slate-700 disabled:opacity-50 transition-colors shadow-xs"
+            >
+              {downloadingPdf === (marksMode || 'overview') ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>GENERATING...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-3.5 h-3.5" />
+                  <span>{marksMode === 'overview' ? 'DOWNLOAD OVERVIEW PDF' : `PDF: ${activeMode.label.toUpperCase()}`}</span>
+                </>
+              )}
+            </button>
+
+            {marksMode !== 'overview' && (
+              <button
+                type="button"
+                onClick={() => handleDownloadPdf('overview')}
+                disabled={Boolean(downloadingPdf) || !subjectType}
+                aria-label="Download Full Overview PDF Report"
+                title="Download Full Overview Assessment PDF Report"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white text-slate-700 border border-slate-300 rounded-sm text-[10px] font-bold uppercase tracking-wider hover:bg-slate-50 disabled:opacity-50 transition-colors shadow-xs"
+              >
+                {downloadingPdf === 'overview' ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-500" />
+                ) : (
+                  <FileDown className="w-3.5 h-3.5 text-slate-600" />
+                )}
+                <span>OVERALL PDF</span>
+              </button>
+            )}
           </div>
 
           {/* Action Buttons (Compact Utility) */}

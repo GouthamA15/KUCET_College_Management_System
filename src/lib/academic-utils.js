@@ -24,7 +24,7 @@ export function calculateStudentYearAndSemester(rollNo, currentAcademicYear, cur
   const currentStartYearInt = parseInt(currentAcademicYear.split('-')[0], 10);
 
   let difference = currentStartYearInt - admissionYearInt;
-  
+
   if (admissionType && admissionType.toLowerCase() === 'lateral') {
     difference += 1;
   }
@@ -63,13 +63,13 @@ export async function calculateYearAndSemesterAsync(rollNo, offsetYears = 0) {
   }
 
   const result = calculateStudentYearAndSemester(rollNo, session.academicYear, session.semester, offsetYears);
-  
+
   // Override status with the session status (ACTIVE, PREVIOUS, or UPCOMING)
   // unless there's an error like Invalid Roll
   if (result.status === 'OK') {
     result.status = session.status;
   }
-  
+
   return {
     ...result,
     isCurrent: session.isCurrent
@@ -107,7 +107,7 @@ export async function getCurrentCalendarSession(context = null) {
 
   const now = Clock.now(context);
   const dateStr = formatDate(now);
-  
+
   // Priority 1: Active Semester
   const activeSemRows = await db.select()
     .from(semesters)
@@ -189,10 +189,10 @@ export async function getCurrentCalendarSession(context = null) {
  */
 export async function isSemesterActive(semester, assignmentAcademicYear) {
   const session = await getCurrentCalendarSession();
-    
+
   if (!session || !session.isCurrent) return false;
-  
-  return session.academicYear === assignmentAcademicYear && 
+
+  return session.academicYear === assignmentAcademicYear &&
          (session.semester % 2 === semester % 2);
 }
 
@@ -246,3 +246,106 @@ export function resolveCanonicalSubjectType({ subject_code, subject_name, canoni
   };
 }
 
+/**
+ * Normalizes an assessment evaluation view parameter based on subject classification.
+ *
+ * @param {string} view
+ * @param {boolean} isLab
+ * @returns {'overview' | 'mid1' | 'mid2' | 'assignment' | 'execution' | 'writing' | 'record'}
+ */
+export function normalizeEvaluationView(view, isLab = false) {
+  if (!view || typeof view !== 'string') return 'overview';
+  const v = view.trim().toLowerCase();
+
+  if (v === 'overview' || v === 'overall' || v === 'all') {
+    return 'overview';
+  }
+
+  if (isLab) {
+    if (v === 'mid1' || v === 'execution') return 'execution';
+    if (v === 'mid2' || v === 'writing') return 'writing';
+    if (v === 'assignment' || v === 'record') return 'record';
+    return 'overview';
+  }
+
+  // Theory
+  if (v === 'mid1' || v === 'execution') return 'mid1';
+  if (v === 'mid2' || v === 'writing') return 'mid2';
+  if (v === 'assignment' || v === 'record') return 'assignment';
+  return 'overview';
+}
+
+/**
+ * Returns a filesystem-safe, standardized PDF filename for evaluation exports.
+ * Format: KUCET_{BRANCH}_{CODE}_{VIEW}_{YEAR}.pdf
+ *
+ * @param {Object} params
+ * @param {string} params.branch
+ * @param {string} params.subjectCode
+ * @param {string} params.view
+ * @param {string} params.academicYear
+ * @param {boolean} [params.isLab=false]
+ * @returns {string}
+ */
+export function getEvaluationPdfFilename({ branch, subjectCode, view, academicYear, isLab = false } = {}) {
+  const safeBranch = String(branch || 'BRANCH').trim().toUpperCase().replace(/[^a-zA-Z0-9_-]/g, '_');
+  const safeCode = String(subjectCode || 'SUB').trim().toUpperCase().replace(/[^a-zA-Z0-9_-]/g, '_');
+  const safeYear = String(academicYear || 'YEAR').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+
+  const normalized = normalizeEvaluationView(view, isLab);
+
+  let viewTag = 'Overall';
+  if (normalized === 'overview') {
+    viewTag = 'Overall';
+  } else if (normalized === 'mid1') {
+    viewTag = 'MID1';
+  } else if (normalized === 'mid2') {
+    viewTag = 'MID2';
+  } else if (normalized === 'assignment') {
+    viewTag = 'Assignment';
+  } else if (normalized === 'execution') {
+    viewTag = 'Execution';
+  } else if (normalized === 'writing') {
+    viewTag = 'Writing';
+  } else if (normalized === 'record') {
+    viewTag = 'Record';
+  }
+
+  return `KUCET_${safeBranch}_${safeCode}_${viewTag}_${safeYear}.pdf`;
+}
+
+/**
+ * Returns a formal display title for the evaluation report.
+ */
+export function getEvaluationReportTitle({ _subjectName, _subjectCode, view, isLab = false } = {}) {
+  const normalized = normalizeEvaluationView(view, isLab);
+
+  if (normalized === 'overview') {
+    return isLab
+      ? 'CONTINUOUS INTERNAL EVALUATION (CIE) • PRACTICAL OVERVIEW'
+      : 'CONTINUOUS INTERNAL EVALUATION (CIE) • THEORY OVERVIEW';
+  }
+
+  if (isLab) {
+    if (normalized === 'execution') return 'CONTINUOUS INTERNAL EVALUATION (CIE) • PRACTICAL EXECUTION REPORT';
+    if (normalized === 'writing') return 'CONTINUOUS INTERNAL EVALUATION (CIE) • PRACTICAL WRITING REPORT';
+    if (normalized === 'record') return 'CONTINUOUS INTERNAL EVALUATION (CIE) • PRACTICAL RECORD REPORT';
+  } else {
+    if (normalized === 'mid1') return 'CONTINUOUS INTERNAL EVALUATION (CIE) • MID-1 ASSESSMENT REPORT';
+    if (normalized === 'mid2') return 'CONTINUOUS INTERNAL EVALUATION (CIE) • MID-2 ASSESSMENT REPORT';
+    if (normalized === 'assignment') return 'CONTINUOUS INTERNAL EVALUATION (CIE) • ASSIGNMENT ASSESSMENT REPORT';
+  }
+
+  return 'CONTINUOUS INTERNAL EVALUATION (CIE) • ASSESSMENT REPORT';
+}
+
+/**
+ * Re-export pure, browser-safe assessment evaluation utilities.
+ * See src/lib/evaluation-utils.js for canonical implementations.
+ */
+export {
+  THEORY_ASSESSMENT_PATTERNS,
+  getTheoryPattern,
+  validateTheoryMarks,
+  checkPatternSwitchCompatibility
+} from './evaluation-utils.js';
