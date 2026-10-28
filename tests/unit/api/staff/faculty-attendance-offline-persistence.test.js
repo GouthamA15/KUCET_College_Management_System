@@ -383,6 +383,12 @@ describe('Faculty Attendance Offline Storage & Persistent Drafts Suite', () => {
         insert: vi.fn().mockReturnValue({
           values: () => ({
             onDuplicateKeyUpdate: () => Promise.resolve(),
+            then: (resolve) => resolve(),
+          }),
+        }),
+        update: vi.fn().mockReturnValue({
+          set: () => ({
+            where: () => Promise.resolve(),
           }),
         }),
       };

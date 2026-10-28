@@ -3,12 +3,15 @@ import { db } from '@/db';
 import { 
   facultySubjectAssignments, 
   studentAttendance, 
+  attendanceSessions,
   collegeInfo as collegeInfoTable,
   facultySubstitutions
 } from '@/db/schema';
 import { eq, and, asc, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { isSemesterActive } from '@/lib/academic-utils';
+import { Clock } from '@/lib/clock';
+import crypto from 'crypto';
 import { z } from 'zod';
 
 const itemSchema = z.object({
@@ -136,19 +139,56 @@ export async function POST(request) {
         
         const targetAssignmentId = canonicalRows[0]?.id || assignment_id;
 
+        const syncTime = Clock.now(request);
+
         const values = attendance_data.map(item => ({
           student_id: item.student_id,
           assignment_id: targetAssignmentId,
           date: date,
           session: session,
-          status: item.status
+          status: item.status,
+          submitted_at: syncTime
         }));
 
         await tx.insert(studentAttendance)
           .values(values)
           .onDuplicateKeyUpdate({
-            set: { status: sql`VALUES(status)` }
+            set: { 
+              status: sql`VALUES(status)`,
+              submitted_at: sql`VALUES(submitted_at)`
+            }
           });
+
+        // Upsert session-level record in attendanceSessions to mark submission & exact timestamp
+        const [existingSession] = await tx.select({ id: attendanceSessions.id })
+          .from(attendanceSessions)
+          .where(and(
+            eq(attendanceSessions.assignment_id, targetAssignmentId),
+            eq(attendanceSessions.attendance_date, date),
+            eq(attendanceSessions.session_number, session)
+          ))
+          .limit(1);
+
+        if (existingSession) {
+          await tx.update(attendanceSessions)
+            .set({
+              submitted_at: syncTime,
+              is_active: false
+            })
+            .where(eq(attendanceSessions.id, existingSession.id));
+        } else {
+          await tx.insert(attendanceSessions).values({
+            assignment_id: targetAssignmentId,
+            attendance_date: date,
+            session_number: session,
+            faculty_id: user.id,
+            submitted_at: syncTime,
+            is_active: false,
+            session_pin: '0000',
+            session_token: crypto.randomBytes(32).toString('hex'),
+            expires_at: syncTime
+          });
+        }
 
         // AUTO-SAVE TOPIC COVERED IF PROVIDED
         if (topic_covered && topic_covered.trim().length >= 2) {

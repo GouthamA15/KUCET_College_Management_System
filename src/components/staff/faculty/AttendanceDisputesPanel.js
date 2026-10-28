@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { ExternalLink, Paperclip, MessageSquare, Eye, X, Download } from 'lucide-react';
+import { formatDate } from '@/lib/date';
 
 const CATEGORY_LABELS = {
   INCORRECT_MARKING: 'Incorrect Marking',
@@ -277,7 +278,7 @@ export default function AttendanceDisputesPanel() {
                     <div className="text-gray-500 text-[11px]">{d.subject_code} • {d.branch} Sem {d.course_semester}</div>
                   </td>
                   <td className="p-3 whitespace-nowrap">
-                    <div className="font-medium text-gray-700">{d.attendance_date}</div>
+                    <div className="font-medium text-gray-700">{formatDate(d.attendance_date)}</div>
                     <div className="text-gray-500 text-[11px]">Session {d.session}</div>
                   </td>
                   <td className="p-3 whitespace-nowrap">
@@ -427,7 +428,7 @@ export default function AttendanceDisputesPanel() {
               Reject Attendance Dispute
             </h3>
             <p className="text-xs text-gray-500 mt-2">
-              Provide a reason for rejecting the dispute for <strong>{rejectingDispute.roll_no}</strong> ({rejectingDispute.attendance_date}, Session {rejectingDispute.session}).
+              Provide a reason for rejecting the dispute for <strong>{rejectingDispute.roll_no}</strong> ({formatDate(rejectingDispute.attendance_date)}, Session {rejectingDispute.session}).
             </p>
 
             <form onSubmit={handleRejectSubmit} className="mt-4 space-y-4">
@@ -475,7 +476,7 @@ export default function AttendanceDisputesPanel() {
               </h3>
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              Request additional details or specific supporting evidence from <strong>{requestingInfoDispute.roll_no}</strong> for Session {requestingInfoDispute.session} on {requestingInfoDispute.attendance_date}.
+              Request additional details or specific supporting evidence from <strong>{requestingInfoDispute.roll_no}</strong> for Session {requestingInfoDispute.session} on {formatDate(requestingInfoDispute.attendance_date)}.
             </p>
 
             <form onSubmit={handleRequestInfoSubmit} className="mt-4 space-y-4">

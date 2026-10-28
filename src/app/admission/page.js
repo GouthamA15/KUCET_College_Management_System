@@ -1,7 +1,10 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, forwardRef } from 'react';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { parseDate, toMySQLDate, formatDate } from '@/lib/date';
 import { getIntakeYear } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { smoothScrollToTop } from '@/lib/scroll-utils';
@@ -15,9 +18,35 @@ import {
   validateStudentSignatureFile 
 } from '@/components/admission/StudentSignatureGuidance';
 import { ApaarGuidanceModal } from '@/components/admission/ApaarGuidanceModal';
-import { CheckCircle2, AlertCircle, Loader2, Mail, RefreshCw, HelpCircle } from 'lucide-react';
+import { 
+  CheckCircle2, 
+  AlertCircle, 
+  Loader2, 
+  Mail, 
+  RefreshCw, 
+  HelpCircle,
+  ArrowLeft,
+  ArrowRight,
+  FileText,
+  User,
+  GraduationCap,
+  Home,
+  Phone,
+  ShieldCheck
+} from 'lucide-react';
+
+const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
+  <input
+    onClick={onClick}
+    ref={ref}
+    value={value ?? ''}
+    {...props}
+  />
+));
+DatePickerInput.displayName = 'DatePickerInput';
 
 const AdmissionPage = () => {
+    const [isReviewMode, setIsReviewMode] = useState(false);
     const [admissionYear, setAdmissionYear] = useState('');
     const [form, setForm] = useState({
         entrance_exam: 'TG EAPCET',
@@ -381,10 +410,21 @@ const AdmissionPage = () => {
         }
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const handleProceedToReview = (e) => {
+        if (e) e.preventDefault();
+
         if (!files.pfp || !files.signature) {
             toast.error('Photograph and Signature are both required.');
+            return;
+        }
+
+        if (!form.dob) {
+            toast.error('Date of Birth is required.');
+            return;
+        }
+
+        if (!form.name || form.name.trim() === '') {
+            toast.error('Student Name is required.');
             return;
         }
 
@@ -407,7 +447,7 @@ const AdmissionPage = () => {
         }
 
         if (emailState.status !== 'VERIFIED' || !emailState.verificationToken) {
-            toast.error('Please verify your email address before submitting the application.');
+            toast.error('Please verify your email address before reviewing and submitting the application.');
             const emailElem = document.getElementById('email');
             if (emailElem) {
                 emailElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -416,19 +456,25 @@ const AdmissionPage = () => {
             return;
         }
 
+        setIsReviewMode(true);
+        smoothScrollToTop({ behavior: 'smooth' });
+    };
+
+    const formatAddressFromFields = (house, apt, street, city, state, pin, country) => {
+        return [house, apt, street, city, state, pin, country].map(v => String(v || '').trim()).filter(Boolean).join(', ');
+    };
+
+    const contact_address_str = formatAddressFromFields(
+        form.curr_house_no, form.curr_apartment, form.curr_street, form.curr_city, form.curr_state, form.curr_pincode, form.curr_country
+    );
+    const permanent_address_str = formatAddressFromFields(
+        form.perm_house_no, form.perm_apartment, form.perm_street, form.perm_city, form.perm_state, form.perm_pincode, form.perm_country
+    );
+
+    const handleFinalSubmit = async () => {
+        if (loading) return; // Prevent double submission
         setLoading(true);
         const toastId = toast.loading('Submitting application...');
-
-        const formatAddressFromFields = (house, apt, street, city, state, pin, country) => {
-            return [house, apt, street, city, state, pin, country].map(v => String(v || '').trim()).filter(Boolean).join(', ');
-        };
-
-        const contact_address_str = formatAddressFromFields(
-            form.curr_house_no, form.curr_apartment, form.curr_street, form.curr_city, form.curr_state, form.curr_pincode, form.curr_country
-        );
-        const permanent_address_str = formatAddressFromFields(
-            form.perm_house_no, form.perm_apartment, form.perm_street, form.perm_city, form.perm_state, form.perm_pincode, form.perm_country
-        );
 
         const payload = {
             ...form,
@@ -455,6 +501,7 @@ const AdmissionPage = () => {
             toast.success('Application Submitted Successfully!', { id: toastId });
             localStorage.removeItem('admission_form_draft');
             setSubmitted(true);
+            setIsReviewMode(false);
             smoothScrollToTop({ behavior: 'smooth' });
         } catch (error) {
             toast.error(error.message, { id: toastId });
@@ -462,6 +509,15 @@ const AdmissionPage = () => {
             setLoading(false);
         }
     };
+
+    const renderReviewField = (label, value) => (
+        <div className="bg-gray-50/80 p-3 rounded-lg border border-gray-100">
+            <dt className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">{label}</dt>
+            <dd className="text-sm font-semibold text-gray-900 break-words">
+                {value !== undefined && value !== null && String(value).trim() !== '' ? String(value) : '—'}
+            </dd>
+        </div>
+    );
 
     const inputClasses = "mt-1 block w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white text-gray-900 text-sm transition-all duration-200 placeholder:text-gray-400";
     const labelClasses = "block text-xs font-semibold tracking-wide text-gray-600 uppercase mb-1.5";
@@ -478,6 +534,231 @@ const AdmissionPage = () => {
                 </div>
             </div>
             </>
+        );
+    }
+
+    if (isReviewMode) {
+        return (
+            <div className="min-h-screen bg-slate-50/70 pb-20 pt-6">
+                <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                    {/* Header */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 mb-6">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-100 pb-6">
+                            <div className="flex items-center gap-4">
+                                <Image
+                                    src="/assets/ku-college-logo.png"
+                                    alt="College Crest"
+                                    width={64}
+                                    height={64}
+                                    className="w-16 h-16 object-contain"
+                                    priority
+                                />
+                                <div>
+                                    <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                                        Application Review & Confirmation
+                                    </h1>
+                                    <p className="text-xs sm:text-sm font-semibold text-slate-500">
+                                        Admission into B.Tech • Academic Year {admissionYear || '—'}
+                                    </p>
+                                </div>
+                            </div>
+                            <span className="px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-black uppercase tracking-wider rounded-full">
+                                Step 2 of 2: Review
+                            </span>
+                        </div>
+
+                        {/* Notice Banner */}
+                        <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                            <div className="text-xs sm:text-sm text-amber-800 leading-relaxed">
+                                <span className="font-bold">Please verify all information carefully.</span> Once you click <strong>Confirm & Submit Application</strong>, your application will be permanently recorded for administrative verification. If you need to make changes, click <strong>Edit Information</strong> below.
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Review Sections */}
+                    <div className="space-y-6">
+                        {/* 1. Academic & Admission Information */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
+                                <GraduationCap className="w-5 h-5 text-indigo-600" />
+                                <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider">1. Academic & Admission Allotment</h2>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                {renderReviewField('Entrance Exam', form.entrance_exam)}
+                                {renderReviewField('Allotted Branch', form.branch)}
+                                {renderReviewField('Entrance Exam Rank', form.exam_rank)}
+                                {renderReviewField('Seat Allotted Category', form.seat_allotted_category)}
+                                {renderReviewField('Caste / Social Category', form.category)}
+                                {renderReviewField('Sub Caste', form.sub_caste)}
+                                {renderReviewField('Area Status', form.area_status)}
+                                {renderReviewField('SSC Marks / CGPA', form.ssc_marks)}
+                                {renderReviewField('Inter / Diploma Marks', form.inter_diploma_marks)}
+                                {renderReviewField('Fee Reimbursement', form.fee_reimbursement)}
+                            </div>
+                        </div>
+
+                        {/* 2. Personal & Identification Details */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
+                                <User className="w-5 h-5 text-indigo-600" />
+                                <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider">2. Personal & Identification Details</h2>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                {renderReviewField('Student Full Name', form.name)}
+                                {renderReviewField('Date of Birth (DD-MM-YYYY)', formatDate(form.dob, '—'))}
+                                {renderReviewField('Gender', form.gender)}
+                                {renderReviewField('Blood Group', form.blood_group)}
+                                {renderReviewField('Nationality', form.nationality)}
+                                {renderReviewField('Religion', form.religion)}
+                                {renderReviewField('Mother Tongue', form.mother_tongue)}
+                                {renderReviewField('Place of Birth', form.place_of_birth)}
+                                {renderReviewField('Aadhaar Number', form.aadhaar_no ? form.aadhaar_no.replace(/\s/g, '').replace(/(\d{4})/g, '$1 ').trim() : '—')}
+                                {renderReviewField('APAAR / ABC ID', form.apaar_id || '—')}
+                                {renderReviewField('Identification Mark 1', form.identification_mark_1)}
+                                {renderReviewField('Identification Mark 2', form.identification_mark_2)}
+                            </div>
+                        </div>
+
+                        {/* 3. Parent / Guardian & Family Information */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
+                                <Home className="w-5 h-5 text-indigo-600" />
+                                <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider">3. Parent / Guardian & Family Details</h2>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                {renderReviewField("Father's / Guardian's Name", form.father_name)}
+                                {renderReviewField("Mother's Name", form.mother_name)}
+                                {renderReviewField("Father's / Guardian's Occupation", form.father_occupation)}
+                                {renderReviewField('Annual Family Income (₹)', form.annual_income ? `₹ ${Number(form.annual_income).toLocaleString('en-IN')}` : '—')}
+                            </div>
+                        </div>
+
+                        {/* 4. Contact Information */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
+                                <Phone className="w-5 h-5 text-indigo-600" />
+                                <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider">4. Contact & Communication Details</h2>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                <div className="bg-gray-50/80 p-3 rounded-lg border border-gray-100">
+                                    <dt className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Email Address</dt>
+                                    <dd className="text-sm font-semibold text-gray-900 break-words flex items-center gap-1.5">
+                                        <span>{form.email || '—'}</span>
+                                        {emailState.status === 'VERIFIED' && (
+                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">
+                                                <CheckCircle2 className="w-3 h-3 text-green-600" /> Verified
+                                            </span>
+                                        )}
+                                    </dd>
+                                </div>
+                                {renderReviewField('Student Mobile Number', form.student_mobile)}
+                                {renderReviewField('Father / Guardian Mobile', form.guardian_mobile)}
+                            </div>
+                        </div>
+
+                        {/* 5. Addresses */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
+                                <Home className="w-5 h-5 text-indigo-600" />
+                                <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider">5. Address Details</h2>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="bg-gray-50/80 p-3.5 rounded-lg border border-gray-100">
+                                    <dt className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Permanent Residential Address</dt>
+                                    <dd className="text-xs sm:text-sm font-medium text-gray-800 leading-relaxed break-words">{permanent_address_str || '—'}</dd>
+                                </div>
+                                <div className="bg-gray-50/80 p-3.5 rounded-lg border border-gray-100">
+                                    <dt className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Present / Communication Address</dt>
+                                    <dd className="text-xs sm:text-sm font-medium text-gray-800 leading-relaxed break-words">
+                                        {form.is_current_same_as_permanent ? 'Same as Permanent Address' : (contact_address_str || '—')}
+                                    </dd>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 6. Uploaded Documents Preview */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
+                                <FileText className="w-5 h-5 text-indigo-600" />
+                                <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider">6. Uploaded Photograph & Signature Previews</h2>
+                            </div>
+                            <div className="flex flex-col sm:flex-row items-center justify-around gap-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                <div className="flex flex-col items-center">
+                                    <span className="text-xs font-bold text-slate-600 uppercase mb-2">Student Photograph</span>
+                                    <div className="w-32 h-40 border-2 border-indigo-200 rounded-lg overflow-hidden bg-white shadow-sm flex items-center justify-center">
+                                        {files.pfp ? (
+                                            /* eslint-disable-next-line @next/next/no-img-element */
+                                            <img src={files.pfp} alt="Photograph Preview" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <span className="text-xs text-red-500 font-bold">Missing</span>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex flex-col items-center">
+                                    <span className="text-xs font-bold text-slate-600 uppercase mb-2">Student Signature</span>
+                                    <div className="w-56 h-24 border-2 border-indigo-200 rounded-lg overflow-hidden bg-white shadow-sm flex items-center justify-center p-2">
+                                        {files.signature ? (
+                                            /* eslint-disable-next-line @next/next/no-img-element */
+                                            <img src={files.signature} alt="Signature Preview" className="max-w-full max-h-full object-contain" />
+                                        ) : (
+                                            <span className="text-xs text-red-500 font-bold">Missing</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 7. Declaration & Consent */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <div className="flex items-center gap-2 mb-3">
+                                <ShieldCheck className="w-5 h-5 text-green-600" />
+                                <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider">7. Declaration & Legal Consent</h2>
+                            </div>
+                            <div className="p-3.5 bg-green-50/70 border border-green-200 rounded-lg text-xs text-green-900 leading-relaxed flex items-start gap-2">
+                                <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0 mt-0.5" />
+                                <div>
+                                    Applicant has agreed to the Terms & Conditions, Privacy Policy, and verified all information provided is accurate and truthful.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Bottom Action Controls */}
+                    <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsReviewMode(false);
+                                smoothScrollToTop({ behavior: 'smooth' });
+                            }}
+                            className="w-full sm:w-auto px-6 py-3 border-2 border-slate-300 text-slate-700 hover:bg-slate-100 rounded-xl text-sm font-bold uppercase tracking-wider transition-colors inline-flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            Edit Information
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={handleFinalSubmit}
+                            disabled={loading}
+                            className="w-full sm:w-auto px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-black uppercase tracking-wider shadow-lg hover:shadow-xl transition-all duration-200 inline-flex items-center justify-center gap-2 disabled:bg-slate-300 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                            {loading ? (
+                                <>
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    Submitting Application...
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle2 className="w-5 h-5" />
+                                    Confirm & Submit Application
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
         );
     }
 
@@ -517,7 +798,7 @@ const AdmissionPage = () => {
             </div>
 
             <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12">
-                <form onSubmit={handleSubmit} className="space-y-10">
+                <form onSubmit={handleProceedToReview} className="space-y-10">
                     
                     {/* Top Upload Section */}
                     <div className="flex flex-col md:flex-row justify-between items-start gap-8 bg-gray-50 p-6 rounded-lg border border-gray-200">
@@ -690,7 +971,17 @@ const AdmissionPage = () => {
 
                         <div className="space-y-1">
                             <label htmlFor="dob" className={labelClasses}>10. Date of Birth <span className="text-red-500">*</span></label>
-                            <input id="dob" required type="date" value={form.dob} onChange={e => setForm({...form, dob: e.target.value})} className={inputClasses} />
+                            <DatePicker
+                                id="dob"
+                                selected={form.dob ? parseDate(form.dob) : null}
+                                onChange={(date) => setForm({ ...form, dob: date ? toMySQLDate(date) : '' })}
+                                dateFormat="dd-MM-yyyy"
+                                placeholderText="DD-MM-YYYY"
+                                showYearDropdown
+                                dropdownMode="select"
+                                maxDate={new Date()}
+                                customInput={<DatePickerInput className={inputClasses} placeholder="DD-MM-YYYY" />}
+                            />
                         </div>
 
                         <div className="space-y-1">
@@ -1120,26 +1411,16 @@ const AdmissionPage = () => {
                         </div>
                     </div>
 
-                    {/* Final Actions */}
+                    {/* Proceed to Review Action */}
                     <div className="pt-8 flex justify-end">
-                        <button type="submit" disabled={loading || !form.legal_consent} className="relative overflow-hidden group bg-indigo-600 text-white font-bold py-3.5 px-8 rounded-xl hover:bg-indigo-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-all duration-300 shadow-md hover:shadow-xl hover:-translate-y-0.5">
+                        <button 
+                            type="submit" 
+                            disabled={loading || !form.legal_consent} 
+                            className="relative overflow-hidden group bg-indigo-600 text-white font-bold py-3.5 px-8 rounded-xl hover:bg-indigo-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-all duration-300 shadow-md hover:shadow-xl hover:-translate-y-0.5 cursor-pointer"
+                        >
                             <span className="relative z-10 flex items-center gap-2">
-                                {loading ? (
-                                    <>
-                                        <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        Submitting...
-                                    </>
-                                ) : (
-                                    <>
-                                        Submit Application
-                                        <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-                                        </svg>
-                                    </>
-                                )}
+                                Proceed to Review
+                                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                             </span>
                         </button>
                     </div>

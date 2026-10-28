@@ -512,8 +512,8 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
                     )}
                   </div>
                   {students.map(student => (
-                    <div key={student.id} className="bg-white border border-gray-200 rounded-xl p-3.5 shadow-sm">
-                      <div className="flex justify-between items-center gap-3">
+                    <div key={student.id} className="bg-white border border-gray-200 rounded-xl p-3 sm:p-3.5 shadow-sm">
+                      <div className="flex justify-between items-center gap-2.5 sm:gap-3">
                         <ImageWithLoading
                           src={student.pfp}
                           alt={student.name || 'Student'}
@@ -524,17 +524,17 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
                           className="w-10 h-10 rounded-full border border-slate-200 shrink-0"
                           imageClassName="w-full h-full object-cover rounded-full"
                         />
-                        <div className="flex-1 pr-1">
-                          <div className="font-mono text-gray-800 text-[11px] font-black tracking-wide mb-1 flex items-center gap-2">
-                            {student.roll_no}
+                        <div className="flex-1 min-w-0 pr-1">
+                          <div className="font-mono text-gray-900 text-sm sm:text-base font-black tracking-tight leading-none mb-1 flex items-center flex-wrap gap-1.5">
+                            <span className="select-all break-all">{student.roll_no}</span>
                             {verifiedStudentIds.has(student.id) && (
-                              <span className="flex items-center gap-1 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
+                              <span className="inline-flex items-center gap-1 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
                                 <span className="flex h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></span>
                                 <span className="text-[9px] font-black text-green-700 uppercase tracking-widest">Verified</span>
                               </span>
                             )}
                           </div>
-                          <div className="text-gray-900 text-sm font-bold leading-tight">
+                          <div className="text-gray-500 text-xs font-medium leading-snug break-words uppercase">
                             {student.name}
                           </div>
                         </div>
@@ -543,7 +543,7 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
                             type="button"
                             onClick={() => assignment.is_active && dateValidation.isValid && toggleAttendanceStatus(student.id)}
                               disabled={!assignment.is_active || !dateValidation.isValid}
-                              className={`w-[84px] h-[36px] flex items-center justify-center text-xs font-black rounded-lg transition-colors border-2 uppercase tracking-wide ${
+                              className={`w-[80px] sm:w-[84px] h-[36px] flex items-center justify-center text-xs font-black rounded-lg transition-colors border-2 uppercase tracking-wide ${
                                 student.status === null 
                                   ? 'bg-gray-50 text-gray-600 border-gray-200' 
                                   : student.status === 'PRESENT' 

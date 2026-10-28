@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Clock, Calendar, XCircle, Info, Paperclip, Upload, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { formatDate } from '@/lib/date';
 
 export default function SubjectDetailPage({ params }) {
   const router = useRouter();
@@ -342,8 +343,7 @@ export default function SubjectDetailPage({ params }) {
                   statusBadge = "bg-blue-50 text-blue-700 border-blue-200";
                 }
                 
-                const dateObj = new Date(session.date);
-                const formattedDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                const formattedDate = formatDate(session.date);
 
                 const sessionDateStr = session.date instanceof Date ? session.date.toISOString().split('T')[0] : session.date;
                 const existingDispute = disputes.find(d => {
@@ -445,7 +445,7 @@ export default function SubjectDetailPage({ params }) {
             <form onSubmit={handleSubmitDispute} className="mt-4 space-y-4">
               <div className="bg-gray-50 p-3 rounded border border-gray-200 text-xs space-y-1">
                 <div><strong>Subject:</strong> {data.subject_name} ({data.subject_code})</div>
-                <div><strong>Date:</strong> {selectedDisputeSession.date}</div>
+                <div><strong>Date:</strong> {formatDate(selectedDisputeSession.date)}</div>
                 <div><strong>Session:</strong> Session {selectedDisputeSession.sessionNumber}</div>
                 <div><strong>Recorded Status:</strong> <span className="text-rose-600 font-bold">ABSENT</span></div>
               </div>

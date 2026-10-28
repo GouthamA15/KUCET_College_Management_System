@@ -10,6 +10,7 @@ export const studentAttendance = mysqlTable('student_attendance', {
   date: date('date').notNull(),
   session: int('session').notNull(),
   status: mysqlEnum('status', ['PRESENT', 'ABSENT', 'NCC', 'MEDICAL']).notNull(),
+  submitted_at: timestamp('submitted_at'),
   created_at: timestamp('created_at').defaultNow(),
 }, (table) => ({
   attendanceIdx: index('idx_attendance_lookup').on(table.assignment_id, table.date, table.session),
@@ -34,6 +35,7 @@ export const attendanceSessions = mysqlTable('attendance_sessions', {
   session_number: int('session_number').default(1),
   accuracy: float('accuracy'),
   topic_covered: varchar('topic_covered', { length: 500 }),
+  submitted_at: timestamp('submitted_at'),
 }, (table) => ({
   assignmentActiveIdx: index('idx_assignment_active').on(table.assignment_id, table.is_active),
   sessionsActiveIdx: index('idx_sessions_active').on(table.is_active, table.expires_at),

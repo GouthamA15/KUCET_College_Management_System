@@ -204,6 +204,13 @@
                         "when":  1790600000000,
                         "version":  "5",
                         "tag":  "0028_add_apaar_id"
+                    },
+                    {
+                        "idx":  29,
+                        "breakpoints":  true,
+                        "when":  1790700000000,
+                        "version":  "5",
+                        "tag":  "0029_attendance_submission_timestamp"
                     }
                 ]
 }

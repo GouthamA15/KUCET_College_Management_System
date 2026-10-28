@@ -3,12 +3,15 @@ import { db } from '@/db';
 import { 
   facultySubjectAssignments, 
   studentAttendance, 
+  attendanceSessions,
   collegeInfo as collegeInfoTable,
   facultySubstitutions
 } from '@/db/schema';
 import { eq, and, asc, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { isSemesterActive } from '@/lib/academic-utils';
+import { Clock } from '@/lib/clock';
+import crypto from 'crypto';
 import { z } from 'zod';
 
 export async function POST(request) {
@@ -126,20 +129,57 @@ export async function POST(request) {
     }
 
     // Transaction
+    const submissionTime = Clock.now(request);
+
     await db.transaction(async (tx) => {
       const values = attendance_data.map(item => ({
         student_id: item.student_id,
         assignment_id: targetAssignmentId,
         date: date,
         session: session,
-        status: item.status
+        status: item.status,
+        submitted_at: submissionTime
       }));
 
       await tx.insert(studentAttendance)
         .values(values)
         .onDuplicateKeyUpdate({
-          set: { status: sql`VALUES(status)` }
+          set: { 
+            status: sql`VALUES(status)`,
+            submitted_at: sql`VALUES(submitted_at)`
+          }
         });
+
+      // Also upsert session-level record in attendanceSessions to mark submission & exact timestamp
+      const [existingSession] = await tx.select({ id: attendanceSessions.id })
+        .from(attendanceSessions)
+        .where(and(
+          eq(attendanceSessions.assignment_id, targetAssignmentId),
+          eq(attendanceSessions.attendance_date, date),
+          eq(attendanceSessions.session_number, session)
+        ))
+        .limit(1);
+
+      if (existingSession) {
+        await tx.update(attendanceSessions)
+          .set({
+            submitted_at: submissionTime,
+            is_active: false
+          })
+          .where(eq(attendanceSessions.id, existingSession.id));
+      } else {
+        await tx.insert(attendanceSessions).values({
+          assignment_id: targetAssignmentId,
+          attendance_date: date,
+          session_number: session,
+          faculty_id: user.id,
+          submitted_at: submissionTime,
+          is_active: false,
+          session_pin: '0000',
+          session_token: crypto.randomBytes(32).toString('hex'),
+          expires_at: submissionTime
+        });
+      }
     });
 
     // AUTO-SAVE TOPIC COVERED if provided
@@ -293,12 +333,23 @@ export async function DELETE(request) {
       return apiError('Semester has ended. Attendance locked.', 403);
     }
 
-    await db.delete(studentAttendance)
-      .where(and(
-        eq(studentAttendance.assignment_id, targetAssignmentId),
-        eq(studentAttendance.date, date),
-        eq(studentAttendance.session, session)
-      ));
+    await db.transaction(async (tx) => {
+      await tx.delete(studentAttendance)
+        .where(and(
+          eq(studentAttendance.assignment_id, targetAssignmentId),
+          eq(studentAttendance.date, date),
+          eq(studentAttendance.session, session)
+        ));
+
+      // Reset submitted_at in attendanceSessions
+      await tx.update(attendanceSessions)
+        .set({ submitted_at: null })
+        .where(and(
+          eq(attendanceSessions.assignment_id, targetAssignmentId),
+          eq(attendanceSessions.attendance_date, date),
+          eq(attendanceSessions.session_number, session)
+        ));
+    });
 
     return apiResponse({ message: 'Attendance for the selected date has been deleted' });
   } catch (error) {

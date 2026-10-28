@@ -5,15 +5,7 @@ import toast from 'react-hot-toast';
 import { Check, X, Calendar, User, BookOpen, ShieldAlert } from 'lucide-react';
 import { TableSkeleton } from '@/components/ui/DashboardSkeleton';
 import { useStaff } from '@/context/StaffContext';
-
-const formatDate = (dateString) => {
-  if (!dateString) return '';
-  return new Date(dateString).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  });
-};
+import { formatDate } from '@/lib/date';
 
 export default function HodFacultyInterests() {
   const { staffData } = useStaff();

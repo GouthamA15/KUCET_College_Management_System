@@ -7,6 +7,7 @@ import AcademicYearSelect, { getCurrentFrontendAcademicYear } from '@/components
 import { compressImage } from '@/lib/image-compressor';
 import { ACHIEVEMENT_TYPES, ACHIEVEMENT_CONFIG } from '@/lib/achievement-config';
 import ImageWithLoading from '@/components/ui/ImageWithLoading';
+import { toMySQLDate } from '@/lib/date';
 
 export default function StudentAchievementModal({ onClose, onSaveSuccess, achievement = null }) {
   const [loading, setLoading] = useState(false);
@@ -19,18 +20,6 @@ export default function StudentAchievementModal({ onClose, onSaveSuccess, achiev
   const currentAcademicYear = getCurrentFrontendAcademicYear();
   const currentStartYear = parseInt(currentAcademicYear.split('-')[0], 10);
   const maxNumYears = currentStartYear - 2020 + 1;
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) return dateStr;
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return '';
-      return d.toISOString().split('T')[0];
-    } catch (_e) {
-      return '';
-    }
-  };
 
   const parseAdditional = (data) => {
     if (!data) return {};
@@ -46,9 +35,9 @@ export default function StudentAchievementModal({ onClose, onSaveSuccess, achiev
     program_name: achievement?.program_name || '',
     issuing_organization: achievement?.issuing_organization || '',
     academic_year: achievement?.academic_year || '',
-    achievement_date: formatDate(achievement?.achievement_date),
-    start_date: formatDate(achievement?.start_date),
-    end_date: formatDate(achievement?.end_date),
+    achievement_date: toMySQLDate(achievement?.achievement_date) || '',
+    start_date: toMySQLDate(achievement?.start_date) || '',
+    end_date: toMySQLDate(achievement?.end_date) || '',
     achievement_level: achievement?.achievement_level || '',
     recognition: achievement?.recognition || '',
     description: achievement?.description || '',

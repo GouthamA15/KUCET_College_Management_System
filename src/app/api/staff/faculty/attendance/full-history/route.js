@@ -43,7 +43,9 @@ export async function GET(request) {
       name: students.name,
       date: sql`DATE_FORMAT(${studentAttendance.date}, '%Y-%m-%d')`,
       session: studentAttendance.session,
-      status: studentAttendance.status
+      status: studentAttendance.status,
+      submitted_at: studentAttendance.submitted_at,
+      created_at: studentAttendance.created_at
     })
     .from(studentAttendance)
     .innerJoin(students, eq(studentAttendance.student_id, students.id))
@@ -89,9 +91,52 @@ export async function GET(request) {
     ))
     .orderBy(asc(academicCalendar.date), asc(sql`COALESCE(${attendanceSessions.session_number}, 1)`));
 
+    // Authoritative Submitted Sessions: computed strictly from committed attendance records
+    // Group attendance records by (date, session)
+    const sessionMap = new Map();
+    for (const record of (attendance || [])) {
+      const key = `${record.date}__${record.session}`;
+      if (!sessionMap.has(key)) {
+        sessionMap.set(key, {
+          date: record.date,
+          session: record.session,
+          total_students: 0,
+          present_count: 0,
+          submitted_at: record.submitted_at || record.created_at || null,
+          has_verified_submitted_at: Boolean(record.submitted_at),
+        });
+      }
+      const entry = sessionMap.get(key);
+      entry.total_students += 1;
+      if (record.status === 'PRESENT') {
+        entry.present_count += 1;
+      }
+      if (record.submitted_at && !entry.has_verified_submitted_at) {
+        entry.submitted_at = record.submitted_at;
+        entry.has_verified_submitted_at = true;
+      }
+    }
+
+    const submittedSessions = Array.from(sessionMap.values()).map(s => {
+      const matchedCal = (uniqueDates || []).find(u => u.date === s.date && u.session === s.session);
+      return {
+        date: s.date,
+        session: s.session,
+        topic_covered: matchedCal?.topic_covered || null,
+        submitted_at: s.submitted_at,
+        is_historical: !s.has_verified_submitted_at,
+        total_students: s.total_students,
+        present_count: s.present_count
+      };
+    }).sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date);
+      return b.session - a.session;
+    });
+
     return apiResponse({ 
       data: {
         attendance, 
+        submittedSessions,
         uniqueDates 
       }
     });

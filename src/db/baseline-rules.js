@@ -213,6 +213,18 @@ const BASELINE_RULES = [
     },
     getReason: () => 'student_personal_details.apaar_id column already exists',
   },
+  {
+    id: 29,
+    description: '0029_attendance_submission_timestamp',
+    getEntries: (entries) => entries.filter((e) => e.idx === 29),
+    isSatisfied: async (conn) => {
+      const [sa] = await conn.query(
+        'SELECT COUNT(*) as count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = "student_attendance" AND column_name = "submitted_at"'
+      );
+      return Number(sa?.[0]?.count || 0) > 0;
+    },
+    getReason: () => 'student_attendance.submitted_at column already exists',
+  },
 ];
 
 module.exports = {

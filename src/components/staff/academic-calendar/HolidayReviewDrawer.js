@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { X, Check, AlertTriangle, Calendar, Info, Plus, Sparkles } from 'lucide-react';
+import { formatDate } from '@/lib/date';
 
 export default function HolidayReviewDrawer({
   isOpen,
@@ -271,7 +272,7 @@ export default function HolidayReviewDrawer({
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <label htmlFor={`cand-check-${idx}`} className="font-bold text-sm text-slate-900 cursor-pointer">
-                            {cand.date}
+                            {formatDate(cand.date)}
                           </label>
                           <span className="text-xs font-semibold text-slate-600">({cand.day_of_week})</span>
                           <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-slate-200 text-slate-700">

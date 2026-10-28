@@ -71,7 +71,7 @@ test.describe('Student Admission Flow', () => {
     await page.getByLabel('9. Seat Allotted Category').fill('OC_GEN_UR');
     
     // Date of Birth
-    await page.getByLabel('10. Date of Birth').fill('2005-01-01');
+    await page.locator('#dob').fill('01-01-2005');
     
     await page.getByLabel('13. Religion').selectOption('HINDU');
     await page.getByLabel('14. Mother Tongue').fill('TELUGU');
@@ -120,8 +120,13 @@ test.describe('Student Admission Flow', () => {
     // Accept legal consent
     await page.locator('#legal_consent').check();
 
-    // Submit the form
-    await page.getByRole('button', { name: 'Submit Application' }).click();
+    // Proceed to Review
+    await page.getByRole('button', { name: 'Proceed to Review' }).click();
+    await expect(page.getByRole('heading', { name: 'Application Review & Confirmation' })).toBeVisible();
+    await expect(page.getByText('TEST STUDENT')).toBeVisible();
+
+    // Confirm & Submit the application
+    await page.getByRole('button', { name: 'Confirm & Submit Application' }).click();
 
     // Wait for success message
     await expect(page.getByRole('heading', { name: 'Success!' })).toBeVisible({ timeout: 15000 });
