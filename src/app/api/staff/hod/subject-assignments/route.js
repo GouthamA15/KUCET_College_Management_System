@@ -2,16 +2,18 @@ import { db } from '@/db';
 import { 
   facultySubjectAssignments, 
   facultySubjectInterests,
-  staffAccounts,
-  staffAccountRoles,
+  staffAccounts, 
+  staffAccountRoles, 
   staffRoles,
-  collegeInfo as collegeInfoTable,
+  collegeInfo as collegeInfoTable, 
   syllabusStructure,
+  syllabusSubjects,
   attendanceSessions,
   studentMarks,
-  auditLogs
+  auditLogs,
+  branchTimetable
 } from '@/db/schema';
-import { eq, and, asc, desc, inArray } from 'drizzle-orm';
+import { eq, and, asc, desc, inArray, or, like, sql } from 'drizzle-orm';
 import { apiResponse, apiError, wrapHandler } from '@/lib/api-utils';
 import { getCollegeAcademicYear } from '@/lib/academic-utils';
 import { 
@@ -20,7 +22,8 @@ import {
   checkAllocationConflicts, 
   canOverrideAllocationConflict,
   notifyPrincipalLeadershipSelfAllocation,
-  isAcademicScopeAllowed
+  isAcademicScopeAllowed,
+  getAllowedAcademicSemesters
 } from '@/lib/academic-authorization';
 
 export const GET = wrapHandler({
@@ -34,48 +37,277 @@ export const GET = wrapHandler({
       return apiError('Unauthorized - HOD or First Year Coordinator role required', 403);
     }
 
-    const requestedBranch = _request.nextUrl?.searchParams?.get('branch');
+    const { searchParams } = new URL(_request.url);
+    const requestedBranch = searchParams.get('branch');
+    const requestedSemester = searchParams.get('semester');
+    const requestedYear = searchParams.get('academic_year') || searchParams.get('year');
+    const requestedStatus = searchParams.get('status') || 'all'; // 'all', 'active', 'archived'
+    const requestedFacultyId = searchParams.get('faculty_id') ? Number(searchParams.get('faculty_id')) : null;
+    const requestedSubjectCode = searchParams.get('subject_code');
+    const searchQuery = searchParams.get('search')?.trim().toLowerCase();
+    const includeCoverage = searchParams.get('include_coverage') === 'true';
+
     const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
 
+    // 1. Validate branch authorization
     if (!isAdmin && requestedBranch && !isCoord && authorizedBranches.length > 0 && !authorizedBranches.includes(requestedBranch)) {
       return apiError(`Forbidden - Not authorized for ${requestedBranch} branch.`, 403);
     }
 
+    // 2. Validate semester authorization
+    if (requestedSemester && requestedSemester !== 'all') {
+      const semInt = Number(requestedSemester);
+      if (isCoord && !isHod && !isAdmin && (semInt < 1 || semInt > 2)) {
+        return apiError('Forbidden - First Year Coordinator is strictly restricted to Semesters 1 and 2.', 403);
+      }
+      if (requestedBranch && !isAcademicScopeAllowed(user, { branch: requestedBranch, semester: semInt })) {
+        return apiError(`Forbidden - Not authorized for ${requestedBranch} Semester ${semInt}.`, 403);
+      }
+    }
+
+    // 3. Build conditions for assignments query
     const conditions = [];
 
-    // First Year Coordinator without HOD role sees Semesters 1 & 2 across branches
+    // Role-based scope restrictions
     if (isCoord && !isHod && !isAdmin) {
-      conditions.push(inArray(facultySubjectAssignments.course_semester, [1, 2]));
-      if (requestedBranch) {
+      // Coordinator sees Sem 1 & 2 across branches
+      if (requestedSemester && requestedSemester !== 'all') {
+        conditions.push(eq(facultySubjectAssignments.course_semester, Number(requestedSemester)));
+      } else {
+        conditions.push(inArray(facultySubjectAssignments.course_semester, [1, 2]));
+      }
+      if (requestedBranch && requestedBranch !== 'all') {
         conditions.push(eq(facultySubjectAssignments.branch, requestedBranch));
       }
     } else if (!isAdmin) {
-      const branchFilter = requestedBranch 
+      const branchFilter = (requestedBranch && requestedBranch !== 'all')
         ? [requestedBranch] 
         : (authorizedBranches.length > 0 ? authorizedBranches : (user.branch ? [user.branch] : []));
       
       if (branchFilter.length > 0) {
         conditions.push(inArray(facultySubjectAssignments.branch, branchFilter));
       }
+
+      if (requestedSemester && requestedSemester !== 'all') {
+        conditions.push(eq(facultySubjectAssignments.course_semester, Number(requestedSemester)));
+      }
+    } else {
+      // Admin: optional branch and semester filters
+      if (requestedBranch && requestedBranch !== 'all') {
+        conditions.push(eq(facultySubjectAssignments.branch, requestedBranch));
+      }
+      if (requestedSemester && requestedSemester !== 'all') {
+        conditions.push(eq(facultySubjectAssignments.course_semester, Number(requestedSemester)));
+      }
     }
 
+    // Academic Year filter
+    if (requestedYear && requestedYear !== 'all') {
+      conditions.push(eq(facultySubjectAssignments.academic_year, requestedYear));
+    }
+
+    // Status filter
+    if (requestedStatus === 'active') {
+      conditions.push(eq(facultySubjectAssignments.is_active, true));
+    } else if (requestedStatus === 'archived') {
+      conditions.push(eq(facultySubjectAssignments.is_active, false));
+    }
+
+    // Specific faculty filter
+    if (requestedFacultyId) {
+      conditions.push(eq(facultySubjectAssignments.staff_account_id, requestedFacultyId));
+    }
+
+    // Specific subject filter
+    if (requestedSubjectCode) {
+      conditions.push(eq(facultySubjectAssignments.subject_code, requestedSubjectCode));
+    }
+
+    // 4. Query assignments with rich metadata
     const assignments = await db.select({
       id: facultySubjectAssignments.id,
       faculty_id: facultySubjectAssignments.staff_account_id,
       subject_code: facultySubjectAssignments.subject_code,
       subject_name: facultySubjectAssignments.subject_name,
       course_semester: facultySubjectAssignments.course_semester,
+      academic_term: facultySubjectAssignments.academic_term,
       academic_year: facultySubjectAssignments.academic_year,
       branch: facultySubjectAssignments.branch,
       faculty_name: staffAccounts.name,
-      is_active: facultySubjectAssignments.is_active
+      employee_id: staffAccounts.employee_id,
+      faculty_email: staffAccounts.email,
+      faculty_designation: staffAccounts.designation,
+      is_active: facultySubjectAssignments.is_active,
+      created_at: facultySubjectAssignments.created_at,
+      subject_type: syllabusSubjects.subject_type
     })
     .from(facultySubjectAssignments)
     .innerJoin(staffAccounts, eq(facultySubjectAssignments.staff_account_id, staffAccounts.id))
+    .leftJoin(syllabusSubjects, eq(facultySubjectAssignments.subject_code, syllabusSubjects.subject_code))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(facultySubjectAssignments.is_active), desc(facultySubjectAssignments.course_semester), asc(facultySubjectAssignments.subject_name));
+    .orderBy(
+      desc(facultySubjectAssignments.is_active), 
+      desc(facultySubjectAssignments.academic_year), 
+      asc(facultySubjectAssignments.course_semester), 
+      asc(facultySubjectAssignments.subject_name)
+    );
 
-    return apiResponse({ data: assignments });
+    // 5. Query timetable slots count and attendance session count for evidence-based indicators
+    const assignmentIds = assignments.map(a => a.id);
+    let sessionCountMap = new Map();
+    let timetableSlotMap = new Map();
+
+    if (assignmentIds.length > 0) {
+      try {
+        const sessionCounts = await db.select({
+          assignment_id: attendanceSessions.assignment_id,
+          count: sql`COUNT(DISTINCT ${attendanceSessions.id})`.mapWith(Number)
+        })
+        .from(attendanceSessions)
+        .where(inArray(attendanceSessions.assignment_id, assignmentIds))
+        .groupBy(attendanceSessions.assignment_id);
+
+        sessionCounts.forEach(s => sessionCountMap.set(s.assignment_id, s.count));
+
+        const timetableCounts = await db.select({
+          faculty_id: branchTimetable.faculty_id,
+          subject_code: branchTimetable.subject_code,
+          branch: branchTimetable.branch,
+          semester: branchTimetable.semester,
+          count: sql`COUNT(*)`.mapWith(Number)
+        })
+        .from(branchTimetable)
+        .where(inArray(branchTimetable.subject_code, assignments.map(a => a.subject_code)))
+        .groupBy(branchTimetable.faculty_id, branchTimetable.subject_code, branchTimetable.branch, branchTimetable.semester);
+
+        timetableCounts.forEach(t => {
+          const key = `${t.faculty_id}_${t.subject_code}_${t.branch}_${t.semester}`;
+          timetableSlotMap.set(key, t.count);
+        });
+      } catch (_e) {
+        // Non-fatal telemetry enrichment
+      }
+    }
+
+    // 6. Enrich assignment objects with human-readable status, timetable readiness, and conducted sessions
+    let enrichedAssignments = assignments.map(a => {
+      const ttKey = `${a.faculty_id}_${a.subject_code}_${a.branch}_${a.course_semester}`;
+      const weeklySlots = timetableSlotMap.get(ttKey) || 0;
+      const conductedSessions = sessionCountMap.get(a.id) || 0;
+
+      return {
+        ...a,
+        weekly_slots: weeklySlots,
+        conducted_sessions: conductedSessions,
+        status: a.is_active ? 'ACTIVE' : 'ARCHIVED',
+        status_label: a.is_active ? 'Active' : 'Archived / Completed',
+        is_timetable_ready: weeklySlots > 0
+      };
+    });
+
+    // Apply client-friendly text search if requested
+    if (searchQuery) {
+      enrichedAssignments = enrichedAssignments.filter(a => 
+        (a.subject_name?.toLowerCase().includes(searchQuery)) ||
+        (a.subject_code?.toLowerCase().includes(searchQuery)) ||
+        (a.faculty_name?.toLowerCase().includes(searchQuery)) ||
+        (a.employee_id?.toLowerCase().includes(searchQuery)) ||
+        (a.branch?.toLowerCase().includes(searchQuery))
+      );
+    }
+
+    // 7. Optional Coverage Calculation: Compare syllabus subjects vs active assignments
+    let coverage = null;
+    if (includeCoverage && requestedBranch && requestedBranch !== 'all' && requestedSemester && requestedSemester !== 'all') {
+      try {
+        const semInt = Number(requestedSemester);
+        const syllabusRows = await db.select({
+          subject_code: syllabusStructure.subject_code,
+          subject_name: syllabusSubjects.subject_name,
+          subject_type: syllabusSubjects.subject_type,
+          is_group: syllabusStructure.is_group,
+          parent_group_code: syllabusStructure.parent_group_code
+        })
+        .from(syllabusStructure)
+        .leftJoin(syllabusSubjects, eq(syllabusStructure.subject_code, syllabusSubjects.subject_code))
+        .where(and(
+          eq(syllabusStructure.branch, requestedBranch),
+          eq(syllabusStructure.semester, semInt)
+        ));
+
+        // Group active assignments by subject_code
+        const activeBySubject = new Map();
+        enrichedAssignments.filter(a => a.is_active).forEach(a => {
+          if (!activeBySubject.has(a.subject_code)) activeBySubject.set(a.subject_code, []);
+          activeBySubject.get(a.subject_code).push(a);
+        });
+
+        const coveredSubjects = [];
+        const unassignedSubjects = [];
+
+        syllabusRows.forEach(s => {
+          const matchingAssignments = activeBySubject.get(s.subject_code) || [];
+          if (matchingAssignments.length > 0) {
+            coveredSubjects.push({
+              subject_code: s.subject_code,
+              subject_name: s.subject_name || s.subject_code,
+              subject_type: s.subject_type || 'theory',
+              is_group: !!s.is_group,
+              parent_group_code: s.parent_group_code,
+              assigned_faculty: matchingAssignments.map(m => ({
+                id: m.faculty_id,
+                name: m.faculty_name,
+                employee_id: m.employee_id,
+                weekly_slots: m.weekly_slots
+              }))
+            });
+          } else {
+            unassignedSubjects.push({
+              subject_code: s.subject_code,
+              subject_name: s.subject_name || s.subject_code,
+              subject_type: s.subject_type || 'theory',
+              is_group: !!s.is_group,
+              parent_group_code: s.parent_group_code,
+              branch: requestedBranch,
+              semester: semInt
+            });
+          }
+        });
+
+        const totalSyllabus = syllabusRows.length;
+        const totalCovered = coveredSubjects.length;
+        const pct = totalSyllabus > 0 ? Math.round((totalCovered / totalSyllabus) * 100) : 0;
+
+        coverage = {
+          total_syllabus_subjects: totalSyllabus,
+          covered_subjects_count: totalCovered,
+          unassigned_subjects_count: unassignedSubjects.length,
+          coverage_percentage: pct,
+          covered_subjects: coveredSubjects,
+          unassigned_subjects: unassignedSubjects
+        };
+      } catch (err) {
+        // Coverage non-fatal
+      }
+    }
+
+    // 8. Resolve System Academic Year for reference
+    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1)).limit(1);
+    const systemYear = (await getCollegeAcademicYear(collegeRows[0] || null)) || '2025-26';
+
+    return apiResponse({ 
+      data: enrichedAssignments,
+      coverage,
+      meta: {
+        total_assignments: enrichedAssignments.length,
+        active_assignments: enrichedAssignments.filter(a => a.is_active).length,
+        archived_assignments: enrichedAssignments.filter(a => !a.is_active).length,
+        system_year: systemYear,
+        authorized_branches: authorizedBranches,
+        is_coordinator: isCoord,
+        is_hod: isHod
+      }
+    });
   }
 });
 
@@ -336,12 +568,40 @@ export const DELETE = wrapHandler({
       db.select({ id: studentMarks.id }).from(studentMarks).where(eq(studentMarks.assignment_id, id)).limit(1)
     ]);
 
+    const clientIp = (request.headers.get('x-forwarded-for')?.split(',')[0] || request.headers.get('x-real-ip') || '127.0.0.1').trim().slice(0, 45);
+    const userAgent = (request.headers.get('user-agent') || 'system').slice(0, 500);
+
     if (attRows.length > 0 || marksRows.length > 0) {
       await db.update(facultySubjectAssignments).set({ is_active: false }).where(eq(facultySubjectAssignments.id, id));
+      
+      await db.insert(auditLogs).values({
+        user_id: user.id,
+        user_type: 'staff',
+        action: user.is_first_year_coordinator ? 'COORDINATOR_DEACTIVATE_ASSIGNMENT' : 'HOD_DEACTIVATE_ASSIGNMENT',
+        target_id: String(id),
+        target_type: 'faculty_subject_assignments',
+        payload_before: { id, branch, course_semester, academic_year, is_active: true },
+        payload_after: { id, branch, course_semester, academic_year, is_active: false, reason: 'Preserved attendance and marks' },
+        ip_address: clientIp,
+        user_agent: userAgent
+      });
+
       return apiResponse({ message: 'Subject assignment deactivated (attendance and evaluations preserved)' });
     }
 
     await db.delete(facultySubjectAssignments).where(eq(facultySubjectAssignments.id, id));
+
+    await db.insert(auditLogs).values({
+      user_id: user.id,
+      user_type: 'staff',
+      action: user.is_first_year_coordinator ? 'COORDINATOR_DELETE_ASSIGNMENT' : 'HOD_DELETE_ASSIGNMENT',
+      target_id: String(id),
+      target_type: 'faculty_subject_assignments',
+      payload_before: { id, branch, course_semester, academic_year, is_active: true },
+      payload_after: { id, deleted: true },
+      ip_address: clientIp,
+      user_agent: userAgent
+    });
 
     return apiResponse({ message: 'Subject assignment removed successfully' });
   }

@@ -329,7 +329,7 @@ export default function SubjectAssignmentsList() {
           <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 space-y-4">
             <div className="flex items-center gap-2 text-amber-700">
               <ShieldAlert className="w-5 h-5 shrink-0" />
-              <h3 className="text-base font-bold text-slate-900">Workload / Timetable Conflict Detected</h3>
+              <h3 className="text-base font-bold text-slate-900">Timetable / Schedule Conflict Detected</h3>
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed">

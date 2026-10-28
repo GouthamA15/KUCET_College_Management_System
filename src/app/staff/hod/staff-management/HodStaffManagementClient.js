@@ -4,18 +4,25 @@ import React, { useState, useEffect } from 'react';
 import { useStaff } from '@/context/StaffContext';
 import HodFacultyInterests from '@/components/staff/faculty/HodFacultyInterests';
 import ActiveFacultyList from '@/components/staff/faculty/ActiveFacultyList';
+import TeachingAssignmentDirectory from '@/components/staff/academic/TeachingAssignmentDirectory';
+import AcademicCoverageDashboard from '@/components/staff/academic/AcademicCoverageDashboard';
+import SemesterReadinessChecklist from '@/components/staff/academic/SemesterReadinessChecklist';
 import { GenericPageSkeleton } from '@/components/ui/DashboardSkeleton';
 import { Info, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 export default function HodStaffManagementClient() {
   const { loading, staffData, hasFetchedFaculty, isLoadingFaculty, refreshFaculty } = useStaff();
+  
   const tabs = [
-    { id: 'interests', label: 'Faculty Interests' },
+    { id: 'directory', label: 'Teaching Directory' },
+    { id: 'coverage', label: 'Coverage & Workload' },
+    { id: 'readiness', label: 'Readiness Checklist' },
+    { id: 'interests', label: 'Faculty Requests' },
     { id: 'faculty', label: 'Active Faculty' },
   ];
 
-  const [activeTab, setActiveTab] = useState('interests');
+  const [activeTab, setActiveTab] = useState('directory');
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
@@ -37,7 +44,6 @@ export default function HodStaffManagementClient() {
     return () => { document.body.style.overflow = ''; };
   }, [isBottomSheetOpen, isMobileDevice]);
 
-  // Load faculty assignments if needed to populate staff context, though not strictly required for these specific API calls.
   useEffect(() => {
     if (!loading && staffData?.is_hod && !hasFetchedFaculty && !isLoadingFaculty && refreshFaculty) {
       refreshFaculty();
@@ -45,7 +51,7 @@ export default function HodStaffManagementClient() {
   }, [loading, staffData, hasFetchedFaculty, isLoadingFaculty, refreshFaculty]);
 
   // Verify HOD status
-  if (!loading && staffData && !staffData.is_hod) {
+  if (!loading && staffData && !staffData.is_hod && staffData.role !== 'admin' && !staffData.is_principal) {
     return (
       <div className="flex justify-center items-center h-[50vh]">
         <p className="text-red-500 font-medium">Unauthorized Access. You must be an HOD to view this page.</p>
@@ -74,14 +80,17 @@ export default function HodStaffManagementClient() {
         >
           <X size={20} />
         </button>
-        <h3 id="help-sheet-title" className="text-lg font-bold text-[#0b2447] mb-3">Staff Management Information</h3>
+        <h3 id="help-sheet-title" className="text-lg font-bold text-[#0b2447] mb-3">Academic Management Information</h3>
         <div className="text-sm text-slate-700 space-y-4 mb-6 leading-relaxed">
           <p className="text-slate-600">
-            Manage department faculty, subject requests, and assignments.
+            Comprehensive departmental academic leadership console.
           </p>
           <ul className="list-disc pl-4 space-y-1">
-            <li><strong>Faculty Interests:</strong> Review and approve/reject subject requests submitted by your department faculty.</li>
-            <li><strong>Active Faculty:</strong> View the roster of all faculty members currently assigned to your department.</li>
+            <li><strong>Teaching Directory:</strong> Complete registry of who is teaching which subject, active vs archived allocations, and change history.</li>
+            <li><strong>Coverage &amp; Workload:</strong> Identifies unassigned syllabus subjects, timetable readiness, and faculty workload distribution.</li>
+            <li><strong>Readiness Checklist:</strong> Verification of curriculum, allocations, timetable, and pending requests.</li>
+            <li><strong>Faculty Requests:</strong> Review and approve/reject subject preference requests submitted by department faculty.</li>
+            <li><strong>Active Faculty:</strong> View the roster of all faculty members assigned to your department.</li>
           </ul>
         </div>
         <button
@@ -95,12 +104,12 @@ export default function HodStaffManagementClient() {
   );
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
+    <div className="w-full max-w-7xl mx-auto space-y-6 text-sm">
       {isBottomSheetOpen && isMobileDevice && createPortal(bottomSheet, document.body)}
       
       <header className="mb-4">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold text-gray-800">Staff Management</h1>
+          <h1 className="text-2xl font-semibold text-gray-800">Department Academic Management</h1>
           
           <div
             className="relative inline-flex items-center"
@@ -121,19 +130,24 @@ export default function HodStaffManagementClient() {
 
             {isHovered && !isMobileDevice && (
               <div className="absolute left-0 top-full mt-2 w-80 bg-white border border-slate-200 rounded-lg shadow-xl p-4 z-50 text-left animate-slideDown">
-                <h4 className="text-sm font-bold text-[#0b2447] mb-2">Staff Management Information</h4>
+                <h4 className="text-sm font-bold text-[#0b2447] mb-2">Academic Leadership Console</h4>
                 <p className="text-xs text-slate-600 leading-relaxed mb-3">
-                  Manage department faculty, subject requests, and assignments.
+                  Manage department faculty, curriculum coverage, teaching assignments, and semester readiness.
                 </p>
                 <ul className="text-xs text-slate-600 leading-relaxed list-disc pl-4 space-y-1">
-                  <li><strong>Faculty Interests:</strong> Review and approve/reject subject requests submitted by your department faculty.</li>
-                  <li><strong>Active Faculty:</strong> View the roster of all faculty members currently assigned to your department.</li>
+                  <li><strong>Teaching Directory:</strong> Active and archived assignments, sections, co-instructors.</li>
+                  <li><strong>Coverage &amp; Workload:</strong> Unassigned subjects, scheduled periods, and load distribution.</li>
+                  <li><strong>Readiness Checklist:</strong> Automated pre-term prerequisite audit.</li>
+                  <li><strong>Faculty Requests:</strong> Review subject preferences.</li>
+                  <li><strong>Active Faculty:</strong> Departmental faculty roster.</li>
                 </ul>
               </div>
             )}
           </div>
         </div>
-        <p className="text-sm text-gray-600 mt-1">Manage department faculty, subject requests, and assignments.</p>
+        <p className="text-sm text-gray-600 mt-1">
+          Oversight of teaching assignments, subject coverage, faculty workload, and semester readiness for your authorized department.
+        </p>
         
         {/* Mobile tabs */}
         <div className="md:hidden flex flex-wrap items-center gap-2 mt-3.5 pb-1">
@@ -164,9 +178,30 @@ export default function HodStaffManagementClient() {
         ))}
       </div>
 
-      <div className="bg-white border border-gray-300 rounded-sm p-4 sm:p-6 shadow-sm min-h-[50vh]">
-        {activeTab === 'interests' && <HodFacultyInterests />}
-        {activeTab === 'faculty' && <ActiveFacultyList />}
+      <div className="min-h-[50vh]">
+        {activeTab === 'directory' && (
+          <TeachingAssignmentDirectory />
+        )}
+
+        {activeTab === 'coverage' && (
+          <AcademicCoverageDashboard onNavigateToTab={setActiveTab} />
+        )}
+
+        {activeTab === 'readiness' && (
+          <SemesterReadinessChecklist onNavigateToTab={setActiveTab} />
+        )}
+
+        {activeTab === 'interests' && (
+          <div className="bg-white border border-gray-300 rounded-sm p-4 sm:p-6 shadow-sm">
+            <HodFacultyInterests />
+          </div>
+        )}
+
+        {activeTab === 'faculty' && (
+          <div className="bg-white border border-gray-300 rounded-sm p-4 sm:p-6 shadow-sm">
+            <ActiveFacultyList />
+          </div>
+        )}
       </div>
     </div>
   );

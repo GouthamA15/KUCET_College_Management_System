@@ -7,6 +7,9 @@ import SyllabusManager from '@/components/staff/faculty/SyllabusManager';
 import IDCardManagementHub from '@/components/staff/id-cards/IDCardManagementHub';
 import CoordinatorApaarDashboard from '@/components/staff/first-year/CoordinatorApaarDashboard';
 import SubjectAssignmentsList from '@/components/staff/faculty/SubjectAssignmentsList';
+import TeachingAssignmentDirectory from '@/components/staff/academic/TeachingAssignmentDirectory';
+import AcademicCoverageDashboard from '@/components/staff/academic/AcademicCoverageDashboard';
+import SemesterReadinessChecklist from '@/components/staff/academic/SemesterReadinessChecklist';
 import toast from 'react-hot-toast';
 import { 
   GraduationCap, 
@@ -21,7 +24,9 @@ import {
   X,
   Layers,
   ExternalLink,
-  ShieldCheck
+  ShieldCheck,
+  BarChart3,
+  CheckCircle2
 } from 'lucide-react';
 
 const INSTITUTIONAL_BRANCHES = ['CSE', 'IT', 'CSD', 'ECE', 'EEE', 'CIVIL', 'MECH'];
@@ -267,7 +272,9 @@ export default function CoordinatorWorkspaceClient() {
       <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-1.5 flex flex-wrap gap-1.5">
         {[
           { id: 'overview', label: 'Overview', icon: Layers },
-          { id: 'allocations', label: 'Subject Allocations', icon: GraduationCap },
+          { id: 'allocations', label: 'Teaching Directory', icon: GraduationCap },
+          { id: 'coverage', label: 'Coverage & Workload', icon: BarChart3 },
+          { id: 'readiness', label: 'Readiness Checklist', icon: CheckCircle2 },
           { id: 'apaar', label: 'APAAR Monitoring & Reports', icon: ShieldCheck },
           { id: 'syllabus', label: 'Subjects & Syllabus', icon: BookOpen },
           { id: 'timetable', label: 'First-Year Timetables', icon: Calendar },
@@ -456,18 +463,24 @@ export default function CoordinatorWorkspaceClient() {
         </div>
       )}
 
-      {/* ─── TAB: SUBJECT ALLOCATIONS ─────────────────────────────────────────── */}
+      {/* ─── TAB: SUBJECT ALLOCATIONS / DIRECTORY ───────────────────────────── */}
       {activeTab === 'allocations' && (
         <div className="space-y-4">
-          <div className="bg-indigo-50/70 border border-indigo-200/80 rounded-xl p-4 flex items-center justify-between text-xs text-indigo-900">
-            <div className="flex items-center gap-2.5">
-              <GraduationCap className="w-4 h-4 text-indigo-700 shrink-0" />
-              <span>
-                <strong>First-Year Subject Allocation Authority:</strong> Directly assign faculty members (or self-allocate) to Semester 1 and 2 subjects across all 7 institutional branches.
-              </span>
-            </div>
-          </div>
-          <SubjectAssignmentsList />
+          <TeachingAssignmentDirectory isCoordinatorView={true} />
+        </div>
+      )}
+
+      {/* ─── TAB: ACADEMIC COVERAGE & WORKLOAD ─────────────────────────────────── */}
+      {activeTab === 'coverage' && (
+        <div className="space-y-4">
+          <AcademicCoverageDashboard isCoordinatorView={true} onNavigateToTab={setActiveTab} />
+        </div>
+      )}
+
+      {/* ─── TAB: SEMESTER READINESS CHECKLIST ───────────────────────────────── */}
+      {activeTab === 'readiness' && (
+        <div className="space-y-4">
+          <SemesterReadinessChecklist isCoordinatorView={true} onNavigateToTab={setActiveTab} />
         </div>
       )}
 
@@ -847,7 +860,7 @@ export default function CoordinatorWorkspaceClient() {
                       rows={3}
                       value={reviewModal.reason}
                       onChange={e => setReviewModal({ ...reviewModal, reason: e.target.value })}
-                      placeholder="e.g. Workload quota full, alternative faculty allocated..."
+                      placeholder="e.g. Alternative faculty allocated, syllabus revision pending..."
                       className="w-full text-xs border border-slate-300 rounded p-2 focus:outline-none focus:border-[#0b3578]"
                     />
                   </div>

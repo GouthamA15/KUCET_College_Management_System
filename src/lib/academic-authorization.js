@@ -406,7 +406,10 @@ export function canReviewSubjectInterest(user, interest) {
 }
 
 /**
- * Checks for workload or timetable conflicts for a candidate subject allocation.
+ * Checks for timetable conflicts and co-teaching allocations for a candidate subject allocation.
+ * Note: Per institutional academic requirements, there is no fixed maximum number of subjects
+ * a faculty member may teach within a semester or academic year. Workload quotas are not enforced
+ * as blocking conflicts.
  */
 export async function checkAllocationConflicts({ 
   faculty_id, 
@@ -445,31 +448,8 @@ export async function checkAllocationConflicts({
       warnings.push(`This subject is already assigned to ${names}. Additional assignment will create a multi-instructor / co-teaching allocation.`);
     }
 
-    // 2. Workload conflict: Check how many active subjects this faculty member is currently teaching in the same academic term
+    // 2. Timetable slot conflict: Check if faculty has timetable slots that clash with existing scheduled classes
     const isEvenSem = semInt % 2 === 0;
-    const allFacultyTermSubjects = await db.select({
-      id: facultySubjectAssignments.id,
-      subject_code: facultySubjectAssignments.subject_code,
-      subject_name: facultySubjectAssignments.subject_name,
-      course_semester: facultySubjectAssignments.course_semester,
-      branch: facultySubjectAssignments.branch
-    })
-    .from(facultySubjectAssignments)
-    .where(and(
-      eq(facultySubjectAssignments.staff_account_id, targetFacultyId),
-      eq(facultySubjectAssignments.academic_year, academic_year),
-      eq(facultySubjectAssignments.is_active, true),
-      sql`(${facultySubjectAssignments.course_semester} % 2 = 0) = ${isEvenSem}`
-    ));
-
-    if (allFacultyTermSubjects.length >= 4) {
-      conflicts.push({
-        type: 'WORKLOAD_EXCEEDED',
-        message: `Faculty member already has ${allFacultyTermSubjects.length} active subject assignments in this academic term. Standard threshold is 4.`
-      });
-    }
-
-    // 3. Timetable slot conflict: Check if faculty has timetable slots that clash with existing scheduled classes
     const yearPrefix = academic_year.substring(0, 4);
     const timetableClashes = await db.select({
       day_of_week: branchTimetable.day_of_week,
@@ -490,6 +470,7 @@ export async function checkAllocationConflicts({
     // If there are duplicate timetable periods
     const periodMap = new Set();
     for (const slot of timetableClashes) {
+      if (!slot.day_of_week || slot.period_number == null) continue;
       const key = `${slot.day_of_week}-${slot.period_number}`;
       if (periodMap.has(key)) {
         conflicts.push({

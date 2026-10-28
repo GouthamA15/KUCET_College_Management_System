@@ -8,6 +8,7 @@ import InterestStatusList from '@/components/staff/faculty/InterestStatusList';
 import HodAccessManager from '@/components/staff/faculty/HodAccessManager';
 import StudentsLookupPanel from '@/components/staff/faculty/StudentsLookupPanel';
 import SubjectAssignmentsList from '@/components/staff/faculty/SubjectAssignmentsList';
+import TeachingAssignmentDirectory from '@/components/staff/academic/TeachingAssignmentDirectory';
 import SyllabusManager from '@/components/staff/faculty/SyllabusManager';
 import AttendanceDisputesPanel from '@/components/staff/faculty/AttendanceDisputesPanel';
 import StudentReactivationsPanel from '@/components/staff/faculty/StudentReactivationsPanel';
@@ -432,8 +433,8 @@ function AcademicsContent() {
 
       {/* ── Assign Subjects (HOD & First-Year Coordinator) ── */}
       {canAssign && activeTab === 'assign-subjects' && (
-        <div className="bg-gradient-to-br from-blue-50/50 via-white to-blue-50/50 border border-blue-100 shadow-sm rounded-sm p-4 sm:p-6">
-          <SubjectAssignmentsList />
+        <div className="space-y-4">
+          <TeachingAssignmentDirectory />
         </div>
       )}
 

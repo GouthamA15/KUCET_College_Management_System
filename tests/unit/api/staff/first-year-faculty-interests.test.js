@@ -5,6 +5,7 @@ let mockInterests = [];
 let mockAssignments = [];
 let mockIsLocked = false;
 let mockWorkloadSubjects = [];
+let mockTimetableClashes = [];
 let mockCurrentUser = null;
 
 vi.mock('@/lib/api-utils', async (importOriginal) => {
@@ -35,7 +36,7 @@ vi.mock('@/db', () => ({
     select: vi.fn(() => ({
       from: vi.fn(() => ({
         where: vi.fn(() => {
-          const res = [...mockWorkloadSubjects];
+          const res = mockTimetableClashes.length > 0 ? [...mockTimetableClashes] : [...mockWorkloadSubjects];
           res.orderBy = vi.fn(() => mockInterests);
           res.limit = vi.fn(() => mockIsLocked ? [{ id: 1, archive_type: 'SEMESTER', current_academic_year: '2024-25', is_locked: true, status: 'ARCHIVED' }] : []);
           return res;
@@ -101,6 +102,7 @@ describe('Faculty Subject Interests — First Year Coordinator & HOD Scoping & S
   beforeEach(() => {
     mockIsLocked = false;
     mockWorkloadSubjects = [];
+    mockTimetableClashes = [];
     mockInterests = [
       {
         id: 1,
@@ -300,7 +302,7 @@ describe('Faculty Subject Interests — First Year Coordinator & HOD Scoping & S
       expect(json.error).toContain('permanently archived');
     });
 
-    it('rejects with HTTP 409 when conflict is detected without override', async () => {
+    it('allows faculty member with 4 active subject assignments to receive another valid assignment without override', async () => {
       mockWorkloadSubjects = [
         { id: 1, subject_code: 'CS101', course_semester: 1 },
         { id: 2, subject_code: 'CS102', course_semester: 1 },
@@ -328,17 +330,113 @@ describe('Faculty Subject Interests — First Year Coordinator & HOD Scoping & S
       const res = await POST(req);
       const json = await res.json();
 
-      expect(res.status).toBe(409);
-      expect(json.error).toContain('Allocation conflict detected');
-      expect(json.canOverride).toBe(true);
+      expect(res.status).toBe(200);
+      expect(json.message).toContain('approved successfully');
+      expect(mockAssignments.length).toBe(1);
     });
 
-    it('succeeds with HTTP 200 when conflict is overridden with valid reason (>= 5 chars)', async () => {
+    it('allows faculty member with 5 active subject assignments to receive another assignment without override', async () => {
       mockWorkloadSubjects = [
         { id: 1, subject_code: 'CS101', course_semester: 1 },
         { id: 2, subject_code: 'CS102', course_semester: 1 },
         { id: 3, subject_code: 'CS103', course_semester: 1 },
-        { id: 4, subject_code: 'CS104', course_semester: 1 }
+        { id: 4, subject_code: 'CS104', course_semester: 1 },
+        { id: 5, subject_code: 'CS105', course_semester: 1 }
+      ];
+
+      mockCurrentUser = {
+        id: 101,
+        role: 'faculty',
+        is_first_year_coordinator: true,
+        branch: 'CSE'
+      };
+
+      const req = new Request('http://localhost/api/staff/hod/faculty-interests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          interest_id: 1,
+          status: 'APPROVED',
+          override_conflict: false
+        })
+      });
+
+      const res = await POST(req);
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.message).toContain('approved successfully');
+      expect(mockAssignments.length).toBe(1);
+    });
+
+    it('allows faculty member with substantially more than 5 assignments (e.g. 10) to receive valid assignments', async () => {
+      mockWorkloadSubjects = Array.from({ length: 10 }, (_, i) => ({
+        id: i + 1,
+        subject_code: `CS10${i + 1}`,
+        course_semester: 1
+      }));
+
+      mockCurrentUser = {
+        id: 101,
+        role: 'faculty',
+        is_first_year_coordinator: true,
+        branch: 'CSE'
+      };
+
+      const req = new Request('http://localhost/api/staff/hod/faculty-interests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          interest_id: 1,
+          status: 'APPROVED',
+          override_conflict: false
+        })
+      });
+
+      const res = await POST(req);
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.message).toContain('approved successfully');
+      expect(mockAssignments.length).toBe(1);
+    });
+
+    it('rejects with HTTP 409 when genuine timetable collision is detected without override', async () => {
+      mockTimetableClashes = [
+        { day_of_week: 'MONDAY', period_number: 1, clash_branch: 'CSE', clash_semester: 1 },
+        { day_of_week: 'MONDAY', period_number: 1, clash_branch: 'ECE', clash_semester: 1 }
+      ];
+
+      mockCurrentUser = {
+        id: 101,
+        role: 'faculty',
+        is_first_year_coordinator: true,
+        branch: 'CSE'
+      };
+
+      const req = new Request('http://localhost/api/staff/hod/faculty-interests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          interest_id: 1,
+          status: 'APPROVED',
+          override_conflict: false
+        })
+      });
+
+      const res = await POST(req);
+      const json = await res.json();
+
+      expect(res.status).toBe(409);
+      expect(json.error).toContain('Allocation conflict detected');
+      expect(json.canOverride).toBe(true);
+      expect(json.conflicts[0].type).toBe('TIMETABLE_PERIOD_CLASH');
+    });
+
+    it('succeeds with HTTP 200 when genuine timetable collision is overridden with valid reason (>= 5 chars)', async () => {
+      mockTimetableClashes = [
+        { day_of_week: 'MONDAY', period_number: 1, clash_branch: 'CSE', clash_semester: 1 },
+        { day_of_week: 'MONDAY', period_number: 1, clash_branch: 'ECE', clash_semester: 1 }
       ];
 
       mockCurrentUser = {
@@ -355,7 +453,7 @@ describe('Faculty Subject Interests — First Year Coordinator & HOD Scoping & S
           interest_id: 1,
           status: 'APPROVED',
           override_conflict: true,
-          override_reason: 'Co-teaching approved by coordinator'
+          override_reason: 'Timetable adjustment authorized by coordinator'
         })
       });
 
@@ -367,11 +465,9 @@ describe('Faculty Subject Interests — First Year Coordinator & HOD Scoping & S
     });
 
     it('rejects conflict override with HTTP 403 when reason is too short', async () => {
-      mockWorkloadSubjects = [
-        { id: 1, subject_code: 'CS101', course_semester: 1 },
-        { id: 2, subject_code: 'CS102', course_semester: 1 },
-        { id: 3, subject_code: 'CS103', course_semester: 1 },
-        { id: 4, subject_code: 'CS104', course_semester: 1 }
+      mockTimetableClashes = [
+        { day_of_week: 'MONDAY', period_number: 1, clash_branch: 'CSE', clash_semester: 1 },
+        { day_of_week: 'MONDAY', period_number: 1, clash_branch: 'ECE', clash_semester: 1 }
       ];
 
       mockCurrentUser = {
