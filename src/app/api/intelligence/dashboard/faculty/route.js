@@ -3,10 +3,11 @@ import { cacheAside } from '@/lib/cache';
 import { FacultyAnalytics } from '@/intelligence/analytics/FacultyAnalytics';
 import { ScoringEngine } from '@/intelligence/scoring/ScoringEngine';
 import { RecommendationEngine } from '@/intelligence/recommendation/RecommendationEngine';
+import { getCollegeAcademicYear } from '@/lib/academic-utils';
 
 export const GET = wrapHandler({ role: ['faculty', 'staff'] }, async (req, ctx) => {
   const facultyId = ctx.user?.id || 'TEST_FACULTY';
-  const academicYear = '2025-26';
+  const academicYear = req?.nextUrl?.searchParams?.get('academicYear') || (await getCollegeAcademicYear());
 
   const cacheKey = `dashboard:faculty:${facultyId}:${academicYear}`;
 

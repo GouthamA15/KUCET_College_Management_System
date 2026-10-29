@@ -1,7 +1,6 @@
 import { fetchWithSWR } from '@/lib/cache';
 import { db } from '@/db';
 import { 
-  semesters, 
   staffAccounts,
   staffRoles,
   staffAccountRoles,
@@ -15,7 +14,8 @@ import {
   facultySubjectAssignments,
   facultyHodAssignments
 } from '@/db/schema';
-import { eq, and, desc, asc, sql, like, or, isNull, gte, lte } from 'drizzle-orm';
+import { eq, and, asc, sql, like, or, isNull, gte, lte } from 'drizzle-orm';
+import { getCollegeAcademicYear } from '@/lib/academic-utils';
 
 /**
  * Service for Faculty and HOD-related business logic
@@ -93,11 +93,7 @@ export class FacultyService {
    * @returns {Promise<string>} The current academic year
    */
   static async getCurrentAcademicYear() {
-    const semRows = await db.select({ academic_year: semesters.academic_year })
-      .from(semesters)
-      .orderBy(desc(semesters.id))
-      .limit(1);
-    return semRows[0]?.academic_year || '2025-26';
+    return await getCollegeAcademicYear();
   }
 
   /**
@@ -248,10 +244,7 @@ export class FacultyService {
     const whereClause = [
       eq(branchTimetable.branch, branch),
       eq(branchTimetable.semester, semester),
-      or(
-        like(branchTimetable.academic_year, `${systemYear.substring(0, 4)}%`),
-        eq(branchTimetable.academic_year, '2025-26')
-      )
+      like(branchTimetable.academic_year, `${systemYear.substring(0, 4)}%`)
     ];
 
     const cacheKey = `timetable:${branch}:${semester}:${systemYear}`;

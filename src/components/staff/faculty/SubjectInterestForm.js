@@ -1,27 +1,30 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useStaff } from '@/context/StaffContext';
 import { AlertCircle, CheckCircle, ShieldAlert } from 'lucide-react';
-
-const CANONICAL_BRANCHES = ['CSE', 'IT', 'CSD', 'ECE', 'EEE', 'CIVIL', 'MECH'];
-const ACADEMIC_YEARS = ['2026-27', '2025-26', '2024-25', '2023-24'];
+import { 
+  INSTITUTIONAL_BRANCHES as CANONICAL_BRANCHES, 
+  deriveDefaultAcademicYear, 
+  getCanonicalAcademicYears 
+} from '@/lib/academic-constants';
 
 export default function SubjectInterestForm({ onInterestSubmitted }) {
   const { staffData, facultyInterests = [], refreshFaculty } = useStaff();
 
+  const defaultYear = staffData?.academic_year || deriveDefaultAcademicYear();
+  const academicYearsList = useMemo(() => getCanonicalAcademicYears(defaultYear), [defaultYear]);
+
   const [selectedBranch, setSelectedBranch] = useState(staffData?.branch || staffData?.branches?.[0] || 'CSE');
   const [selectedSemester, setSelectedSemester] = useState('1');
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState(staffData?.academic_year || ACADEMIC_YEARS[0]);
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState(defaultYear);
 
+  const userSelectedYearRef = useRef(false);
   useEffect(() => {
-    const id = setTimeout(() => {
-      if (staffData?.academic_year && ACADEMIC_YEARS.includes(staffData.academic_year)) {
-        setSelectedAcademicYear(staffData.academic_year);
-      }
-    }, 0);
-    return () => clearTimeout(id);
-  }, [staffData?.academic_year]);
+    if (!userSelectedYearRef.current && staffData?.academic_year && staffData.academic_year !== selectedAcademicYear) {
+      setSelectedAcademicYear(staffData.academic_year);
+    }
+  }, [staffData?.academic_year, selectedAcademicYear]);
   const [syllabus, setSyllabus] = useState([]);
   const [loadingSyllabus, setLoadingSyllabus] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -196,10 +199,13 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
           <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Academic Year</label>
           <select
             value={selectedAcademicYear}
-            onChange={(e) => setSelectedAcademicYear(e.target.value)}
+            onChange={(e) => {
+              userSelectedYearRef.current = true;
+              setSelectedAcademicYear(e.target.value);
+            }}
             className="w-full h-10 px-3 border border-slate-200 rounded-sm bg-white text-sm font-medium text-slate-700 font-mono"
           >
-            {ACADEMIC_YEARS.map(y => (
+            {academicYearsList.map(y => (
               <option key={y} value={y}>{y}</option>
             ))}
           </select>

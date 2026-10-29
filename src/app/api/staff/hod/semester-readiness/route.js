@@ -5,8 +5,7 @@ import {
   syllabusStructure,
   syllabusSubjects,
   timetableInstances,
-  branchTimetable,
-  collegeInfo as collegeInfoTable
+  branchTimetable
 } from '@/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { apiResponse, apiError, wrapHandler } from '@/lib/api-utils';
@@ -35,8 +34,7 @@ export const GET = wrapHandler({
     const requestedYear = searchParams.get('academic_year');
 
     // Resolve Academic Year
-    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1)).limit(1);
-    const currentAcademicYear = (await getCollegeAcademicYear(collegeRows[0] || null)) || '2025-26';
+    const currentAcademicYear = await getCollegeAcademicYear();
     const academicYear = requestedYear || currentAcademicYear;
 
     // Resolve Branch & Semester

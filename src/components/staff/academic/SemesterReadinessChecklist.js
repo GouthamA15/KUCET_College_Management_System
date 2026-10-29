@@ -10,9 +10,11 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useStaff } from '@/context/StaffContext';
-
-const CANONICAL_BRANCHES = ['CSE', 'IT', 'CSD', 'ECE', 'EEE', 'CIVIL', 'MECH'];
-const ACADEMIC_YEARS = ['2026-27', '2025-26', '2024-25', '2023-24'];
+import { 
+  INSTITUTIONAL_BRANCHES as CANONICAL_BRANCHES, 
+  deriveDefaultAcademicYear, 
+  getCanonicalAcademicYears 
+} from '@/lib/academic-constants';
 
 export default function SemesterReadinessChecklist({ 
   onNavigateToTab = null,
@@ -42,41 +44,25 @@ export default function SemesterReadinessChecklist({
     return [1, 2, 3, 4, 5, 6, 7, 8];
   }, [isCoordinator, isHod, isAdmin]);
 
-  const defaultYear = initialAcademicYear || staffData?.coordinator_assignment?.academic_year || staffData?.academic_year || ACADEMIC_YEARS[0];
+  const resolvedDefaultYear = initialAcademicYear || staffData?.coordinator_assignment?.academic_year || staffData?.academic_year || deriveDefaultAcademicYear();
+  const academicYearsList = React.useMemo(() => getCanonicalAcademicYears(resolvedDefaultYear), [resolvedDefaultYear]);
 
-  const [selectedBranch, setSelectedBranch] = useState(initialBranch || availableBranches[0] || 'CSE');
-  const [selectedSemester, setSelectedSemester] = useState(initialSemester ? String(initialSemester) : (availableSemesters[0] ? String(availableSemesters[0]) : '1'));
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState(defaultYear);
+  const [selectedBranch, setSelectedBranch] = useState(initialBranch || 'CSE');
+  const [selectedSemester, setSelectedSemester] = useState(initialSemester ? String(initialSemester) : '1');
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState(resolvedDefaultYear);
 
-  // Synchronize academic year with staff context / coordinator assignment
+  // Derived effective state within valid bounds - zero cascading set-state loops or race conditions
+  const effectiveBranch = availableBranches.includes(selectedBranch) ? selectedBranch : (availableBranches[0] || 'CSE');
+  const effectiveSemester = availableSemesters.includes(Number(selectedSemester)) ? selectedSemester : String(availableSemesters[0] || 1);
+  const effectiveAcademicYear = selectedAcademicYear || resolvedDefaultYear;
+
+  // Preserve manual user selection: only update if user hasn't explicitly selected a year
+  const userSelectedYearRef = React.useRef(false);
   useEffect(() => {
-    const id = setTimeout(() => {
-      const activeYear = initialAcademicYear || staffData?.coordinator_assignment?.academic_year || staffData?.academic_year;
-      if (activeYear && ACADEMIC_YEARS.includes(activeYear)) {
-        setSelectedAcademicYear(activeYear);
-      }
-    }, 0);
-    return () => clearTimeout(id);
-  }, [staffData, initialAcademicYear]);
-
-  // Synchronize branch and semester selection with role authorization
-  useEffect(() => {
-    const id = setTimeout(() => {
-      if (availableBranches.length > 0 && !availableBranches.includes(selectedBranch)) {
-        setSelectedBranch(availableBranches[0]);
-      }
-    }, 0);
-    return () => clearTimeout(id);
-  }, [availableBranches, selectedBranch]);
-
-  useEffect(() => {
-    const id = setTimeout(() => {
-      if (availableSemesters.length > 0 && !availableSemesters.includes(Number(selectedSemester))) {
-        setSelectedSemester(String(availableSemesters[0]));
-      }
-    }, 0);
-    return () => clearTimeout(id);
-  }, [availableSemesters, selectedSemester]);
+    if (!userSelectedYearRef.current && resolvedDefaultYear && resolvedDefaultYear !== selectedAcademicYear) {
+      setSelectedAcademicYear(resolvedDefaultYear);
+    }
+  }, [resolvedDefaultYear, selectedAcademicYear]);
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -87,9 +73,9 @@ export default function SemesterReadinessChecklist({
     setError(null);
     try {
       const params = new URLSearchParams({
-        branch: selectedBranch,
-        semester: selectedSemester,
-        academic_year: selectedAcademicYear
+        branch: effectiveBranch,
+        semester: effectiveSemester,
+        academic_year: effectiveAcademicYear
       });
       const res = await fetch(`/api/staff/hod/semester-readiness?${params.toString()}`, { signal });
       const json = await res.json();
@@ -102,15 +88,18 @@ export default function SemesterReadinessChecklist({
     } finally {
       setLoading(false);
     }
-  }, [selectedBranch, selectedSemester, selectedAcademicYear]);
+  }, [effectiveBranch, effectiveSemester, effectiveAcademicYear]);
 
   useEffect(() => {
+    let ignore = false;
     const controller = new AbortController();
-    const id = setTimeout(() => {
-      fetchReadiness(controller.signal);
-    }, 0);
+    Promise.resolve().then(() => {
+      if (!ignore) {
+        fetchReadiness(controller.signal);
+      }
+    });
     return () => {
-      clearTimeout(id);
+      ignore = true;
       controller.abort();
     };
   }, [fetchReadiness]);
@@ -134,7 +123,7 @@ export default function SemesterReadinessChecklist({
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
           <select
-            value={selectedBranch}
+            value={effectiveBranch}
             onChange={(e) => setSelectedBranch(e.target.value)}
             className="h-9 px-3 border border-slate-300 rounded-lg bg-white text-xs font-semibold text-slate-800"
           >
@@ -144,7 +133,7 @@ export default function SemesterReadinessChecklist({
           </select>
 
           <select
-            value={selectedSemester}
+            value={effectiveSemester}
             onChange={(e) => setSelectedSemester(e.target.value)}
             className="h-9 px-3 border border-slate-300 rounded-lg bg-white text-xs font-semibold text-slate-800"
           >
@@ -154,11 +143,14 @@ export default function SemesterReadinessChecklist({
           </select>
 
           <select
-            value={selectedAcademicYear}
-            onChange={(e) => setSelectedAcademicYear(e.target.value)}
+            value={effectiveAcademicYear}
+            onChange={(e) => {
+              userSelectedYearRef.current = true;
+              setSelectedAcademicYear(e.target.value);
+            }}
             className="h-9 px-3 border border-slate-300 rounded-lg bg-white text-xs font-semibold text-slate-800 font-mono"
           >
-            {ACADEMIC_YEARS.map(y => (
+            {academicYearsList.map(y => (
               <option key={y} value={y}>{y}</option>
             ))}
           </select>

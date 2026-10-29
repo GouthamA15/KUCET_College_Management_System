@@ -41,9 +41,9 @@ vi.mock('@/lib/api-utils', async (importOriginal) => {
   };
 });
 
-vi.mock('@/db', () => ({
-  db: {
-    select: vi.fn((fields) => ({
+vi.mock('@/db', () => {
+  const mockDb = {
+    select: vi.fn((_fields) => ({
       from: vi.fn((tbl) => {
         const tableName = tbl?.[Symbol.for('drizzle:Name')] || tbl?.name;
         return {
@@ -105,40 +105,18 @@ vi.mock('@/db', () => ({
         where: vi.fn(() => [{ affectedRows: 1 }])
       }))
     })),
-    transaction: vi.fn(async (cb) => {
-      const tx = {
-        query: {
-          facultySubjectInterests: {
-            findFirst: vi.fn(async () => mockInterests[0] || null)
-          },
-          facultySubjectAssignments: {
-            findFirst: vi.fn(async () => mockExistingDbAssignments[0] || null)
-          }
-        },
-        select: vi.fn(() => ({
-          from: vi.fn(() => ({
-            where: vi.fn(() => []),
-            innerJoin: vi.fn(() => ({
-              where: vi.fn(() => [])
-            }))
-          }))
-        })),
-        update: vi.fn(() => ({
-          set: vi.fn(() => ({
-            where: vi.fn(() => [{ affectedRows: 1 }])
-          }))
-        })),
-        insert: vi.fn(() => ({
-          values: vi.fn((vals) => {
-            insertedAssignments.push(vals);
-            return [{ insertId: 999 }];
-          })
-        }))
-      };
-      return await cb(tx);
-    })
-  }
-}));
+    query: {
+      facultySubjectInterests: {
+        findFirst: vi.fn(async () => mockInterests[0] || null)
+      },
+      facultySubjectAssignments: {
+        findFirst: vi.fn(async () => mockExistingDbAssignments[0] || null)
+      }
+    }
+  };
+  mockDb.transaction = vi.fn(async (cb) => cb(mockDb));
+  return { db: mockDb };
+});
 
 vi.mock('@/lib/logger', () => ({
   default: {

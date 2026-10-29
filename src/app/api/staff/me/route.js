@@ -1,8 +1,9 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { staffAccounts, staffAccountRoles, staffRoles, staffAcademicAffiliations, academicDepartments, academicPrograms, semesters } from '@/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { staffAccounts, staffAccountRoles, staffRoles, staffAcademicAffiliations, academicDepartments, academicPrograms } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { apiError, wrapHandler } from '@/lib/api-utils';
+import { getCollegeAcademicYear } from '@/lib/academic-utils';
 
 export const GET = wrapHandler({
   auth: 'staff',
@@ -181,15 +182,9 @@ export const GET = wrapHandler({
     staffData.signature = imageHelper(staffData.signature);
 
     try {
-      const semRows = await db.select({ academic_year: semesters.academic_year })
-        .from(semesters)
-        .orderBy(desc(semesters.id))
-        .limit(1);
-      
-      staffData.academic_year = semRows[0]?.academic_year || '2025-26';
+      staffData.academic_year = await getCollegeAcademicYear();
     } catch (semErr) {
       logger.error({ err: semErr.message }, '[STAFF_ME_SEMESTER_FAILED]');
-      staffData.academic_year = '2025-26';
     }
 
     return { data: staffData };

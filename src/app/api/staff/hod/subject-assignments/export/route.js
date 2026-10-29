@@ -4,8 +4,7 @@ import {
   facultySubjectAssignments, 
   staffAccounts, 
   syllabusStructure,
-  syllabusSubjects,
-  collegeInfo as collegeInfoTable
+  syllabusSubjects
 } from '@/db/schema';
 import { eq, and, desc, asc, inArray } from 'drizzle-orm';
 import { apiError, getAuthUser } from '@/lib/api-utils';
@@ -51,8 +50,7 @@ export async function GET(request) {
     const requestedStatus = searchParams.get('status') || 'all';
 
     // 1. Resolve Academic Year
-    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1)).limit(1);
-    const systemYear = (await getCollegeAcademicYear(collegeRows[0] || null)) || '2025-26';
+    const systemYear = await getCollegeAcademicYear();
     const academicYear = requestedYear || systemYear;
 
     // 2. Validate Branch Authorization

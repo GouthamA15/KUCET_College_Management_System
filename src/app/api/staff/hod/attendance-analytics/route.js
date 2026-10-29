@@ -1,8 +1,9 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { students, studentAttendance, facultySubjectAssignments, semesters } from '@/db/schema';
-import { eq, and, sql, desc, asc, like, or } from 'drizzle-orm';
+import { students, studentAttendance, facultySubjectAssignments } from '@/db/schema';
+import { eq, and, sql, asc, like } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
+import { getCollegeAcademicYear } from '@/lib/academic-utils';
 
 export async function GET(req) {
   let user;
@@ -26,12 +27,9 @@ export async function GET(req) {
     }
 
     const semester = parseInt(searchParams.get('semester') || '6', 10);
-
-    // Resolve system year
-    const latestSem = await db.query.semesters.findFirst({
-        orderBy: desc(semesters.id)
-    });
-    const systemYear = latestSem?.academic_year || '2025-26';
+    const requestedYear = searchParams.get('academic_year');
+    const systemYear = requestedYear || await getCollegeAcademicYear();
+    const yearPattern = `%${systemYear.substring(0, 4)}%`;
 
     const percentageExpr = sql`ROUND((COUNT(CASE WHEN ${studentAttendance.status} = 'PRESENT' AND ${studentAttendance.date} >= COALESCE(${students.admission_date}, '1900-01-01') THEN 1 END) / COUNT(CASE WHEN ${studentAttendance.date} >= COALESCE(${students.admission_date}, '1900-01-01') THEN ${studentAttendance.id} END)) * 100, 1)`;
     
@@ -58,10 +56,7 @@ export async function GET(req) {
         eq(students.student_status, 'ACTIVE'),
         eq(facultySubjectAssignments.branch, targetBranch),
         eq(facultySubjectAssignments.course_semester, semester),
-        or(
-            like(facultySubjectAssignments.academic_year, `%${systemYear.substring(0, 4)}%`),
-            eq(facultySubjectAssignments.academic_year, '2025-26')
-        )
+        like(facultySubjectAssignments.academic_year, yearPattern)
     ))
     .groupBy(students.id, students.roll_no, students.name)
     .having(sql`${percentageExpr} < 75`)
