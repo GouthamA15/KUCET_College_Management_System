@@ -73,9 +73,16 @@ describe('Supervisor Global Authority & Restricted HOD Assignment Suite', () => 
 
   describe('isVerifiedDesignatedSupervisor Safeguard', () => {
     it('returns true when staff account matches the configured designated supervisor ID in systemConfigs', async () => {
-      db.select.mockReturnValueOnce(createChainMock([
-        { config_key: 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID', config_value: '42' }
-      ]));
+      db.select
+        .mockReturnValueOnce(createChainMock([
+          { config_key: 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID', config_value: '42' }
+        ]))
+        .mockReturnValueOnce(createChainMock([
+          { id: 42, email: 'principal@kucet.ac.in', account_status: 'ACTIVE' }
+        ]))
+        .mockReturnValueOnce(createChainMock([
+          { role_code: 'PRINCIPAL' }
+        ]));
 
       const isVerified = await isVerifiedDesignatedSupervisor(42, 'principal@kucet.ac.in');
       expect(isVerified).toBe(true);

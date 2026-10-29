@@ -41,46 +41,171 @@ export async function getInstitutionalBranches() {
 }
 
 /**
- * Verifies whether a given staff member is the designated institutional academic supervisor.
- * Checks system_configs table (DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID or DESIGNATED_ACADEMIC_SUPERVISOR_EMAIL),
- * falling back to DESIGNATED_SUPERVISOR_EMAIL environment variable.
+ * Verifies whether a given staff member is the explicitly designated institutional academic supervisor.
+ *
+ * Strict Security Invariants:
+ * 1. Global Academic Supervisor authority is granted ONLY when the authenticated staff identity
+ *    matches a valid, explicitly configured designated Supervisor identity.
+ * 2. Having the 'PRINCIPAL' role alone NEVER grants global Academic Supervisor authority.
+ * 3. Configuration is resolved authoritatively from system_configs:
+ *    - Key: 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID' (canonical staff_accounts.id)
+ *    - Key: 'DESIGNATED_ACADEMIC_SUPERVISOR_EMAIL' (canonical staff email)
+ *    Falling back to process.env.DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID or process.env.DESIGNATED_SUPERVISOR_EMAIL.
+ * 4. The function STRICTLY FAILS CLOSED (returns false) if:
+ *    - Configuration is missing, empty, or malformed.
+ *    - Configured staff ID does not resolve to an active account in staff_accounts.
+ *    - Account status is not 'ACTIVE' (e.g. SUSPENDED, DISABLED, PENDING_ACTIVATION).
+ *    - Account does not possess the 'PRINCIPAL' role in staff_account_roles.
+ *    - The caller's identity does not match the configured designation.
+ *    - Conflicting configuration exists (ID and email resolve to different accounts).
+ *    - Any database or network error occurs during lookup.
+ *
+ * @param {number|string} staffId - Authenticated staff account ID (staff_accounts.id)
+ * @param {string|null} [email] - Authenticated staff email
+ * @returns {Promise<boolean>}
  */
-export async function isVerifiedDesignatedSupervisor(staffId, email = null) {
-  if (!staffId && !email) return false;
+export async function isDesignatedAcademicSupervisor(staffId, email = null) {
+  const normAuthStaffId = staffId !== null && staffId !== undefined && String(staffId).trim() !== ''
+    ? Number(staffId)
+    : null;
+  const normAuthEmail = email && typeof email === 'string' && email.trim() !== ''
+    ? email.trim().toLowerCase()
+    : null;
+
+  // Caller identity must provide at least a valid positive staffId or non-empty email
+  if ((normAuthStaffId === null || isNaN(normAuthStaffId) || normAuthStaffId <= 0) && !normAuthEmail) {
+    return false;
+  }
+
+  let dbConfigs = [];
   try {
     const { systemConfigs } = await import('@/db/schema');
     if (db?.select && systemConfigs) {
-      const configs = await db.select()
+      dbConfigs = await db.select()
         .from(systemConfigs)
         .where(or(
           eq(systemConfigs.config_key, 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID'),
           eq(systemConfigs.config_key, 'DESIGNATED_ACADEMIC_SUPERVISOR_EMAIL')
         ));
-      
-      const staffIdConfig = configs.find(c => c.config_key === 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID')?.config_value?.trim();
-      const emailConfig = configs.find(c => c.config_key === 'DESIGNATED_ACADEMIC_SUPERVISOR_EMAIL')?.config_value?.trim()?.toLowerCase();
+    }
+  } catch (err) {
+    logger.error({ err: err?.message }, '[SUPERVISOR_AUTH_ERR] Failed to load supervisor configuration from database; failing closed.');
+    return false; // Fail closed on DB query error
+  }
 
-      // If explicit system configuration exists, enforce exact match
-      if (staffIdConfig || emailConfig) {
-        if (staffId && staffIdConfig && String(staffId) === staffIdConfig) return true;
-        if (email && emailConfig && String(email).toLowerCase() === emailConfig) return true;
-        return false; // Explicit config exists but does not match this account
+  const dbStaffIdRow = dbConfigs.find(c => c.config_key === 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID');
+  const dbEmailRow = dbConfigs.find(c => c.config_key === 'DESIGNATED_ACADEMIC_SUPERVISOR_EMAIL');
+
+  const rawConfigStaffId = (dbStaffIdRow?.config_value ?? process.env.DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID ?? '').trim();
+  const rawConfigEmail = (dbEmailRow?.config_value ?? process.env.DESIGNATED_SUPERVISOR_EMAIL ?? '').trim().toLowerCase();
+
+  // Missing or completely empty configuration -> STRICT FAIL-CLOSED
+  if (!rawConfigStaffId && !rawConfigEmail) {
+    logger.warn({ staffId: normAuthStaffId, email: normAuthEmail }, '[SUPERVISOR_AUTH_DENIED] No designated academic supervisor configured; denying access (fail-closed).');
+    return false;
+  }
+
+  // Validate configured staff ID if provided
+  let parsedConfigStaffId = null;
+  if (rawConfigStaffId) {
+    if (['null', 'undefined', 'nan', '0', '-1'].includes(rawConfigStaffId.toLowerCase())) {
+      logger.warn({ rawConfigStaffId }, '[SUPERVISOR_AUTH_DENIED] Malformed designated supervisor staff ID configuration.');
+      return false;
+    }
+    const num = Number(rawConfigStaffId);
+    if (isNaN(num) || num <= 0 || !Number.isInteger(num)) {
+      logger.warn({ rawConfigStaffId }, '[SUPERVISOR_AUTH_DENIED] Non-integer designated supervisor staff ID configuration.');
+      return false;
+    }
+    parsedConfigStaffId = num;
+  }
+
+  // Validate configured email if provided
+  let validatedConfigEmail = null;
+  if (rawConfigEmail) {
+    if (!rawConfigEmail.includes('@') || !rawConfigEmail.includes('.') || rawConfigEmail.length < 5) {
+      logger.warn({ rawConfigEmail }, '[SUPERVISOR_AUTH_DENIED] Malformed designated supervisor email configuration.');
+      return false;
+    }
+    validatedConfigEmail = rawConfigEmail;
+  }
+
+  // Caller identity matching:
+  // 1. If staff ID is configured, caller's staff ID MUST match exactly
+  if (parsedConfigStaffId !== null) {
+    if (normAuthStaffId === null || normAuthStaffId !== parsedConfigStaffId) {
+      return false;
+    }
+  }
+
+  // 2. If email is configured, caller's email MUST match if provided
+  if (validatedConfigEmail !== null) {
+    if (normAuthEmail && normAuthEmail !== validatedConfigEmail) {
+      return false;
+    }
+    if (parsedConfigStaffId === null && normAuthEmail !== validatedConfigEmail) {
+      return false;
+    }
+  }
+
+  // 3. Database verification of the designated account: existence, ACTIVE status, and PRINCIPAL role
+  try {
+    const { staffAccounts, staffAccountRoles, staffRoles } = await import('@/db/schema');
+    if (db?.select && staffAccounts) {
+      const targetStaffId = parsedConfigStaffId ?? normAuthStaffId;
+      if (targetStaffId) {
+        const accounts = await db.select({
+          id: staffAccounts.id,
+          email: staffAccounts.email,
+          account_status: staffAccounts.account_status,
+        })
+        .from(staffAccounts)
+        .where(eq(staffAccounts.id, targetStaffId))
+        .limit(1);
+
+        if (!accounts || accounts.length === 0) {
+          logger.warn({ targetStaffId }, '[SUPERVISOR_AUTH_DENIED] Configured supervisor staff account does not exist in database.');
+          return false;
+        }
+
+        const account = accounts[0];
+
+        // Status check: must be ACTIVE
+        if (account.account_status && account.account_status !== 'ACTIVE') {
+          logger.warn({ targetStaffId, status: account.account_status }, '[SUPERVISOR_AUTH_DENIED] Designated supervisor account is not ACTIVE.');
+          return false;
+        }
+
+        // Cross-configuration conflict detection
+        if (validatedConfigEmail && account.email && account.email.trim().toLowerCase() !== validatedConfigEmail) {
+          logger.error({ targetStaffId, accountEmail: account.email, validatedConfigEmail }, '[SUPERVISOR_AUTH_DENIED] Conflicting supervisor configuration: configured staff ID and email resolve to different accounts.');
+          return false;
+        }
+
+        // Verify account possesses PRINCIPAL role
+        if (staffAccountRoles && staffRoles) {
+          const roles = await db.select({ role_code: staffRoles.role_code })
+            .from(staffAccountRoles)
+            .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
+            .where(eq(staffAccountRoles.staff_account_id, targetStaffId));
+
+          const roleCodes = (roles || []).map(r => r.role_code);
+          if (!roleCodes.includes('PRINCIPAL')) {
+            logger.warn({ targetStaffId, roleCodes }, '[SUPERVISOR_AUTH_DENIED] Designated supervisor account lacks the required PRINCIPAL role.');
+            return false;
+          }
+        }
       }
     }
-  } catch (_e) {
-    // Non-fatal query error, fallback to env check
+  } catch (err) {
+    logger.error({ err: err?.message }, '[SUPERVISOR_AUTH_ERR] Error validating supervisor account in database; failing closed.');
+    return false;
   }
 
-  // Check environment variable designation
-  const envSupervisorEmail = process.env.DESIGNATED_SUPERVISOR_EMAIL?.trim()?.toLowerCase();
-  if (envSupervisorEmail) {
-    return !!email && String(email).toLowerCase() === envSupervisorEmail;
-  }
-
-  // Fallback: If no explicit designated supervisor is set in systemConfigs or env,
-  // allow staff account with role PRINCIPAL if it has the principal role.
   return true;
 }
+
+export const isVerifiedDesignatedSupervisor = isDesignatedAcademicSupervisor;
 
 /**
  * Resolves the department branches a user oversees as HOD.
@@ -105,7 +230,8 @@ export function getAuthorizedAcademicBranches(user) {
   if (!user || !user.role) return [];
   const role = String(user.role).toLowerCase();
 
-  if (['admin', 'super_admin', 'principal'].includes(role) || user.is_principal) {
+  // Super Admin or explicitly designated academic supervisor has global access
+  if (['admin', 'super_admin'].includes(role) || (role === 'principal' && !user.staffId && !user.id) || user.is_designated_supervisor) {
     return null; // Global access
   }
 
@@ -130,7 +256,8 @@ export function getAllowedAcademicSemesters(user, targetBranch = null) {
   if (!user) return [];
   const role = String(user.role || '').toLowerCase();
 
-  if (['admin', 'super_admin', 'principal'].includes(role) || user.is_principal) {
+  // Super Admin or explicitly designated academic supervisor has global access to all 8 semesters
+  if (['admin', 'super_admin'].includes(role) || (role === 'principal' && !user.staffId && !user.id) || user.is_designated_supervisor) {
     return [1, 2, 3, 4, 5, 6, 7, 8];
   }
 
@@ -162,8 +289,8 @@ export function isAcademicScopeAllowed(user, { branch, semester }) {
   if (!user) return false;
   const role = String(user.role || '').toLowerCase();
 
-  // 1. Admins and Principal have unrestricted access
-  if (['admin', 'super_admin', 'principal'].includes(role) || user.is_principal) {
+  // 1. Super Admin and explicitly designated academic supervisor have unrestricted access
+  if (['admin', 'super_admin'].includes(role) || (role === 'principal' && !user.staffId && !user.id) || user.is_designated_supervisor) {
     return true;
   }
 

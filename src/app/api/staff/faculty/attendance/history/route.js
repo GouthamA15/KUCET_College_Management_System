@@ -42,7 +42,7 @@ export async function GET(request) {
     const assignmentBranch = String(assignment.branch || '').toUpperCase();
 
     const isAssignedFaculty = assignment.faculty_id === user.id;
-    const isGlobalAdminOrSupervisor = user.role === 'admin' || !!user.is_principal;
+    const isGlobalAdminOrSupervisor = user.role === 'admin' || !!user.is_designated_supervisor;
     const isHodForBranch = !!user.is_hod && (authorizedBranches.includes(assignmentBranch) || !assignment.branch);
     const isFirstYearCoordForSem = !!user.is_first_year_coordinator && (assignment.course_semester === 1 || assignment.course_semester === 2);
 

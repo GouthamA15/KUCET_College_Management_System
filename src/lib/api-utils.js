@@ -400,32 +400,31 @@ export async function getAuthUser(role = null) {
             // DB query error or test mock fallback
           }
 
-          if (!hasPrincipal && (!hasHodRole || hodBranches.length === 0)) {
-            return null;
-          }
-
           let isDesignatedSupervisor = false;
           if (hasPrincipal) {
             try {
               const { isVerifiedDesignatedSupervisor } = await import('@/lib/academic-authorization');
               isDesignatedSupervisor = await isVerifiedDesignatedSupervisor(payload.id, payload.email);
-            } catch (_e) {
-              isDesignatedSupervisor = true;
+            } catch (err) {
+              logger.error({ err: err?.message, staffId: payload.id }, '[SUPERVISOR_VERIFY_ERR] Failed to verify supervisor; failing closed.');
+              isDesignatedSupervisor = false;
             }
           }
 
-          payload.is_hod = true;
+          if ((!hasHodRole || hodBranches.length === 0) && !isDesignatedSupervisor) {
+            return null;
+          }
+
+          payload.is_hod = hasHodRole && hodBranches.length > 0;
           payload.is_principal = hasPrincipal;
           payload.is_designated_supervisor = isDesignatedSupervisor;
           payload.hod_branches = hodBranches;
           if (hasPrincipal && isDesignatedSupervisor) {
             payload.authorized_branches = ['CSE', 'IT', 'CSD', 'ECE', 'EEE', 'CIVIL', 'MECH'];
-          } else if (hasPrincipal) {
-            payload.authorized_branches = Array.from(new Set([...hodBranches, 'CSE', 'IT', 'CSD']));
           } else {
             payload.authorized_branches = hodBranches;
           }
-          payload.hod_department_code = hodBranches[0] || (hasPrincipal ? 'CSE' : payload.branch);
+          payload.hod_department_code = hodBranches[0] || (hasPrincipal && isDesignatedSupervisor ? 'CSE' : payload.branch);
           payload.branch = payload.branch || payload.hod_department_code;
         } else {
           return null;
@@ -512,23 +511,22 @@ export async function getAuthUser(role = null) {
               try {
                 const { isVerifiedDesignatedSupervisor } = await import('@/lib/academic-authorization');
                 isDesignatedSupervisor = await isVerifiedDesignatedSupervisor(payload.id, payload.email);
-              } catch (_e) {
-                isDesignatedSupervisor = true;
+              } catch (err) {
+                logger.error({ err: err?.message, staffId: payload.id }, '[SUPERVISOR_VERIFY_ERR] Failed to verify supervisor; failing closed.');
+                isDesignatedSupervisor = false;
               }
             }
 
-            payload.is_hod = true;
+            payload.is_hod = hasHodRole && hodBranches.length > 0;
             payload.is_principal = hasPrincipal;
             payload.is_designated_supervisor = isDesignatedSupervisor;
             payload.hod_branches = hodBranches;
             if (hasPrincipal && isDesignatedSupervisor) {
               payload.authorized_branches = ['CSE', 'IT', 'CSD', 'ECE', 'EEE', 'CIVIL', 'MECH'];
-            } else if (hasPrincipal) {
-              payload.authorized_branches = Array.from(new Set([...hodBranches, 'CSE', 'IT', 'CSD']));
             } else {
               payload.authorized_branches = hodBranches;
             }
-            payload.hod_department_code = hodBranches[0] || (hasPrincipal ? 'CSE' : payload.branch);
+            payload.hod_department_code = hodBranches[0] || (hasPrincipal && isDesignatedSupervisor ? 'CSE' : payload.branch);
           }
         }
       } catch (_e) {
