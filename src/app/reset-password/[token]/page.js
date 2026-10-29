@@ -7,7 +7,7 @@ import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import HeaderMobileView from "@/components/Header-MobileView";
 import ClientShell from "@/components/ClientShell.client";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, CheckCircle2, XCircle } from "lucide-react";
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
@@ -17,10 +17,19 @@ export default function ResetPassword() {
   const [_message, setMessage] = useState("");
   const [_error, setError] = useState("");
   const [redirecting, setRedirecting] = useState(false);
-  const [passwordValid, setPasswordValid] = useState(false);
   const [passwordStrengthLabel, setPasswordStrengthLabel] = useState('');
   const [tokenStatus, setTokenStatus] = useState('loading'); // 'loading' | 'VALID' | 'EXPIRED' | 'USED' | 'INVALID'
   const [tokenMessage, setTokenMessage] = useState('');
+
+  // Granular criteria checks
+  const criteria = {
+    length: password.length >= 8,
+    lowercase: /[a-z]/.test(password),
+    uppercase: /[A-Z]/.test(password),
+    digit: /\d/.test(password),
+    special: /[^a-zA-Z\d]/.test(password),
+  };
+  const isAllCriteriaMet = Object.values(criteria).every(Boolean);
 
   const params = useParams();
   const router = useRouter();
@@ -66,24 +75,63 @@ export default function ResetPassword() {
     };
   }, [token]);
 
+  const handlePasswordChange = (e) => {
+    const v = e.target.value;
+    setPassword(v);
+
+    const hasLen = v.length >= 8;
+    const hasLower = /[a-z]/.test(v);
+    const hasUpper = /[A-Z]/.test(v);
+    const hasNum = /\d/.test(v);
+    const hasSpec = /[^a-zA-Z\d]/.test(v);
+    const passed = hasLen && hasLower && hasUpper && hasNum && hasSpec;
+
+    if (!v) {
+      setPasswordStrengthLabel('');
+    } else if (!passed) {
+      setPasswordStrengthLabel('Weak');
+    } else if (v.length >= 12) {
+      setPasswordStrengthLabel('Strong');
+    } else if (v.length >= 10) {
+      setPasswordStrengthLabel('Good');
+    } else {
+      setPasswordStrengthLabel('Fair');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!isAllCriteriaMet) {
+      toast.error("Please satisfy all password strength requirements.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
     setIsLoading(true);
     setMessage("");
     setError("");
 
-    if (password !== confirmPassword) {
-      toast.error("Passwords do not match");
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const response = await fetch(`/api/auth/reset-password/${token}`, {
+      // POST with token in JSON body to prevent URL leakage in proxy access logs
+      let response = await fetch('/api/auth/reset-password', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ token, password }),
       });
+
+      // Backward compatibility fallback to path-based endpoint if body endpoint is 404
+      if (response.status === 404) {
+        response = await fetch(`/api/auth/reset-password/${encodeURIComponent(token)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password }),
+        });
+      }
 
       const data = await response.json().catch(() => ({ /* empty */ }));
 
@@ -91,7 +139,6 @@ export default function ResetPassword() {
         toast.success(data.message || "Password reset successful");
         setMessage(data.message || "Password reset successful");
         setRedirecting(true);
-        setIsLoading(false);
         setTimeout(() => router.push("/"), 2000);
       } else {
         const msg = data.error || data.message || "Unable to reset password. Please try again.";
@@ -109,6 +156,10 @@ export default function ResetPassword() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans relative">
+      {/* Strict referrer policy prevents reset token leakage in Referer headers */}
+      <head>
+        <meta name="referrer" content="strict-origin-when-cross-origin" />
+      </head>
       <HeaderMobileView />
       <Header />
       <ClientShell />
@@ -140,24 +191,10 @@ export default function ResetPassword() {
                         id="password"
                         type={showPasswords ? 'text' : 'password'}
                         value={password}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setPassword(v);
-                          const score = v.length >= 12 ? 3 : v.length >= 10 ? 2 : v.length >= 8 ? 1 : 0;
-                          const hasLower = /[a-z]/.test(v);
-                          const hasUpper = /[A-Z]/.test(v);
-                          const hasNum = /\d/.test(v);
-                          const hasSpec = /[!@#$%^&*()_+\-=[\]{ /* empty */ };':"\\|,.<>/?]/.test(v);
-                          const passed = v.length >= 8 && hasLower && hasUpper && hasNum && hasSpec;
-                          setPasswordValid(passed);
-                          if (!v) setPasswordStrengthLabel('');
-                          else if (!passed) setPasswordStrengthLabel('Weak');
-                          else if (score >= 3) setPasswordStrengthLabel('Strong');
-                          else if (score === 2) setPasswordStrengthLabel('Good');
-                          else setPasswordStrengthLabel('Fair');
-                        }}
+                        onChange={handlePasswordChange}
                         className="w-full border border-gray-300 rounded-md pl-3 pr-10 py-2 text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578]"
                         required
+                        autoComplete="new-password"
                       />
                       <button
                         type="button"
@@ -169,9 +206,35 @@ export default function ResetPassword() {
                       </button>
                     </div>
                     {passwordStrengthLabel && (
-                      <p className={`text-xs mt-1 font-medium ${passwordValid ? 'text-emerald-600' : 'text-amber-600'}`}>
+                      <p className={`text-xs mt-1 font-medium ${isAllCriteriaMet ? 'text-emerald-600' : 'text-amber-600'}`}>
                         Strength: {passwordStrengthLabel}
                       </p>
+                    )}
+
+                    {/* Granular Password Criteria Checklist */}
+                    {password.length > 0 && (
+                      <div className="mt-2.5 p-2.5 bg-gray-50 border border-gray-200 rounded text-xs space-y-1">
+                        <div className={`flex items-center gap-1.5 ${criteria.length ? 'text-emerald-700 font-medium' : 'text-gray-500'}`}>
+                          {criteria.length ? <CheckCircle2 size={13} className="text-emerald-600 flex-shrink-0" /> : <XCircle size={13} className="text-gray-400 flex-shrink-0" />}
+                          <span>At least 8 characters</span>
+                        </div>
+                        <div className={`flex items-center gap-1.5 ${criteria.lowercase ? 'text-emerald-700 font-medium' : 'text-gray-500'}`}>
+                          {criteria.lowercase ? <CheckCircle2 size={13} className="text-emerald-600 flex-shrink-0" /> : <XCircle size={13} className="text-gray-400 flex-shrink-0" />}
+                          <span>At least one lowercase letter (a-z)</span>
+                        </div>
+                        <div className={`flex items-center gap-1.5 ${criteria.uppercase ? 'text-emerald-700 font-medium' : 'text-gray-500'}`}>
+                          {criteria.uppercase ? <CheckCircle2 size={13} className="text-emerald-600 flex-shrink-0" /> : <XCircle size={13} className="text-gray-400 flex-shrink-0" />}
+                          <span>At least one uppercase letter (A-Z)</span>
+                        </div>
+                        <div className={`flex items-center gap-1.5 ${criteria.digit ? 'text-emerald-700 font-medium' : 'text-gray-500'}`}>
+                          {criteria.digit ? <CheckCircle2 size={13} className="text-emerald-600 flex-shrink-0" /> : <XCircle size={13} className="text-gray-400 flex-shrink-0" />}
+                          <span>At least one digit (0-9)</span>
+                        </div>
+                        <div className={`flex items-center gap-1.5 ${criteria.special ? 'text-emerald-700 font-medium' : 'text-gray-500'}`}>
+                          {criteria.special ? <CheckCircle2 size={13} className="text-emerald-600 flex-shrink-0" /> : <XCircle size={13} className="text-gray-400 flex-shrink-0" />}
+                          <span>At least one special character (!@#$%^&amp;*...)</span>
+                        </div>
+                      </div>
                     )}
                   </div>
 
@@ -187,6 +250,7 @@ export default function ResetPassword() {
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         className="w-full border border-gray-300 rounded-md pl-3 pr-10 py-2 text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578]"
                         required
+                        autoComplete="new-password"
                       />
                       <button
                         type="button"
@@ -205,8 +269,8 @@ export default function ResetPassword() {
                   <div className="pt-2">
                     <button
                       type="submit"
-                      className="w-full bg-[#0b3578] text-white font-medium py-2 rounded-md text-sm hover:bg-[#0a2d66] transition-all disabled:opacity-50"
-                      disabled={isLoading || redirecting || !password || !confirmPassword || password !== confirmPassword}
+                      className="w-full bg-[#0b3578] text-white font-medium py-2 rounded-md text-sm hover:bg-[#0a2d66] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={isLoading || redirecting || !isAllCriteriaMet || !password || !confirmPassword || password !== confirmPassword}
                     >
                       {redirecting ? 'Redirecting...' : (isLoading ? 'Processing...' : 'Reset Password')}
                     </button>

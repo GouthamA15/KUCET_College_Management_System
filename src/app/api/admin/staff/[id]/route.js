@@ -15,6 +15,22 @@ class ValidationError extends Error {
   }
 }
 
+/**
+ * Sanitizes staff before payload to prevent storing password hashes and bloated base64 blobs in audit logs
+ */
+function sanitizeStaffForAudit(staff) {
+  if (!staff || typeof staff !== 'object') return staff;
+  const sanitized = { ...staff };
+  delete sanitized.password_hash;
+  if (typeof sanitized.pfp === 'string' && sanitized.pfp.length > 255) {
+    sanitized.pfp = `${sanitized.pfp.substring(0, 32)}...[truncated]`;
+  }
+  if (typeof sanitized.signature === 'string' && sanitized.signature.length > 255) {
+    sanitized.signature = `${sanitized.signature.substring(0, 32)}...[truncated]`;
+  }
+  return sanitized;
+}
+
 export async function GET(req, context) {
   const user = await getAuthUser('admin');
   if (!user) return apiError('Unauthorized', 401);
@@ -179,7 +195,7 @@ export async function DELETE(req, context) {
       action: 'DEACTIVATE_STAFF',
       targetId: idNum,
       targetType: 'staff_accounts',
-      before: staffBefore
+      before: sanitizeStaffForAudit(staffBefore)
     });
 
     // Realtime Broadcast
@@ -781,7 +797,7 @@ export async function PUT(req, context) {
       action: 'UPDATE_STAFF',
       targetId: idNum,
       targetType: 'staff_accounts',
-      before: staffBefore,
+      before: sanitizeStaffForAudit(staffBefore),
       after: { name, email, employee_id, is_hod, hod_branches, is_principal, branches, is_active }
     });
 

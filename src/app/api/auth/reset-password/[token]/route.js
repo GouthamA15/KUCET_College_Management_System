@@ -1,23 +1,6 @@
-import logger from '@/lib/logger';
-import { db } from '@/db';
-import { passwordResetTokens, students, staffAccounts, principal } from '@/db/schema';
-import { eq, and, isNull, _sql } from 'drizzle-orm';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
-import bcrypt from 'bcrypt';
-import crypto from 'crypto';
-
-// ─── FIX #11: Password strength validation ───
-// Enforces 8+ chars, at least one uppercase, lowercase, digit, and special character.
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d]).{8,}$/;
-function validatePasswordStrength(password) {
-  if (!password || typeof password !== 'string') return 'Password is required.';
-  if (password.length < 8) return 'Password must be at least 8 characters long.';
-  if (!PASSWORD_REGEX.test(password)) {
-    return 'Password must include at least one uppercase letter, one lowercase letter, one digit, and one special character.';
-  }
-  return null; // valid
-}
+import { PasswordResetService } from '@/services/identity/PasswordResetService';
 
 export async function GET(req, { params }) {
   try {
@@ -27,22 +10,16 @@ export async function GET(req, { params }) {
       return apiError('Too many password reset validation requests. Please try again in 15 minutes.', 429);
     }
 
-    const resolved = params ? await params : { /* empty */ };
-    const { token } = resolved || { /* empty */ };
-    if (!token) return apiError('This password reset link is invalid or malformed. Please request a new link.', 400, { code: 'INVALID', status: 'INVALID' });
+    const resolved = params ? await params : {};
+    const { token } = resolved || {};
 
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const tokenData = await db.query.passwordResetTokens.findFirst({
-      where: eq(passwordResetTokens.token_hash, tokenHash)
-    });
-
-    if (!tokenData) return apiError('This password reset link is invalid or was not found. Please request a new reset link.', 400, { code: 'INVALID', status: 'INVALID' });
-    if (tokenData.used_at) return apiError('This password reset link has already been used. If you need to reset your password again, please request a new link.', 409, { code: 'USED', status: 'USED' });
-    if (new Date() > new Date(tokenData.expires_at)) return apiError('This password reset link has expired (valid for 60 minutes). For security, please request a new reset link.', 410, { code: 'EXPIRED', status: 'EXPIRED' });
+    const validation = await PasswordResetService.validateToken(token);
+    if (!validation.valid) {
+      return apiError(validation.message, validation.statusCode, { code: validation.status, status: validation.status });
+    }
 
     return apiResponse({ status: 'VALID' });
-  } catch (err) {
-    logger.error('RESET TOKEN VALIDATION ERROR:', err);
+  } catch (_err) {
     return apiError('Unable to validate reset link. Please try again.', 400, { code: 'INVALID', status: 'INVALID' });
   }
 }
@@ -55,60 +32,32 @@ export async function POST(req, { params }) {
       return apiError('Too many password reset attempts. Please try again in 15 minutes.', 429);
     }
 
-    const resolved = params ? await params : { /* empty */ };
-    const { token } = resolved || { /* empty */ };
-    const { password } = await req.json();
+    const resolved = params ? await params : {};
+    const body = await req.json().catch(() => ({}));
+    const token = resolved?.token || body.token;
+    const password = body.password;
 
-    if (!token || !password) return apiError('Missing token or password', 400);
+    if (!token || !password) {
+      return apiError('Missing token or password', 400);
+    }
 
-    // ─── FIX #11: Validate password strength before hashing ───
-    const strengthError = validatePasswordStrength(password);
-    if (strengthError) return apiError(strengthError, 400);
+    const xff = req.headers.get('x-forwarded-for');
+    const clientIp = xff ? xff.split(',')[0].trim() : req.ip;
+    const userAgent = req.headers.get('user-agent');
 
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const tokenData = await db.query.passwordResetTokens.findFirst({
-      where: eq(passwordResetTokens.token_hash, tokenHash)
+    const result = await PasswordResetService.executeReset({
+      rawToken: token,
+      newPassword: password,
+      clientIp,
+      userAgent
     });
 
-    if (!tokenData) return apiError('This password reset link is invalid or was not found. Please request a new link.', 400);
-    if (tokenData.used_at) return apiError('This password reset link has already been used. Please request a new link.', 409);
-    if (new Date() > new Date(tokenData.expires_at)) return apiError('This password reset link has expired. Please request a new link.', 410);
+    if (!result.success) {
+      return apiError(result.error, result.statusCode, result.status ? { code: result.status } : undefined);
+    }
 
-    // ─── FIX #10: bcrypt cost raised from 10 → 12 ───
-    const SALT_ROUNDS = 12;
-    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-
-    await db.transaction(async (tx) => {
-      // 1. Update the appropriate user table
-      if (tokenData.user_type === 'student') {
-        await tx.update(students)
-          .set({ password_hash: hashedPassword })
-          .where(eq(students.roll_no, tokenData.user_id));
-      } else if (tokenData.user_type === 'staff') {
-        await tx.update(staffAccounts)
-          .set({ password_hash: hashedPassword })
-          .where(eq(staffAccounts.email, tokenData.user_id));
-      } else if (tokenData.user_type === 'admin') {
-        await tx.update(principal)
-          .set({ password_hash: hashedPassword })
-          .where(eq(principal.email, tokenData.user_id));
-      }
-
-      // 2. Mark token as used
-      const [res] = await tx.update(passwordResetTokens)
-        .set({ used_at: new Date() })
-        .where(and(eq(passwordResetTokens.token_hash, tokenHash), isNull(passwordResetTokens.used_at)));
-      
-      // Check for concurrent usage
-      if (res.affectedRows === 0) {
-        throw new Error('TOKEN_ALREADY_USED');
-      }
-    });
-
-    return apiResponse({ message: 'Password reset successful' });
-  } catch (err) {
-    if (err.message === 'TOKEN_ALREADY_USED') return apiError('USED', 409);
-    logger.error('RESET PASSWORD ERROR:', err);
+    return apiResponse({ message: result.message });
+  } catch (_err) {
     return apiError('Internal server error', 500);
   }
 }

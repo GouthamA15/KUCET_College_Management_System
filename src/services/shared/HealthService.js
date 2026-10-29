@@ -173,34 +173,65 @@ export class HealthService {
   }
 
   /**
-   * Determine overall system status based on component statuses
-   * Uses severity ordering: unhealthy > degraded > ok
+   * Determine overall system status based on component statuses.
+   * Database is critical: if DB is down, overall status is 'unhealthy' (503).
+   * Secondary dependencies (Redis cache, Brevo email) degrade features but keep CMS alive ('degraded', 200).
    */
   static determineStatus(dbStatus, redisStatus, emailStatus) {
-    const severityMap = {
-      error: 3,
-      unhealthy: 3,
-      degraded: 2,
-      missing_credentials: 2,
-      ok: 1,
-      configured: 1,
-      not_configured: 1,
-    };
+    const knownStatuses = new Set([
+      'error', 'unhealthy', 'degraded', 'missing_credentials',
+      'ok', 'configured', 'not_configured'
+    ]);
 
-    const statuses = [dbStatus, redisStatus, emailStatus];
-    const maxSeverity = Math.max(
-      ...statuses.map((s) => {
-        const severity = severityMap[s];
-        if (severity === undefined) {
-          logger.warn({ status: s }, 'Unknown health status');
-        }
-        return severity || 0;
-      })
-    );
+    const statuses = [dbStatus, redisStatus, emailStatus].filter(Boolean);
+    for (const s of statuses) {
+      if (!knownStatuses.has(s)) {
+        logger.warn({ status: s }, 'Unknown health status');
+      }
+    }
 
-    if (maxSeverity >= 3) return 'unhealthy';
-    if (maxSeverity >= 2) return 'degraded';
+    if (dbStatus === 'error' || dbStatus === 'unhealthy') {
+      return 'unhealthy';
+    }
+
+    if (
+      redisStatus === 'error' ||
+      redisStatus === 'degraded' ||
+      emailStatus === 'error' ||
+      emailStatus === 'missing_credentials' ||
+      emailStatus === 'degraded'
+    ) {
+      return 'degraded';
+    }
+
     return 'healthy';
+  }
+
+  /**
+   * Fast, zero-dependency liveness check to confirm process is running
+   */
+  static getLiveness() {
+    return {
+      status: 'alive',
+      timestamp: new Date().toISOString(),
+      uptimeSeconds: Math.round(process.uptime()),
+    };
+  }
+
+  /**
+   * Readiness probe verifying that critical persistent storage / database is reachable
+   */
+  static async getReadiness() {
+    const dbRes = await this.checkDatabase();
+    const isReady = dbRes.status === 'ok';
+    return {
+      status: isReady ? 'ready' : 'unhealthy',
+      ready: isReady,
+      timestamp: new Date().toISOString(),
+      components: {
+        database: dbRes,
+      },
+    };
   }
 
   /**

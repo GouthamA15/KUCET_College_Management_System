@@ -17,6 +17,7 @@
 # =============================================================================
 set -eu
 set -o pipefail 2>/dev/null || true
+umask 002
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -111,6 +112,7 @@ log "Previous commit (rollback target): $PREV_COMMIT"
 # ---------------------------------------------------------------------------
 log "Pulling latest code from origin/$BRANCH ..."
 git config core.fileMode false 2>/dev/null || true
+git config core.sharedRepository group 2>/dev/null || true
 git fetch origin "$BRANCH" 2>&1
 git reset --hard "origin/$BRANCH" 2>&1
 git clean -fd 2>&1
