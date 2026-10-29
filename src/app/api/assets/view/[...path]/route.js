@@ -71,6 +71,26 @@ export function resolveLocalFilePath(filename) {
     candidatePaths.push(path.resolve(repoPublic, 'assets', cleanFilename));
   }
 
+  // 5. Lifecycle Promotion & Staging Fallbacks (Staging <-> Permanent Student Storage)
+  const basename = path.basename(cleanFilename);
+  if (cleanFilename.includes('admission_drafts/pfp') || cleanFilename.includes('requests/pfp')) {
+    candidatePaths.push(path.resolve(base, 'kucet', 'students', 'pfp', basename));
+    candidatePaths.push(path.resolve(base, 'students', 'pfp', basename));
+  } else if (cleanFilename.includes('admission_drafts/signatures') || cleanFilename.includes('requests/signatures')) {
+    candidatePaths.push(path.resolve(base, 'kucet', 'students', 'signatures', basename));
+    candidatePaths.push(path.resolve(base, 'students', 'signatures', basename));
+  } else if (cleanFilename.includes('students/pfp')) {
+    candidatePaths.push(path.resolve(base, 'kucet', 'admission_drafts', 'pfp', basename));
+    candidatePaths.push(path.resolve(base, 'admission_drafts', 'pfp', basename));
+    candidatePaths.push(path.resolve(base, 'kucet', 'requests', 'pfp', basename));
+    candidatePaths.push(path.resolve(base, 'requests', 'pfp', basename));
+  } else if (cleanFilename.includes('students/signatures')) {
+    candidatePaths.push(path.resolve(base, 'kucet', 'admission_drafts', 'signatures', basename));
+    candidatePaths.push(path.resolve(base, 'admission_drafts', 'signatures', basename));
+    candidatePaths.push(path.resolve(base, 'kucet', 'requests', 'signatures', basename));
+    candidatePaths.push(path.resolve(base, 'requests', 'signatures', basename));
+  }
+
   // Pick the first existing path that stays within valid root directories
   for (const candidate of candidatePaths) {
     if ((candidate.startsWith(base) || candidate.startsWith(repoPublic)) && fs.existsSync(candidate)) {

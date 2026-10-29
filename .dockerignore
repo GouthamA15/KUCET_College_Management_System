@@ -10,3 +10,13 @@ playwright-report
 test-results
 *.log
 screenshots
+storage
+backups
+incoming
+*.sql
+*.tar.gz
+*.deb
+.vite
+.cache
+DEPLOYMENT_PACKAGE/SCRIPTS/backups
+DOCUMENTATION
