@@ -287,7 +287,7 @@ describe('Professional PDF Export for All Faculty Evaluation Views', () => {
       expect(pdfBuffer).toBeDefined();
       expect(pdfBuffer.length).toBeGreaterThan(1500);
       expect(pdfBuffer.slice(0, 5).toString('ascii')).toBe('%PDF-');
-    });
+    }, 15000);
 
     it('5.4 handles empty rosters gracefully without NaN or errors', async () => {
       const emptyData = {

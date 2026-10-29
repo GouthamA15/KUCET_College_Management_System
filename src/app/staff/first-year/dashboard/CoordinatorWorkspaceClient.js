@@ -9,6 +9,8 @@ import CoordinatorApaarDashboard from '@/components/staff/first-year/Coordinator
 import TeachingAssignmentDirectory from '@/components/staff/academic/TeachingAssignmentDirectory';
 import AcademicCoverageDashboard from '@/components/staff/academic/AcademicCoverageDashboard';
 import SemesterReadinessChecklist from '@/components/staff/academic/SemesterReadinessChecklist';
+import CoordinatorAttendanceMonitoring from '@/components/staff/first-year/CoordinatorAttendanceMonitoring';
+import CoordinatorMarksMonitoring from '@/components/staff/first-year/CoordinatorMarksMonitoring';
 import toast from 'react-hot-toast';
 import { deriveDefaultAcademicYear } from '@/lib/academic-constants';
 import { 
@@ -272,6 +274,8 @@ export default function CoordinatorWorkspaceClient() {
       <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-1.5 flex flex-wrap gap-1.5">
         {[
           { id: 'overview', label: 'Overview', icon: Layers },
+          { id: 'attendance-monitoring', label: 'Attendance Monitoring', icon: Clock },
+          { id: 'marks-monitoring', label: 'Marks Monitoring', icon: BarChart3 },
           { id: 'allocations', label: 'Teaching Directory', icon: GraduationCap },
           { id: 'coverage', label: 'Coverage & Workload', icon: BarChart3 },
           { id: 'readiness', label: 'Readiness Checklist', icon: CheckCircle2 },
@@ -461,6 +465,16 @@ export default function CoordinatorWorkspaceClient() {
             </ul>
           </div>
         </div>
+      )}
+
+      {/* ─── TAB: ATTENDANCE MONITORING ───────────────────────────────────────── */}
+      {activeTab === 'attendance-monitoring' && (
+        <CoordinatorAttendanceMonitoring />
+      )}
+
+      {/* ─── TAB: MARKS MONITORING ────────────────────────────────────────────── */}
+      {activeTab === 'marks-monitoring' && (
+        <CoordinatorMarksMonitoring />
       )}
 
       {/* ─── TAB: SUBJECT ALLOCATIONS / DIRECTORY ───────────────────────────── */}
