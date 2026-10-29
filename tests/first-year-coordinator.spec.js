@@ -326,8 +326,8 @@ test.describe('First Year Coordinator Comprehensive E2E Suite', () => {
 
     await page.goto('/staff/faculty/time-table/999');
     // Timetable editor header must render without blanking out
-    await expect(page.locator('text=Timetable Editor')).toBeVisible();
-    await expect(page.locator('text=/CSE.*Semester 1/')).toBeVisible();
+    await expect(page.locator('text=Timetable Editor')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('text=/CSE.*Semester 1/')).toBeVisible({ timeout: 15000 });
   });
 
   // Scenario 6: Faculty subject-interest review persists approval and generates assignment

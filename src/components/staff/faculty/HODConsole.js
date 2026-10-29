@@ -6,6 +6,7 @@ import { useStaff } from '@/context/StaffContext';
 import { toast } from 'react-hot-toast';
 import SyllabusManager from './SyllabusManager';
 import BranchAnalytics from './BranchAnalytics';
+import { deriveDefaultAcademicYear } from '@/lib/academic-constants';
 
 const INSTITUTIONAL_ACTIVITIES = [
   { code: 'SPORTS', name: 'Sports & Athletics' },
@@ -121,7 +122,7 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
       subject_code: formData.get('subject_code'),
       faculty_id: formData.get('faculty_id'),
       room_no: formData.get('room_no'),
-      academic_year: staffData?.academic_year || '2026-27'
+      academic_year: staffData?.academic_year || deriveDefaultAcademicYear()
     };
 
     if (!payload.subject_code) return toast.error('Please select a subject or activity');
@@ -995,7 +996,7 @@ function BranchConfig({ config, branch, refresh }) {
           branch,
           mid_max: mid,
           assignment_max: ass,
-          academic_year: '2026-27',
+          academic_year: config?.academic_year || deriveDefaultAcademicYear(),
           semester: 6
         })
       });

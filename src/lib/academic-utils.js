@@ -3,6 +3,19 @@ import { semesters } from '@/db/schema';
 import { sql, desc, asc } from 'drizzle-orm';
 import { Clock } from './clock.js';
 import { getEntryYearFromRoll, getAdmissionTypeFromRoll } from './rollNumber';
+import { 
+  deriveDefaultAcademicYear, 
+  getCanonicalAcademicYears, 
+  CANONICAL_ACADEMIC_YEARS, 
+  CURRENT_ACADEMIC_YEAR 
+} from './academic-constants.js';
+
+export { 
+  deriveDefaultAcademicYear, 
+  getCanonicalAcademicYears, 
+  CANONICAL_ACADEMIC_YEARS, 
+  CURRENT_ACADEMIC_YEAR 
+};
 
 // Helper to get YYYY-MM-DD
 function formatDate(dateObj) {
@@ -78,11 +91,12 @@ export async function calculateYearAndSemesterAsync(rollNo, offsetYears = 0) {
 
 
 /**
- * Gets the college's current academic year from the semesters table.
+ * Gets the college's current academic year from the semesters table,
+ * falling back dynamically to deriveDefaultAcademicYear() if unconfigured.
  */
-export async function getCollegeAcademicYear() {
-  const session = await getCurrentCalendarSession();
-  return session ? session.academicYear : null;
+export async function getCollegeAcademicYear(context = null) {
+  const session = await getCurrentCalendarSession(context);
+  return session?.academicYear || deriveDefaultAcademicYear(Clock.now(context));
 }
 
 let cachedSession = null;

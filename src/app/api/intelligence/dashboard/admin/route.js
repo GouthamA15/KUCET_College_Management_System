@@ -2,9 +2,10 @@ import { wrapHandler, apiResponse } from '@/lib/api-utils';
 import { cacheAside } from '@/lib/cache';
 import { InstitutionAnalytics } from '@/intelligence/analytics/InstitutionAnalytics';
 import { RecommendationEngine } from '@/intelligence/recommendation/RecommendationEngine';
+import { getCollegeAcademicYear } from '@/lib/academic-utils';
 
-export const GET = wrapHandler({ role: 'admin' }, async (_req, _ctx) => {
-  const academicYear = '2025-26';
+export const GET = wrapHandler({ role: 'admin' }, async (req, _ctx) => {
+  const academicYear = req?.nextUrl?.searchParams?.get('academicYear') || (await getCollegeAcademicYear());
   const cacheKey = `dashboard:admin:${academicYear}`;
 
   const data = await cacheAside(cacheKey, async () => {

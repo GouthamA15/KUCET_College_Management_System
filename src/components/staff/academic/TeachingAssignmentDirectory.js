@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { 
   BookOpen, 
@@ -8,6 +8,7 @@ import {
   Download, 
   Users, 
   AlertCircle, 
+  AlertTriangle,
   CheckCircle2, 
   History, 
   ShieldAlert, 
@@ -18,9 +19,11 @@ import {
   UserPlus
 } from 'lucide-react';
 import { useStaff } from '@/context/StaffContext';
-
-const CANONICAL_BRANCHES = ['CSE', 'IT', 'CSD', 'ECE', 'EEE', 'CIVIL', 'MECH'];
-const ACADEMIC_YEARS = ['2026-27', '2025-26', '2024-25', '2023-24'];
+import { 
+  INSTITUTIONAL_BRANCHES as CANONICAL_BRANCHES, 
+  deriveDefaultAcademicYear, 
+  getCanonicalAcademicYears 
+} from '@/lib/academic-constants';
 
 export default function TeachingAssignmentDirectory({ 
   initialBranch = null,
@@ -53,27 +56,30 @@ export default function TeachingAssignmentDirectory({
     return [1, 2, 3, 4, 5, 6, 7, 8];
   }, [isCoordinator, isHod, isAdmin]);
 
-  const defaultYear = initialAcademicYear || staffData?.coordinator_assignment?.academic_year || staffData?.academic_year || ACADEMIC_YEARS[0];
+  const resolvedDefaultYear = initialAcademicYear || staffData?.coordinator_assignment?.academic_year || staffData?.academic_year || deriveDefaultAcademicYear();
+  const academicYearsList = useMemo(() => getCanonicalAcademicYears(resolvedDefaultYear), [resolvedDefaultYear]);
 
   // Filter state
-  const [selectedBranch, setSelectedBranch] = useState(initialBranch || availableBranches[0] || 'CSE');
-  const [selectedSemester, setSelectedSemester] = useState(initialSemester ? String(initialSemester) : (availableSemesters[0] ? String(availableSemesters[0]) : '1'));
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState(defaultYear);
+  const [selectedBranch, setSelectedBranch] = useState(initialBranch || 'all');
+  const [selectedSemester, setSelectedSemester] = useState(initialSemester ? String(initialSemester) : 'all');
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState(resolvedDefaultYear);
   const [statusFilter, setStatusFilter] = useState('active'); // 'active', 'archived', 'all'
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeView, setActiveView] = useState('assignments'); // 'assignments', 'coverage', 'faculty', 'branch', 'subject'
 
-  // Synchronize academic year with staff context / coordinator assignment
+  // Derived effective state within valid bounds
+  const effectiveBranch = (selectedBranch === 'all' || availableBranches.includes(selectedBranch)) ? selectedBranch : (availableBranches[0] || 'all');
+  const effectiveSemester = (selectedSemester === 'all' || availableSemesters.includes(Number(selectedSemester))) ? selectedSemester : String(availableSemesters[0] || 'all');
+  const effectiveAcademicYear = selectedAcademicYear;
+
+  // Preserve manual user selection
+  const userSelectedYearRef = useRef(false);
   useEffect(() => {
-    const id = setTimeout(() => {
-      const activeYear = initialAcademicYear || staffData?.coordinator_assignment?.academic_year || staffData?.academic_year;
-      if (activeYear && ACADEMIC_YEARS.includes(activeYear)) {
-        setSelectedAcademicYear(activeYear);
-      }
-    }, 0);
-    return () => clearTimeout(id);
-  }, [staffData, initialAcademicYear]);
+    if (!userSelectedYearRef.current && resolvedDefaultYear && resolvedDefaultYear !== selectedAcademicYear) {
+      setSelectedAcademicYear(resolvedDefaultYear);
+    }
+  }, [resolvedDefaultYear, selectedAcademicYear]);
 
   // Pagination state for Directory Table
   const [page, setPage] = useState(1);
@@ -89,31 +95,11 @@ export default function TeachingAssignmentDirectory({
     return () => clearTimeout(handler);
   }, [searchInput]);
 
-  // Synchronize branch and semester selection with role authorization
-  useEffect(() => {
-    const id = setTimeout(() => {
-      if (availableBranches.length > 0 && !availableBranches.includes(selectedBranch)) {
-        setSelectedBranch(availableBranches[0]);
-        setPage(1);
-      }
-    }, 0);
-    return () => clearTimeout(id);
-  }, [availableBranches, selectedBranch]);
-
-  useEffect(() => {
-    const id = setTimeout(() => {
-      if (availableSemesters.length > 0 && !availableSemesters.includes(Number(selectedSemester))) {
-        setSelectedSemester(String(availableSemesters[0]));
-        setPage(1);
-      }
-    }, 0);
-    return () => clearTimeout(id);
-  }, [availableSemesters, selectedSemester]);
-
   // Data state
   const [assignments, setAssignments] = useState([]);
   const [coverageData, setCoverageData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
 
   // Selected assignment for inspect details drawer
@@ -140,12 +126,13 @@ export default function TeachingAssignmentDirectory({
   // Fetch Directory Data with AbortController and targeted coverage computation
   const fetchDirectory = useCallback(async (signal) => {
     setLoading(true);
+    setError(null);
     try {
       const isPagedView = activeView === 'assignments';
       const params = new URLSearchParams({
-        branch: selectedBranch || '',
-        semester: selectedSemester || '',
-        academic_year: selectedAcademicYear || '',
+        branch: effectiveBranch || '',
+        semester: effectiveSemester || '',
+        academic_year: effectiveAcademicYear || '',
         status: statusFilter,
         include_coverage: activeView === 'coverage' ? 'true' : 'false'
       });
@@ -167,19 +154,23 @@ export default function TeachingAssignmentDirectory({
       setPaginationMeta(json.meta?.pagination || null);
     } catch (err) {
       if (err.name === 'AbortError') return;
-      toast.error(err.message);
+      setError(err.message || 'Failed to load teaching assignments');
+      toast.error(err.message || 'Failed to load teaching assignments');
     } finally {
       setLoading(false);
     }
-  }, [selectedBranch, selectedSemester, selectedAcademicYear, statusFilter, debouncedSearch, activeView, page]);
+  }, [effectiveBranch, effectiveSemester, effectiveAcademicYear, statusFilter, debouncedSearch, activeView, page]);
 
   useEffect(() => {
+    let ignore = false;
     const controller = new AbortController();
-    const id = setTimeout(() => {
-      fetchDirectory(controller.signal);
-    }, 0);
+    Promise.resolve().then(() => {
+      if (!ignore) {
+        fetchDirectory(controller.signal);
+      }
+    });
     return () => {
-      clearTimeout(id);
+      ignore = true;
       controller.abort();
     };
   }, [fetchDirectory]);
@@ -450,13 +441,14 @@ export default function TeachingAssignmentDirectory({
           <div>
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Branch</label>
             <select
-              value={selectedBranch}
+              value={effectiveBranch}
               onChange={(e) => {
                 setSelectedBranch(e.target.value);
                 setPage(1);
               }}
               className="w-full h-9 px-3 border border-slate-300 rounded-md bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#0b3578]"
             >
+              <option value="all">All Branches</option>
               {availableBranches.map(b => (
                 <option key={b} value={b}>{b}</option>
               ))}
@@ -467,13 +459,14 @@ export default function TeachingAssignmentDirectory({
           <div>
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Semester</label>
             <select
-              value={selectedSemester}
+              value={effectiveSemester}
               onChange={(e) => {
                 setSelectedSemester(e.target.value);
                 setPage(1);
               }}
               className="w-full h-9 px-3 border border-slate-300 rounded-md bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#0b3578]"
             >
+              <option value="all">All Semesters</option>
               {availableSemesters.map(s => (
                 <option key={s} value={String(s)}>Semester {s}</option>
               ))}
@@ -484,14 +477,16 @@ export default function TeachingAssignmentDirectory({
           <div>
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Academic Year</label>
             <select
-              value={selectedAcademicYear}
+              value={effectiveAcademicYear}
               onChange={(e) => {
+                userSelectedYearRef.current = true;
                 setSelectedAcademicYear(e.target.value);
                 setPage(1);
               }}
               className="w-full h-9 px-3 border border-slate-300 rounded-md bg-white text-xs font-semibold text-slate-800 font-mono focus:outline-none focus:border-[#0b3578]"
             >
-              {ACADEMIC_YEARS.map(y => (
+              <option value="">All Academic Years</option>
+              {academicYearsList.map(y => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
@@ -565,6 +560,19 @@ export default function TeachingAssignmentDirectory({
           {loading ? (
             <div className="py-16 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Loading assignments directory...
+            </div>
+          ) : error ? (
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-6 text-center space-y-3 m-4">
+              <AlertTriangle className="w-8 h-8 text-rose-500 mx-auto" />
+              <div className="text-sm font-bold text-rose-800">{error}</div>
+              <p className="text-xs text-rose-600">Could not load teaching assignments. Please retry.</p>
+              <button 
+                type="button"
+                onClick={() => fetchDirectory()} 
+                className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+              >
+                Retry Loading
+              </button>
             </div>
           ) : assignments.length === 0 ? (
             <div className="py-16 text-center space-y-2">

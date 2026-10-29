@@ -5,7 +5,6 @@ import {
   staffAccounts, 
   staffAccountRoles, 
   staffRoles,
-  collegeInfo as collegeInfoTable, 
   syllabusStructure,
   syllabusSubjects,
   attendanceSessions,
@@ -15,7 +14,7 @@ import {
 } from '@/db/schema';
 import { eq, and, asc, desc, inArray, or, like, sql } from 'drizzle-orm';
 import { apiResponse, apiError, wrapHandler } from '@/lib/api-utils';
-import { getCollegeAcademicYear } from '@/lib/academic-utils';
+import { getCollegeAcademicYear, deriveDefaultAcademicYear } from '@/lib/academic-utils';
 import { 
   canDirectlyAllocateSubject, 
   assertAcademicYearNotLocked, 
@@ -353,8 +352,7 @@ export const GET = wrapHandler({
     }
 
     // 8. Resolve System Academic Year for reference
-    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1)).limit(1);
-    const systemYear = (await getCollegeAcademicYear(collegeRows[0] || null)) || '2025-26';
+    const systemYear = await getCollegeAcademicYear();
 
     return apiResponse({ 
       data: enrichedAssignments,
@@ -419,10 +417,8 @@ export const POST = wrapHandler({
     }
 
     // 2. Resolve Academic Year
-    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1)).limit(1);
-    const collegeInfo = collegeRows[0] || null;
-    const currentAcademicYear = await getCollegeAcademicYear(collegeInfo);
-    const resolvedAcademicYear = academic_year || currentAcademicYear || '2025-26';
+    const currentAcademicYear = await getCollegeAcademicYear();
+    const resolvedAcademicYear = academic_year || currentAcademicYear || deriveDefaultAcademicYear();
 
     // 3. Academic-Year Locking Protection
     await assertAcademicYearNotLocked({
@@ -495,57 +491,80 @@ export const POST = wrapHandler({
 
     let assignmentId = null;
 
-    // 7. Duplicate Check / Idempotent Assignment
-    const existingAssignment = await db.select({ id: facultySubjectAssignments.id, is_active: facultySubjectAssignments.is_active })
-      .from(facultySubjectAssignments)
-      .where(and(
-        eq(facultySubjectAssignments.staff_account_id, target_faculty_id),
-        eq(facultySubjectAssignments.subject_code, subject_code),
-        eq(facultySubjectAssignments.branch, normBranch),
-        eq(facultySubjectAssignments.course_semester, parsedSemester),
-        eq(facultySubjectAssignments.academic_year, resolvedAcademicYear)
-      ))
-      .limit(1);
+    // 7. Atomic Transaction: Idempotent Assignment & Conversion of Pending Interests
+    await db.transaction(async (tx) => {
+      const existingAssignment = await tx.select({ id: facultySubjectAssignments.id, is_active: facultySubjectAssignments.is_active })
+        .from(facultySubjectAssignments)
+        .where(and(
+          eq(facultySubjectAssignments.staff_account_id, target_faculty_id),
+          eq(facultySubjectAssignments.subject_code, subject_code),
+          eq(facultySubjectAssignments.branch, normBranch),
+          eq(facultySubjectAssignments.course_semester, parsedSemester),
+          eq(facultySubjectAssignments.academic_year, resolvedAcademicYear)
+        ))
+        .limit(1);
 
-    if (existingAssignment.length > 0) {
-      assignmentId = existingAssignment[0].id;
-      if (existingAssignment[0].is_active) {
-        // Idempotent: Active assignment exists, proceed to convert any pending interests
+      if (existingAssignment.length > 0) {
+        assignmentId = existingAssignment[0].id;
+        if (!existingAssignment[0].is_active) {
+          // Reactivate inactive assignment
+          await tx.update(facultySubjectAssignments)
+            .set({ is_active: true })
+            .where(eq(facultySubjectAssignments.id, assignmentId));
+        }
       } else {
-        // Reactivate
-        await db.update(facultySubjectAssignments)
-          .set({ is_active: true })
-          .where(eq(facultySubjectAssignments.id, assignmentId));
+        try {
+          const [insertRes] = await tx.insert(facultySubjectAssignments).values({
+            staff_account_id: target_faculty_id,
+            subject_code: subject_code,
+            subject_name: subject_name,
+            branch: normBranch,
+            course_semester: parsedSemester,
+            academic_term: (parsedSemester % 2 === 0 ? 2 : 1),
+            academic_year: resolvedAcademicYear,
+            is_active: true
+          });
+          assignmentId = insertRes?.insertId;
+        } catch (insertErr) {
+          // Graceful concurrency recovery: check if another concurrent request created the assignment
+          if (insertErr?.code === 'ER_DUP_ENTRY' || insertErr?.message?.includes('Duplicate entry')) {
+            const recheck = await tx.select({ id: facultySubjectAssignments.id })
+              .from(facultySubjectAssignments)
+              .where(and(
+                eq(facultySubjectAssignments.staff_account_id, target_faculty_id),
+                eq(facultySubjectAssignments.subject_code, subject_code),
+                eq(facultySubjectAssignments.branch, normBranch),
+                eq(facultySubjectAssignments.course_semester, parsedSemester),
+                eq(facultySubjectAssignments.academic_year, resolvedAcademicYear)
+              ))
+              .limit(1);
+            if (recheck.length > 0) {
+              assignmentId = recheck[0].id;
+            } else {
+              throw insertErr;
+            }
+          } else {
+            throw insertErr;
+          }
+        }
       }
-    } else {
-      const [insertRes] = await db.insert(facultySubjectAssignments).values({
-        staff_account_id: target_faculty_id,
-        subject_code: subject_code,
-        subject_name: subject_name,
-        branch: normBranch,
-        course_semester: parsedSemester,
-        academic_term: (parsedSemester % 2 === 0 ? 2 : 1),
-        academic_year: resolvedAcademicYear,
-        is_active: true
-      });
-      assignmentId = insertRes?.insertId;
-    }
 
-    // 8. Convert matching pending interest requests
-    await db.update(facultySubjectInterests)
-      .set({
-        status: 'APPROVED',
-        reviewed_by: user.id,
-        reviewed_at: new Date()
-      })
-      .where(and(
-        eq(facultySubjectInterests.staff_account_id, target_faculty_id),
-        eq(facultySubjectInterests.subject_code, subject_code),
-        eq(facultySubjectInterests.branch, normBranch),
-        eq(facultySubjectInterests.semester, parsedSemester),
-        eq(facultySubjectInterests.academic_year, resolvedAcademicYear),
-        eq(facultySubjectInterests.status, 'PENDING')
-      ));
+      // 8. Convert matching pending interest requests
+      await tx.update(facultySubjectInterests)
+        .set({
+          status: 'APPROVED',
+          reviewed_by: user.id,
+          reviewed_at: new Date()
+        })
+        .where(and(
+          eq(facultySubjectInterests.staff_account_id, target_faculty_id),
+          eq(facultySubjectInterests.subject_code, subject_code),
+          eq(facultySubjectInterests.branch, normBranch),
+          eq(facultySubjectInterests.semester, parsedSemester),
+          eq(facultySubjectInterests.academic_year, resolvedAcademicYear),
+          eq(facultySubjectInterests.status, 'PENDING')
+        ));
+    });
 
     // 9. Audit Logging & Principal Notifications
     const clientIp = (request.headers.get('x-forwarded-for')?.split(',')[0] || request.headers.get('x-real-ip') || '127.0.0.1').trim().slice(0, 45);

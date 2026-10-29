@@ -10,6 +10,7 @@ import SemesterReadinessChecklist from '@/components/staff/academic/SemesterRead
 import { GenericPageSkeleton } from '@/components/ui/DashboardSkeleton';
 import { Info, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { deriveDefaultAcademicYear } from '@/lib/academic-constants';
 
 export default function HodStaffManagementClient() {
   const { loading, staffData, hasFetchedFaculty, isLoadingFaculty, refreshFaculty } = useStaff();
@@ -180,19 +181,19 @@ export default function HodStaffManagementClient() {
 
       <div className="min-h-[50vh]">
         {activeTab === 'directory' && (
-          <TeachingAssignmentDirectory initialAcademicYear={staffData?.academic_year || '2026-27'} />
+          <TeachingAssignmentDirectory initialAcademicYear={staffData?.academic_year || deriveDefaultAcademicYear()} />
         )}
 
         {activeTab === 'coverage' && (
           <AcademicCoverageDashboard 
-            initialAcademicYear={staffData?.academic_year || '2026-27'} 
+            initialAcademicYear={staffData?.academic_year || deriveDefaultAcademicYear()} 
             onNavigateToTab={setActiveTab} 
           />
         )}
 
         {activeTab === 'readiness' && (
           <SemesterReadinessChecklist 
-            initialAcademicYear={staffData?.academic_year || '2026-27'} 
+            initialAcademicYear={staffData?.academic_year || deriveDefaultAcademicYear()} 
             onNavigateToTab={setActiveTab} 
           />
         )}

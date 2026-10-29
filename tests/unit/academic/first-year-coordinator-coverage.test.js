@@ -50,8 +50,8 @@ vi.mock('@/lib/api-utils', async (importOriginal) => {
   };
 });
 
-vi.mock('@/db', () => ({
-  db: {
+vi.mock('@/db', () => {
+  const mockDb = {
     select: vi.fn(() => ({
       from: vi.fn((table) => {
         let tableName = '';
@@ -133,9 +133,11 @@ vi.mock('@/db', () => ({
     })),
     delete: vi.fn(() => ({
       where: vi.fn(async () => [{ affectedRows: 1 }])
-    }))
-  }
-}));
+    })),
+    transaction: vi.fn(async (cb) => cb(mockDb))
+  };
+  return { db: mockDb };
+});
 
 describe('First Year Coordinator Academic Coverage & Assignment Intelligence', () => {
   beforeEach(() => {
@@ -328,5 +330,68 @@ describe('First Year Coordinator Academic Coverage & Assignment Intelligence', (
     expect(res.status).toBe(200);
     // Should be idempotent and return existing id without creating duplicate
     expect(json.assignment_id).toBe(270017);
+  });
+
+  it('derives default academic year dynamically and formats canonical historical and upcoming years', async () => {
+    const { deriveDefaultAcademicYear, getCanonicalAcademicYears } = await import('@/lib/academic-constants');
+
+    // Indian academic calendar: June-Dec belongs to year-(year+1)
+    expect(deriveDefaultAcademicYear(new Date('2026-10-29'))).toBe('2026-27');
+    // Jan-May belongs to (year-1)-year
+    expect(deriveDefaultAcademicYear(new Date('2027-02-15'))).toBe('2026-27');
+    expect(deriveDefaultAcademicYear(new Date('2027-05-31'))).toBe('2026-27');
+    // Rollover to new academic year in July
+    expect(deriveDefaultAcademicYear(new Date('2027-07-01'))).toBe('2027-28');
+
+    // Canonical list includes 1 upcoming year, current, and past years
+    const canonical = getCanonicalAcademicYears('2026-27');
+    expect(canonical).toContain('2027-28');
+    expect(canonical).toContain('2026-27');
+    expect(canonical).toContain('2025-26');
+    expect(canonical).toContain('2024-25');
+    expect(canonical[0]).toBe('2027-28');
+    expect(canonical[1]).toBe('2026-27');
+  });
+
+  it('recovers gracefully from concurrent duplicate key insertion conflicts without throwing 500', async () => {
+    const payload = {
+      subject_code: 'BSC103',
+      subject_name: 'Mathematics-I',
+      branch: 'CSE',
+      semester: 1,
+      academic_year: '2026-27',
+      faculty_id: 180009
+    };
+
+    // Simulate concurrent insert where duplicate key occurs
+    const { db } = await import('@/db');
+    const originalInsert = db.insert;
+
+    db.insert = vi.fn(() => ({
+      values: vi.fn(async (val) => {
+        if (val.subject_code === 'BSC103') {
+          // Pre-populate so recheck finds it
+          mockAssignments.push({ id: 270099, ...val });
+          const duplicateError = new Error('Duplicate entry for key uq_faculty_subject_assignment');
+          duplicateError.code = 'ER_DUP_ENTRY';
+          throw duplicateError;
+        }
+        return [{ insertId: 270099 }];
+      })
+    }));
+
+    const req = new Request('http://localhost:3000/api/staff/hod/subject-assignments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const res = await postAssignment(req, { user: mockCurrentUser });
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.assignment_id).toBe(270099);
+
+    db.insert = originalInsert;
   });
 });

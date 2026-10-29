@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FacultyService } from '@/services/FacultyService';
 import { db } from '@/db';
+import { clearCalendarSessionCache } from '@/lib/academic-utils';
+import { deriveDefaultAcademicYear } from '@/lib/academic-constants';
 
 // Mock dependencies
 vi.mock('@/db', () => ({
@@ -13,12 +15,14 @@ vi.mock('@/db', () => ({
 describe('FacultyService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearCalendarSessionCache();
   });
 
   describe('getCurrentAcademicYear', () => {
     it('should return the latest academic year from the semesters table', async () => {
       const mockChain = {
         from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
         innerJoin: vi.fn().mockReturnThis(),
         leftJoin: vi.fn().mockReturnThis(),
         groupBy: vi.fn().mockReturnThis(),
@@ -35,6 +39,7 @@ describe('FacultyService', () => {
     it('should return a default year if no semesters are found', async () => {
       const mockChain = {
         from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
         innerJoin: vi.fn().mockReturnThis(),
         leftJoin: vi.fn().mockReturnThis(),
         groupBy: vi.fn().mockReturnThis(),
@@ -44,7 +49,7 @@ describe('FacultyService', () => {
       db.select.mockReturnValue(mockChain);
 
       const year = await FacultyService.getCurrentAcademicYear();
-      expect(year).toBe('2025-26');
+      expect(year).toBe(deriveDefaultAcademicYear());
     });
   });
 
@@ -144,6 +149,7 @@ describe('FacultyService', () => {
       // Setup mock for getCurrentAcademicYear call inside getBranchTimetable
       const mockYearChain = {
         from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
         innerJoin: vi.fn().mockReturnThis(),
         leftJoin: vi.fn().mockReturnThis(),
         groupBy: vi.fn().mockReturnThis(),

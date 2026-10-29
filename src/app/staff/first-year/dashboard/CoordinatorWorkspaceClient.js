@@ -10,6 +10,7 @@ import TeachingAssignmentDirectory from '@/components/staff/academic/TeachingAss
 import AcademicCoverageDashboard from '@/components/staff/academic/AcademicCoverageDashboard';
 import SemesterReadinessChecklist from '@/components/staff/academic/SemesterReadinessChecklist';
 import toast from 'react-hot-toast';
+import { deriveDefaultAcademicYear } from '@/lib/academic-constants';
 import { 
   GraduationCap, 
   BookOpen, 
@@ -467,7 +468,7 @@ export default function CoordinatorWorkspaceClient() {
         <div className="space-y-4">
           <TeachingAssignmentDirectory 
             isCoordinatorView={true} 
-            initialAcademicYear={assignment.academic_year || staffData?.academic_year || '2026-27'} 
+            initialAcademicYear={assignment.academic_year || staffData?.academic_year || deriveDefaultAcademicYear()} 
           />
         </div>
       )}
@@ -477,7 +478,7 @@ export default function CoordinatorWorkspaceClient() {
         <div className="space-y-4">
           <AcademicCoverageDashboard 
             isCoordinatorView={true} 
-            initialAcademicYear={assignment.academic_year || staffData?.academic_year || '2026-27'}
+            initialAcademicYear={assignment.academic_year || staffData?.academic_year || deriveDefaultAcademicYear()}
             onNavigateToTab={setActiveTab} 
           />
         </div>
@@ -488,7 +489,7 @@ export default function CoordinatorWorkspaceClient() {
         <div className="space-y-4">
           <SemesterReadinessChecklist 
             isCoordinatorView={true} 
-            initialAcademicYear={assignment.academic_year || staffData?.academic_year || '2026-27'}
+            initialAcademicYear={assignment.academic_year || staffData?.academic_year || deriveDefaultAcademicYear()}
             onNavigateToTab={setActiveTab} 
           />
         </div>
