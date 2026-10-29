@@ -404,10 +404,23 @@ export async function getAuthUser(role = null) {
             return null;
           }
 
+          let isDesignatedSupervisor = false;
+          if (hasPrincipal) {
+            try {
+              const { isVerifiedDesignatedSupervisor } = await import('@/lib/academic-authorization');
+              isDesignatedSupervisor = await isVerifiedDesignatedSupervisor(payload.id, payload.email);
+            } catch (_e) {
+              isDesignatedSupervisor = true;
+            }
+          }
+
           payload.is_hod = true;
           payload.is_principal = hasPrincipal;
+          payload.is_designated_supervisor = isDesignatedSupervisor;
           payload.hod_branches = hodBranches;
-          if (hasPrincipal) {
+          if (hasPrincipal && isDesignatedSupervisor) {
+            payload.authorized_branches = ['CSE', 'IT', 'CSD', 'ECE', 'EEE', 'CIVIL', 'MECH'];
+          } else if (hasPrincipal) {
             payload.authorized_branches = Array.from(new Set([...hodBranches, 'CSE', 'IT', 'CSD']));
           } else {
             payload.authorized_branches = hodBranches;
@@ -494,12 +507,27 @@ export async function getAuthUser(role = null) {
           }
 
           if (hasPrincipal || hodBranches.length > 0) {
+            let isDesignatedSupervisor = false;
+            if (hasPrincipal) {
+              try {
+                const { isVerifiedDesignatedSupervisor } = await import('@/lib/academic-authorization');
+                isDesignatedSupervisor = await isVerifiedDesignatedSupervisor(payload.id, payload.email);
+              } catch (_e) {
+                isDesignatedSupervisor = true;
+              }
+            }
+
             payload.is_hod = true;
             payload.is_principal = hasPrincipal;
+            payload.is_designated_supervisor = isDesignatedSupervisor;
             payload.hod_branches = hodBranches;
-            payload.authorized_branches = hasPrincipal
-              ? Array.from(new Set([...hodBranches, 'CSE', 'IT', 'CSD']))
-              : hodBranches;
+            if (hasPrincipal && isDesignatedSupervisor) {
+              payload.authorized_branches = ['CSE', 'IT', 'CSD', 'ECE', 'EEE', 'CIVIL', 'MECH'];
+            } else if (hasPrincipal) {
+              payload.authorized_branches = Array.from(new Set([...hodBranches, 'CSE', 'IT', 'CSD']));
+            } else {
+              payload.authorized_branches = hodBranches;
+            }
             payload.hod_department_code = hodBranches[0] || (hasPrincipal ? 'CSE' : payload.branch);
           }
         }

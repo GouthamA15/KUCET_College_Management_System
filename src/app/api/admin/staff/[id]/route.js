@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { staffAccounts, staffAcademicAffiliations, academicDepartments, academicPrograms, facultyHodAssignments, facultyCoordinatorAssignments, staffRoles, staffAccountRoles, semesters, auditLogs } from '@/db/schema';
+import { staffAccounts, staffAcademicAffiliations, academicDepartments, academicPrograms, facultyHodAssignments, facultyCoordinatorAssignments, staffRoles, staffAccountRoles, semesters, auditLogs, systemConfigs } from '@/db/schema';
 import { eq, and, ne, sql, inArray } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
 import { isValidFacultyBranch } from '@/lib/staff-config';
@@ -435,10 +435,32 @@ export async function PUT(req, context) {
               action: 'PRINCIPAL_SUPERVISOR_DESIGNATED',
               target_type: 'staff_accounts',
               target_id: String(idNum),
-              payload_after: { designation: 'Principal Supervisor across CSE, IT, and CSD' },
+              payload_after: { designation: 'Designated Institutional Academic Supervisor' },
               ip_address: clientIp,
               user_agent: userAgent
             });
+          }
+
+          // Authoritatively record designated supervisor in systemConfigs
+          try {
+            const [existingCfg] = await tx.select().from(systemConfigs).where(eq(systemConfigs.config_key, 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID')).limit(1);
+            if (existingCfg) {
+              await tx.update(systemConfigs).set({
+                config_value: String(idNum),
+                updated_by: String(user.id),
+                updated_at: new Date()
+              }).where(eq(systemConfigs.config_key, 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID'));
+            } else {
+              await tx.insert(systemConfigs).values({
+                config_key: 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID',
+                config_value: String(idNum),
+                data_type: 'STRING',
+                description: 'Designated institutional academic supervisor staff ID with global authority',
+                updated_by: String(user.id)
+              });
+            }
+          } catch (_cfgErr) {
+            // Non-fatal if systemConfigs is temporarily unavailable
           }
         } else {
           await tx.delete(staffAccountRoles).where(and(
@@ -455,6 +477,16 @@ export async function PUT(req, context) {
             ip_address: clientIp,
             user_agent: userAgent
           });
+
+          // Unset designated supervisor if it belonged to this staff ID
+          try {
+            await tx.delete(systemConfigs).where(and(
+              eq(systemConfigs.config_key, 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID'),
+              eq(systemConfigs.config_value, String(idNum))
+            ));
+          } catch (_cfgErr) {
+            // Non-fatal
+          }
         }
       }
 
