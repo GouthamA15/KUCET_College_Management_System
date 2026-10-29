@@ -504,4 +504,107 @@ test.describe('First Year Coordinator Comprehensive E2E Suite', () => {
     await expect(page.locator('text="Section A"')).toHaveCount(0);
     await expect(page.locator('text="Section B"')).toHaveCount(0);
   });
+
+  // Scenario 11: Academic Coverage & Workload displays 2026-27 default and opens Assign Now modal
+  test('Scenario 11: Academic Coverage defaults to 2026-27 and Assign Now opens assignment modal', async ({ page }) => {
+    await page.context().addCookies([
+      { name: 'staff_auth', value: coordinatorToken, domain: 'localhost', path: '/' },
+      { name: 'staff_logged_in', value: 'true', domain: 'localhost', path: '/' },
+    ]);
+
+    await page.route('/api/staff/me', async (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: {
+            ...mockCoordinator,
+            academic_year: '2026-27',
+            coordinator_assignment: {
+              academic_year: '2026-27',
+              start_date: '2026-10-23'
+            }
+          }
+        }),
+      });
+    });
+
+    await page.route('/api/staff/hod/academic-coverage?**', async (route) => {
+      const url = new URL(route.request().url());
+      expect(url.searchParams.get('academic_year')).toBe('2026-27');
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: {
+            academic_year: '2026-27',
+            branch: 'CSE',
+            semester: 1,
+            summary: {
+              total_syllabus_subjects: 7,
+              covered_subjects_count: 2,
+              unassigned_subjects_count: 5,
+              coverage_percentage: 29,
+              total_assignments: 2,
+              distinct_assigned_faculty: 1,
+              pending_requests_count: 0,
+              total_timetable_slots: 0
+            },
+            covered_subjects: [
+              { subject_code: 'BSC101', subject_name: 'Physics', subject_type: 'theory', assigned_faculty: [{ id: 180009, name: 'Dr.M.Kalpana Devi' }] },
+              { subject_code: 'BSC101L', subject_name: 'Physics-Practical', subject_type: 'lab', assigned_faculty: [{ id: 180009, name: 'Dr.M.Kalpana Devi' }] }
+            ],
+            unassigned_subjects: [
+              { subject_code: 'BSC103', subject_name: 'Mathematics-I', subject_type: 'theory', branch: 'CSE', semester: 1 },
+              { subject_code: 'ESC101', subject_name: 'Basic Electrical Engineering', subject_type: 'theory', branch: 'CSE', semester: 1 }
+            ],
+            pending_requests: [],
+            workload_distribution: [
+              { id: 180009, name: 'Dr.M.Kalpana Devi', employee_id: 'KU-BAD807-0808', total_periods: 0, assigned_subjects: [{ subject_code: 'BSC101' }, { subject_code: 'BSC101L' }] }
+            ],
+            alerts: [
+              { type: 'UNASSIGNED_SUBJECT', severity: 'HIGH', message: 'Missing faculty coverage: Mathematics-I (BSC103) has no teaching faculty assigned.', subject_code: 'BSC103' }
+            ],
+            authorized_branches: ['CSE', 'IT', 'CSD', 'ECE', 'EEE', 'CIVIL', 'MECH'],
+            allowed_semesters: [1, 2]
+          }
+        })
+      });
+    });
+
+    await page.route('/api/staff/hod/active-faculty?**', async (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: [
+            { id: 180009, name: 'Dr.M.Kalpana Devi', employee_id: 'KU-BAD807-0808' }
+          ]
+        })
+      });
+    });
+
+    await page.goto('/staff/first-year/dashboard');
+    await page.click('button:has-text("Coverage & Workload")');
+
+    // Verify academic year filter shows 2026-27
+    const yearSelect = page.locator('select').nth(2);
+    await expect(yearSelect).toHaveValue('2026-27');
+
+    // Verify 29% assigned coverage is shown and Physics is NOT unassigned
+    await expect(page.locator('text=29%')).toBeVisible();
+    await expect(page.locator('text=2 of 7 subjects covered')).toBeVisible();
+    await expect(page.locator('text=Missing faculty coverage: Mathematics-I (BSC103)')).toBeVisible();
+
+    // Click Assign Now button
+    await page.click('button:has-text("Assign Now")');
+
+    // Verify Assign Faculty modal opens
+    await expect(page.locator('text=Assign Teaching Faculty')).toBeVisible();
+    await expect(page.locator('.fixed').getByText('Mathematics-I', { exact: true })).toBeVisible();
+    await expect(page.locator('.fixed').getByText('BSC103')).toBeVisible();
+  });
 });

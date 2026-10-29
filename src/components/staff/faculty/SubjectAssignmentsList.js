@@ -24,7 +24,16 @@ export default function SubjectAssignmentsList() {
 
   const [selectedBranch, setSelectedBranch] = useState(availableBranches[0] || 'CSE');
   const [selectedSemester, setSelectedSemester] = useState('1');
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState('2025-26');
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState(staffData?.academic_year || ACADEMIC_YEARS[0]);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (staffData?.academic_year && ACADEMIC_YEARS.includes(staffData.academic_year)) {
+        setSelectedAcademicYear(staffData.academic_year);
+      }
+    }, 0);
+    return () => clearTimeout(id);
+  }, [staffData?.academic_year]);
   const [selectedType, setSelectedType] = useState('');
   const [assignMode, setAssignMode] = useState('SELF'); // 'SELF' or 'OTHER'
   const [targetFacultyId, setTargetFacultyId] = useState('');

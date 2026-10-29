@@ -25,6 +25,7 @@ const ACADEMIC_YEARS = ['2026-27', '2025-26', '2024-25', '2023-24'];
 export default function TeachingAssignmentDirectory({ 
   initialBranch = null,
   initialSemester = null,
+  initialAcademicYear = null,
   isCoordinatorView = false 
 }) {
   const { staffData, refreshFaculty } = useStaff();
@@ -52,14 +53,27 @@ export default function TeachingAssignmentDirectory({
     return [1, 2, 3, 4, 5, 6, 7, 8];
   }, [isCoordinator, isHod, isAdmin]);
 
+  const defaultYear = initialAcademicYear || staffData?.coordinator_assignment?.academic_year || staffData?.academic_year || ACADEMIC_YEARS[0];
+
   // Filter state
   const [selectedBranch, setSelectedBranch] = useState(initialBranch || availableBranches[0] || 'CSE');
   const [selectedSemester, setSelectedSemester] = useState(initialSemester ? String(initialSemester) : (availableSemesters[0] ? String(availableSemesters[0]) : '1'));
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState('2025-26');
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState(defaultYear);
   const [statusFilter, setStatusFilter] = useState('active'); // 'active', 'archived', 'all'
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeView, setActiveView] = useState('assignments'); // 'assignments', 'coverage', 'faculty', 'branch', 'subject'
+
+  // Synchronize academic year with staff context / coordinator assignment
+  useEffect(() => {
+    const id = setTimeout(() => {
+      const activeYear = initialAcademicYear || staffData?.coordinator_assignment?.academic_year || staffData?.academic_year;
+      if (activeYear && ACADEMIC_YEARS.includes(activeYear)) {
+        setSelectedAcademicYear(activeYear);
+      }
+    }, 0);
+    return () => clearTimeout(id);
+  }, [staffData, initialAcademicYear]);
 
   // Pagination state for Directory Table
   const [page, setPage] = useState(1);
