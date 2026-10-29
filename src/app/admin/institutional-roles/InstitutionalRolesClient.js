@@ -212,7 +212,7 @@ export default function InstitutionalRolesClient() {
               Institutional Roles & Academic Supervisor
             </h1>
             <p className="text-sm text-indigo-200/80 mt-2 max-w-2xl">
-              Authoritatively manage the college Principal role and the designated Academic Supervisor with global multi-department monitoring authority across CSE, IT, and CSD.
+              Authoritatively manage the college Principal role and the designated Academic Supervisor with global multi-department monitoring authority across all seven branches: CSE, IT, CSD, ECE, EEE, CIVIL, and MECH.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -725,7 +725,7 @@ export default function InstitutionalRolesClient() {
                     You are designating {activeModal.staff?.name} as the sole Academic Supervisor.
                   </p>
                   <p>
-                    • This grants global read-only monitoring authority across CSE, IT, and CSD departments.
+                    • This grants global read-only monitoring authority across all seven academic branches (CSE, IT, CSD, ECE, EEE, CIVIL, MECH).
                   </p>
                   <p>
                     • If another staff member was previously designated, their global monitoring privileges will be immediately revoked.

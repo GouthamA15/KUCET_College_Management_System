@@ -839,7 +839,7 @@ export default function ManageStaffClient() {
                                       </span>
                                     </div>
                                     <p className="text-xs text-slate-600 mt-1">
-                                      Assigns the institutional Principal role to this staff member. To activate global Academic Supervisor monitoring privileges across CSE, IT, and CSD, configure the designation in <span className="font-semibold text-purple-700">Institutional Roles & Academic Supervisor</span>.
+                                      Assigns the institutional Principal role to this staff member. To activate global Academic Supervisor monitoring privileges across all seven branches (CSE, IT, CSD, ECE, EEE, CIVIL, MECH), configure the designation in <span className="font-semibold text-purple-700">Institutional Roles & Academic Supervisor</span>.
                                     </p>
                                     <p className="text-[11px] text-slate-500 mt-1 italic">
                                       Note: Holding the Principal role alone does not confer global academic monitoring privileges until explicitly designated.

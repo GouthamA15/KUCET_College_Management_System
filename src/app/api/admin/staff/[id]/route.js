@@ -413,7 +413,7 @@ export async function PUT(req, context) {
           const [ins] = await tx.insert(staffRoles).values({
             role_code: 'PRINCIPAL',
             role_name: 'Principal / Academic Supervisor',
-            description: 'Principal-level institutional supervisor with oversight across CSE, IT, and CSD'
+            description: 'Principal-level institutional supervisor with oversight across all seven branches: CSE, IT, CSD, ECE, EEE, CIVIL, and MECH'
           });
           principalRoleDef = { id: ins.insertId };
         }

@@ -509,5 +509,45 @@ describe('Institutional Roles & Academic Supervisor Admin Management Suite', () 
       const isSupervisor = await isDesignatedAcademicSupervisor(90001, 'sunebhai7705@gmail.com');
       expect(isSupervisor).toBe(false);
     });
+
+    it('confirms that a Principal without designation has NO global access across 7 branches, and replacement immediately strips previous supervisor', async () => {
+      const { getAuthorizedAcademicBranches } = await import('@/lib/academic-authorization');
+
+      // Staff A: has PRINCIPAL role, but is NOT designated
+      const staffA_NonDesignated = {
+        id: 90001,
+        role: 'faculty',
+        is_principal: true,
+        is_designated_supervisor: false,
+        is_hod: false
+      };
+      // Must NOT receive global access
+      expect(getAuthorizedAcademicBranches(staffA_NonDesignated)).toEqual([]);
+
+      // Staff A: becomes designated
+      const staffA_Designated = {
+        ...staffA_NonDesignated,
+        is_designated_supervisor: true
+      };
+      // Receives global access across all seven branches
+      expect(getAuthorizedAcademicBranches(staffA_Designated)).toBeNull();
+
+      // Replacement: Staff B is now designated, Staff A is no longer designated
+      const staffA_Former = {
+        ...staffA_NonDesignated,
+        is_designated_supervisor: false
+      };
+      const staffB_New = {
+        id: 210001,
+        role: 'faculty',
+        is_principal: true,
+        is_designated_supervisor: true,
+        is_hod: false
+      };
+      // Former supervisor immediately loses global scope
+      expect(getAuthorizedAcademicBranches(staffA_Former)).toEqual([]);
+      // New supervisor gains global scope
+      expect(getAuthorizedAcademicBranches(staffB_New)).toBeNull();
+    });
   });
 });
