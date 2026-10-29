@@ -64,6 +64,19 @@ function createChainMock(resolveValue = []) {
   return chain;
 }
 
+function mockSupervisorDb(staffId = 42, email = 'principal@kucet.ac.in') {
+  db.select
+    .mockReturnValueOnce(createChainMock([
+      { config_key: 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID', config_value: String(staffId) }
+    ]))
+    .mockReturnValueOnce(createChainMock([
+      { id: staffId, email, account_status: 'ACTIVE' }
+    ]))
+    .mockReturnValueOnce(createChainMock([
+      { role_code: 'PRINCIPAL' }
+    ]));
+}
+
 describe('Supervisor Global Authority & Restricted HOD Assignment Suite', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -122,7 +135,8 @@ describe('Supervisor Global Authority & Restricted HOD Assignment Suite', () => 
         role: 'faculty',
         is_principal: true,
         is_designated_supervisor: true,
-        branch: 'CSE'
+        branch: 'CSE',
+        email: 'principal@kucet.ac.in'
       };
 
       const mockAssignments = [
@@ -133,6 +147,7 @@ describe('Supervisor Global Authority & Restricted HOD Assignment Suite', () => 
         { id: 11, name: 'Dr. B', status: 'ACTIVE' }
       ];
 
+      mockSupervisorDb(42, 'principal@kucet.ac.in');
       db.select
         .mockReturnValueOnce(createChainMock(mockAssignments))
         .mockReturnValueOnce(createChainMock(mockEligibleFaculty));
@@ -153,10 +168,14 @@ describe('Supervisor Global Authority & Restricted HOD Assignment Suite', () => 
         id: 42,
         role: 'faculty',
         is_principal: true,
-        is_designated_supervisor: true
+        is_designated_supervisor: true,
+        email: 'principal@kucet.ac.in'
       };
 
-      // 1. Staff lookup (target is active faculty ID 11)
+      // 1. Authoritative supervisor verification in DB
+      mockSupervisorDb(42, 'principal@kucet.ac.in');
+
+      // 2. Staff lookup (target is active faculty ID 11)
       db.select.mockReturnValueOnce(createChainMock([
         { id: 11, name: 'Dr. B', email: 'b@kucet.ac.in', status: 'ACTIVE' }
       ]));
@@ -196,10 +215,14 @@ describe('Supervisor Global Authority & Restricted HOD Assignment Suite', () => 
         id: 42,
         role: 'faculty',
         is_principal: true,
-        is_designated_supervisor: true
+        is_designated_supervisor: true,
+        email: 'principal@kucet.ac.in'
       };
 
-      // Target staff is active faculty ID 11
+      // 1. Authoritative supervisor verification in DB
+      mockSupervisorDb(42, 'principal@kucet.ac.in');
+
+      // 2. Target staff is active faculty ID 11
       db.select.mockReturnValueOnce(createChainMock([
         { id: 11, name: 'Dr. B', email: 'b@kucet.ac.in', status: 'ACTIVE' }
       ]));

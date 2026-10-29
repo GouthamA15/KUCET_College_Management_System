@@ -280,16 +280,69 @@ describe('Designated Academic Supervisor Fail-Closed Security & Regression Suite
         id: 42,
         role: 'faculty',
         is_principal: true,
-        is_designated_supervisor: true
+        email: 'principal@kucet.ac.in'
       };
 
       db.select
+        .mockReturnValueOnce(createChainMock([
+          { config_key: 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID', config_value: '42' }
+        ]))
+        .mockReturnValueOnce(createChainMock([
+          { id: 42, email: 'principal@kucet.ac.in', account_status: 'ACTIVE' }
+        ]))
+        .mockReturnValueOnce(createChainMock([
+          { role_code: 'PRINCIPAL' }
+        ]))
         .mockReturnValueOnce(createChainMock([])) // assignments
         .mockReturnValueOnce(createChainMock([])); // eligible faculty
 
       const req = new Request('http://localhost/api/staff/hod/assignments');
       const res = await getHodAssignments(req);
       expect(res.status).toBe(200);
+    });
+
+    it('Case 13B: forged or stale is_designated_supervisor token flag cannot bypass server-side check', async () => {
+      // Attacker supplies a user object with is_designated_supervisor = true,
+      // but in DB the designated supervisor is someone else (ID 42) and this caller is ID 99
+      mockCurrentUser = {
+        id: 99,
+        role: 'faculty',
+        is_principal: true,
+        is_designated_supervisor: true, // Forged / Stale token claim
+        email: 'attacker@kucet.ac.in'
+      };
+
+      db.select.mockReturnValueOnce(createChainMock([
+        { config_key: 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID', config_value: '42' }
+      ]));
+
+      const req = new Request('http://localhost/api/staff/hod/assignments');
+      const res = await getHodAssignments(req);
+      expect(res.status).toBe(403);
+      const data = await res.json();
+      expect(data.error).toContain('Designated Academic Supervisor');
+    });
+
+    it('Case 13C: Principal without staffId or account ID is strictly denied global access', async () => {
+      mockCurrentUser = {
+        role: 'faculty',
+        is_principal: true,
+        email: 'unidentified_principal@kucet.ac.in'
+      };
+
+      const req = new Request('http://localhost/api/staff/hod/assignments');
+      const res = await getHodAssignments(req);
+      expect(res.status).toBe(403);
+    });
+
+    it('Case 13D: user with role principal without staffId or id is strictly denied global access in helpers', () => {
+      const malformedPrincipal = {
+        role: 'principal'
+      };
+
+      expect(getAuthorizedAcademicBranches(malformedPrincipal)).toEqual([]);
+      expect(getAllowedAcademicSemesters(malformedPrincipal)).toEqual([]);
+      expect(isAcademicScopeAllowed(malformedPrincipal, { branch: 'CSE', semester: 1 })).toBe(false);
     });
 
     it('Case 14: missing configuration produces 403 Forbidden for non-designated staff at supervisor endpoints', async () => {

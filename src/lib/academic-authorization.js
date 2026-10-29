@@ -231,7 +231,7 @@ export function getAuthorizedAcademicBranches(user) {
   const role = String(user.role).toLowerCase();
 
   // Super Admin or explicitly designated academic supervisor has global access
-  if (['admin', 'super_admin'].includes(role) || (role === 'principal' && !user.staffId && !user.id) || user.is_designated_supervisor) {
+  if (['admin', 'super_admin'].includes(role) || user.is_designated_supervisor === true) {
     return null; // Global access
   }
 
@@ -257,7 +257,7 @@ export function getAllowedAcademicSemesters(user, targetBranch = null) {
   const role = String(user.role || '').toLowerCase();
 
   // Super Admin or explicitly designated academic supervisor has global access to all 8 semesters
-  if (['admin', 'super_admin'].includes(role) || (role === 'principal' && !user.staffId && !user.id) || user.is_designated_supervisor) {
+  if (['admin', 'super_admin'].includes(role) || user.is_designated_supervisor === true) {
     return [1, 2, 3, 4, 5, 6, 7, 8];
   }
 
@@ -290,7 +290,7 @@ export function isAcademicScopeAllowed(user, { branch, semester }) {
   const role = String(user.role || '').toLowerCase();
 
   // 1. Super Admin and explicitly designated academic supervisor have unrestricted access
-  if (['admin', 'super_admin'].includes(role) || (role === 'principal' && !user.staffId && !user.id) || user.is_designated_supervisor) {
+  if (['admin', 'super_admin'].includes(role) || user.is_designated_supervisor === true) {
     return true;
   }
 
@@ -469,8 +469,8 @@ export function canDirectlyAllocateSubject(user, { branch, semester, target_facu
   if (!user) return { allowed: false, reason: 'Unauthorized' };
   const role = String(user.role || '').toLowerCase();
 
-  // Super Admin / Principal
-  if (['admin', 'super_admin', 'principal'].includes(role) || user.is_principal) {
+  // Super Admin
+  if (['admin', 'super_admin'].includes(role)) {
     return { allowed: true };
   }
 
@@ -538,7 +538,8 @@ export function canReviewSubjectInterest(user, interest) {
   if (!user) return { allowed: false, reason: 'Unauthorized' };
   const role = String(user.role || '').toLowerCase();
 
-  if (['admin', 'super_admin', 'principal'].includes(role) || user.is_principal) {
+  // Super Admin
+  if (['admin', 'super_admin'].includes(role)) {
     return { allowed: true, canApprove: true, canReject: true, isSelfAllocation: interest.staff_account_id === user.id };
   }
 
