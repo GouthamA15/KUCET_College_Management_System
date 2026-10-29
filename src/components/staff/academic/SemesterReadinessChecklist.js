@@ -16,7 +16,10 @@ const ACADEMIC_YEARS = ['2026-27', '2025-26', '2024-25', '2023-24'];
 
 export default function SemesterReadinessChecklist({ 
   onNavigateToTab = null,
-  isCoordinatorView = false 
+  isCoordinatorView = false,
+  initialAcademicYear = null,
+  initialBranch = null,
+  initialSemester = null
 }) {
   const { staffData } = useStaff();
 
@@ -39,9 +42,22 @@ export default function SemesterReadinessChecklist({
     return [1, 2, 3, 4, 5, 6, 7, 8];
   }, [isCoordinator, isHod, isAdmin]);
 
-  const [selectedBranch, setSelectedBranch] = useState(availableBranches[0] || 'CSE');
-  const [selectedSemester, setSelectedSemester] = useState(availableSemesters[0] ? String(availableSemesters[0]) : '1');
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState('2025-26');
+  const defaultYear = initialAcademicYear || staffData?.coordinator_assignment?.academic_year || staffData?.academic_year || ACADEMIC_YEARS[0];
+
+  const [selectedBranch, setSelectedBranch] = useState(initialBranch || availableBranches[0] || 'CSE');
+  const [selectedSemester, setSelectedSemester] = useState(initialSemester ? String(initialSemester) : (availableSemesters[0] ? String(availableSemesters[0]) : '1'));
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState(defaultYear);
+
+  // Synchronize academic year with staff context / coordinator assignment
+  useEffect(() => {
+    const id = setTimeout(() => {
+      const activeYear = initialAcademicYear || staffData?.coordinator_assignment?.academic_year || staffData?.academic_year;
+      if (activeYear && ACADEMIC_YEARS.includes(activeYear)) {
+        setSelectedAcademicYear(activeYear);
+      }
+    }, 0);
+    return () => clearTimeout(id);
+  }, [staffData, initialAcademicYear]);
 
   // Synchronize branch and semester selection with role authorization
   useEffect(() => {
@@ -64,9 +80,11 @@ export default function SemesterReadinessChecklist({
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const fetchReadiness = useCallback(async (signal) => {
     setLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams({
         branch: selectedBranch,
@@ -79,7 +97,8 @@ export default function SemesterReadinessChecklist({
       setData(json.data);
     } catch (err) {
       if (err.name === 'AbortError') return;
-      toast.error(err.message);
+      setError(err.message || 'Could not load semester readiness audit. Please retry.');
+      toast.error(err.message || 'Failed to load semester readiness');
     } finally {
       setLoading(false);
     }
@@ -155,8 +174,22 @@ export default function SemesterReadinessChecklist({
       </div>
 
       {loading ? (
-        <div className="py-20 text-center text-xs font-semibold text-slate-500 uppercase tracking-widest">
-          Evaluating semester readiness checklist...
+        <div className="py-20 text-center text-xs font-semibold text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2">
+          <div className="w-4 h-4 border-2 border-[#0b3578] border-t-transparent rounded-full animate-spin" />
+          <span>Evaluating semester readiness checklist...</span>
+        </div>
+      ) : error ? (
+        <div className="bg-rose-50 border border-rose-200 rounded-xl p-6 text-center space-y-3">
+          <AlertTriangle className="w-8 h-8 text-rose-500 mx-auto" />
+          <div className="text-sm font-bold text-rose-800">{error}</div>
+          <p className="text-xs text-rose-600">Could not evaluate readiness for {selectedBranch} Semester {selectedSemester} ({selectedAcademicYear}).</p>
+          <button 
+            type="button"
+            onClick={() => fetchReadiness()} 
+            className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+          >
+            Retry Audit
+          </button>
         </div>
       ) : data ? (
         <div className="space-y-6">

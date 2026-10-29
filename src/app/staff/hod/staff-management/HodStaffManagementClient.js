@@ -180,15 +180,21 @@ export default function HodStaffManagementClient() {
 
       <div className="min-h-[50vh]">
         {activeTab === 'directory' && (
-          <TeachingAssignmentDirectory />
+          <TeachingAssignmentDirectory initialAcademicYear={staffData?.academic_year || '2026-27'} />
         )}
 
         {activeTab === 'coverage' && (
-          <AcademicCoverageDashboard onNavigateToTab={setActiveTab} />
+          <AcademicCoverageDashboard 
+            initialAcademicYear={staffData?.academic_year || '2026-27'} 
+            onNavigateToTab={setActiveTab} 
+          />
         )}
 
         {activeTab === 'readiness' && (
-          <SemesterReadinessChecklist onNavigateToTab={setActiveTab} />
+          <SemesterReadinessChecklist 
+            initialAcademicYear={staffData?.academic_year || '2026-27'} 
+            onNavigateToTab={setActiveTab} 
+          />
         )}
 
         {activeTab === 'interests' && (

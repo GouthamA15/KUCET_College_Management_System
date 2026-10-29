@@ -12,7 +12,16 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
 
   const [selectedBranch, setSelectedBranch] = useState(staffData?.branch || staffData?.branches?.[0] || 'CSE');
   const [selectedSemester, setSelectedSemester] = useState('1');
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState('2025-26');
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState(staffData?.academic_year || ACADEMIC_YEARS[0]);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (staffData?.academic_year && ACADEMIC_YEARS.includes(staffData.academic_year)) {
+        setSelectedAcademicYear(staffData.academic_year);
+      }
+    }, 0);
+    return () => clearTimeout(id);
+  }, [staffData?.academic_year]);
   const [syllabus, setSyllabus] = useState([]);
   const [loadingSyllabus, setLoadingSyllabus] = useState(false);
   const [submitting, setSubmitting] = useState(false);

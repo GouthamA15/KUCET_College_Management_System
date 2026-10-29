@@ -6,7 +6,6 @@ import { useStaff } from '@/context/StaffContext';
 import SyllabusManager from '@/components/staff/faculty/SyllabusManager';
 import IDCardManagementHub from '@/components/staff/id-cards/IDCardManagementHub';
 import CoordinatorApaarDashboard from '@/components/staff/first-year/CoordinatorApaarDashboard';
-import SubjectAssignmentsList from '@/components/staff/faculty/SubjectAssignmentsList';
 import TeachingAssignmentDirectory from '@/components/staff/academic/TeachingAssignmentDirectory';
 import AcademicCoverageDashboard from '@/components/staff/academic/AcademicCoverageDashboard';
 import SemesterReadinessChecklist from '@/components/staff/academic/SemesterReadinessChecklist';
@@ -466,21 +465,32 @@ export default function CoordinatorWorkspaceClient() {
       {/* ─── TAB: SUBJECT ALLOCATIONS / DIRECTORY ───────────────────────────── */}
       {activeTab === 'allocations' && (
         <div className="space-y-4">
-          <TeachingAssignmentDirectory isCoordinatorView={true} />
+          <TeachingAssignmentDirectory 
+            isCoordinatorView={true} 
+            initialAcademicYear={assignment.academic_year || staffData?.academic_year || '2026-27'} 
+          />
         </div>
       )}
 
       {/* ─── TAB: ACADEMIC COVERAGE & WORKLOAD ─────────────────────────────────── */}
       {activeTab === 'coverage' && (
         <div className="space-y-4">
-          <AcademicCoverageDashboard isCoordinatorView={true} onNavigateToTab={setActiveTab} />
+          <AcademicCoverageDashboard 
+            isCoordinatorView={true} 
+            initialAcademicYear={assignment.academic_year || staffData?.academic_year || '2026-27'}
+            onNavigateToTab={setActiveTab} 
+          />
         </div>
       )}
 
       {/* ─── TAB: SEMESTER READINESS CHECKLIST ───────────────────────────────── */}
       {activeTab === 'readiness' && (
         <div className="space-y-4">
-          <SemesterReadinessChecklist isCoordinatorView={true} onNavigateToTab={setActiveTab} />
+          <SemesterReadinessChecklist 
+            isCoordinatorView={true} 
+            initialAcademicYear={assignment.academic_year || staffData?.academic_year || '2026-27'}
+            onNavigateToTab={setActiveTab} 
+          />
         </div>
       )}
 
@@ -567,6 +577,7 @@ export default function CoordinatorWorkspaceClient() {
                   onClick={() => {
                     setNewInstanceBranch(ttBranch);
                     setNewInstanceSem(ttSemester);
+                    setNewInstanceYear(prev => prev || assignment.academic_year || staffData?.academic_year || '2026-27');
                     setShowCreateInstance(true);
                   }}
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0b3578] hover:bg-[#0a2d66] text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
@@ -678,7 +689,7 @@ export default function CoordinatorWorkspaceClient() {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. 2025-26 or 2025-2026"
+                      placeholder="e.g. 2026-27"
                       value={newInstanceYear}
                       onChange={e => setNewInstanceYear(e.target.value)}
                       className="w-full border border-slate-300 rounded px-3 py-2 text-xs"
