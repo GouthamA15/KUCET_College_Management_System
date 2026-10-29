@@ -53,7 +53,31 @@ export async function GET(request) {
     }
 
     const assignment = assignments[0];
-    if (assignment.faculty_id !== user.id && !(user.is_hod && (user.branch === assignment.branch || !assignment.branch))) {
+    const authorizedBranches = (user.authorized_branches || (user.branch ? [user.branch] : [])).map(b => String(b).toUpperCase());
+    const assignmentBranch = String(assignment.branch || '').toUpperCase();
+
+    // --- READ AUTHORIZATION ---
+    // Primary Faculty, Substitute, HOD (authorized branches), Coordinator (Sem 1-2), Supervisor, Admin
+    const isAssignedFaculty = assignment.faculty_id === user.id;
+    const isGlobalAdminOrSupervisor = user.role === 'admin' || !!user.is_principal;
+    const isHodForBranch = !!user.is_hod && (authorizedBranches.includes(assignmentBranch) || !assignment.branch);
+    const isFirstYearCoordForSem = !!user.is_first_year_coordinator && (assignment.course_semester === 1 || assignment.course_semester === 2);
+
+    let isAuthorized = isAssignedFaculty || isGlobalAdminOrSupervisor || isHodForBranch || isFirstYearCoordForSem;
+
+    if (!isAuthorized) {
+      const { facultySubstitutions } = await import('@/db/schema');
+      const substitute = await db.select({ id: facultySubstitutions.id })
+        .from(facultySubstitutions)
+        .where(and(
+          eq(facultySubstitutions.original_assignment_id, assignment_id),
+          eq(facultySubstitutions.substitute_faculty_id, user.id)
+        ))
+        .limit(1);
+      if (substitute.length > 0) isAuthorized = true;
+    }
+
+    if (!isAuthorized) {
       return apiError('Unauthorized for this assignment', 403);
     }
     const { branch, course_semester, academic_year, subject_name, subject_code, canonical_subject_type } = assignment;
@@ -248,8 +272,31 @@ export async function POST(request) {
     }
 
     const assignment = assignments[0];
-    if (assignment.faculty_id !== user.id && !(user.is_hod && (user.branch === assignment.branch || !assignment.branch))) {
-      return apiError('Unauthorized for this assignment', 403);
+    const authorizedBranches = (user.authorized_branches || (user.branch ? [user.branch] : [])).map(b => String(b).toUpperCase());
+    const assignmentBranch = String(assignment.branch || '').toUpperCase();
+
+    // --- WRITE AUTHORIZATION (MUTATIONS) ---
+    // Strictly assigned faculty, substitute, HOD for branch, or Admin. Monitoring roles are read-only.
+    const isAssignedFaculty = assignment.faculty_id === user.id;
+    const isGlobalAdmin = user.role === 'admin';
+    const isHodForBranch = !!user.is_hod && (authorizedBranches.includes(assignmentBranch) || !assignment.branch);
+
+    let isWriteAuthorized = isAssignedFaculty || isGlobalAdmin || isHodForBranch;
+
+    if (!isWriteAuthorized) {
+      const { facultySubstitutions } = await import('@/db/schema');
+      const substitute = await db.select({ id: facultySubstitutions.id })
+        .from(facultySubstitutions)
+        .where(and(
+          eq(facultySubstitutions.original_assignment_id, assignment_id),
+          eq(facultySubstitutions.substitute_faculty_id, user.id)
+        ))
+        .limit(1);
+      if (substitute.length > 0) isWriteAuthorized = true;
+    }
+
+    if (!isWriteAuthorized) {
+      return apiError('Forbidden: Monitoring access does not grant mark entry or editing authority for this assignment', 403);
     }
     const { subject_code, branch, course_semester, academic_year, subject_name, canonical_subject_type } = assignment;
 
