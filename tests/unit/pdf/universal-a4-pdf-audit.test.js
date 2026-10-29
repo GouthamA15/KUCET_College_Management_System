@@ -93,4 +93,36 @@ describe('Universal A4 PDF Geometry & Grayscale Print Standard Audit', () => {
     expect(element).toBeDefined();
     expect(element.props.size).toEqual([242, 385]);
   });
+
+  it('BaseCertificate enforces standard A4 Page dimensions with margins', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const filePath = path.resolve(process.cwd(), 'src/pdf/components/BaseCertificate.js');
+    const content = fs.readFileSync(filePath, 'utf-8');
+
+    expect(content).toContain('<Page size="A4" style={styles.page}>');
+    expect(content).toContain('CertificateHeader');
+    expect(content).toContain('SignatureBlock');
+  });
+
+  it('BonafideCertificatePDF and certificate templates wrap BaseCertificate', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const certTemplates = [
+      'BonafideCertificatePDF.js',
+      'CourseCompletionCertificatePDF.js',
+      'CustodianCertificatePDF.js',
+      'IncomeTaxCertificatePDF.js',
+      'MigrationCertificatePDF.js',
+      'NoObjectionCertificatePDF.js',
+      'StudyConductCertificatePDF.js',
+      'TransferCertificatePDF.js'
+    ];
+
+    for (const tmpl of certTemplates) {
+      const filePath = path.resolve(process.cwd(), 'src/pdf/templates', tmpl);
+      const content = fs.readFileSync(filePath, 'utf-8');
+      expect(content).toContain('BaseCertificate');
+    }
+  });
 });

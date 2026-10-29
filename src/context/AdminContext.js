@@ -46,8 +46,9 @@ export function AdminProvider({ children }) {
     return null;
   }, []);
 
-  const fetchStaff = useCallback(async () => {
-    if (!adminDataRef.current) return [];
+  const fetchStaff = useCallback(async (adminOverride) => {
+    const currentAdmin = adminOverride || adminDataRef.current;
+    if (!currentAdmin) return [];
     try {
       const res = await fetch('/api/admin/staff');
       if (res.ok) {
@@ -59,6 +60,7 @@ export function AdminProvider({ children }) {
         }
         return payload;
       } else if (res.status === 401 || res.status === 403) {
+        adminDataRef.current = null;
         setAdminData(null);
       }
     } catch (e) {
@@ -67,8 +69,9 @@ export function AdminProvider({ children }) {
     return [];
   }, []);
 
-  const fetchStudentStats = useCallback(async () => {
-    if (!adminDataRef.current) return null;
+  const fetchStudentStats = useCallback(async (adminOverride) => {
+    const currentAdmin = adminOverride || adminDataRef.current;
+    if (!currentAdmin) return null;
     try {
       const res = await fetch('/api/admin/student-stats');
       if (res.ok) {
@@ -77,6 +80,7 @@ export function AdminProvider({ children }) {
         setStudentStats(payload);
         return payload;
       } else if (res.status === 401 || res.status === 403) {
+        adminDataRef.current = null;
         setAdminData(null);
       }
     } catch (e) {
@@ -91,10 +95,12 @@ export function AdminProvider({ children }) {
       if (res.ok) {
         const json = await res.json();
         const payload = json?.admin ?? json ?? null;
+        adminDataRef.current = payload;
         setAdminData(payload);
         return payload;
       }
       if (res.status === 401 || res.status === 403) {
+        adminDataRef.current = null;
         setAdminData(null);
         return null;
       }
@@ -202,10 +208,10 @@ export function AdminProvider({ children }) {
           return;
         }
 
-        // Step 2: Load aggregate staff and student stats in background
+        // Step 2: Load aggregate staff and student stats in background with verified admin
         await Promise.all([
-          fetchStaff(),
-          fetchStudentStats()
+          fetchStaff(admin),
+          fetchStudentStats(admin)
         ]);
       } catch (e) {
         console.error('Failed to refresh admin data', e);

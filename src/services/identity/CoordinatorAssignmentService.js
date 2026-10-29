@@ -420,7 +420,7 @@ export class CoordinatorAssignmentService {
         staff_status: staffAccounts.account_status,
         department_code: academicDepartments.department_code,
         department_name: academicDepartments.department_name,
-        assigned_by_name: principal.name,
+        assigned_by_name: principal.email,
       })
       .from(facultyCoordinatorAssignments)
       .innerJoin(staffAccounts, eq(facultyCoordinatorAssignments.staff_account_id, staffAccounts.id))
