@@ -378,16 +378,21 @@ describe('IDCardDataService Authoritative Eligibility & Branch Export Suite', ()
     expect(card.branch).toBe('CSE');
     expect(card.qrUrl).toMatch(/^data:image\/png;base64,/);
 
-    // Verify structured QR payload contents
+    // Verify readable plain-text QR payload contents
     const qrPayload = IDCardDataService.generateStudentQRPayload(card);
-    expect(qrPayload.schemaVersion).toBe(1);
-    expect(qrPayload.type).toBe('KUCET_STUDENT_ID');
-    expect(qrPayload.hallTicketNumber).toBe('26567T0901');
-    expect(qrPayload.roll).toBe('26567T0901');
-    expect(qrPayload.fullName).toBe('KAVYA REDDY');
-    expect(qrPayload.fatherName).toBe('RAMA REDDY');
-    expect(qrPayload.academicYear).toBe('2026-2030');
-    expect(qrPayload.collegeName).toBe('KU COLLEGE OF ENGINEERING & TECHNOLOGY');
+    expect(typeof qrPayload).toBe('string');
+    expect(qrPayload).not.toContain('schemaVersion');
+    expect(qrPayload).not.toContain('KUCET_STUDENT_ID');
+    expect(qrPayload).not.toContain('studentId');
+    expect(qrPayload).toContain('HALL-TICKET-NO : 26567T0901');
+    expect(qrPayload).toContain('NAME : KAVYA REDDY');
+    expect(qrPayload).toContain('FATHER-S-NAME : RAMA REDDY');
+    expect(qrPayload).toContain('COURSE : B.TECH (CSE)');
+    expect(qrPayload).toContain('VALID-UPTO- : 2026-2030');
+    expect(qrPayload).toContain('BRANCH : CSE');
+    expect(qrPayload).toContain('ACADEMIC-YEAR : 2026-2030');
+    expect(qrPayload).toContain('COLLEGE-NAME : KU COLLEGE OF ENGINEERING & TECHNOLOGY');
+    expect(qrPayload).toContain('BLOOD-GROUP : O+');
   });
 
   it('14. bulk retrieval enforces departmental scoping', async () => {

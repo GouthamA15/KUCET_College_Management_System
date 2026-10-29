@@ -37,6 +37,274 @@ export const CANONICAL_BRANCHES = [
   { code: '03', name: 'MECH', fullName: 'Mechanical Engineering' },
 ];
 
+/**
+ * Resolves official student serial number printed on the ID card, if one exists.
+ * Invariant: Never substitutes the internal database primary key (id).
+ */
+function resolveOfficialSerialNo(student) {
+  if (!student) return '';
+  const raw = student.slNo ?? student.sl_no ?? student.sNo ?? student.s_no ?? student.serialNo ?? student.serial_no ?? student.sno;
+  if (raw === null || raw === undefined) return '';
+  const str = String(raw).trim();
+  if (str.toUpperCase() === 'N/A' || str.toLowerCase() === 'null' || str.toLowerCase() === 'undefined') {
+    return '';
+  }
+  return str;
+}
+
+/**
+ * Resolves official hall ticket / roll number.
+ */
+function resolveHallTicketNo(student) {
+  if (!student) return '';
+  const raw = student.rollNo ?? student.hallTicketNumber ?? student.roll ?? student.admissionNo;
+  if (!raw) return '';
+  const str = String(raw).trim().toUpperCase();
+  if (str === 'N/A' || str === 'NULL' || str === 'UNDEFINED') return '';
+  return str;
+}
+
+/**
+ * Resolves student full name.
+ */
+function resolveStudentName(student) {
+  if (!student) return '';
+  const raw = student.studentName ?? student.fullName ?? student.name;
+  if (!raw) return '';
+  const str = String(raw).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
+  if (str === 'N/A' || str === 'NULL' || str === 'UNDEFINED') return '';
+  return str;
+}
+
+/**
+ * Resolves father's name.
+ */
+function resolveFatherName(student) {
+  if (!student) return '';
+  const raw = student.fatherName ?? student.father_name;
+  if (!raw) return '';
+  const str = String(raw).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
+  if (str === 'N/A' || str === 'NULL' || str === 'UNDEFINED') return '';
+  return str;
+}
+
+/**
+ * Resolves course in approved college format, e.g. B.TECH (IT) or B.TECH (CIVIL).
+ */
+function resolveCourse(student) {
+  if (!student) return '';
+  let raw = student.courseDisplay;
+  if (!raw && student.branch) {
+    raw = `B.TECH (${student.branch.toUpperCase().trim()})`;
+  } else if (!raw && student.course) {
+    const c = String(student.course).trim();
+    raw = c.toUpperCase().startsWith('B.TECH') ? c : `B.TECH (${c})`;
+  }
+  if (!raw) return '';
+  const str = String(raw).trim().toUpperCase();
+  if (str === 'N/A' || str === 'NULL' || str === 'UNDEFINED') return '';
+  return str;
+}
+
+/**
+ * Formats address readably on one single line without line-breaks.
+ */
+function resolveAddress(student) {
+  if (!student) return '';
+  const raw = student.studentAddress ?? student.address ?? student.permanentAddress ?? student.permanent_address;
+  if (!raw) return '';
+  const str = String(raw)
+    .replace(/[\r\n]+/g, ', ')
+    .replace(/\s+/g, ' ')
+    .replace(/,\s*,+/g, ', ')
+    .replace(/^[, ]+|[, ]+$/g, '')
+    .trim();
+  if (str.toUpperCase() === 'N/A' || str.toLowerCase() === 'null' || str.toLowerCase() === 'undefined') {
+    return '';
+  }
+  return str;
+}
+
+/**
+ * Resolves registered mobile number with decryption if encrypted.
+ */
+function resolveMobileNo(student) {
+  if (!student) return '';
+  let raw = student.studentPhone ?? student.mobile ?? student.phone;
+  if (!raw) return '';
+  if (typeof raw === 'string' && raw.split(':').length === 3) {
+    try {
+      raw = decrypt(raw);
+    } catch {
+      // Fallback
+    }
+  }
+  if (!raw) return '';
+  const str = String(raw).trim();
+  if (str.toUpperCase() === 'N/A' || str.toLowerCase() === 'null' || str.toLowerCase() === 'undefined') {
+    return '';
+  }
+  return str;
+}
+
+/**
+ * Resolves approved academic validity range, e.g. 2026-2030 or 2025-2028.
+ */
+function resolveValidUpto(student) {
+  if (!student) return '';
+  let raw = student.validUpto ?? student.valid_upto ?? student.batch ?? student.academicYear;
+  if (!raw && student.rollNo) {
+    try {
+      raw = getBatchFromRoll(student.rollNo);
+    } catch {
+      raw = '';
+    }
+  }
+  if (!raw) return '';
+  const str = String(raw).trim();
+  if (str.toUpperCase() === 'N/A' || str.toLowerCase() === 'null' || str.toLowerCase() === 'undefined') {
+    return '';
+  }
+  return str;
+}
+
+/**
+ * Resolves academic branch name.
+ */
+function resolveBranch(student) {
+  if (!student) return '';
+  const raw = student.branch ?? (student.rollNo ? getBranchFromRoll(student.rollNo) : '');
+  if (!raw) return '';
+  const str = String(raw).trim().toUpperCase();
+  if (str === 'N/A' || str === 'NULL' || str === 'UNDEFINED') return '';
+  return str;
+}
+
+/**
+ * Resolves academic year.
+ */
+function resolveAcademicYear(student) {
+  if (!student) return '';
+  const raw = student.academicYear ?? student.batch ?? (student.rollNo ? getBatchFromRoll(student.rollNo) : '');
+  if (!raw) return '';
+  const str = String(raw).trim();
+  if (str.toUpperCase() === 'N/A' || str.toLowerCase() === 'null' || str.toLowerCase() === 'undefined') return '';
+  return str;
+}
+
+/**
+ * Resolves admission year.
+ */
+function resolveAdmissionYear(student) {
+  if (!student) return '';
+  let raw = student.admissionYear;
+  if (!raw && student.batch && String(student.batch).includes('-')) {
+    raw = String(student.batch).split('-')[0].trim();
+  }
+  if (!raw && student.admissionDate) {
+    try {
+      raw = new Date(student.admissionDate).getFullYear().toString();
+    } catch {
+      raw = '';
+    }
+  }
+  if (!raw && student.rollNo) {
+    const valid = validateRollNo(student.rollNo);
+    if (valid.isValid && valid.entryYear) {
+      raw = valid.entryYear;
+    }
+  }
+  if (!raw) return '';
+  const str = String(raw).trim();
+  if (str.toUpperCase() === 'N/A' || str.toLowerCase() === 'null' || str.toLowerCase() === 'undefined') return '';
+  return str;
+}
+
+/**
+ * Resolves institutional college name.
+ */
+function resolveCollegeName(student) {
+  if (!student) return '';
+  const raw = student.collegeName ?? 'KU COLLEGE OF ENGINEERING & TECHNOLOGY';
+  const str = String(raw).trim();
+  if (str.toUpperCase() === 'N/A' || str.toLowerCase() === 'null' || str.toLowerCase() === 'undefined') return '';
+  return str;
+}
+
+/**
+ * Resolves institutional college address.
+ */
+function resolveCollegeAddress(student) {
+  if (!student) return '';
+  const raw = student.collegeAddress ?? 'Kakatiya University Campus, Vidyaranyapuri, Warangal 506 009';
+  const str = String(raw)
+    .replace(/[\r\n]+/g, ', ')
+    .replace(/\s+/g, ' ')
+    .replace(/,\s*,+/g, ', ')
+    .trim();
+  if (str.toUpperCase() === 'N/A' || str.toLowerCase() === 'null' || str.toLowerCase() === 'undefined') return '';
+  return str;
+}
+
+/**
+ * Resolves student blood group.
+ */
+function resolveBloodGroup(student) {
+  if (!student) return '';
+  const raw = student.bloodGroup ?? student.blood_group;
+  if (!raw) return '';
+  const str = String(raw).trim().toUpperCase();
+  if (str === 'N/A' || str === 'NULL' || str === 'UNDEFINED') return '';
+  return str;
+}
+
+/**
+ * Dedicated reusable plain-text QR payload builder for student ID cards.
+ * Generates a human-readable labeled text format with one field per line.
+ * Mandated order: First 8 primary fields followed by preserved institutional fields.
+ */
+export function buildStudentIDCardQRPayload(student) {
+  if (!student) return null;
+
+  const slNo = resolveOfficialSerialNo(student);
+  const hallTicketNo = resolveHallTicketNo(student);
+  const name = resolveStudentName(student);
+  const fatherName = resolveFatherName(student);
+  const course = resolveCourse(student);
+  const address = resolveAddress(student);
+  const mobile = resolveMobileNo(student);
+  const validUpto = resolveValidUpto(student);
+  const branch = resolveBranch(student);
+  const academicYear = resolveAcademicYear(student);
+  const admissionYear = resolveAdmissionYear(student);
+  const collegeName = resolveCollegeName(student);
+  const collegeAddress = resolveCollegeAddress(student);
+  const bloodGroup = resolveBloodGroup(student);
+
+  const lines = [
+    `SL-NO : ${slNo}`,
+    `HALL-TICKET-NO : ${hallTicketNo}`,
+    `NAME : ${name}`,
+    `FATHER-S-NAME : ${fatherName}`,
+    `COURSE : ${course}`,
+    `ADDRESS : ${address}`,
+    `MOBILE-NO : ${mobile}`,
+    `VALID-UPTO- : ${validUpto}`,
+    `BRANCH : ${branch}`,
+    `ACADEMIC-YEAR : ${academicYear}`,
+    `ADMISSION-YEAR : ${admissionYear}`,
+    `COLLEGE-NAME : ${collegeName}`,
+    `COLLEGE-ADDRESS : ${collegeAddress}`,
+    `BLOOD-GROUP : ${bloodGroup}`,
+  ];
+
+  if (student.roll && String(student.roll).trim().toUpperCase() !== hallTicketNo) {
+    lines.push(`ROLL-NO : ${String(student.roll).trim().toUpperCase()}`);
+  }
+
+  return lines.join('\n');
+}
+
 export class IDCardDataService {
   /**
    * Helper: Resolves two-digit numeric branch code from canonical branch name
@@ -94,9 +362,11 @@ export class IDCardDataService {
     const fatherName = row.father_name || 'N/A';
     const permanentAddress = getPermanentAddressFromDetails(row) || 'N/A';
     const bloodGroup = row.blood_group || 'N/A';
+    const slNo = row.sl_no ?? row.slNo ?? row.s_no ?? row.sNo ?? row.serial_no ?? row.serialNo ?? row.sno ?? null;
 
     return {
       id: row.id,
+      slNo,
       rollNo: row.roll_no,
       admissionNo: row.admission_no || row.roll_no,
       studentName: row.name || 'N/A',
@@ -401,34 +671,25 @@ export class IDCardDataService {
   }
 
   /**
-   * Generates a structured, versioned QR payload encoding complete student details
-   * matching the physical ID card, backward-compatible with attendance scanners.
+   * Dedicated reusable plain-text QR payload builder for student ID cards.
+   * Generates a human-readable labeled text format with one field per line:
+   * SL-NO : <val>
+   * HALL-TICKET-NO : <val>
+   * NAME : <val>
+   * FATHER-S-NAME : <val>
+   * COURSE : <val>
+   * ADDRESS : <val>
+   * MOBILE-NO : <val>
+   * VALID-UPTO- : <val>
+   *
+   * Invariants:
+   * - Excludes raw JSON, schemaVersion, type, and database internal primary keys.
+   * - Never outputs 'undefined', 'null', or misleading placeholder data.
+   * - Address is formatted readably on a single line.
+   * - Retains full backward compatibility with attendance QR scanners.
    */
   static generateStudentQRPayload(student) {
-    if (!student) return null;
-
-    const admissionYear = student.batch && String(student.batch).includes('-')
-      ? String(student.batch).split('-')[0].trim()
-      : (student.admissionDate ? new Date(student.admissionDate).getFullYear().toString() : 'N/A');
-
-    return {
-      schemaVersion: 1,
-      type: 'KUCET_STUDENT_ID',
-      studentId: student.id ? String(student.id) : String(student.rollNo),
-      hallTicketNumber: student.rollNo,
-      roll: student.rollNo, // Backward compatibility alias
-      fullName: student.studentName || 'N/A',
-      fatherName: student.fatherName || 'N/A',
-      branch: student.branch,
-      course: student.courseDisplay || `B.Tech (${student.branch})`,
-      academicYear: student.batch || 'N/A',
-      admissionYear,
-      collegeName: 'KU COLLEGE OF ENGINEERING & TECHNOLOGY',
-      collegeAddress: 'Kakatiya University Campus, Vidyaranyapuri, Warangal 506 009',
-      studentAddress: student.studentAddress || 'N/A',
-      phone: student.studentPhone || 'N/A',
-      bloodGroup: student.bloodGroup || 'N/A',
-    };
+    return buildStudentIDCardQRPayload(student);
   }
 
   /**
@@ -438,8 +699,8 @@ export class IDCardDataService {
     const payload = this.generateStudentQRPayload(student);
     if (!payload) return null;
 
-    const jsonString = JSON.stringify(payload);
-    return QRCode.toDataURL(jsonString, {
+    const qrText = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    return QRCode.toDataURL(qrText, {
       errorCorrectionLevel: 'M',
       margin: 2,
       width: 320,

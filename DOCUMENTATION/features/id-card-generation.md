@@ -37,7 +37,30 @@ The Student ID Card Management module enables authorized college staff to audit,
    - Name in bold crimson, father's name, QR verification code, and Principal signature block (`T.M. Reddy`).
    - Footer permanent address and verified contact mobile number.
 
-4. **Missing Photo Rectification Workflow:**
+4. **Human-Readable Plain-Text QR Payload Engine:**
+   - Generates labeled, human-readable plain text instead of raw JSON objects when scanned by phone cameras or attendance scanners:
+     ```text
+     SL-NO : <val>
+     HALL-TICKET-NO : <val>
+     NAME : <val>
+     FATHER-S-NAME : <val>
+     COURSE : <val>
+     ADDRESS : <val>
+     MOBILE-NO : <val>
+     VALID-UPTO- : <val>
+     BRANCH : <val>
+     ACADEMIC-YEAR : <val>
+     ADMISSION-YEAR : <val>
+     COLLEGE-NAME : <val>
+     COLLEGE-ADDRESS : <val>
+     BLOOD-GROUP : <val>
+     ```
+   - **Invariants**: Excludes `schemaVersion`, `type`, `studentId`, raw JSON braces, and database auto-increment IDs.
+   - **Single-Line Formatting**: Sanitizes and collapses multi-line student addresses into a clean single line.
+   - **Graceful Null Handling**: Never prints `undefined`, `null`, `N/A`, or misleading dummy placeholders.
+   - **Scanner Compatibility**: Seamlessly detected by the faculty attendance camera scanner (`extractRollNumberFromQR`).
+
+5. **Missing Photo Rectification Workflow:**
    - Modal directly integrated into the preview dialog and registry table for uploading or replacing missing student photos.
    - Stores photos via `StorageProvider` (`kucet/students/pfp/[uuid].webp`), updates `student_images.pfp` in the database, and creates structured audit log entries.
 

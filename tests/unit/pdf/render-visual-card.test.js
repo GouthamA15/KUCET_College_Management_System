@@ -133,8 +133,14 @@ describe('Render & Visual Verification of ID Card', () => {
         const zbarOut = execSync(`zbarimg -q "${generatedPng}"`).toString();
         expect(zbarOut).toContain('QR-Code:');
         expect(zbarOut).toContain('26567T0901');
-        expect(zbarOut).toContain('KUCET_STUDENT_ID');
-        expect(zbarOut).toContain('ADEPU SUCHARITHA');
+        expect(zbarOut).not.toContain('KUCET_STUDENT_ID');
+        expect(zbarOut).not.toContain('schemaVersion');
+        expect(zbarOut).not.toContain('studentId');
+        expect(zbarOut).toContain('HALL-TICKET-NO : 26567T0901');
+        expect(zbarOut).toContain('NAME : ADEPU SUCHARITHA');
+        expect(zbarOut).toContain('COURSE : B.TECH (CSE)');
+        expect(zbarOut).toContain('BRANCH : CSE');
+        expect(zbarOut).toContain('BLOOD-GROUP : O+');
       }
     }
   }, 30000);
