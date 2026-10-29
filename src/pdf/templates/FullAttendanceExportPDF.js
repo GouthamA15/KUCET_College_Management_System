@@ -121,12 +121,12 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 1,
     borderRightWidth: 0.5,
-    borderRightColor: '#3b82f6',
+    borderRightColor: '#93c5fd',
   },
   tableRow: {
     flexDirection: 'row',
     borderBottomWidth: 0.5,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: '#cbd5e1',
     minHeight: 13,
     alignItems: 'center',
   },
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
     paddingVertical: 1.5,
     paddingHorizontal: 2,
     borderRightWidth: 0.5,
-    borderRightColor: '#e2e8f0',
+    borderRightColor: '#cbd5e1',
     textAlign: 'center',
   },
   tdCellLeft: {
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     paddingVertical: 1.5,
     paddingHorizontal: 4,
     borderRightWidth: 0.5,
-    borderRightColor: '#e2e8f0',
+    borderRightColor: '#cbd5e1',
     textAlign: 'left',
   },
   monoText: {
@@ -155,17 +155,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   statusPresent: {
-    color: '#15803d',
+    color: '#14532d',
     fontFamily: 'Helvetica-Bold',
     fontSize: 7.2,
   },
   statusAbsent: {
-    color: '#b91c1c',
+    color: '#991b1b',
     fontFamily: 'Helvetica-Bold',
     fontSize: 7.2,
   },
   statusOther: {
-    color: '#b45309',
+    color: '#78350f',
     fontFamily: 'Helvetica-Bold',
     fontSize: 6.5,
   },

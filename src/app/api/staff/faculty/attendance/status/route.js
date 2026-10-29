@@ -44,11 +44,16 @@ export async function GET(request) {
 
     const assignment = assignments[0];
 
-    // Authorization: primary faculty, HOD, substitute, or admin
+    // Authorization: primary faculty, HOD (authorized branches), Coordinator (Sem 1-2), Supervisor, or admin
+    const authorizedBranches = (user.authorized_branches || (user.branch ? [user.branch] : [])).map(b => String(b).toUpperCase());
+    const assignmentBranch = String(assignment.branch || '').toUpperCase();
+
     let isAuthorized = false;
-    if (assignment.faculty_id === user.id || user.role === 'admin') {
+    if (assignment.faculty_id === user.id || user.role === 'admin' || user.is_principal) {
       isAuthorized = true;
-    } else if (user.is_hod && user.branch === assignment.branch) {
+    } else if (user.is_hod && (authorizedBranches.includes(assignmentBranch) || !assignment.branch)) {
+      isAuthorized = true;
+    } else if (user.is_first_year_coordinator && (assignment.course_semester === 1 || assignment.course_semester === 2)) {
       isAuthorized = true;
     } else {
       const { facultySubstitutions } = await import('@/db/schema');

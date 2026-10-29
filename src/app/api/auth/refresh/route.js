@@ -140,12 +140,23 @@ export async function POST(req) {
 
     // Task 3: Verify Hash Rotation / Stale Hash / Grace Period
     if (tokenRecord.revoked_at) {
+      // SAFEGUARD 2: Distinguish explicit logout revocation from normal concurrent token rotation.
+      // An explicitly logged-out token has NO replacement token (replaced_by_token_id is null/0)
+      // or its session was revoked. NEVER grant grace period to explicitly logged-out tokens!
+      const hasReplacement = tokenRecord.replaced_by_token_id && Number(tokenRecord.replaced_by_token_id) > 0;
+      const isSessionRevoked = sessionRecord ? (sessionRecord.is_revoked === true || sessionRecord.is_revoked === 1) : false;
+
+      if (!hasReplacement || isSessionRevoked) {
+        logDevValues();
+        return apiError('Session has been logged out. Please login again.', 401);
+      }
+
       const revokedAtTime = new Date(tokenRecord.revoked_at).getTime();
-      const gracePeriodMs = 120000; // 2 minutes grace period for concurrent/canceled requests
+      const gracePeriodMs = 120000; // 2 minutes grace period for concurrent requests during rotation
       const isWithinGracePeriod = (now.getTime() - revokedAtTime) < gracePeriodMs;
 
       if (isWithinGracePeriod) {
-        // This is a concurrent request within the grace period.
+        // This is a legitimate concurrent request within the grace period during normal rotation.
         // Instead of failing and revoking everything, we return a fresh access token (JWT)
         // and keep the same refresh token cookie (do not rotate again).
         
@@ -518,12 +529,7 @@ export async function POST(req) {
       return apiError('Security validation failed', 401);
     }
 
-    // 5. Revoke old token
-    await db.update(refreshTokens)
-      .set({ revoked_at: now })
-      .where(eq(refreshTokens.id, tokenRecord.id));
-
-    // 6. Fetch user and issue new tokens
+    // 5. Issue new tokens first to capture successor token ID
     const response = apiResponse({ success: true, message: 'Token refreshed' });
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
     const userAgent = req.headers.get('user-agent') || 'Unknown';
@@ -538,6 +544,16 @@ export async function POST(req) {
     } else if (type === 'admin') {
       await issueAdminAuthCookie(response, user, true, ip, userAgent);
     }
+
+    const nextTokenId = response._newRefreshTokenId || null;
+
+    // 6. Revoke old token and link to successor token for legitimate concurrent grace period
+    await db.update(refreshTokens)
+      .set({
+        revoked_at: now,
+        replaced_by_token_id: nextTokenId ? Number(nextTokenId) : null
+      })
+      .where(eq(refreshTokens.id, tokenRecord.id));
 
     return response;
 

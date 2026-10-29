@@ -2,12 +2,24 @@
 import { invalidateAssetCache } from '@/lib/assets';
 import { disconnectRealtimeSocket } from '@/components/RealtimeListener';
 
+let isLoggingOut = false;
+
 async function safePost(url) {
-  if (!url) return;
+  if (!url) return false;
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timeoutId = controller ? setTimeout(() => controller.abort(), 5000) : null;
   try {
-    await fetch(url, { method: 'POST', credentials: 'include' });
+    const res = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller?.signal
+    });
+    return res.ok;
   } catch {
-    // Ignore network errors; client-side cleanup + redirect still proceeds.
+    return false;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
 }
 
@@ -86,34 +98,41 @@ async function logoutAndRedirect({
   cookies = [],
   redirect = '/',
 } = {}) {
-  await safePost(endpoint);
+  if (isLoggingOut) return;
+  isLoggingOut = true;
 
-  await purgeBrowserCaches();
+  try {
+    await safePost(endpoint);
 
-  // Clean sensitive/role local storage keys
-  const keysToClean = new Set([...SENSITIVE_LOCAL_STORAGE_KEYS, ...localStorageKeys]);
-  for (const key of keysToClean) {
-    safeLocalRemoveItem(key);
+    await purgeBrowserCaches();
+
+    // Clean sensitive/role local storage keys
+    const keysToClean = new Set([...SENSITIVE_LOCAL_STORAGE_KEYS, ...localStorageKeys]);
+    for (const key of keysToClean) {
+      safeLocalRemoveItem(key);
+    }
+
+    // Always clear entire sessionStorage to prevent cross-account contamination
+    if (clearSessionStorage !== false) {
+      safeSessionClear();
+    }
+
+    const allCookies = [
+      'admin_auth', 'admin_logged_in', 'admin_refresh_token', 'admin_session_id',
+      'staff_auth', 'staff_logged_in', 'staff_refresh_token', 'staff_role', 'staff_session_id',
+      'student_auth', 'student_logged_in', 'student_refresh_token', 'student_session_id',
+      'session_id',
+      ...cookies
+    ];
+
+    for (const cookieName of allCookies) {
+      clearCookie(cookieName);
+    }
+
+    redirectTo(redirect);
+  } catch (_e) {
+    redirectTo(redirect);
   }
-
-  // Always clear entire sessionStorage to prevent cross-account contamination
-  if (clearSessionStorage !== false) {
-    safeSessionClear();
-  }
-
-  const allCookies = [
-    'admin_auth', 'admin_logged_in', 'admin_refresh_token', 'admin_session_id',
-    'staff_auth', 'staff_logged_in', 'staff_refresh_token', 'staff_role', 'staff_session_id',
-    'student_auth', 'student_logged_in', 'student_refresh_token', 'student_session_id',
-    'session_id',
-    ...cookies
-  ];
-
-  for (const cookieName of allCookies) {
-    clearCookie(cookieName);
-  }
-
-  redirectTo(redirect);
 }
 
 /**

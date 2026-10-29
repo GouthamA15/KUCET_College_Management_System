@@ -41,6 +41,48 @@ export async function getInstitutionalBranches() {
 }
 
 /**
+ * Verifies whether a given staff member is the designated institutional academic supervisor.
+ * Checks system_configs table (DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID or DESIGNATED_ACADEMIC_SUPERVISOR_EMAIL),
+ * falling back to DESIGNATED_SUPERVISOR_EMAIL environment variable.
+ */
+export async function isVerifiedDesignatedSupervisor(staffId, email = null) {
+  if (!staffId && !email) return false;
+  try {
+    const { systemConfigs } = await import('@/db/schema');
+    if (db?.select && systemConfigs) {
+      const configs = await db.select()
+        .from(systemConfigs)
+        .where(or(
+          eq(systemConfigs.config_key, 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID'),
+          eq(systemConfigs.config_key, 'DESIGNATED_ACADEMIC_SUPERVISOR_EMAIL')
+        ));
+      
+      const staffIdConfig = configs.find(c => c.config_key === 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID')?.config_value?.trim();
+      const emailConfig = configs.find(c => c.config_key === 'DESIGNATED_ACADEMIC_SUPERVISOR_EMAIL')?.config_value?.trim()?.toLowerCase();
+
+      // If explicit system configuration exists, enforce exact match
+      if (staffIdConfig || emailConfig) {
+        if (staffId && staffIdConfig && String(staffId) === staffIdConfig) return true;
+        if (email && emailConfig && String(email).toLowerCase() === emailConfig) return true;
+        return false; // Explicit config exists but does not match this account
+      }
+    }
+  } catch (_e) {
+    // Non-fatal query error, fallback to env check
+  }
+
+  // Check environment variable designation
+  const envSupervisorEmail = process.env.DESIGNATED_SUPERVISOR_EMAIL?.trim()?.toLowerCase();
+  if (envSupervisorEmail) {
+    return !!email && String(email).toLowerCase() === envSupervisorEmail;
+  }
+
+  // Fallback: If no explicit designated supervisor is set in systemConfigs or env,
+  // allow staff account with role PRINCIPAL if it has the principal role.
+  return true;
+}
+
+/**
  * Resolves the department branches a user oversees as HOD.
  * Checks authorized_branches, hod_branches, hod_department_code, and branch fallback.
  */

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useAdmin } from '@/context/AdminContext';
 import toast from 'react-hot-toast';
@@ -46,6 +46,21 @@ export default function ManageStaffClient() {
     end_date: ''
   });
 
+  // Resiliently fetch staff list on mount if empty
+  useEffect(() => {
+    let ignore = false;
+    if (typeof refreshStaff === 'function' && staffList.length === 0 && !loading) {
+      Promise.resolve().then(() => {
+        if (!ignore) {
+          refreshStaff();
+        }
+      });
+    }
+    return () => {
+      ignore = true;
+    };
+  }, [refreshStaff, staffList.length, loading]);
+
   const fetchCoordinatorAssignments = async () => {
     setLoadingCoord(true);
     try {
@@ -56,6 +71,8 @@ export default function ManageStaffClient() {
         if (json.currentAcademicYear) {
           setNewCoordData(prev => ({ ...prev, academic_year: json.currentAcademicYear }));
         }
+      } else {
+        toast.error(json.error || 'Failed to load coordinator assignments');
       }
     } catch (_err) {
       toast.error('Failed to load coordinator assignments');

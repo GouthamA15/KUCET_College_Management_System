@@ -94,6 +94,8 @@ export async function GET(request) {
       if (authorizedBranches.includes(assignment.branch) || user.branch === assignment.branch) {
         isAuthorized = true;
       }
+    } else if (user.is_first_year_coordinator && (assignment.course_semester === 1 || assignment.course_semester === 2)) {
+      isAuthorized = true;
     } else {
       const sub = await db.select()
         .from(facultySubstitutions)
