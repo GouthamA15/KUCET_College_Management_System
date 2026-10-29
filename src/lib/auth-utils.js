@@ -41,13 +41,18 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false,
   const now = new Date();
   const expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
 
-  await db.insert(refreshTokens).values({
+  const insertRes = await db.insert(refreshTokens).values({
     token_hash: tokenHash,
     user_id: String(userId),
     user_type: userType,
     expires_at: expiresAt,
     created_at: now,
   });
+
+  const insertedTokenId = insertRes?.[0]?.insertId || insertRes?.insertId || null;
+  if (response && insertedTokenId) {
+    response._newRefreshTokenId = insertedTokenId;
+  }
 
   const cookieName = `${userType}_refresh_token`;
   
@@ -440,8 +445,12 @@ export async function handleLogoutRevocation(request, userType = 'staff') {
 
     if (refreshToken) {
       const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+      // Explicit logout: revoked_at is stamped, replaced_by_token_id is explicitly set to NULL (no successor token)
       await db.update(refreshTokens)
-        .set({ revoked_at: new Date() })
+        .set({
+          revoked_at: new Date(),
+          replaced_by_token_id: null
+        })
         .where(eq(refreshTokens.token_hash, tokenHash));
     }
 
@@ -460,22 +469,39 @@ export async function handleLogoutRevocation(request, userType = 'staff') {
 
 /**
  * Clears all role and session cookies across the entire application domain.
+ * Avoids duplicate delete/set race conditions and matches original httpOnly attributes.
  */
 export function clearAllAuthCookies(response) {
-  const cookiesToClear = [
-    'admin_auth', 'admin_logged_in', 'admin_refresh_token', 'admin_session_id',
-    'staff_auth', 'staff_logged_in', 'staff_refresh_token', 'staff_role', 'staff_session_id',
-    'student_auth', 'student_logged_in', 'student_refresh_token', 'student_session_id',
+  const httpOnlyCookies = [
+    'admin_auth', 'admin_refresh_token', 'admin_session_id',
+    'staff_auth', 'staff_refresh_token', 'staff_session_id',
+    'student_auth', 'student_refresh_token', 'student_session_id',
     'session_id'
   ];
 
-  cookiesToClear.forEach(name => {
-    response.cookies.delete(name);
+  const companionCookies = [
+    'admin_logged_in',
+    'staff_logged_in', 'staff_role',
+    'student_logged_in'
+  ];
+
+  httpOnlyCookies.forEach(name => {
     response.cookies.set(name, '', {
       path: '/',
       maxAge: 0,
       expires: new Date(0),
       httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax'
+    });
+  });
+
+  companionCookies.forEach(name => {
+    response.cookies.set(name, '', {
+      path: '/',
+      maxAge: 0,
+      expires: new Date(0),
+      httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax'
     });
