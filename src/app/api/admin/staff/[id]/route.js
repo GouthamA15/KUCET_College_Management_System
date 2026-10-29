@@ -432,35 +432,13 @@ export async function PUT(req, context) {
             await tx.insert(auditLogs).values({
               user_id: user.id,
               user_type: 'admin',
-              action: 'PRINCIPAL_SUPERVISOR_DESIGNATED',
+              action: 'PRINCIPAL_ROLE_ASSIGNED',
               target_type: 'staff_accounts',
               target_id: String(idNum),
-              payload_after: { designation: 'Designated Institutional Academic Supervisor' },
+              payload_after: { designation: 'Institutional Principal Role Assigned' },
               ip_address: clientIp,
               user_agent: userAgent
             });
-          }
-
-          // Authoritatively record designated supervisor in systemConfigs
-          try {
-            const [existingCfg] = await tx.select().from(systemConfigs).where(eq(systemConfigs.config_key, 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID')).limit(1);
-            if (existingCfg) {
-              await tx.update(systemConfigs).set({
-                config_value: String(idNum),
-                updated_by: String(user.id),
-                updated_at: new Date()
-              }).where(eq(systemConfigs.config_key, 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID'));
-            } else {
-              await tx.insert(systemConfigs).values({
-                config_key: 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID',
-                config_value: String(idNum),
-                data_type: 'STRING',
-                description: 'Designated institutional academic supervisor staff ID with global authority',
-                updated_by: String(user.id)
-              });
-            }
-          } catch (_cfgErr) {
-            // Non-fatal if systemConfigs is temporarily unavailable
           }
         } else {
           await tx.delete(staffAccountRoles).where(and(
@@ -470,22 +448,48 @@ export async function PUT(req, context) {
           await tx.insert(auditLogs).values({
             user_id: user.id,
             user_type: 'admin',
-            action: 'PRINCIPAL_SUPERVISOR_REVOKED',
+            action: 'PRINCIPAL_ROLE_REVOKED',
             target_type: 'staff_accounts',
             target_id: String(idNum),
-            payload_after: { designation: 'Revoked Principal Supervisory Authority' },
+            payload_after: { designation: 'Institutional Principal Role Revoked' },
             ip_address: clientIp,
             user_agent: userAgent
           });
 
-          // Unset designated supervisor if it belonged to this staff ID
+          // If this staff member held the designated supervisor role, safely revoke it
           try {
-            await tx.delete(systemConfigs).where(and(
+            const [activeCfg] = await tx.select().from(systemConfigs).where(and(
               eq(systemConfigs.config_key, 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID'),
               eq(systemConfigs.config_value, String(idNum))
-            ));
+            )).limit(1);
+
+            if (activeCfg) {
+              await tx.update(systemConfigs).set({
+                config_value: 'REVOKED',
+                updated_by: String(user.id),
+                updated_at: new Date()
+              }).where(eq(systemConfigs.config_key, 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID'));
+
+              await tx.update(systemConfigs).set({
+                config_value: '',
+                updated_by: String(user.id),
+                updated_at: new Date()
+              }).where(eq(systemConfigs.config_key, 'DESIGNATED_ACADEMIC_SUPERVISOR_EMAIL'));
+
+              await tx.insert(auditLogs).values({
+                user_id: user.id,
+                user_type: 'admin',
+                action: 'ACADEMIC_SUPERVISOR_REVOKED',
+                target_type: 'system_configs',
+                target_id: 'DESIGNATED_ACADEMIC_SUPERVISOR_STAFF_ID',
+                payload_before: { staff_id: idNum },
+                payload_after: { status: 'REVOKED', reason: 'Principal role revoked' },
+                ip_address: clientIp,
+                user_agent: userAgent
+              });
+            }
           } catch (_cfgErr) {
-            // Non-fatal
+            // Non-fatal if systemConfigs is temporarily unavailable
           }
         }
       }

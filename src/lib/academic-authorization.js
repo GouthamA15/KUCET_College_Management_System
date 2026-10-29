@@ -108,8 +108,8 @@ export async function isDesignatedAcademicSupervisor(staffId, email = null) {
   // Validate configured staff ID if provided
   let parsedConfigStaffId = null;
   if (rawConfigStaffId) {
-    if (['null', 'undefined', 'nan', '0', '-1'].includes(rawConfigStaffId.toLowerCase())) {
-      logger.warn({ rawConfigStaffId }, '[SUPERVISOR_AUTH_DENIED] Malformed designated supervisor staff ID configuration.');
+    if (['null', 'undefined', 'nan', '0', '-1', 'revoked', 'none'].includes(rawConfigStaffId.toLowerCase())) {
+      logger.warn({ rawConfigStaffId }, '[SUPERVISOR_AUTH_DENIED] Malformed or revoked designated supervisor staff ID configuration.');
       return false;
     }
     const num = Number(rawConfigStaffId);
