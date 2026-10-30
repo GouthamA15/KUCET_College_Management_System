@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KUCET Admission Bridge</title>
+  <style>
+    :root {
+      --primary: #0b3578;
+      --primary-hover: #08285c;
+      --accent: #d97706;
+      --accent-light: #fef3c7;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --success: #16a34a;
+      --success-light: #f0fdf4;
+      --warning: #ca8a04;
+      --warning-light: #fffbeb;
+      --error: #dc2626;
+      --error-light: #fef2f2;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.4;
+      padding: 12px;
+      min-width: 340px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 10px;
+    }
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-logo {
+      width: 32px;
+      height: 32px;
+      background: var(--primary);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: bold;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .header-title h1 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1.2;
+    }
+    .header-title p {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 7px 11px;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+      text-decoration: none;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary { background: #f1f5f9; color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: #e2e8f0; }
+    .btn-accent { background: var(--accent); color: #fff; }
+    .btn-accent:hover { background: #b45309; }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-success:hover { background: #15803d; }
+    .btn-ghost { background: transparent; color: var(--text-muted); padding: 4px 8px; font-size: 11px; }
+    .btn-ghost:hover { color: var(--text); background: #f1f5f9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Status Bar */
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      background: #f1f5f9;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 11px;
+      margin-bottom: 10px;
+    }
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      min-width: 0;
+    }
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #94a3b8;
+      flex-shrink: 0;
+    }
+    .dot.green { background: var(--success); }
+    .dot.amber { background: var(--warning); }
+    .dot.red { background: var(--error); }
+    .status-text {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Workflow Stepper */
+    .stepper {
+      display: flex;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 8px;
+      margin-bottom: 10px;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .step-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      position: relative;
+    }
+    .step-circle {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #e2e8f0;
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 2px;
+    }
+    .step-item.active .step-circle {
+      background: var(--primary);
+      color: #fff;
+    }
+    .step-item.completed .step-circle {
+      background: var(--success);
+      color: #fff;
+    }
+    .step-label {
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      text-align: center;
+    }
+    .step-item.active .step-label { color: var(--primary); font-weight: 700; }
+    .step-item.completed .step-label { color: var(--success); }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+
+    /* Active Student Banner */
+    .student-banner {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .banner-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .banner-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .banner-name {
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .banner-meta {
+      font-size: 11px;
+      color: #1e40af;
+    }
+
+    /* Forms */
+    .form-group { margin-bottom: 10px; }
+    .form-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .input-row { display: flex; gap: 6px; }
+    .input-text {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+    }
+    .input-text:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(11, 53, 120, 0.15);
+    }
+    .input-text.mono {
+      font-family: monospace;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    /* Grids & Info Boxes */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .info-box {
+      background: #f8fafc;
+      border: 1px solid #edf2f7;
+      border-radius: 6px;
+      padding: 6px 8px;
+    }
+    .info-box .label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+    .info-box .val {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .badge-blue { background: #dbeafe; color: #1e40af; }
+    .badge-green { background: #dcfce7; color: #166534; }
+    .badge-amber { background: #fef3c7; color: #92400e; }
+    .badge-purple { background: #f3e8ff; color: #6b21a8; }
+
+    /* Media Cards */
+    .media-card {
+      display: flex;
+      gap: 10px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px;
+      margin-bottom: 8px;
+    }
+    .media-thumb-box {
+      width: 60px;
+      height: 70px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border: 1px solid #cbd5e1;
+    }
+    .media-thumb {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .media-thumb.contain {
+      object-fit: contain;
+      background: #fff;
+    }
+    .media-meta {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .media-filename {
+      font-family: monospace;
+      font-size: 11px;
+      font-weight: bold;
+      color: var(--primary);
+    }
+    .media-stats { font-size: 10px; color: var(--text-muted); }
+
+    /* Alerts */
+    .alert {
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      margin-bottom: 8px;
+      display: flex;
+      gap: 6px;
+      align-items: flex-start;
+      line-height: 1.35;
+    }
+    .alert-amber { background: var(--warning-light); border: 1px solid #fde68a; color: #92400e; }
+    .alert-green { background: var(--success-light); border: 1px solid #bbf7d0; color: #166534; }
+    .alert-red { background: var(--error-light); border: 1px solid #fecaca; color: #991b1b; }
+    .alert-blue { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+
+    /* Tutorial Styling */
+    .tutorial-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .tutorial-progress-bar-bg {
+      width: 100%;
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .tutorial-progress-bar-fill {
+      height: 100%;
+      background: var(--primary);
+      width: 13%;
+      transition: width 0.3s ease;
+    }
+    .tutorial-body {
+      padding: 4px 0;
+    }
+    .tutorial-points {
+      margin: 10px 0;
+      list-style-type: none;
+    }
+    .tutorial-points li {
+      position: relative;
+      padding-left: 16px;
+      margin-bottom: 6px;
+      font-size: 12px;
+      color: var(--text);
+    }
+    .tutorial-points li::before {
+      content: "✔";
+      position: absolute;
+      left: 0;
+      top: 0;
+      color: var(--success);
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .tutorial-callout {
+      background: #f8fafc;
+      border-left: 3px solid var(--accent);
+      padding: 8px 10px;
+      margin-top: 10px;
+      border-radius: 0 4px 4px 0;
+      font-size: 11px;
+      color: var(--text);
+    }
+    .tutorial-demo-box {
+      background: #f1f5f9;
+      border: 1px dashed #cbd5e1;
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-top: 10px;
+      font-size: 11px;
+    }
+    .tutorial-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .disclaimer {
+      font-size: 11px;
+      color: #64748b;
+      background: #f8fafc;
+      border-left: 3px solid var(--accent);
+      padding: 6px 8px;
+      margin-top: 10px;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .hidden { display: none !important; }
+    .spinner {
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top: 2px solid #fff;
+      width: 12px;
+      height: 12px;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Persistent Header -->
+  <div class="header">
+    <div class="header-brand">
+      <div class="header-logo">KU</div>
+      <div class="header-title">
+        <h1>KUCET Admission Bridge</h1>
+        <p>KU Online B.Tech Assistant</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button id="tutorialBtn" class="btn btn-secondary btn-ghost" title="Open Interactive Tutorial">
+        🎓 Tutorial
+      </button>
+      <button id="logoutBtn" class="btn btn-secondary btn-ghost hidden" title="Sign out of Admission Bridge">
+        Sign Out
+      </button>
+    </div>
+  </div>
+
+  <!-- Persistent Status Bar -->
+  <div class="status-bar">
+    <div class="status-item" id="cmsStatus">
+      <span class="dot amber" id="cmsDot"></span>
+      <span class="status-text" id="cmsStatusText">Checking Session...</span>
+    </div>
+    <div class="status-item" id="portalStatus">
+      <span class="dot amber" id="portalDot"></span>
+      <span class="status-text" id="portalStatusText">Checking KU Portal...</span>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- VIEW 1: AUTHENTICATION (SIGN IN)           -->
+  <!-- ========================================== -->
+  <div id="authView" class="card">
+    <div style="margin-bottom: 12px; text-align: center;">
+      <h2 style="font-size: 14px; font-weight: 700; color: var(--primary);">Admission Staff Sign In</h2>
+      <p style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+        Sign in with your official KUCET CMS credentials
+      </p>
+    </div>
+
+    <div id="authErrorAlert" class="alert alert-red hidden"></div>
+    <div id="authInfoAlert" class="alert alert-blue hidden"></div>
+
+    <form id="loginForm" autocomplete="on">
+      <div class="form-group">
+        <label class="form-label" for="loginEmail">Staff Email</label>
+        <input 
+          type="email" 
+          id="loginEmail" 
+          class="input-text" 
+          placeholder="e.g. staff@kucet.ac.in" 
+          required 
+          autocomplete="username"
+        />
+      </div>
+
+      <div class="form-group">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <label class="form-label" for="loginPassword">Password</label>
+          <button type="button" id="togglePasswordBtn" class="btn-ghost" style="border: none; cursor: pointer;">
+            Show
+          </button>
+        </div>
+        <input 
+          type="password" 
+          id="loginPassword" 
+          class="input-text" 
+          placeholder="Enter your CMS password" 
+          required 
+          autocomplete="current-password"
+        />
+      </div>
+
+      <div style="margin-top: 14px;">
+        <button type="submit" id="signInBtn" class="btn btn-primary" style="width: 100%; padding: 9px;">
+          <span id="signInBtnText">Sign In to Admission Bridge</span>
+        </button>
+      </div>
+    </form>
+
+    <div class="disclaimer" style="margin-top: 12px;">
+      <strong>Zero Password Persistence:</strong> Passwords are used strictly for authentication and are never stored in browser memory or extension storage. RBAC strictly restricts access to verified admission personnel.
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- VIEW 2: INTERACTIVE TUTORIAL MODE         -->
+  <!-- ========================================== -->
+  <div id="tutorialView" class="card hidden">
+    <div class="tutorial-header">
+      <span id="tutorialStepBadge" class="badge badge-purple">Step 1 of 8</span>
+      <span id="tutorialStepId" class="badge badge-blue">Getting Started</span>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="tutorial-progress-bar-bg">
+      <div id="tutorialProgressFill" class="tutorial-progress-bar-fill"></div>
+    </div>
+
+    <div class="tutorial-body">
+      <h2 id="tutorialTitle" style="font-size: 14px; font-weight: 700; color: var(--primary); margin-bottom: 2px;">
+        Welcome to KUCET Admission Bridge
+      </h2>
+      <p id="tutorialSubtitle" style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
+        Assisted university registration for KUCET admission staff
+      </p>
+
+      <p id="tutorialDesc" style="font-size: 12px; line-height: 1.4; color: var(--text);">
+        Description text will render here.
+      </p>
+
+      <ul id="tutorialPoints" class="tutorial-points"></ul>
+
+      <!-- Simulated Demo Preview Box (Fake Mock Data) -->
+      <div class="tutorial-demo-box">
+        <div style="font-weight: 700; color: var(--primary); margin-bottom: 3px;">
+          🎓 Simulated Demonstration Record (100% Mock Data)
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 10px;">
+          <div>Roll: <strong style="font-family: monospace;">26567T0000</strong></div>
+          <div>Admission No: <strong style="font-family: monospace;">26-567-000</strong></div>
+          <div>Scheme: <strong>2013</strong></div>
+          <div>Income: <strong>100001 (Tier 2)</strong></div>
+          <div>Photo: <strong>132 KiB (JPEG)</strong></div>
+          <div>Signature: <strong>72 KiB (JPEG)</strong></div>
+        </div>
+      </div>
+
+      <div id="tutorialCallout" class="tutorial-callout"></div>
+    </div>
+
+    <div class="tutorial-footer">
+      <button id="tutorialSkipBtn" class="btn btn-ghost" style="color: var(--text-muted);">
+        Skip Tutorial
+      </button>
+      <div style="display: flex; gap: 6px;">
+        <button id="tutorialBackBtn" class="btn btn-secondary" disabled>
+          Back
+        </button>
+        <button id="tutorialNextBtn" class="btn btn-primary">
+          Next
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- VIEW 3: MAIN WORKSPACE (SEARCH & FILL)    -->
+  <!-- ========================================== -->
+  <div id="workspaceView" class="hidden">
+    <!-- Workflow Stepper -->
+    <div class="stepper" id="workflowStepper">
+      <div class="step-item completed" id="stepAuth">
+        <div class="step-circle">✓</div>
+        <div class="step-label">Sign In</div>
+      </div>
+      <div class="step-item active" id="stepSearch">
+        <div class="step-circle">2</div>
+        <div class="step-label">Lookup</div>
+      </div>
+      <div class="step-item" id="stepAdmission">
+        <div class="step-circle">3</div>
+        <div class="step-label">Step 1</div>
+      </div>
+      <div class="step-item" id="stepPrimary">
+        <div class="step-circle">4</div>
+        <div class="step-label">Step 2</div>
+      </div>
+      <div class="step-item" id="stepReview">
+        <div class="step-circle">5</div>
+        <div class="step-label">Audit</div>
+      </div>
+    </div>
+
+    <!-- Active Student Banner (Sticky indicator when record loaded) -->
+    <div id="activeStudentBanner" class="student-banner hidden">
+      <div class="banner-left">
+        <div class="banner-icon">🎓</div>
+        <div>
+          <div class="banner-name" id="bannerStudentName">—</div>
+          <div class="banner-meta" id="bannerStudentMeta">—</div>
+        </div>
+      </div>
+      <span id="bannerTypeBadge" class="badge badge-blue">Regular</span>
+    </div>
+
+    <!-- Search Card -->
+    <div class="card">
+      <div class="form-group">
+        <label class="form-label" for="rollInput">Student KUCET Roll Number</label>
+        <div class="input-row">
+          <input 
+            type="text" 
+            id="rollInput" 
+            class="input-text mono" 
+            placeholder="e.g. 26567T0332" 
+            maxlength="12" 
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button id="fetchBtn" class="btn btn-primary">
+            <span id="fetchBtnText">Fetch</span>
+          </button>
+        </div>
+      </div>
+      <div id="searchError" class="alert alert-red hidden"></div>
+    </div>
+
+    <!-- Student Record Card (Hidden Initially) -->
+    <div id="studentCard" class="card hidden">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
+        <h2 style="font-size: 14px; font-weight: 700; color: var(--primary);" id="dispName">—</h2>
+        <span id="dispAdmissionTypeBadge" class="badge badge-blue">Regular</span>
+      </div>
+
+      <div class="grid-2">
+        <div class="info-box">
+          <div class="label">Roll Number</div>
+          <div class="val" id="dispRollNo">—</div>
+        </div>
+        <div class="info-box">
+          <div class="label">College Admission No</div>
+          <div class="val" id="dispAdmissionNo" style="color: var(--primary); font-family: monospace;">—</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="info-box">
+          <div class="label">Admitted Into (Branch)</div>
+          <div class="val" id="dispBranch">—</div>
+        </div>
+        <div class="info-box">
+          <div class="label">KU Online Scheme</div>
+          <div class="val" id="dispScheme">2013</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="info-box">
+          <div class="label">Admission Date</div>
+          <div class="val" id="dispAdmissionDate">—</div>
+        </div>
+        <div class="info-box">
+          <div class="label">Previous Studying</div>
+          <div class="val" id="dispPreviousStudy">—</div>
+        </div>
+      </div>
+
+      <!-- Warnings List -->
+      <div id="warningsContainer"></div>
+
+      <!-- Phase 2: Primary Details Section -->
+      <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span class="form-label" style="margin-bottom: 0;">Primary Details (Tab 2)</span>
+          <span id="primaryStatusBadge" class="badge badge-blue">Ready</span>
+        </div>
+
+        <div class="grid-2">
+          <div class="info-box">
+            <div class="label">Father's Name</div>
+            <div class="val" id="dispFatherName">—</div>
+          </div>
+          <div class="info-box">
+            <div class="label">Mother's Name</div>
+            <div class="val" id="dispMotherName">—</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="info-box">
+            <div class="label">Date of Birth</div>
+            <div class="val" id="dispDob">—</div>
+          </div>
+          <div class="info-box">
+            <div class="label">Gender &amp; Blood Group</div>
+            <div class="val" id="dispGenderBlood">—</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="info-box">
+            <div class="label">Location &amp; Nationality</div>
+            <div class="val" id="dispLocationNat">—</div>
+          </div>
+          <div class="info-box">
+            <div class="label">Social Status &amp; Sub-Caste</div>
+            <div class="val" id="dispSocialCaste">—</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="info-box">
+            <div class="label">Aadhaar (Masked)</div>
+            <div class="val" id="dispAadhaar" style="font-family: monospace;">—</div>
+          </div>
+          <div class="info-box">
+            <div class="label">Contact (Masked)</div>
+            <div class="val" id="dispContact" style="font-family: monospace;">—</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="info-box">
+            <div class="label">Income ➔ Portal Value</div>
+            <div class="val" id="dispIncome">—</div>
+          </div>
+          <div class="info-box">
+            <div class="label">Permanent Address</div>
+            <div class="val" style="color: var(--success); font-weight: 600;">Same as Current (Checkbox)</div>
+          </div>
+        </div>
+
+        <div class="info-box" style="margin-top: 4px;">
+          <div class="label">Current Address</div>
+          <div class="val" id="dispCurrentAddress" style="white-space: normal; line-height: 1.3;">—</div>
+        </div>
+
+        <div style="margin-top: 8px;">
+          <button id="fillPrimaryBtn" class="btn btn-primary" style="width: 100%; padding: 8px; font-size: 12px;">
+            <span id="fillPrimaryBtnText">Populate KU Online Primary Details</span>
+          </button>
+          <div id="primaryResultAlert" class="alert alert-green hidden" style="margin-top: 6px;"></div>
+        </div>
+      </div>
+
+      <!-- Media Optimization Section -->
+      <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
+        <div class="form-label">Optimized Media for University Portal (&lt; 190 KiB)</div>
+
+        <!-- Photo Card -->
+        <div class="media-card" id="photoCard">
+          <div class="media-thumb-box">
+            <img id="photoThumb" class="media-thumb" alt="Photo" />
+          </div>
+          <div class="media-meta">
+            <div>
+              <div class="media-filename" id="photoFilename">photo.jpg</div>
+              <div class="media-stats" id="photoStats">Processing...</div>
+            </div>
+            <button id="downloadPhotoBtn" class="btn btn-secondary" style="font-size: 10px; padding: 3px 6px; align-self: flex-start; margin-top: 4px;">
+              Download JPEG
+            </button>
+          </div>
+        </div>
+
+        <!-- Signature Card -->
+        <div class="media-card" id="sigCard">
+          <div class="media-thumb-box">
+            <img id="sigThumb" class="media-thumb contain" alt="Sign" />
+          </div>
+          <div class="media-meta">
+            <div>
+              <div class="media-filename" id="sigFilename">sign.jpg</div>
+              <div class="media-stats" id="sigStats">Processing...</div>
+            </div>
+            <button id="downloadSigBtn" class="btn btn-secondary" style="font-size: 10px; padding: 3px 6px; align-self: flex-start; margin-top: 4px;">
+              Download JPEG
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Section -->
+      <div style="margin-top: 12px;">
+        <button id="fillFormBtn" class="btn btn-success" style="width: 100%; padding: 10px; font-size: 13px;">
+          <span id="fillBtnText">Fill KU Online Admission Info (Step 1)</span>
+        </button>
+        <div id="fillResultAlert" class="alert alert-green hidden" style="margin-top: 8px;"></div>
+      </div>
+
+      <div class="disclaimer">
+        <strong>Verification Safeguard:</strong> This extension prepares fields and attaches JPEG media. It will <strong>never</strong> submit the form. Please visually verify all populated values, then manually click <em>Submit &amp; Step2</em> on the university page.
+      </div>
+    </div>
+  </div>
+
+  <script src="tutorial.js"></script>
+  <script src="sidepanel.js"></script>
+</body>
+</html>

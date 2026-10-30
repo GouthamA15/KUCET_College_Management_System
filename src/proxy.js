@@ -278,7 +278,7 @@ export default async function proxy(request) {
   if (pathname.startsWith('/api/admin')) {
     if (!adminPayload) return handleUnauthorized(request);
   } else if (pathname.startsWith('/api/staff')) {
-    if (pathname.startsWith('/api/staff/academic-calendar') || pathname.startsWith('/api/staff/semesters') || pathname.startsWith('/api/staff/id-cards')) {
+    if (pathname.startsWith('/api/staff/academic-calendar') || pathname.startsWith('/api/staff/semesters') || pathname.startsWith('/api/staff/id-cards') || pathname.startsWith('/api/staff/admission/bridge')) {
        // These endpoints are shared with Admin for management
        if (!adminPayload && !staffPayload) return handleUnauthorized(request);
     } else {
