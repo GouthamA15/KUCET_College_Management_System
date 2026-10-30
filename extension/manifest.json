@@ -2,15 +2,17 @@
   "manifest_version": 3,
   "name": "KUCET Admission Bridge",
   "version": "1.0.0",
-  "description": "Assists KUCET admission staff in transferring student admission records into the KU Online registration portal.",
+  "description": "Cross-browser admission assistant for KUCET admission staff transferring records into the KU Online registration portal.",
   "permissions": [
     "activeTab",
     "sidePanel",
     "storage",
-    "downloads"
+    "downloads",
+    "windows"
   ],
   "host_permissions": [
     "https://kucet.tech/*",
+    "https://kucet.in/*",
     "http://localhost:3000/*",
     "http://127.0.0.1:3000/*",
     "https://kuonline.co.in/*"

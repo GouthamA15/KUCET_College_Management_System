@@ -62,7 +62,7 @@ export async function DELETE(req) {
     const response = apiResponse({
       success: true,
       message: 'Admission Bridge session terminated successfully'
-    }, 200, { 'Clear-Site-Data': '"cache", "storage"' });
+    }, 200);
 
     clearAllAuthCookies(response);
     return response;

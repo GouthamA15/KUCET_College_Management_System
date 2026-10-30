@@ -147,7 +147,7 @@ describe('KUCET Admission Bridge — Standalone Authentication & RBAC Contract S
   });
 
   describe('Session Termination & Cookie Revocation Contract', () => {
-    it('should revoke staff and admin sessions and trigger site data cleanup', async () => {
+    it('should revoke staff and admin sessions cleanly without disrupting origin storage', async () => {
       mockHandleLogoutRevocation.mockResolvedValue(true);
 
       const { DELETE } = await import('@/app/api/staff/admission/bridge/session/route');
@@ -157,7 +157,8 @@ describe('KUCET Admission Bridge — Standalone Authentication & RBAC Contract S
       const res = await DELETE(req);
 
       expect(res.status).toBe(200);
-      expect(res.headers.get('Clear-Site-Data')).toContain('"cache", "storage"');
+      const json = await res.json();
+      expect(json.success).toBe(true);
       expect(mockClearAllAuthCookies).toHaveBeenCalled();
     });
   });

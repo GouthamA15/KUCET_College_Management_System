@@ -28,7 +28,7 @@ The extension reduces repetitive manual entry. Staff must still verify the infor
 
 Before starting, make sure you have:
 
-1. A computer with Google Chrome.
+1. A computer with Google Chrome, Microsoft Edge, Brave, Opera, or Vivaldi.
 2. The KUCET Admission Bridge extension installed.
 3. Your existing KUCET CMS staff login credentials.
 4. Your authorized admission staff account.
@@ -42,14 +42,19 @@ You do not need to open or log into the KUCET CMS website separately before usin
 
 The administrator will provide the approved extension folder.
 
-1. Open Google Chrome.
-2. Enter `chrome://extensions` in the address bar.
+1. Open your Chromium-based browser (Google Chrome, Microsoft Edge, Brave, Opera, or Vivaldi).
+2. Enter the extensions page in the address bar:
+   - **Chrome:** `chrome://extensions`
+   - **Edge:** `edge://extensions`
+   - **Brave:** `brave://extensions`
+   - **Opera:** `opera://extensions`
+   - **Vivaldi:** `vivaldi://extensions`
 3. Press Enter.
 4. Enable **Developer mode** if the administrator has provided an unpacked extension.
 5. Click **Load unpacked**.
 6. Select the folder containing the extension's `manifest.json` file.
 7. Confirm that KUCET Admission Bridge appears in your installed extensions.
-8. Pin the extension to the Chrome toolbar for easy access, if desired.
+8. Pin the extension to your browser toolbar for easy access.
 
 **Note:** Follow the administrator's instructions for the officially distributed extension package. Do not install an unofficial or modified copy.
 
@@ -57,9 +62,9 @@ The administrator will provide the approved extension folder.
 
 ## 4. Opening the extension and signing in
 
-1. Open Google Chrome.
-2. Click the KUCET Admission Bridge extension icon.
-3. The extension side panel will open.
+1. Open your browser.
+2. Click the KUCET Admission Bridge extension icon in your toolbar.
+3. The extension interface will open (in Chrome, Edge, and Brave, it opens in the native side panel; in Opera and Vivaldi, it automatically opens in a docked companion assistant window).
 4. If you are not signed in, you will see the Sign In screen.
 5. Enter your existing KUCET CMS staff username/email.
 6. Enter your existing KUCET CMS password.

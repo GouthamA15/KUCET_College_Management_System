@@ -6,10 +6,15 @@
  */
 
 // Configuration Defaults
-// Supports local development and production CMS origins
+// Supports local development and production CMS origins (kucet.tech and kucet.in)
 const CMS_BASE_URL = window.location.origin.includes('localhost') 
   ? 'http://localhost:3000' 
-  : 'https://kucet.tech';
+  : (window.location.origin.includes('kucet.in') ? 'https://kucet.in' : 'https://kucet.tech');
+
+// Browser Adapter Singleton
+const browserAdapter = typeof window !== 'undefined' && window.KUCET_ADAPTER
+  ? window.KUCET_ADAPTER.createBrowserAdapter(window)
+  : null;
 
 // Centralized Conservative Image Upload Limit Constants
 // University portal assumes ~200 KB upload limit.
@@ -363,6 +368,10 @@ function setCMSStatus(state, text) {
 // INTERACTIVE TUTORIAL CONTROLLER
 // ==========================================
 async function getTutorialCompletedFlag() {
+  if (browserAdapter) {
+    const res = await browserAdapter.getStorage('kucet_bridge_tutorial_completed');
+    return res === true || res === 'true';
+  }
   try {
     if (chrome?.storage?.local) {
       const res = await chrome.storage.local.get('kucet_bridge_tutorial_completed');
@@ -375,6 +384,10 @@ async function getTutorialCompletedFlag() {
 }
 
 async function setTutorialCompletedFlag(completed = true) {
+  if (browserAdapter) {
+    await browserAdapter.setStorage('kucet_bridge_tutorial_completed', completed);
+    return;
+  }
   try {
     if (chrome?.storage?.local) {
       await chrome.storage.local.set({ kucet_bridge_tutorial_completed: completed });
@@ -468,8 +481,9 @@ async function finishTutorial() {
 // ==========================================
 async function checkPortalTab() {
   try {
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    const tab = tabs[0];
+    const tab = browserAdapter 
+      ? await browserAdapter.getActiveTab() 
+      : (await chrome.tabs.query({ active: true, currentWindow: true }))?.[0];
     if (tab && tab.url && tab.url.toLowerCase().includes('btechreg.aspx')) {
       portalDot.className = 'dot green';
       portalStatusText.textContent = 'Portal Active (Btechreg.aspx)';
@@ -787,8 +801,9 @@ async function handleFillPortal() {
   fillResultAlert.classList.add('hidden');
 
   try {
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    const targetTab = tabs[0];
+    const targetTab = browserAdapter
+      ? await browserAdapter.getActiveTab()
+      : (await chrome.tabs.query({ active: true, currentWindow: true }))?.[0];
 
     if (!targetTab || !targetTab.url || !targetTab.url.toLowerCase().includes('btechreg.aspx')) {
       throw new Error('Please open and activate the KU Online registration tab (Btechreg.aspx) before clicking fill.');
@@ -816,7 +831,9 @@ async function handleFillPortal() {
       } : null
     };
 
-    const response = await chrome.tabs.sendMessage(targetTab.id, message);
+    const response = browserAdapter
+      ? await browserAdapter.sendMessageToTab(targetTab.id, message)
+      : await chrome.tabs.sendMessage(targetTab.id, message);
 
     if (response && response.success) {
       fillResultAlert.className = 'alert alert-green';
@@ -844,8 +861,9 @@ async function handleFillPrimaryDetails() {
   primaryResultAlert.classList.add('hidden');
 
   try {
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    const targetTab = tabs[0];
+    const targetTab = browserAdapter
+      ? await browserAdapter.getActiveTab()
+      : (await chrome.tabs.query({ active: true, currentWindow: true }))?.[0];
 
     if (!targetTab || !targetTab.url || !targetTab.url.toLowerCase().includes('btechreg.aspx')) {
       throw new Error('Please open and activate the KU Online registration tab (Btechreg.aspx).');
@@ -856,7 +874,9 @@ async function handleFillPrimaryDetails() {
       student: currentStudent
     };
 
-    const response = await chrome.tabs.sendMessage(targetTab.id, message);
+    const response = browserAdapter
+      ? await browserAdapter.sendMessageToTab(targetTab.id, message)
+      : await chrome.tabs.sendMessage(targetTab.id, message);
 
     if (response && response.success) {
       primaryResultAlert.className = 'alert alert-green';
