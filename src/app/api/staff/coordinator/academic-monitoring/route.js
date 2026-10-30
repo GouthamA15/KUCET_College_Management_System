@@ -1,12 +1,12 @@
 import { db } from '@/db';
-import { 
-  facultySubjectAssignments, 
-  staffAccounts, 
-  attendanceSessions, 
+import {
+  facultySubjectAssignments,
+  staffAccounts,
+  attendanceSessions,
   studentAttendance,
-  branchTimetable, 
-  studentMarks, 
-  students 
+  branchTimetable,
+  studentMarks,
+  students
 } from '@/db/schema';
 import { eq, and, inArray, sql, asc, like } from 'drizzle-orm';
 import { apiError, wrapHandler } from '@/lib/api-utils';
@@ -234,13 +234,17 @@ export const GET = wrapHandler({
     let atRiskStudents = [];
     try {
       const yearPattern = `%${resolvedYear.substring(0, 4)}%`;
+      const presentCountExpr = sql`COUNT(CASE WHEN ${studentAttendance.status} IN ('PRESENT', 'NCC', 'MEDICAL') AND ${studentAttendance.date} >= COALESCE(${students.admission_date}, '1900-01-01') THEN 1 END)`.mapWith(Number);
+      const totalCountExpr = sql`COUNT(CASE WHEN ${studentAttendance.date} >= COALESCE(${students.admission_date}, '1900-01-01') THEN ${studentAttendance.id} END)`.mapWith(Number);
+      const percentageExpr = sql`ROUND((COUNT(CASE WHEN ${studentAttendance.status} IN ('PRESENT', 'NCC', 'MEDICAL') AND ${studentAttendance.date} >= COALESCE(${students.admission_date}, '1900-01-01') THEN 1 END) / NULLIF(COUNT(CASE WHEN ${studentAttendance.date} >= COALESCE(${students.admission_date}, '1900-01-01') THEN ${studentAttendance.id} END), 0)) * 100, 1)`.mapWith(Number);
+
       const riskRows = await db.select({
         roll_no: students.roll_no,
         name: students.name,
-        branch: students.branch,
-        total_present: sql`COUNT(CASE WHEN ${studentAttendance.status} = 'PRESENT' THEN 1 END)`.mapWith(Number),
-        total_sessions: sql`COUNT(${studentAttendance.id})`.mapWith(Number),
-        percentage: sql`ROUND((COUNT(CASE WHEN ${studentAttendance.status} = 'PRESENT' THEN 1 END) / NULLIF(COUNT(${studentAttendance.id}), 0)) * 100, 1)`.mapWith(Number)
+        branch: facultySubjectAssignments.branch,
+        total_present: presentCountExpr,
+        total_sessions: totalCountExpr,
+        percentage: percentageExpr
       })
       .from(students)
       .innerJoin(studentAttendance, eq(students.id, studentAttendance.student_id))
@@ -251,9 +255,9 @@ export const GET = wrapHandler({
         inArray(facultySubjectAssignments.branch, targetBranches),
         like(facultySubjectAssignments.academic_year, yearPattern)
       ))
-      .groupBy(students.id, students.roll_no, students.name, students.branch)
-      .having(sql`ROUND((COUNT(CASE WHEN ${studentAttendance.status} = 'PRESENT' THEN 1 END) / NULLIF(COUNT(${studentAttendance.id}), 0)) * 100, 1) < 75`)
-      .orderBy(asc(sql`ROUND((COUNT(CASE WHEN ${studentAttendance.status} = 'PRESENT' THEN 1 END) / NULLIF(COUNT(${studentAttendance.id}), 0)) * 100, 1)`))
+      .groupBy(students.id, students.roll_no, students.name, facultySubjectAssignments.branch)
+      .having(sql`${percentageExpr} < 75`)
+      .orderBy(asc(percentageExpr))
       .limit(100);
 
       atRiskStudents = riskRows;

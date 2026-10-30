@@ -9,20 +9,21 @@ import CoordinatorApaarDashboard from '@/components/staff/first-year/Coordinator
 import TeachingAssignmentDirectory from '@/components/staff/academic/TeachingAssignmentDirectory';
 import AcademicCoverageDashboard from '@/components/staff/academic/AcademicCoverageDashboard';
 import SemesterReadinessChecklist from '@/components/staff/academic/SemesterReadinessChecklist';
+import AcademicMonitoringConsole from '@/components/staff/academic/monitoring/AcademicMonitoringConsole';
 import CoordinatorAttendanceMonitoring from '@/components/staff/first-year/CoordinatorAttendanceMonitoring';
 import CoordinatorMarksMonitoring from '@/components/staff/first-year/CoordinatorMarksMonitoring';
 import toast from 'react-hot-toast';
 import { deriveDefaultAcademicYear } from '@/lib/academic-constants';
-import { 
-  GraduationCap, 
-  BookOpen, 
-  Calendar, 
-  Users, 
-  CreditCard, 
-  Clock, 
-  Building2, 
+import {
+  GraduationCap,
+  BookOpen,
+  Calendar,
+  Users,
+  CreditCard,
+  Clock,
+  Building2,
   AlertCircle,
-  Plus, 
+  Plus,
   X,
   Layers,
   ExternalLink,
@@ -348,7 +349,7 @@ export default function CoordinatorWorkspaceClient() {
 
           {/* Quick Action Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div 
+            <div
               onClick={() => setActiveTab('allocations')}
               className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs hover:border-[#0b3578]/50 hover:shadow-sm transition-all cursor-pointer group"
             >
@@ -365,7 +366,7 @@ export default function CoordinatorWorkspaceClient() {
               </div>
             </div>
 
-            <div 
+            <div
               onClick={() => setActiveTab('syllabus')}
               className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs hover:border-[#0b3578]/50 hover:shadow-sm transition-all cursor-pointer group"
             >
@@ -382,7 +383,7 @@ export default function CoordinatorWorkspaceClient() {
               </div>
             </div>
 
-            <div 
+            <div
               onClick={() => setActiveTab('timetable')}
               className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs hover:border-[#0b3578]/50 hover:shadow-sm transition-all cursor-pointer group"
             >
@@ -399,7 +400,7 @@ export default function CoordinatorWorkspaceClient() {
               </div>
             </div>
 
-            <div 
+            <div
               onClick={() => setActiveTab('requests')}
               className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs hover:border-[#0b3578]/50 hover:shadow-sm transition-all cursor-pointer group"
             >
@@ -416,7 +417,7 @@ export default function CoordinatorWorkspaceClient() {
               </div>
             </div>
 
-            <div 
+            <div
               onClick={() => setActiveTab('apaar')}
               className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs hover:border-[#0b3578]/50 hover:shadow-sm transition-all cursor-pointer group"
             >
@@ -433,7 +434,7 @@ export default function CoordinatorWorkspaceClient() {
               </div>
             </div>
 
-            <div 
+            <div
               onClick={() => setActiveTab('id-cards')}
               className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs hover:border-[#0b3578]/50 hover:shadow-sm transition-all cursor-pointer group"
             >
@@ -469,20 +470,32 @@ export default function CoordinatorWorkspaceClient() {
 
       {/* ─── TAB: ATTENDANCE MONITORING ───────────────────────────────────────── */}
       {activeTab === 'attendance-monitoring' && (
-        <CoordinatorAttendanceMonitoring />
+        <AcademicMonitoringConsole
+          initialBranch="CSE"
+          initialSemester={1}
+          restrictSemesters={[1, 2]}
+          title="First-Year Academic & Attendance Monitoring"
+          subtitle="Consolidated attendance tracking, lecture topics coverage, and risk identification across all 7 institutional branches for Semesters 1 and 2."
+        />
       )}
 
       {/* ─── TAB: MARKS MONITORING ────────────────────────────────────────────── */}
       {activeTab === 'marks-monitoring' && (
-        <CoordinatorMarksMonitoring />
+        <AcademicMonitoringConsole
+          initialBranch="CSE"
+          initialSemester={1}
+          restrictSemesters={[1, 2]}
+          title="First-Year CIE Marks Performance Monitoring"
+          subtitle="Continuous Internal Evaluation tracking, theory and laboratory assessment progress across all 7 institutional branches for Semesters 1 and 2."
+        />
       )}
 
       {/* ─── TAB: SUBJECT ALLOCATIONS / DIRECTORY ───────────────────────────── */}
       {activeTab === 'allocations' && (
         <div className="space-y-4">
-          <TeachingAssignmentDirectory 
-            isCoordinatorView={true} 
-            initialAcademicYear={assignment.academic_year || staffData?.academic_year || deriveDefaultAcademicYear()} 
+          <TeachingAssignmentDirectory
+            isCoordinatorView={true}
+            initialAcademicYear={assignment.academic_year || staffData?.academic_year || deriveDefaultAcademicYear()}
           />
         </div>
       )}
@@ -490,10 +503,10 @@ export default function CoordinatorWorkspaceClient() {
       {/* ─── TAB: ACADEMIC COVERAGE & WORKLOAD ─────────────────────────────────── */}
       {activeTab === 'coverage' && (
         <div className="space-y-4">
-          <AcademicCoverageDashboard 
-            isCoordinatorView={true} 
+          <AcademicCoverageDashboard
+            isCoordinatorView={true}
             initialAcademicYear={assignment.academic_year || staffData?.academic_year || deriveDefaultAcademicYear()}
-            onNavigateToTab={setActiveTab} 
+            onNavigateToTab={setActiveTab}
           />
         </div>
       )}
@@ -501,10 +514,10 @@ export default function CoordinatorWorkspaceClient() {
       {/* ─── TAB: SEMESTER READINESS CHECKLIST ───────────────────────────────── */}
       {activeTab === 'readiness' && (
         <div className="space-y-4">
-          <SemesterReadinessChecklist 
-            isCoordinatorView={true} 
+          <SemesterReadinessChecklist
+            isCoordinatorView={true}
             initialAcademicYear={assignment.academic_year || staffData?.academic_year || deriveDefaultAcademicYear()}
-            onNavigateToTab={setActiveTab} 
+            onNavigateToTab={setActiveTab}
           />
         </div>
       )}

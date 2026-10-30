@@ -116,9 +116,9 @@ export function wrapHandler({ handler, schema, auth, audit }) {
             validatedData = schema.parse(body);
           } catch (err) {
             if (err instanceof z.ZodError) {
-              return NextResponse.json({ 
+              return NextResponse.json({
                 error: err.errors?.[0]?.message || 'Invalid input payload',
-                details: err.errors 
+                details: err.errors
               }, { status: 400 });
             }
             if (err instanceof SyntaxError) {
@@ -393,6 +393,26 @@ The HOD Syllabus API endpoint provides zero-trust curriculum orchestration divid
 ### Department Boundary & Relational Safety Guards
 1. **Authorized Branch Verification**: Every action resolves the authenticated HOD's affiliated branches via `getHodUserAndBranches` (which joins `academicPrograms` with `academicDepartments` and derives branches from `user.hod_department_code` and `program_code` values) and rejects any request outside their branch domain with `403 Forbidden`.
 2. **Relational Deletion Locks**: Core mappings cannot be deleted if active student marks or attendance logs exist. Elective groups cannot be deleted until all assigned subjects are unlinked.
+
+---
+
+## 📊 Centralized Academic Monitoring Service (`AcademicMonitoringService`)
+
+The Centralized Academic Monitoring Service (`src/services/academic/AcademicMonitoringService.js`) provides high-volume, read-only analytics orchestrating attendance sessions, CIE marks, consecutive absence detection, and cross-discipline academic risk classification.
+
+### Endpoints (`/api/staff/academic-monitoring/*`)
+- `GET /api/staff/academic-monitoring/overview`: Aggregated cohort KPIs, attendance percentages, condonation risk counts, and monthly trends.
+- `GET /api/staff/academic-monitoring/attendance`: Cohort attendance grid with per-subject attendance percentages and consecutive absence detection ($\ge 3$ consecutive absences).
+- `GET /api/staff/academic-monitoring/marks`: CIE internal marks tracking supporting Theory Patterns 1, 2, 3 and Laboratory assessments.
+- `GET /api/staff/academic-monitoring/combined`: Quad-matrix combined attendance and marks view with neutral category assignments (`GOOD_STANDING`, `ATTENDANCE_ATTENTION_REQUIRED`, `ACADEMIC_ATTENTION_REQUIRED`, `HIGH_PRIORITY_ATTENTION_REQUIRED`).
+- `GET /api/staff/academic-monitoring/students/[studentId]`: Granular student drilldown with chronological session log (dates, sessions, topics covered, faculty, disputes).
+- `GET /api/staff/academic-monitoring/export/csv`: RFC-4180 compliant CSV export with formula injection escaping (`=`, `+`, `-`, `@`).
+- `GET /api/staff/academic-monitoring/export/pdf`: React-PDF landscape report rendering institutional branding and metadata.
+
+### Architectural Invariants
+1. **Dynamic Academic Classification**: Does not query non-existent `students.branch` column; derives branch from roll numbers and year of study dynamically from admission year and offset.
+2. **Canonical Attendance Formula**: `(PRESENT + NCC + MEDICAL) / Total Conducted Sessions * 100`, guarded by `date >= COALESCE(admission_date, '1900-01-01')`.
+3. **Role Enforcement**: First-Year Coordinators restricted to Semesters 1 & 2; HODs restricted to authorized department branches; Supervisors and Admins have global access. All write mutations in the console are strictly forbidden.
 
 ---
 

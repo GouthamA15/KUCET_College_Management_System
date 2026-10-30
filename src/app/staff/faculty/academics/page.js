@@ -13,6 +13,7 @@ import SyllabusManager from '@/components/staff/faculty/SyllabusManager';
 import AttendanceDisputesPanel from '@/components/staff/faculty/AttendanceDisputesPanel';
 import StudentReactivationsPanel from '@/components/staff/faculty/StudentReactivationsPanel';
 import PatternSelectionModal from '@/components/staff/faculty/PatternSelectionModal';
+import AcademicMonitoringConsole from '@/components/staff/academic/monitoring/AcademicMonitoringConsole';
 
 import { Info, X, Search, ChevronDown } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -176,6 +177,9 @@ function AcademicsContent() {
     { id: 'subjects', label: 'My Subjects' },
     ...(canAssign ? [
       { id: 'assign-subjects', label: 'Assign Subjects' }
+    ] : []),
+    ...(staffData?.is_hod || staffData?.is_principal ? [
+      { id: 'monitoring', label: 'Academic Monitoring' }
     ] : []),
     { id: 'requests', label: 'Request Subjects' },
     ...(staffData?.is_hod ? [
@@ -462,6 +466,16 @@ function AcademicsContent() {
         <div className="space-y-4">
           <TeachingAssignmentDirectory />
         </div>
+      )}
+
+      {/* ── Academic Monitoring (HOD & Institutional Leaders) ── */}
+      {(staffData?.is_hod || staffData?.is_principal) && activeTab === 'monitoring' && (
+        <AcademicMonitoringConsole
+          initialBranch={staffData?.branch || 'CSE'}
+          initialSemester={1}
+          title="Departmental Academic Performance & Attendance Monitoring"
+          subtitle="Real-time attendance compliance, Continuous Internal Evaluation (CIE) tracking, and student risk identification."
+        />
       )}
 
       {/* ── Syllabus Management (HOD) ── */}

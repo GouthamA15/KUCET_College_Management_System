@@ -64,7 +64,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   if (effectiveRole === 'faculty' && staffData?.is_hod) {
     const academicsIdx = menuItemsRaw.findIndex(i => i.label === 'ACADEMICS');
     let insertIdx = academicsIdx > -1 ? academicsIdx + 1 : 1;
-    
+
     // Insert backwards so they appear in order: ACADEMICS -> ACADEMIC CALENDAR -> STAFF MANAGEMENT -> STUDENT REQUESTS
     menuItemsRaw.splice(insertIdx, 0, { label: 'STUDENT REQUESTS', route: '/staff/hod/requests' });
     menuItemsRaw.splice(insertIdx, 0, { label: 'STAFF MANAGEMENT', route: '/staff/hod/staff-management' });
@@ -78,6 +78,16 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
     menuItemsRaw.splice(insertIdx, 0, {
       label: 'FIRST YEAR COORDINATION',
       route: '/staff/first-year/dashboard'
+    });
+  }
+
+  // Inject Academic Supervisor monitoring navigation if designated
+  if ((effectiveRole === 'faculty' || effectiveRole === 'staff') && staffData?.is_designated_supervisor) {
+    const academicsIdx = menuItemsRaw.findIndex(i => i.label === 'ACADEMICS');
+    let insertIdx = academicsIdx > -1 ? academicsIdx + 1 : menuItemsRaw.length;
+    menuItemsRaw.splice(insertIdx, 0, {
+      label: 'ACADEMIC MONITORING',
+      route: '/staff/supervisor/academic-monitoring'
     });
   }
 
@@ -218,8 +228,8 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
                   // Render a real link only when a valid route exists and is not a placeholder
                   if (item.route && item.route !== '#') {
                     // Exact match for root route to prevent multiple highlighting
-                    const routeActive = item.route === '/' 
-                      ? pathname === '/' 
+                    const routeActive = item.route === '/'
+                      ? pathname === '/'
                       : (pathname && pathname.startsWith(item.route));
 
                     return (
@@ -379,8 +389,8 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
         </div>
         )}
       </nav>
-      <ChangePasswordModal 
-        show={showChangePasswordModal} 
+      <ChangePasswordModal
+        show={showChangePasswordModal}
         onClose={() => setShowChangePasswordModal(false)}
         apiEndpoint={
             effectiveRole === 'student' ? '/api/auth/change-password/student' :

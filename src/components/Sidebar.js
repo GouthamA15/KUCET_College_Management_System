@@ -159,7 +159,7 @@ function buildMenuItems({ effectiveRole, studentData, staffData, hasActiveEvents
     // Find ACADEMICS to place ACADEMIC CALENDAR and STAFF MANAGEMENT right after it
     const academicsIdx = enhancedMenu.findIndex(i => i.label === 'ACADEMICS');
     let insertIdx = enhancedMenu.length;
-    
+
     if (academicsIdx > -1) {
       insertIdx = academicsIdx + 1;
     } else {
@@ -185,6 +185,16 @@ function buildMenuItems({ effectiveRole, studentData, staffData, hasActiveEvents
     });
   }
 
+  // Add Academic Supervisor Dashboard dynamically
+  if ((effectiveRole === 'faculty' || effectiveRole === 'staff') && staffData?.is_designated_supervisor) {
+    const academicsIdx = enhancedMenu.findIndex(i => i.label === 'ACADEMICS');
+    let insertIdx = academicsIdx > -1 ? academicsIdx + 1 : enhancedMenu.length;
+    enhancedMenu.splice(insertIdx, 0, {
+      label: 'ACADEMIC MONITORING',
+      route: '/staff/supervisor/academic-monitoring'
+    });
+  }
+
   return filterDynamicMenuItems(enhancedMenu, { hasActiveEvents });
 }
 
@@ -205,22 +215,22 @@ function isDashboardLike({ label, route }) {
 
 function isActiveRoute({ pathname, searchParams, route, exact }) {
   if (!pathname || !route) return false;
-  
+
   const [routePath, routeQuery] = route.split('?');
-  
+
   if (exact) {
     if (pathname !== routePath) return false;
   } else {
     if (!pathname.startsWith(routePath)) return false;
   }
-  
+
   if (routeQuery && searchParams) {
     const params = new URLSearchParams(routeQuery);
     for (const [key, value] of params.entries()) {
       if (searchParams.get(key) !== value) return false;
     }
   }
-  
+
   return true;
 }
 
@@ -779,7 +789,7 @@ function SidebarInner({
                     </div>
                   </button>
 
-                  <div 
+                  <div
                     className="ml-8 mr-2 pl-3 bg-blue-50/30 border-l border-blue-200/80 rounded-r-lg space-y-0.5 overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]"
                     style={{
                       maxHeight: open ? `${item.children.length * 36 + 8}px` : '0px',
@@ -798,7 +808,7 @@ function SidebarInner({
                           <circle cx="12" cy="12" r="4" fill="currentColor" />
                         </svg>
                       );
-                      
+
                       const childClass = cn(
                         'group w-full text-left rounded-md px-2.5 py-1.5 flex items-center gap-2.5',
                         'text-[12px] font-semibold transition-all duration-200',

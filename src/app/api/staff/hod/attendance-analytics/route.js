@@ -31,19 +31,19 @@ export async function GET(req) {
     const systemYear = requestedYear || await getCollegeAcademicYear();
     const yearPattern = `%${systemYear.substring(0, 4)}%`;
 
-    const percentageExpr = sql`ROUND((COUNT(CASE WHEN ${studentAttendance.status} = 'PRESENT' AND ${studentAttendance.date} >= COALESCE(${students.admission_date}, '1900-01-01') THEN 1 END) / COUNT(CASE WHEN ${studentAttendance.date} >= COALESCE(${students.admission_date}, '1900-01-01') THEN ${studentAttendance.id} END)) * 100, 1)`;
-    
+    const percentageExpr = sql`ROUND((COUNT(CASE WHEN ${studentAttendance.status} IN ('PRESENT', 'NCC', 'MEDICAL') AND ${studentAttendance.date} >= COALESCE(${students.admission_date}, '1900-01-01') THEN 1 END) / COUNT(CASE WHEN ${studentAttendance.date} >= COALESCE(${students.admission_date}, '1900-01-01') THEN ${studentAttendance.id} END)) * 100, 1)`;
+
     const risks = await db.select({
         roll_no: students.roll_no,
         name: students.name,
-        total_present: sql`COUNT(CASE WHEN ${studentAttendance.status} = 'PRESENT' AND ${studentAttendance.date} >= COALESCE(${students.admission_date}, '1900-01-01') THEN 1 END)`.mapWith(Number),
+        total_present: sql`COUNT(CASE WHEN ${studentAttendance.status} IN ('PRESENT', 'NCC', 'MEDICAL') AND ${studentAttendance.date} >= COALESCE(${students.admission_date}, '1900-01-01') THEN 1 END)`.mapWith(Number),
         total_sessions_recorded: sql`(
-          SELECT COUNT(*) 
-          FROM student_attendance sa2 
+          SELECT COUNT(*)
+          FROM student_attendance sa2
           JOIN faculty_subject_assignments fsa2 ON sa2.assignment_id = fsa2.id
           JOIN students s2 ON sa2.student_id = s2.id
-          WHERE sa2.student_id = ${students.id} 
-          AND fsa2.course_semester = ${semester} 
+          WHERE sa2.student_id = ${students.id}
+          AND fsa2.course_semester = ${semester}
           AND fsa2.branch = ${targetBranch}
           AND sa2.date >= COALESCE(s2.admission_date, '1900-01-01')
         )`.mapWith(Number),
@@ -62,7 +62,7 @@ export async function GET(req) {
     .having(sql`${percentageExpr} < 75`)
     .orderBy(asc(percentageExpr));
 
-    return apiResponse({ 
+    return apiResponse({
       data: risks,
       threshold: 75,
       branch: targetBranch,
