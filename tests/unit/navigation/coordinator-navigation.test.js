@@ -264,8 +264,8 @@ describe('First Year Coordinator Navigation, Route Guards & Authorization Suite'
     const { CoordinatorAssignmentService } = await import('@/services/identity/CoordinatorAssignmentService');
     const { db } = await import('@/db');
 
-    const pastDate = new Date('2026-10-20T00:00:00.000Z');
-    const futureDate = new Date('2026-10-30T00:00:00.000Z');
+    const pastDate = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+    const futureDate = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
 
     // Case A: Active assignment with Date object start_date
     vi.spyOn(db, 'select').mockReturnValueOnce({
