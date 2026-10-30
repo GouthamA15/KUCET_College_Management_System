@@ -17,12 +17,10 @@ const INSTITUTIONAL_DEPARTMENTS = ['CSE', 'IT', 'CSD', 'ECE', 'EEE', 'CIVIL', 'M
 
 async function checkSupervisorAuthority(user) {
   if (!user) return false;
-  if (user.role === 'admin') return true;
-  if (user.is_principal) {
-    if (user.is_designated_supervisor) return true;
-    return await isVerifiedDesignatedSupervisor(user.id, user.email);
-  }
-  return false;
+  if (user.role === 'admin' || user.role === 'super_admin') return true;
+  const staffId = user.id || user.staffId;
+  if (!staffId || isNaN(Number(staffId)) || Number(staffId) <= 0) return false;
+  return await isVerifiedDesignatedSupervisor(staffId, user.email);
 }
 
 /**

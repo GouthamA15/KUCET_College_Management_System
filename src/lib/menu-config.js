@@ -105,6 +105,7 @@ export const NAV_MENU_CONFIG = {
     { label: 'ACADEMIC CALENDAR', route: '/admin/academic-calendar' },
     { label: 'PAYMENTS', route: '/admin/payments' },
     { label: 'MANAGE STAFF', route: '/admin/manage-staff' },
+    { label: 'INSTITUTIONAL ROLES', route: '/admin/institutional-roles' },
     { label: 'STAFF REQUESTS', route: '/admin/staff-requests' },
     { label: 'INFRASTRUCTURE', children: [
         { label: 'System Configuration', route: '/admin/infrastructure?tab=config' },

@@ -228,7 +228,7 @@ function pickIconKey(label) {
   const upper = String(label || '').toUpperCase();
   if (upper === 'DASHBOARD' || upper === 'HOME' || upper.includes('DASHBOARD')) return 'dashboard';
   if (upper === 'PROFILE') return 'profile';
-  if (upper.includes('COORDINAT') || upper.includes('FIRST YEAR') || upper.includes('ACADEMIC') || upper === 'ACADEMICS' || upper === 'ATTENDANCE' || upper === 'MATERIALS') return 'academics';
+  if (upper.includes('COORDINAT') || upper.includes('FIRST YEAR') || upper.includes('ACADEMIC') || upper === 'ACADEMICS' || upper === 'ATTENDANCE' || upper === 'MATERIALS' || upper.includes('ROLES')) return 'academics';
   if (upper === 'FINANCES') return 'finances';
   if (upper.includes('TIME TABLE') || upper.includes('TIMETABLE')) return 'timetable';
   if (upper === 'MY EVENT' || upper.includes('EVENT') || upper.includes('TOURNAMENT')) return 'events';

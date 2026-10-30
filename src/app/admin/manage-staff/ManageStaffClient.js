@@ -819,7 +819,7 @@ export default function ManageStaffClient() {
                             {/* Section 5: Principal-Level Supervisory Designation */}
                             <div>
                               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                                5. Principal-Level Supervisory Designation
+                                5. Institutional Principal Role
                               </h4>
                               <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
                                 <label className="flex items-start gap-3 cursor-pointer">
@@ -832,17 +832,17 @@ export default function ManageStaffClient() {
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2">
                                       <span className="font-bold text-sm text-slate-900">
-                                        Principal / Multi-Branch Academic Supervisor
+                                        Principal Institutional Role
                                       </span>
                                       <span className="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded border border-purple-200">
-                                        CSE + IT + CSD
+                                        Institutional Rank
                                       </span>
                                     </div>
                                     <p className="text-xs text-slate-600 mt-1">
-                                      Grants cross-departmental supervisory authority across all three branches (CSE, IT, CSD) for timetable, faculty load, attendance analytics, student requests, and academic exceptions.
+                                      Assigns the institutional Principal role to this staff member. To activate global Academic Supervisor monitoring privileges across all seven branches (CSE, IT, CSD, ECE, EEE, CIVIL, MECH), configure the designation in <span className="font-semibold text-purple-700">Institutional Roles & Academic Supervisor</span>.
                                     </p>
                                     <p className="text-[11px] text-slate-500 mt-1 italic">
-                                      Note: This supervisory role operates within the Staff Portal without granting institution-wide Super Admin access or requiring a separate login.
+                                      Note: Holding the Principal role alone does not confer global academic monitoring privileges until explicitly designated.
                                     </p>
                                   </div>
                                 </label>

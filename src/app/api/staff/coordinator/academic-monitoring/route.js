@@ -19,7 +19,7 @@ export const GET = wrapHandler({
   handler: async (request, { user }) => {
     // 1. Authoritative Scope Check
     const isCoord = !!user.is_first_year_coordinator;
-    const isSupervisor = !!user.is_principal;
+    const isSupervisor = !!user.is_designated_supervisor;
     const isAdmin = user.role === 'admin';
 
     if (!isCoord && !isSupervisor && !isAdmin) {
