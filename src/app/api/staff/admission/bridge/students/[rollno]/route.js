@@ -6,6 +6,7 @@ import {
   studentPersonalDetails,
   studentImages,
   studentSignatures,
+  studentAdmissionDrafts,
   auditLogs 
 } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -24,7 +25,8 @@ import {
   mapLocationToPortal,
   mapNationalityToPortal,
   mapSocialStatusToPortal,
-  formatStudentCurrentAddress
+  formatStudentCurrentAddress,
+  formatStudentPermanentAddress
 } from '@/lib/admission-bridge/derivation';
 import { ADMISSION_BRIDGE_CONFIG } from '@/lib/admission-bridge/config';
 
@@ -79,6 +81,7 @@ export async function GET(req, context) {
       date_of_birth: studentsTable.date_of_birth,
       gender: studentsTable.gender,
       mobile: studentsTable.mobile,
+      email: studentsTable.email,
       qualifying_exam: studentAcademicBackground.qualifying_exam,
       pfp: studentImages.pfp,
       signature: studentSignatures.signature,
@@ -96,6 +99,8 @@ export async function GET(req, context) {
       guardian_mobile: studentPersonalDetails.guardian_mobile,
       annual_income: studentPersonalDetails.annual_income,
       aadhaar_no: studentPersonalDetails.aadhaar_no,
+      apaar_id: studentPersonalDetails.apaar_id,
+      seat_allotted_category: studentPersonalDetails.seat_allotted_category,
       curr_house_no: studentPersonalDetails.curr_house_no,
       curr_street: studentPersonalDetails.curr_street,
       curr_apartment: studentPersonalDetails.curr_apartment,
@@ -111,12 +116,21 @@ export async function GET(req, context) {
       perm_pincode: studentPersonalDetails.perm_pincode,
       perm_country: studentPersonalDetails.perm_country,
       blood_group: studentPersonalDetails.blood_group,
+      // Draft Fallback Fields
+      draft_place_of_birth: studentAdmissionDrafts.place_of_birth,
+      draft_religion: studentAdmissionDrafts.religion,
+      draft_mother_tongue: studentAdmissionDrafts.mother_tongue,
+      draft_father_occupation: studentAdmissionDrafts.father_occupation,
+      draft_apaar_id: studentAdmissionDrafts.apaar_id,
+      draft_seat_allotted_category: studentAdmissionDrafts.seat_allotted_category,
+      draft_email: studentAdmissionDrafts.email,
     })
     .from(studentsTable)
     .leftJoin(studentAcademicBackground, eq(studentsTable.id, studentAcademicBackground.student_id))
     .leftJoin(studentPersonalDetails, eq(studentsTable.id, studentPersonalDetails.student_id))
     .leftJoin(studentImages, eq(studentsTable.id, studentImages.student_id))
     .leftJoin(studentSignatures, eq(studentsTable.id, studentSignatures.student_id))
+    .leftJoin(studentAdmissionDrafts, eq(studentsTable.roll_no, studentAdmissionDrafts.roll_no))
     .where(eq(studentsTable.roll_no, cleanRoll))
     .limit(1);
 
@@ -170,6 +184,17 @@ export async function GET(req, context) {
       }
     }
 
+    let cleanGuardianContact = null;
+    if (student.guardian_mobile) {
+      try {
+        const decryptedG = decrypt(student.guardian_mobile);
+        cleanGuardianContact = decryptedG ? String(decryptedG).replace(/\D/g, '').slice(-10) : null;
+      } catch (err) {
+        logger.warn({ err: err.message }, '[AdmissionBridge] Guardian mobile decryption failed');
+      }
+    }
+
+    const permanentAddress = formatStudentPermanentAddress(student);
     const parsedDob = parseDateOfBirth(student.date_of_birth);
     const mappedBloodGroup = mapBloodGroupToPortal(student.blood_group);
     const mappedGender = mapGenderToPortal(student.gender);
@@ -298,6 +323,8 @@ export async function GET(req, context) {
       previousStudyConfidence: previousStudyMapping.confidence,
       admissionDate: student.admission_date ? String(student.admission_date).split('T')[0] : null,
       formattedAdmissionDate: formattedDate,
+      academicYear: '2026-2027',
+      studentStatus: student.student_status || 'ACTIVE',
       hallTicketNumber: cleanRoll,
       photo: {
         available: !!student.pfp,
@@ -311,7 +338,7 @@ export async function GET(req, context) {
         expectedFilename: imageFilenames.signatureFilename,
         portalRequirement: '< 250 KB JPEG',
       },
-      // Phase 2: Primary Details (Email ID is explicitly excluded)
+      // Phase 2: Primary Details
       primaryDetails: {
         fullName: student.name,
         fatherName: student.father_name || null,
@@ -326,20 +353,29 @@ export async function GET(req, context) {
           monthShort: parsedDob.monthShort,
           year: parsedDob.year,
         } : null,
-        placeOfBirth: student.place_of_birth || null,
+        placeOfBirth: student.place_of_birth || student.draft_place_of_birth || null,
         bloodGroup: mappedBloodGroup.portalOption,
         gender: mappedGender.portalOption,
         location: mappedLocation.portalOption,
         currentAddress: currentAddress,
+        permanentAddress: permanentAddress || currentAddress,
+        state: student.curr_state || student.perm_state || null,
+        district: student.curr_city || student.perm_city || null,
+        mandal: student.curr_apartment || student.perm_apartment || student.curr_street || student.perm_street || null,
+        village: student.curr_house_no || student.perm_house_no || null,
+        pincode: student.curr_pincode || student.perm_pincode || null,
         useSameAddressForPermanent: true, // Confirmed institutional rule
         aadhaarNumber: cleanAadhaar,
         contactNumber: cleanContact,
+        guardianContact: cleanGuardianContact,
+        apaarId: student.apaar_id || student.draft_apaar_id || null,
         nationality: mappedNationality.portalOption,
-        religion: student.religion || null,
-        motherTongue: student.mother_tongue || null,
+        religion: student.religion || student.draft_religion || null,
+        motherTongue: student.mother_tongue || student.draft_mother_tongue || null,
         socialStatus: mappedSocialStatus.portalOption,
+        subCategory: student.seat_allotted_category || student.draft_seat_allotted_category || null,
         subCaste: student.sub_caste || null,
-        fatherOccupation: student.father_occupation || null,
+        fatherOccupation: student.father_occupation || student.draft_father_occupation || null,
         incomeRange: student.annual_income || null,
         portalIncome: mappedIncome.portalValue,
         incomeStatus: mappedIncome.status,

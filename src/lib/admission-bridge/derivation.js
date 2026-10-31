@@ -634,3 +634,33 @@ export function formatStudentCurrentAddress(pd) {
   return pd.address ? String(pd.address).trim() : null;
 }
 
+/**
+ * Formats a student's personal details into a clean permanent address string.
+ * Combines house no, apartment, street, city, state, pincode, country.
+ * 
+ * @param {Object} pd - Student personal details record
+ * @returns {string | null}
+ */
+export function formatStudentPermanentAddress(pd) {
+  if (!pd) return null;
+
+  const permParts = [
+    pd.perm_house_no,
+    pd.perm_apartment,
+    pd.perm_street,
+    pd.perm_city,
+    pd.perm_state,
+    pd.perm_pincode,
+    pd.perm_country && pd.perm_country !== 'India' ? pd.perm_country : null,
+  ]
+  .map(p => (p ? String(p).trim() : ''))
+  .filter(Boolean);
+
+  if (permParts.length > 0) {
+    return permParts.join(', ');
+  }
+
+  return null;
+}
+
+

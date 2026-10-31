@@ -59,6 +59,16 @@
     );
   }
 
+  function hasScripting(env = typeof globalThis !== 'undefined' ? globalThis : {}) {
+    const c = env.chrome;
+    return Boolean(
+      c &&
+      typeof c.scripting === 'object' &&
+      c.scripting !== null &&
+      typeof c.scripting.executeScript === 'function'
+    );
+  }
+
   function getBrowserCapabilities(env = typeof globalThis !== 'undefined' ? globalThis : {}) {
     return {
       sidePanel: hasSidePanel(env),
@@ -66,6 +76,7 @@
       tabs: hasTabs(env),
       downloads: hasDownloads(env),
       windows: hasWindows(env),
+      scripting: hasScripting(env),
     };
   }
 
@@ -90,6 +101,7 @@
     hasTabs,
     hasDownloads,
     hasWindows,
+    hasScripting,
     getBrowserCapabilities,
     detectBrowserBrand,
   };

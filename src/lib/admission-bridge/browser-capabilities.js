@@ -84,6 +84,21 @@ export function hasWindows(env = typeof globalThis !== 'undefined' ? globalThis 
 }
 
 /**
+ * Checks if chrome.scripting is supported for programmatic content script injection.
+ * @param {Object} [env]
+ * @returns {boolean}
+ */
+export function hasScripting(env = typeof globalThis !== 'undefined' ? globalThis : {}) {
+  const c = env.chrome;
+  return Boolean(
+    c &&
+    typeof c.scripting === 'object' &&
+    c.scripting !== null &&
+    typeof c.scripting.executeScript === 'function'
+  );
+}
+
+/**
  * Returns complete capability profile of the current runtime environment.
  * @param {Object} [env]
  * @returns {Object}
@@ -95,6 +110,7 @@ export function getBrowserCapabilities(env = typeof globalThis !== 'undefined' ?
     tabs: hasTabs(env),
     downloads: hasDownloads(env),
     windows: hasWindows(env),
+    scripting: hasScripting(env),
   };
 }
 
