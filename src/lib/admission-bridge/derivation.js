@@ -463,12 +463,17 @@ export function parseDateOfBirth(dateInput) {
  * Maps CMS blood group string to KU Online blood group dropdown option.
  * Observed Portal Options: ['Select', 'O+', 'O-', 'AB+', 'A+', 'A-', 'B+', 'B-', 'AB-', 'Not-Available']
  * 
+ * Strict mapping:
+ * - A+, A-, B+, B-, AB+, AB-, O+, O- map to standard portal options.
+ * - Empty, null, undefined, whitespace, or explicitly unavailable map to 'Not-Available'.
+ * - Unknown non-empty values return null with an UNMAPPED warning (never silently fallback).
+ * 
  * @param {string} bloodGroup 
- * @returns {{ portalOption: string | null, status: 'VERIFIED' | 'DERIVED' | 'MISSING' }}
+ * @returns {{ portalOption: string | null, status: 'VERIFIED' | 'NOT_AVAILABLE' | 'UNMAPPED', warning?: string }}
  */
 export function mapBloodGroupToPortal(bloodGroup) {
-  if (!bloodGroup || String(bloodGroup).trim() === '') {
-    return { portalOption: null, status: 'MISSING' };
+  if (bloodGroup === undefined || bloodGroup === null || String(bloodGroup).trim() === '') {
+    return { portalOption: 'Not-Available', status: 'NOT_AVAILABLE' };
   }
 
   const clean = String(bloodGroup).toUpperCase().replace(/\s+/g, '').trim();
@@ -478,11 +483,23 @@ export function mapBloodGroupToPortal(bloodGroup) {
     return { portalOption: clean, status: 'VERIFIED' };
   }
 
-  if (clean.includes('NOTAVAILABLE') || clean.includes('N/A') || clean === 'NA') {
-    return { portalOption: 'Not-Available', status: 'VERIFIED' };
+  if (
+    clean.includes('NOTAVAILABLE') || 
+    clean.includes('NOT-AVAILABLE') || 
+    clean.includes('N/A') || 
+    clean === 'NA' ||
+    clean === 'NONE' ||
+    clean === 'UNKNOWN'
+  ) {
+    return { portalOption: 'Not-Available', status: 'NOT_AVAILABLE' };
   }
 
-  return { portalOption: clean, status: 'DERIVED' };
+  // Unknown non-empty value must NOT silently convert to Not-Available
+  return { 
+    portalOption: null, 
+    status: 'UNMAPPED', 
+    warning: `Unknown blood group "${bloodGroup}". Requires manual verification in university portal.` 
+  };
 }
 
 /**

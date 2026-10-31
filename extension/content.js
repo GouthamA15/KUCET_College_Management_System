@@ -577,17 +577,21 @@
           'ctl00_ContentPlaceHolder1_TabContainer1_tbpnluser_fuStudentPhoto'
         );
         const photoInput = findControlById('ctl00_ContentPlaceHolder1_TabContainer1_tbpnluser_fuStudentPhoto');
-        const filename = photoData.filename || `${student.rollNo || 'student'}_photo.jpg`;
+        const filename = photoData.filename || (student.admissionNo ? `${student.admissionNo}.jpg` : `${student.rollNo || 'student'}_photo.jpg`);
         const photoRes = attachFileFromBase64(photoInput, photoData.base64, filename);
 
         if (photoRes.success) {
           report.populated.push(`Photo Attachment (${photoRes.filename}, ${Math.round(photoRes.sizeBytes / 1024)} KB)`);
           report.verification.photoAttached = true;
+          report.verification.photoStatus = 'Attached — awaiting portal confirmation';
+          report.verification.photoFilename = photoRes.filename;
         } else {
           report.failed.push(`Photo Attachment (${photoRes.reason})`);
+          report.verification.photoStatus = 'FAILED';
         }
       } else {
         report.skipped.push('Photo Attachment (No photo data provided)');
+        report.verification.photoStatus = 'MISSING';
       }
 
       // 9. Signature Attachment
@@ -597,17 +601,28 @@
           'ctl00_ContentPlaceHolder1_TabContainer1_tbpnluser_fusign'
         );
         const sigInput = findControlById('ctl00_ContentPlaceHolder1_TabContainer1_tbpnluser_fusign');
-        const filename = signatureData.filename || `${student.rollNo || 'student'}_sign.jpg`;
+        const filename = signatureData.filename || (student.admissionNo ? `${student.admissionNo}(1).jpg` : `${student.rollNo || 'student'}_sign.jpg`);
         const sigRes = attachFileFromBase64(sigInput, signatureData.base64, filename);
 
         if (sigRes.success) {
           report.populated.push(`Signature Attachment (${sigRes.filename}, ${Math.round(sigRes.sizeBytes / 1024)} KB)`);
           report.verification.signatureAttached = true;
+          report.verification.signatureStatus = 'Attached — awaiting portal confirmation';
+          report.verification.signatureFilename = sigRes.filename;
         } else {
           report.failed.push(`Signature Attachment (${sigRes.reason})`);
+          report.verification.signatureStatus = 'FAILED';
         }
       } else {
         report.skipped.push('Signature Attachment (No signature data provided)');
+        report.verification.signatureStatus = 'MISSING';
+      }
+
+      // If photo attached but signature failed, report partial attachment warning
+      if (report.verification.photoAttached && !report.verification.signatureAttached) {
+        report.warnings.push('Only photograph was attached; signature attachment failed or was missing.');
+      } else if (!report.verification.photoAttached && report.verification.signatureAttached) {
+        report.warnings.push('Only signature was attached; photograph attachment failed or was missing.');
       }
 
       // Clear pending postback session stage upon full completion
@@ -739,17 +754,98 @@
       // 5. Place of Birth
       fillInput('ctl00_ContentPlaceHolder1_TabContainer1_TabPanel1_txtPob', ['txtPob', 'placeofbirth'], pd.placeOfBirth, 'Place of Birth');
 
-      // 6. Blood Group (ddBlood)
+      // 6. Blood Group (ddBlood) — Strict Not-Available Fallback & Validation
       const bloodSelect = findSelect('ctl00_ContentPlaceHolder1_TabContainer1_TabPanel1_ddBlood', ['ddBlood']);
-      if (bloodSelect && pd.bloodGroup) {
-        const res = safeSetSelectValue(bloodSelect, pd.bloodGroup);
-        if (res.success) {
-          report.populated.push('Blood Group');
+      if (!bloodSelect) {
+        report.failed.push('Blood Group dropdown (ctl00_ContentPlaceHolder1_TabContainer1_TabPanel1_ddBlood) not found');
+      } else {
+        const rawBlood = pd.bloodGroup;
+        const isAbsent = rawBlood === undefined || rawBlood === null || String(rawBlood).trim() === '' || String(rawBlood).trim() === '—' || String(rawBlood).trim().toLowerCase() === 'not provided';
+        
+        let targetOption = null;
+        let isUnknown = false;
+
+        if (isAbsent) {
+          targetOption = 'Not-Available';
         } else {
-          report.failed.push(`Blood Group (${res.reason})`);
+          const clean = String(rawBlood).toUpperCase().replace(/\s+/g, '').trim();
+          const standardGroups = ['O+', 'O-', 'AB+', 'A+', 'A-', 'B+', 'B-', 'AB-'];
+          if (standardGroups.includes(clean)) {
+            targetOption = clean;
+          } else if (
+            clean.includes('NOTAVAILABLE') ||
+            clean.includes('NOT-AVAILABLE') ||
+            clean.includes('N/A') ||
+            clean === 'NA' ||
+            clean === 'NONE' ||
+            clean === 'UNKNOWN'
+          ) {
+            targetOption = 'Not-Available';
+          } else {
+            isUnknown = true;
+          }
         }
-      } else if (!pd.bloodGroup) {
-        report.skipped.push('Blood Group');
+
+        if (isUnknown) {
+          report.failed.push(`Blood Group requires manual verification: unmapped value "${rawBlood}"`);
+          report.warnings.push(`Unknown blood group "${rawBlood}". Manual selection required.`);
+        } else {
+          // Find option matching targetOption in portal select element
+          let matchedOptionIndex = -1;
+          for (let i = 0; i < bloodSelect.options.length; i++) {
+            const opt = bloodSelect.options[i];
+            const optText = (opt.text || '').trim();
+            const optVal = (opt.value || '').trim();
+
+            if (targetOption === 'Not-Available') {
+              if (
+                optText.toLowerCase().includes('not-available') ||
+                optText.toLowerCase().includes('not available') ||
+                optVal.toLowerCase().includes('not-available') ||
+                optVal.toLowerCase().includes('not available')
+              ) {
+                matchedOptionIndex = i;
+                break;
+              }
+            } else {
+              if (
+                optText.toUpperCase().replace(/\s+/g, '') === targetOption ||
+                optVal.toUpperCase().replace(/\s+/g, '') === targetOption
+              ) {
+                matchedOptionIndex = i;
+                break;
+              }
+            }
+          }
+
+          if (matchedOptionIndex < 0) {
+            if (targetOption === 'Not-Available') {
+              report.failed.push("Blood Group: Missing 'Not-Available' option in portal dropdown");
+            } else {
+              report.failed.push(`Blood Group: Option "${targetOption}" not found in portal dropdown`);
+            }
+          } else {
+            bloodSelect.selectedIndex = matchedOptionIndex;
+            bloodSelect.dispatchEvent(new Event('input', { bubbles: true }));
+            bloodSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            if (typeof bloodSelect.onchange === 'function') {
+              try { bloodSelect.onchange(); } catch (_) {}
+            }
+
+            // Post-selection verification: ensure -Select- or empty is NOT selected
+            const verifyOpt = bloodSelect.options[bloodSelect.selectedIndex];
+            const verifyText = (verifyOpt?.text || '').trim();
+            const verifyVal = (verifyOpt?.value || '').trim();
+
+            if (bloodSelect.selectedIndex < 0 || verifyText.toLowerCase().includes('select') || verifyVal === '' || verifyVal === '0') {
+              report.failed.push('Blood Group verification failed: default "-Select-" remains selected');
+            } else {
+              const label = isAbsent ? 'Blood Group (Not-Available fallback)' : `Blood Group (${verifyText})`;
+              report.populated.push(label);
+              report.verification.bloodGroup = verifyText;
+            }
+          }
+        }
       }
 
       // 7. Gender (rbtnGender: 1=Male, 2=Female)

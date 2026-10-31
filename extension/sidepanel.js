@@ -36,6 +36,7 @@ const workspaceView = document.getElementById('workspaceView');
 // Header Elements
 const tutorialBtn = document.getElementById('tutorialBtn');
 const logoutBtn = document.getElementById('logoutBtn');
+const staffIdentityBadge = document.getElementById('staffIdentityBadge');
 
 // Status Bar Elements
 const cmsDot = document.getElementById('cmsDot');
@@ -100,12 +101,19 @@ const primaryResultAlert = document.getElementById('primaryResultAlert');
 const photoThumb = document.getElementById('photoThumb');
 const photoFilename = document.getElementById('photoFilename');
 const photoStats = document.getElementById('photoStats');
+const photoBadge = document.getElementById('photoBadge');
 const downloadPhotoBtn = document.getElementById('downloadPhotoBtn');
+const retryPhotoBtn = document.getElementById('retryPhotoBtn');
 
 const sigThumb = document.getElementById('sigThumb');
 const sigFilename = document.getElementById('sigFilename');
 const sigStats = document.getElementById('sigStats');
+const sigBadge = document.getElementById('sigBadge');
 const downloadSigBtn = document.getElementById('downloadSigBtn');
+const retrySigBtn = document.getElementById('retrySigBtn');
+
+let isRetryingPhoto = false;
+let isRetryingSig = false;
 
 // ==========================================
 // INITIAL SETUP & EVENT LISTENERS
@@ -177,6 +185,12 @@ function setupEventListeners() {
   if (downloadSigBtn) {
     downloadSigBtn.addEventListener('click', () => triggerDownload(optimizedSignature));
   }
+  if (retryPhotoBtn) {
+    retryPhotoBtn.addEventListener('click', handleRetryAttachPhoto);
+  }
+  if (retrySigBtn) {
+    retrySigBtn.addEventListener('click', handleRetryAttachSig);
+  }
 
   const retryPortalBtn = document.getElementById('retryPortalBtn');
   if (retryPortalBtn) {
@@ -222,6 +236,12 @@ async function checkAuthSession() {
       const data = await res.json();
       authUser = data.user;
       setCMSStatus('active', `Active: ${authUser.name || authUser.email}`);
+
+      if (staffIdentityBadge) {
+        const staffName = authUser.name || (authUser.email ? authUser.email.split('@')[0] : 'Staff');
+        staffIdentityBadge.textContent = staffName;
+        staffIdentityBadge.classList.remove('hidden');
+      }
 
       // Check if user has already completed the tutorial
       const isCompleted = await getTutorialCompletedFlag();
@@ -319,6 +339,7 @@ async function handleSignOut() {
     currentStudent = null;
     optimizedPhoto = null;
     optimizedSignature = null;
+    if (staffIdentityBadge) staffIdentityBadge.classList.add('hidden');
     resetWorkspaceData();
     setCMSStatus('amber', 'Signed Out');
     showAuthInfo('You have successfully signed out of KUCET Admission Bridge.');
@@ -702,6 +723,24 @@ function resetWorkspaceData() {
 
   STUDENT_FIELDS.forEach(f => resetField(f.id, f.btnId));
 
+  if (photoThumb && photoThumb.src && photoThumb.src.startsWith('blob:')) {
+    URL.revokeObjectURL(photoThumb.src);
+    photoThumb.src = '';
+  }
+  if (sigThumb && sigThumb.src && sigThumb.src.startsWith('blob:')) {
+    URL.revokeObjectURL(sigThumb.src);
+    sigThumb.src = '';
+  }
+
+  if (photoFilename) photoFilename.textContent = 'photo.jpg';
+  if (sigFilename) sigFilename.textContent = 'sign.jpg';
+  if (photoStats) photoStats.textContent = 'Processing...';
+  if (sigStats) sigStats.textContent = 'Processing...';
+  if (photoBadge) { photoBadge.className = 'badge badge-amber'; photoBadge.textContent = 'Ready'; }
+  if (sigBadge) { sigBadge.className = 'badge badge-amber'; sigBadge.textContent = 'Ready'; }
+  if (retryPhotoBtn) retryPhotoBtn.classList.add('hidden');
+  if (retrySigBtn) retrySigBtn.classList.add('hidden');
+
   currentStudent = null;
   optimizedPhoto = null;
   optimizedSignature = null;
@@ -750,6 +789,19 @@ async function handleFetchStudent() {
     }
 
     const payload = await res.json();
+
+    // Revoke old image blobs and clear old records to prevent cross-student contamination
+    if (photoThumb && photoThumb.src && photoThumb.src.startsWith('blob:')) {
+      URL.revokeObjectURL(photoThumb.src);
+      photoThumb.src = '';
+    }
+    if (sigThumb && sigThumb.src && sigThumb.src.startsWith('blob:')) {
+      URL.revokeObjectURL(sigThumb.src);
+      sigThumb.src = '';
+    }
+    optimizedPhoto = null;
+    optimizedSignature = null;
+
     currentStudent = payload.data || payload;
 
     renderStudentDetails(currentStudent);
@@ -763,6 +815,10 @@ async function handleFetchStudent() {
     showError(err.message);
     studentCard.classList.add('hidden');
     activeStudentBanner.classList.add('hidden');
+    currentStudent = null;
+    optimizedPhoto = null;
+    optimizedSignature = null;
+    STUDENT_FIELDS.forEach(f => resetField(f.id, f.btnId));
     updateStepper(2);
   } finally {
     fetchBtn.disabled = false;
@@ -825,12 +881,32 @@ function renderStudentDetails(s) {
   }
 }
 
+function setMediaBadge(type, color, text) {
+  const badgeEl = type === 'photo' ? photoBadge : sigBadge;
+  if (!badgeEl) return;
+  badgeEl.className = `badge badge-${color}`;
+  badgeEl.textContent = text;
+}
+
 // ==========================================
 // MEDIA ASSET PROCESSING (< 190 KiB)
 // ==========================================
 async function processMediaAssets(s) {
+  const admissionNo = s.admissionNo ? String(s.admissionNo).trim().toUpperCase() : null;
+  const photoName = s.photo?.expectedFilename || s.photoFilename || (admissionNo ? `${admissionNo}.jpg` : `${s.rollNo}_photo.jpg`);
+  const sigName = s.signature?.expectedFilename || s.signatureFilename || (admissionNo ? `${admissionNo}(1).jpg` : `${s.rollNo}_sign.jpg`);
+  s.photoFilename = photoName;
+  s.signatureFilename = sigName;
+
+  if (photoFilename) photoFilename.textContent = photoName;
+  if (sigFilename) sigFilename.textContent = sigName;
+
+  setMediaBadge('photo', 'amber', 'Loading');
+  setMediaBadge('sig', 'amber', 'Loading');
   photoStats.textContent = 'Downloading...';
   sigStats.textContent = 'Downloading...';
+  if (retryPhotoBtn) retryPhotoBtn.classList.add('hidden');
+  if (retrySigBtn) retrySigBtn.classList.add('hidden');
 
   const photoUrl = `${CMS_BASE_URL}/api/staff/admission/bridge/students/${encodeURIComponent(s.rollNo)}/photo`;
   const sigUrl = `${CMS_BASE_URL}/api/staff/admission/bridge/students/${encodeURIComponent(s.rollNo)}/signature`;
@@ -841,29 +917,109 @@ async function processMediaAssets(s) {
   ]);
 
   if (photoBlob) {
-    photoFilename.textContent = s.photoFilename || `${s.rollNo}_photo.jpg`;
+    setMediaBadge('photo', 'amber', 'Optimizing');
     photoStats.textContent = 'Optimizing JPEG (< 190 KiB)...';
     optimizedPhoto = await optimizeImageClient(photoBlob, 'photo');
+    optimizedPhoto.filename = photoName;
+    if (photoThumb.src && photoThumb.src.startsWith('blob:')) {
+      URL.revokeObjectURL(photoThumb.src);
+    }
     photoThumb.src = URL.createObjectURL(optimizedPhoto.blob);
     photoStats.textContent = `${formatBytes(optimizedPhoto.sizeBytes)} • ${optimizedPhoto.dimensions.width}×${optimizedPhoto.dimensions.height} JPEG`;
+    setMediaBadge('photo', 'green', 'Ready');
     downloadPhotoBtn.disabled = false;
   } else {
     photoStats.textContent = 'No photo uploaded';
+    setMediaBadge('photo', 'amber', 'Missing');
     photoThumb.src = '';
     downloadPhotoBtn.disabled = true;
   }
 
   if (sigBlob) {
-    sigFilename.textContent = s.signatureFilename || `${s.rollNo}_sign.jpg`;
+    setMediaBadge('sig', 'amber', 'Optimizing');
     sigStats.textContent = 'Optimizing JPEG (< 190 KiB)...';
     optimizedSignature = await optimizeImageClient(sigBlob, 'signature');
+    optimizedSignature.filename = sigName;
+    if (sigThumb.src && sigThumb.src.startsWith('blob:')) {
+      URL.revokeObjectURL(sigThumb.src);
+    }
     sigThumb.src = URL.createObjectURL(optimizedSignature.blob);
     sigStats.textContent = `${formatBytes(optimizedSignature.sizeBytes)} • ${optimizedSignature.dimensions.width}×${optimizedSignature.dimensions.height} JPEG`;
+    setMediaBadge('sig', 'green', 'Ready');
     downloadSigBtn.disabled = false;
   } else {
     sigStats.textContent = 'No signature uploaded';
+    setMediaBadge('sig', 'amber', 'Missing');
     sigThumb.src = '';
     downloadSigBtn.disabled = true;
+  }
+}
+
+async function handleRetryAttachPhoto() {
+  if (!currentStudent || !optimizedPhoto?.blob || isRetryingPhoto) return;
+  isRetryingPhoto = true;
+  if (retryPhotoBtn) {
+    retryPhotoBtn.disabled = true;
+    retryPhotoBtn.textContent = 'Attaching...';
+  }
+  setMediaBadge('photo', 'blue', 'Attaching...');
+
+  try {
+    const photoBase64 = await blobToBase64(optimizedPhoto.blob);
+    const res = await sendPortalMessage({
+      action: 'PORTAL_ATTACH_STUDENT_MEDIA',
+      type: 'photo',
+      base64: photoBase64,
+      filename: currentStudent.photoFilename,
+    });
+
+    if (res?.success) {
+      setMediaBadge('photo', 'green', 'Attached');
+      if (retryPhotoBtn) retryPhotoBtn.classList.add('hidden');
+    } else {
+      setMediaBadge('photo', 'red', 'Failed');
+      if (retryPhotoBtn) retryPhotoBtn.textContent = '↻ Retry Attach';
+    }
+  } catch (_err) {
+    setMediaBadge('photo', 'red', 'Failed');
+    if (retryPhotoBtn) retryPhotoBtn.textContent = '↻ Retry Attach';
+  } finally {
+    isRetryingPhoto = false;
+    if (retryPhotoBtn) retryPhotoBtn.disabled = false;
+  }
+}
+
+async function handleRetryAttachSig() {
+  if (!currentStudent || !optimizedSignature?.blob || isRetryingSig) return;
+  isRetryingSig = true;
+  if (retrySigBtn) {
+    retrySigBtn.disabled = true;
+    retrySigBtn.textContent = 'Attaching...';
+  }
+  setMediaBadge('sig', 'blue', 'Attaching...');
+
+  try {
+    const sigBase64 = await blobToBase64(optimizedSignature.blob);
+    const res = await sendPortalMessage({
+      action: 'PORTAL_ATTACH_STUDENT_MEDIA',
+      type: 'signature',
+      base64: sigBase64,
+      filename: currentStudent.signatureFilename,
+    });
+
+    if (res?.success) {
+      setMediaBadge('sig', 'green', 'Attached');
+      if (retrySigBtn) retrySigBtn.classList.add('hidden');
+    } else {
+      setMediaBadge('sig', 'red', 'Failed');
+      if (retrySigBtn) retrySigBtn.textContent = '↻ Retry Attach';
+    }
+  } catch (_err) {
+    setMediaBadge('sig', 'red', 'Failed');
+    if (retrySigBtn) retrySigBtn.textContent = '↻ Retry Attach';
+  } finally {
+    isRetryingSig = false;
+    if (retrySigBtn) retrySigBtn.disabled = false;
   }
 }
 
@@ -1146,9 +1302,11 @@ async function handleFillPortal() {
     let photoBase64 = null;
     let sigBase64 = null;
     if (optimizedPhoto?.blob) {
+      setMediaBadge('photo', 'blue', 'Attaching...');
       photoBase64 = await blobToBase64(optimizedPhoto.blob);
     }
     if (optimizedSignature?.blob) {
+      setMediaBadge('sig', 'blue', 'Attaching...');
       sigBase64 = await blobToBase64(optimizedSignature.blob);
     }
 
@@ -1168,12 +1326,39 @@ async function handleFillPortal() {
     const response = await sendPortalMessage(message);
 
     if (response && (response.success || response.requiresPostback || (response.populatedFields && response.populatedFields.length > 0))) {
+      // Update media badges based on verified portal attachment status
+      if (response.verification?.photoAttached) {
+        setMediaBadge('photo', 'green', 'Attached');
+        if (retryPhotoBtn) retryPhotoBtn.classList.add('hidden');
+      } else if (optimizedPhoto?.blob) {
+        setMediaBadge('photo', 'red', 'Failed');
+        if (retryPhotoBtn) retryPhotoBtn.classList.remove('hidden');
+      }
+
+      if (response.verification?.signatureAttached) {
+        setMediaBadge('sig', 'green', 'Attached');
+        if (retrySigBtn) retrySigBtn.classList.add('hidden');
+      } else if (optimizedSignature?.blob) {
+        setMediaBadge('sig', 'red', 'Failed');
+        if (retrySigBtn) retrySigBtn.classList.remove('hidden');
+      }
+
       renderTransferStatus(response, fillResultAlert, 'Step 1: Admission Info');
       updateStepper(4);
     } else {
+      if (optimizedPhoto?.blob) setMediaBadge('photo', 'red', 'Failed');
+      if (optimizedSignature?.blob) setMediaBadge('sig', 'red', 'Failed');
       throw new Error(response?.error || response?.message || 'Could not populate portal admission info fields.');
     }
   } catch (err) {
+    if (optimizedPhoto?.blob) {
+      setMediaBadge('photo', 'red', 'Failed');
+      if (retryPhotoBtn) retryPhotoBtn.classList.remove('hidden');
+    }
+    if (optimizedSignature?.blob) {
+      setMediaBadge('sig', 'red', 'Failed');
+      if (retrySigBtn) retrySigBtn.classList.remove('hidden');
+    }
     renderTransferError(err, fillResultAlert, 'Admission Info');
   } finally {
     isTransferringStep1 = false;

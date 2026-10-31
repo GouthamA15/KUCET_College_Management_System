@@ -356,8 +356,22 @@ describe('KUCET Admission Bridge — Derivation & Mapping Suite', () => {
       expect(mapBloodGroupToPortal('O+').portalOption).toBe('O+');
       expect(mapBloodGroupToPortal('o+').portalOption).toBe('O+');
       expect(mapBloodGroupToPortal('AB-').portalOption).toBe('AB-');
+      expect(mapBloodGroupToPortal('A+').portalOption).toBe('A+');
+      expect(mapBloodGroupToPortal('A-').portalOption).toBe('A-');
+      expect(mapBloodGroupToPortal('B+').portalOption).toBe('B+');
+      expect(mapBloodGroupToPortal('B-').portalOption).toBe('B-');
+      expect(mapBloodGroupToPortal('AB+').portalOption).toBe('AB+');
       expect(mapBloodGroupToPortal('Not available').portalOption).toBe('Not-Available');
-      expect(mapBloodGroupToPortal(null).portalOption).toBeNull();
+      expect(mapBloodGroupToPortal('N/A').portalOption).toBe('Not-Available');
+      expect(mapBloodGroupToPortal(null).portalOption).toBe('Not-Available');
+      expect(mapBloodGroupToPortal('').portalOption).toBe('Not-Available');
+      expect(mapBloodGroupToPortal('   ').portalOption).toBe('Not-Available');
+      expect(mapBloodGroupToPortal(undefined).portalOption).toBe('Not-Available');
+      
+      const unmapped = mapBloodGroupToPortal('XYZ');
+      expect(unmapped.portalOption).toBeNull();
+      expect(unmapped.status).toBe('UNMAPPED');
+      expect(unmapped.warning).toContain('Requires manual verification');
     });
 
     it('should map Gender to Male / Female', () => {

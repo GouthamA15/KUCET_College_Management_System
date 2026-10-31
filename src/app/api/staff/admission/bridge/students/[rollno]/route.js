@@ -283,6 +283,13 @@ export async function GET(req, context) {
         message: mappedIncome.warning,
       });
     }
+    if (mappedBloodGroup.warning) {
+      warnings.push({
+        field: 'bloodGroup',
+        code: 'BLOOD_GROUP_MAPPING_WARNING',
+        message: mappedBloodGroup.warning,
+      });
+    }
 
     // 10. Write Non-PII Security Audit Log (Never log Aadhaar or phone numbers)
     try {

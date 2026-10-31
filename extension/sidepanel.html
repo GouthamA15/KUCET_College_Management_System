@@ -384,6 +384,7 @@
     .badge-green { background: #dcfce7; color: #166534; }
     .badge-amber { background: #fef3c7; color: #92400e; }
     .badge-purple { background: #f3e8ff; color: #6b21a8; }
+    .badge-red { background: #fee2e2; color: #991b1b; }
 
     /* Media Cards */
     .media-card {
@@ -554,6 +555,7 @@
       </div>
     </div>
     <div class="header-actions">
+      <span id="staffIdentityBadge" class="badge badge-blue hidden" style="font-size: 10px; padding: 3px 6px;">Staff</span>
       <button id="tutorialBtn" class="btn btn-secondary btn-ghost" title="Open Interactive Tutorial">
         🎓 Tutorial
       </button>
@@ -1223,12 +1225,20 @@
           </div>
           <div class="media-meta">
             <div>
-              <div class="media-filename" id="photoFilename">photo.jpg</div>
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
+                <div class="media-filename" id="photoFilename">photo.jpg</div>
+                <span id="photoBadge" class="badge badge-amber">Loading</span>
+              </div>
               <div class="media-stats" id="photoStats">Processing...</div>
             </div>
-            <button id="downloadPhotoBtn" class="btn btn-secondary" style="font-size: 10px; padding: 3px 6px; align-self: flex-start; margin-top: 4px;">
-              Download JPEG
-            </button>
+            <div style="display: flex; gap: 6px; margin-top: 4px;">
+              <button id="downloadPhotoBtn" class="btn btn-secondary" style="font-size: 10px; padding: 3px 6px;">
+                Download JPEG
+              </button>
+              <button id="retryPhotoBtn" class="btn btn-secondary hidden" style="font-size: 10px; padding: 3px 6px; color: var(--primary); font-weight: 600;">
+                ↻ Retry Attach
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1239,12 +1249,20 @@
           </div>
           <div class="media-meta">
             <div>
-              <div class="media-filename" id="sigFilename">sign.jpg</div>
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
+                <div class="media-filename" id="sigFilename">sign.jpg</div>
+                <span id="sigBadge" class="badge badge-amber">Loading</span>
+              </div>
               <div class="media-stats" id="sigStats">Processing...</div>
             </div>
-            <button id="downloadSigBtn" class="btn btn-secondary" style="font-size: 10px; padding: 3px 6px; align-self: flex-start; margin-top: 4px;">
-              Download JPEG
-            </button>
+            <div style="display: flex; gap: 6px; margin-top: 4px;">
+              <button id="downloadSigBtn" class="btn btn-secondary" style="font-size: 10px; padding: 3px 6px;">
+                Download JPEG
+              </button>
+              <button id="retrySigBtn" class="btn btn-secondary hidden" style="font-size: 10px; padding: 3px 6px; color: var(--primary); font-weight: 600;">
+                ↻ Retry Attach
+              </button>
+            </div>
           </div>
         </div>
       </div>
