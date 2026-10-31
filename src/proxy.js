@@ -278,7 +278,7 @@ export default async function proxy(request) {
   if (pathname.startsWith('/api/admin')) {
     if (!adminPayload) return handleUnauthorized(request);
   } else if (pathname.startsWith('/api/staff')) {
-    if (pathname.startsWith('/api/staff/academic-calendar') || pathname.startsWith('/api/staff/semesters') || pathname.startsWith('/api/staff/id-cards') || pathname.startsWith('/api/staff/admission/bridge')) {
+    if (pathname.startsWith('/api/staff/academic-calendar') || pathname.startsWith('/api/staff/semesters') || pathname.startsWith('/api/staff/id-cards') || pathname.startsWith('/api/staff/admission/id-cards') || pathname.startsWith('/api/staff/admission/bridge')) {
        // These endpoints are shared with Admin for management
        if (!adminPayload && !staffPayload) return handleUnauthorized(request);
     } else {
@@ -304,7 +304,7 @@ export default async function proxy(request) {
         return withCookies(NextResponse.redirect(new URL(dashboard, request.url), 303));
       }
       if (pathname.startsWith('/staff/scholarship') && staffPayload.role !== 'scholarship') return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
-      if (pathname.startsWith('/staff/admission') && staffPayload.role !== 'admission') return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
+      if (pathname.startsWith('/staff/admission') && staffPayload.role !== 'admission' && !(pathname.startsWith('/staff/admission/id-cards') && (staffPayload.is_first_year_coordinator || adminPayload))) return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
       if (pathname.startsWith('/staff/faculty') && staffPayload.role !== 'faculty') return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
       if (pathname.startsWith('/staff/hod') && (staffPayload.role !== 'faculty' || (!staffPayload.is_hod && !staffPayload.is_principal))) return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
       if (pathname.startsWith('/staff/first-year') && (staffPayload.role !== 'faculty' || (!staffPayload.is_first_year_coordinator && !staffPayload.is_principal))) return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));

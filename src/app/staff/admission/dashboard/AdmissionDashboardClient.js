@@ -138,6 +138,15 @@ export default function AdmissionDashboardClient() {
       tone: 'bg-amber-50 text-amber-800',
       path: '/staff/admission/id-cards',
       badge: 0
+    },
+    {
+      key: 'bulk-id-cards',
+      label: 'Bulk ID Card Download',
+      description: 'Generate individual student ID card PDFs and download them together as a ZIP archive.',
+      icon: '📦',
+      tone: 'bg-blue-50 text-blue-800',
+      path: '/staff/admission/id-cards/bulk',
+      badge: 0
     }
   ];
 

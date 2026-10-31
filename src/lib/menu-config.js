@@ -40,7 +40,8 @@ export const NAV_MENU_CONFIG = {
         { label: 'Student Registry', route: '/staff/admission/student-management' },
         { label: 'Student Requests', route: '/staff/admission/requests' },
         { label: 'Finalize', route: '/staff/admission/finalize' },
-        { label: 'ID Cards', route: '/staff/admission/id-cards' }
+        { label: 'ID Cards', route: '/staff/admission/id-cards' },
+        { label: 'Bulk ID Card Download', route: '/staff/admission/id-cards/bulk' }
       ]
     },
     { label: 'SETTINGS', children: [
@@ -68,7 +69,8 @@ export const NAV_MENU_CONFIG = {
         { label: 'Student Registry', route: '/staff/admission/student-management' },
         { label: 'Student Requests', route: '/staff/admission/requests' },
         { label: 'Finalize', route: '/staff/admission/finalize' },
-        { label: 'ID Cards', route: '/staff/admission/id-cards' }
+        { label: 'ID Cards', route: '/staff/admission/id-cards' },
+        { label: 'Bulk ID Card Download', route: '/staff/admission/id-cards/bulk' }
       ]
     },
     { label: 'SETTINGS', children: [

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { 
   Search, 
@@ -304,6 +305,14 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/staff/admission/id-cards/bulk"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#0b3578] hover:bg-[#08285a] rounded-md shadow-xs transition cursor-pointer"
+            title="Bulk Student ID Card PDF Generation & ZIP Download"
+          >
+            <Archive className="w-3.5 h-3.5" />
+            Bulk ZIP Generator
+          </Link>
           <button
             onClick={handleManualRefresh}
             disabled={isLoading || isExporting}
