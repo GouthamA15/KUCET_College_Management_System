@@ -260,31 +260,116 @@
       text-transform: uppercase;
     }
 
-    /* Grids & Info Boxes */
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-    .info-box {
+    /* Individual Field Card */
+    .field-card {
       background: #f8fafc;
-      border: 1px solid #edf2f7;
+      border: 1px solid #e2e8f0;
       border-radius: 6px;
-      padding: 6px 8px;
+      padding: 6px 10px;
+      margin-bottom: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
     }
-    .info-box .label {
+    .field-card:hover {
+      border-color: #cbd5e1;
+      background: #ffffff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+    .field-label {
       font-size: 10px;
-      color: var(--text-muted);
+      font-weight: 700;
+      color: #64748b;
       text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
-    .info-box .val {
+    .field-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 0;
+    }
+    .field-val {
       font-size: 12px;
       font-weight: 600;
-      color: var(--text);
+      color: #1e293b;
+      word-break: break-word;
+      line-height: 1.35;
+      flex: 1;
+    }
+    .field-val.mono {
+      font-family: monospace;
+      font-size: 12px;
+      letter-spacing: 0.3px;
+      color: var(--primary);
+    }
+    .field-val.not-provided {
+      color: #94a3b8;
+      font-weight: 400;
+      font-style: italic;
+    }
+    .copy-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #0b3578;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.15s ease;
       white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      user-select: none;
+    }
+    .copy-btn:hover:not(:disabled) {
+      background: #eff6ff;
+      border-color: #3b82f6;
+      color: #1d4ed8;
+    }
+    .copy-btn:active:not(:disabled) {
+      background: #dbeafe;
+      transform: scale(0.97);
+    }
+    .copy-btn:disabled {
+      background: #f1f5f9;
+      border-color: #e2e8f0;
+      color: #94a3b8;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    .copy-btn.copied {
+      background: #ecfdf5;
+      border-color: #10b981;
+      color: #047857;
+    }
+
+    /* Section Divider & Header */
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 14px;
+      margin-bottom: 8px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .section-header:first-of-type {
+      margin-top: 4px;
+      border-top: none;
+      padding-top: 0;
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
     }
 
     /* Badges */
@@ -299,6 +384,7 @@
     .badge-green { background: #dcfce7; color: #166534; }
     .badge-amber { background: #fef3c7; color: #92400e; }
     .badge-purple { background: #f3e8ff; color: #6b21a8; }
+    .badge-red { background: #fee2e2; color: #991b1b; }
 
     /* Media Cards */
     .media-card {
@@ -469,6 +555,7 @@
       </div>
     </div>
     <div class="header-actions">
+      <span id="staffIdentityBadge" class="badge badge-blue hidden" style="font-size: 10px; padding: 3px 6px;">Staff</span>
       <button id="tutorialBtn" class="btn btn-secondary btn-ghost" title="Open Interactive Tutorial">
         🎓 Tutorial
       </button>
@@ -484,10 +571,11 @@
       <span class="dot amber" id="cmsDot"></span>
       <span class="status-text" id="cmsStatusText">Checking Session...</span>
     </div>
-    <div class="status-item" id="portalStatus">
+    <div class="status-item" id="portalStatus" style="flex: 1;">
       <span class="dot amber" id="portalDot"></span>
       <span class="status-text" id="portalStatusText">Checking KU Portal...</span>
     </div>
+    <button id="retryPortalBtn" title="Retry connection and reinject content script if missing" style="background: none; border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-size: 10px; cursor: pointer; color: var(--primary); font-weight: 600;">Retry</button>
   </div>
 
   <!-- ========================================== -->
@@ -676,120 +764,459 @@
         <span id="dispAdmissionTypeBadge" class="badge badge-blue">Regular</span>
       </div>
 
-      <div class="grid-2">
-        <div class="info-box">
-          <div class="label">Roll Number</div>
-          <div class="val" id="dispRollNo">—</div>
-        </div>
-        <div class="info-box">
-          <div class="label">College Admission No</div>
-          <div class="val" id="dispAdmissionNo" style="color: var(--primary); font-family: monospace;">—</div>
-        </div>
-      </div>
-
-      <div class="grid-2">
-        <div class="info-box">
-          <div class="label">Admitted Into (Branch)</div>
-          <div class="val" id="dispBranch">—</div>
-        </div>
-        <div class="info-box">
-          <div class="label">KU Online Scheme</div>
-          <div class="val" id="dispScheme">2013</div>
-        </div>
-      </div>
-
-      <div class="grid-2">
-        <div class="info-box">
-          <div class="label">Admission Date</div>
-          <div class="val" id="dispAdmissionDate">—</div>
-        </div>
-        <div class="info-box">
-          <div class="label">Previous Studying</div>
-          <div class="val" id="dispPreviousStudy">—</div>
-        </div>
-      </div>
-
       <!-- Warnings List -->
       <div id="warningsContainer"></div>
 
-      <!-- Phase 2: Primary Details Section -->
-      <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-          <span class="form-label" style="margin-bottom: 0;">Primary Details (Tab 2)</span>
-          <span id="primaryStatusBadge" class="badge badge-blue">Ready</span>
-        </div>
+      <!-- SECTION 1: BASIC STUDENT INFORMATION -->
+      <div class="section-header">
+        <span class="section-title">1. Basic Student Information</span>
+        <span class="badge badge-blue">Academic</span>
+      </div>
 
-        <div class="grid-2">
-          <div class="info-box">
-            <div class="label">Father's Name</div>
-            <div class="val" id="dispFatherName">—</div>
-          </div>
-          <div class="info-box">
-            <div class="label">Mother's Name</div>
-            <div class="val" id="dispMotherName">—</div>
-          </div>
-        </div>
-
-        <div class="grid-2">
-          <div class="info-box">
-            <div class="label">Date of Birth</div>
-            <div class="val" id="dispDob">—</div>
-          </div>
-          <div class="info-box">
-            <div class="label">Gender &amp; Blood Group</div>
-            <div class="val" id="dispGenderBlood">—</div>
-          </div>
-        </div>
-
-        <div class="grid-2">
-          <div class="info-box">
-            <div class="label">Location &amp; Nationality</div>
-            <div class="val" id="dispLocationNat">—</div>
-          </div>
-          <div class="info-box">
-            <div class="label">Social Status &amp; Sub-Caste</div>
-            <div class="val" id="dispSocialCaste">—</div>
-          </div>
-        </div>
-
-        <div class="grid-2">
-          <div class="info-box">
-            <div class="label">Aadhaar (Masked)</div>
-            <div class="val" id="dispAadhaar" style="font-family: monospace;">—</div>
-          </div>
-          <div class="info-box">
-            <div class="label">Contact (Masked)</div>
-            <div class="val" id="dispContact" style="font-family: monospace;">—</div>
-          </div>
-        </div>
-
-        <div class="grid-2">
-          <div class="info-box">
-            <div class="label">Income ➔ Portal Value</div>
-            <div class="val" id="dispIncome">—</div>
-          </div>
-          <div class="info-box">
-            <div class="label">Permanent Address</div>
-            <div class="val" style="color: var(--success); font-weight: 600;">Same as Current (Checkbox)</div>
-          </div>
-        </div>
-
-        <div class="info-box" style="margin-top: 4px;">
-          <div class="label">Current Address</div>
-          <div class="val" id="dispCurrentAddress" style="white-space: normal; line-height: 1.3;">—</div>
-        </div>
-
-        <div style="margin-top: 8px;">
-          <button id="fillPrimaryBtn" class="btn btn-primary" style="width: 100%; padding: 8px; font-size: 12px;">
-            <span id="fillPrimaryBtnText">Populate KU Online Primary Details</span>
+      <div class="field-card">
+        <div class="field-label">Student Name</div>
+        <div class="field-content">
+          <div class="field-val" id="dispStudentName">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_name" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
           </button>
-          <div id="primaryResultAlert" class="alert alert-green hidden" style="margin-top: 6px;"></div>
         </div>
       </div>
 
+      <div class="field-card">
+        <div class="field-label">Student Roll Number</div>
+        <div class="field-content">
+          <div class="field-val mono" id="dispRollNo">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_rollNo" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">College Admission Number</div>
+        <div class="field-content">
+          <div class="field-val mono" id="dispAdmissionNo">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_admissionNo" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Admission Type</div>
+        <div class="field-content">
+          <div class="field-val" id="dispAdmissionType">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_admissionType" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Branch</div>
+        <div class="field-content">
+          <div class="field-val" id="dispBranch">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_branch" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Admission Date</div>
+        <div class="field-content">
+          <div class="field-val" id="dispAdmissionDate">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_admissionDate" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Previous Studying</div>
+        <div class="field-content">
+          <div class="field-val" id="dispPreviousStudy">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_previousStudy" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Academic Year</div>
+        <div class="field-content">
+          <div class="field-val" id="dispAcademicYear">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_academicYear" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Student Status</div>
+        <div class="field-content">
+          <div class="field-val" id="dispStudentStatus">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_studentStatus" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">KU Online Scheme</div>
+        <div class="field-content">
+          <div class="field-val" id="dispScheme">2013</div>
+          <button type="button" class="copy-btn" id="copyBtn_scheme" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 1 Transfer Action -->
+      <div style="margin-top: 10px; margin-bottom: 6px;">
+        <button id="fillFormBtn" class="btn btn-success" style="width: 100%; padding: 9px; font-size: 12px;">
+          <span id="fillBtnText">Fill KU Online Admission Info (Step 1)</span>
+        </button>
+        <div id="fillResultAlert" class="alert alert-green hidden" style="margin-top: 6px;"></div>
+      </div>
+
+      <!-- SECTION 2: PERSONAL DETAILS -->
+      <div class="section-header">
+        <span class="section-title">2. Personal Details</span>
+        <span id="primaryStatusBadge" class="badge badge-blue">Ready</span>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Father's Name</div>
+        <div class="field-content">
+          <div class="field-val" id="dispFatherName">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_fatherName" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Mother's Name</div>
+        <div class="field-content">
+          <div class="field-val" id="dispMotherName">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_motherName" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Date of Birth</div>
+        <div class="field-content">
+          <div class="field-val" id="dispDob">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_dob" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Gender</div>
+        <div class="field-content">
+          <div class="field-val" id="dispGender">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_gender" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Blood Group</div>
+        <div class="field-content">
+          <div class="field-val" id="dispBloodGroup">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_bloodGroup" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Place of Birth</div>
+        <div class="field-content">
+          <div class="field-val" id="dispPob">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_pob" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Religion</div>
+        <div class="field-content">
+          <div class="field-val" id="dispReligion">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_religion" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Mother's Tongue</div>
+        <div class="field-content">
+          <div class="field-val" id="dispMotherTongue">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_motherTongue" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Nationality</div>
+        <div class="field-content">
+          <div class="field-val" id="dispNationality">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_nationality" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Social Status</div>
+        <div class="field-content">
+          <div class="field-val" id="dispSocialStatus">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_socialStatus" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Subcategory (Allotment)</div>
+        <div class="field-content">
+          <div class="field-val" id="dispSubcategory">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_subcategory" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Sub-Caste</div>
+        <div class="field-content">
+          <div class="field-val" id="dispSubCaste">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_subCaste" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Father's Occupation</div>
+        <div class="field-content">
+          <div class="field-val" id="dispFatherOccupation">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_fatherOccupation" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Mother's Occupation</div>
+        <div class="field-content">
+          <div class="field-val" id="dispMotherOccupation">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_motherOccupation" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Annual Income</div>
+        <div class="field-content">
+          <div class="field-val" id="dispIncome">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_income" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- SECTION 3: CONTACT & IDENTITY DETAILS -->
+      <div class="section-header">
+        <span class="section-title">3. Contact &amp; Identity Details</span>
+        <span class="badge badge-green">Authorized</span>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Student Contact Number</div>
+        <div class="field-content">
+          <div class="field-val mono" id="dispContact">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_contact" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Student Email</div>
+        <div class="field-content">
+          <div class="field-val" id="dispEmail">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_email" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Guardian Contact Number</div>
+        <div class="field-content">
+          <div class="field-val mono" id="dispGuardianContact">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_guardianContact" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Aadhaar Number</div>
+        <div class="field-content">
+          <div class="field-val mono" id="dispAadhaar">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_aadhaar" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">APAAR ID</div>
+        <div class="field-content">
+          <div class="field-val mono" id="dispApaarId">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_apaarId" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- SECTION 4: ADDRESS DETAILS -->
+      <div class="section-header">
+        <span class="section-title">4. Address Details</span>
+        <span class="badge badge-purple">Residential</span>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Current Address</div>
+        <div class="field-content">
+          <div class="field-val" id="dispCurrentAddress">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_currentAddress" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Permanent Address</div>
+        <div class="field-content">
+          <div class="field-val" id="dispPermanentAddress">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_permanentAddress" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">State</div>
+        <div class="field-content">
+          <div class="field-val" id="dispState">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_state" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">District / City</div>
+        <div class="field-content">
+          <div class="field-val" id="dispDistrict">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_district" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Mandal / Street</div>
+        <div class="field-content">
+          <div class="field-val" id="dispMandalStreet">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_mandalStreet" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">Village / House No</div>
+        <div class="field-content">
+          <div class="field-val" id="dispHouseVillage">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_houseVillage" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-card">
+        <div class="field-label">PIN Code</div>
+        <div class="field-content">
+          <div class="field-val mono" id="dispPincode">—</div>
+          <button type="button" class="copy-btn" id="copyBtn_pincode" disabled title="No value to copy">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2 Transfer Action -->
+      <div style="margin-top: 10px; margin-bottom: 6px;">
+        <button id="fillPrimaryBtn" class="btn btn-primary" style="width: 100%; padding: 9px; font-size: 12px;">
+          <span id="fillPrimaryBtnText">Populate KU Online Primary Details</span>
+        </button>
+        <div id="primaryResultAlert" class="alert alert-green hidden" style="margin-top: 6px;"></div>
+      </div>
+
       <!-- Media Optimization Section -->
-      <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
-        <div class="form-label">Optimized Media for University Portal (&lt; 190 KiB)</div>
+      <div style="margin-top: 14px; border-top: 1px solid var(--border); padding-top: 10px;">
+        <div class="section-title" style="margin-bottom: 6px;">Optimized Media for University Portal (&lt; 190 KiB)</div>
 
         <!-- Photo Card -->
         <div class="media-card" id="photoCard">
@@ -798,12 +1225,20 @@
           </div>
           <div class="media-meta">
             <div>
-              <div class="media-filename" id="photoFilename">photo.jpg</div>
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
+                <div class="media-filename" id="photoFilename">photo.jpg</div>
+                <span id="photoBadge" class="badge badge-amber">Loading</span>
+              </div>
               <div class="media-stats" id="photoStats">Processing...</div>
             </div>
-            <button id="downloadPhotoBtn" class="btn btn-secondary" style="font-size: 10px; padding: 3px 6px; align-self: flex-start; margin-top: 4px;">
-              Download JPEG
-            </button>
+            <div style="display: flex; gap: 6px; margin-top: 4px;">
+              <button id="downloadPhotoBtn" class="btn btn-secondary" style="font-size: 10px; padding: 3px 6px;">
+                Download JPEG
+              </button>
+              <button id="retryPhotoBtn" class="btn btn-secondary hidden" style="font-size: 10px; padding: 3px 6px; color: var(--primary); font-weight: 600;">
+                ↻ Retry Attach
+              </button>
+            </div>
           </div>
         </div>
 
@@ -814,22 +1249,22 @@
           </div>
           <div class="media-meta">
             <div>
-              <div class="media-filename" id="sigFilename">sign.jpg</div>
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
+                <div class="media-filename" id="sigFilename">sign.jpg</div>
+                <span id="sigBadge" class="badge badge-amber">Loading</span>
+              </div>
               <div class="media-stats" id="sigStats">Processing...</div>
             </div>
-            <button id="downloadSigBtn" class="btn btn-secondary" style="font-size: 10px; padding: 3px 6px; align-self: flex-start; margin-top: 4px;">
-              Download JPEG
-            </button>
+            <div style="display: flex; gap: 6px; margin-top: 4px;">
+              <button id="downloadSigBtn" class="btn btn-secondary" style="font-size: 10px; padding: 3px 6px;">
+                Download JPEG
+              </button>
+              <button id="retrySigBtn" class="btn btn-secondary hidden" style="font-size: 10px; padding: 3px 6px; color: var(--primary); font-weight: 600;">
+                ↻ Retry Attach
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-
-      <!-- Action Section -->
-      <div style="margin-top: 12px;">
-        <button id="fillFormBtn" class="btn btn-success" style="width: 100%; padding: 10px; font-size: 13px;">
-          <span id="fillBtnText">Fill KU Online Admission Info (Step 1)</span>
-        </button>
-        <div id="fillResultAlert" class="alert alert-green hidden" style="margin-top: 8px;"></div>
       </div>
 
       <div class="disclaimer">

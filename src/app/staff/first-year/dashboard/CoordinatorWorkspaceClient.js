@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useStaff } from '@/context/StaffContext';
 import SyllabusManager from '@/components/staff/faculty/SyllabusManager';
 import IDCardManagementHub from '@/components/staff/id-cards/IDCardManagementHub';
+import BulkIdCardDownload from '@/components/staff/id-cards/BulkIdCardDownload';
 import CoordinatorApaarDashboard from '@/components/staff/first-year/CoordinatorApaarDashboard';
 import TeachingAssignmentDirectory from '@/components/staff/academic/TeachingAssignmentDirectory';
 import AcademicCoverageDashboard from '@/components/staff/academic/AcademicCoverageDashboard';
@@ -29,7 +30,8 @@ import {
   ExternalLink,
   ShieldCheck,
   BarChart3,
-  CheckCircle2
+  CheckCircle2,
+  Archive
 } from 'lucide-react';
 
 const INSTITUTIONAL_BRANCHES = ['CSE', 'IT', 'CSD', 'ECE', 'EEE', 'CIVIL', 'MECH'];
@@ -285,6 +287,7 @@ export default function CoordinatorWorkspaceClient() {
           { id: 'timetable', label: 'First-Year Timetables', icon: Calendar },
           { id: 'requests', label: `Faculty Requests ${pendingRequestsCount > 0 ? `(${pendingRequestsCount})` : ''}`, icon: Users },
           { id: 'id-cards', label: 'Student ID Cards', icon: CreditCard },
+          { id: 'bulk-id-cards', label: 'Bulk ID Card Download', icon: Archive },
         ].map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -953,6 +956,13 @@ export default function CoordinatorWorkspaceClient() {
             </div>
           </div>
           <IDCardManagementHub initialBranch="ALL" />
+        </div>
+      )}
+
+      {/* ─── TAB 6: BULK STUDENT ID CARDS ────────────────────────────────────────── */}
+      {activeTab === 'bulk-id-cards' && (
+        <div className="space-y-4">
+          <BulkIdCardDownload defaultBranch="ALL" isCoordinatorMode={true} />
         </div>
       )}
     </div>

@@ -72,21 +72,157 @@ export class BrowserAdapter {
   }
 
   /**
-   * Queries the currently active browser tab.
+   * Queries the active browser tab, prioritizing the KU Online portal tab.
+   * @param {Object} [query] Optional query filter
    * @returns {Promise<Object|null>}
    */
-  async getActiveTab() {
+  async getActiveTab(query = null) {
     if (!this.capabilities.tabs) return null;
+
+    if (query) {
+      try {
+        const tabs = await this.env.chrome.tabs.query(query);
+        return tabs && tabs.length > 0 ? tabs[0] : null;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    // 1. Current window active tab
     try {
       const tabs = await this.env.chrome.tabs.query({ active: true, currentWindow: true });
-      return tabs && tabs.length > 0 ? tabs[0] : null;
+      if (tabs && tabs.length > 0) {
+        const t = tabs[0];
+        if (t.url && t.url.toLowerCase().includes('btechreg.aspx')) {
+          return t;
+        }
+        return t;
+      }
     } catch (_) {
-      return null;
+      /* ignore */
     }
+
+    // 2. Last focused window active tab
+    try {
+      const tabs = await this.env.chrome.tabs.query({ active: true, lastFocusedWindow: true });
+      if (tabs && tabs.length > 0) {
+        return tabs[0];
+      }
+    } catch (_) {
+      /* ignore */
+    }
+
+    // 3. Search across all windows for the university portal tab
+    const portalPatterns = [
+      '*://kuonline.co.in/BTechsql/Btechreg.aspx*',
+      '*://kuonline.co.in/btechsql/btechreg.aspx*',
+      '*://www.kuonline.co.in/BTechsql/Btechreg.aspx*',
+      '*://www.kuonline.co.in/btechsql/btechreg.aspx*',
+      '*://*.kuonline.co.in/BTechsql/Btechreg.aspx*',
+      '*://*.kuonline.co.in/btechsql/btechreg.aspx*',
+    ];
+    for (const pattern of portalPatterns) {
+      try {
+        const portalTabs = await this.env.chrome.tabs.query({ url: pattern });
+        if (portalTabs && portalTabs.length > 0) {
+          return portalTabs.find((t) => t.active) || portalTabs[0];
+        }
+      } catch (_) {
+        /* ignore */
+      }
+    }
+
+    // 4. Scan all open tabs for btechreg.aspx
+    try {
+      const allTabs = await this.env.chrome.tabs.query({});
+      for (const t of allTabs) {
+        if (t.url && t.url.toLowerCase().includes('btechreg.aspx')) {
+          return t;
+        }
+      }
+    } catch (_) {
+      /* ignore */
+    }
+
+    return null;
   }
 
   /**
-   * Sends a message to a specific tab context.
+   * Ensures the content script is injected and ready on the target tab.
+   */
+  async ensureContentScript(tabId) {
+    if (!tabId || !this.env.chrome?.tabs?.sendMessage) return { success: false, error: 'Invalid tabId' };
+
+    // Ping first
+    try {
+      const ping = await new Promise((resolve) => {
+        let done = false;
+        try {
+          const res = this.env.chrome.tabs.sendMessage(tabId, { action: 'PORTAL_CHECK_READY' }, (cbRes) => {
+            if (!done) {
+              done = true;
+              resolve(this.env.chrome?.runtime?.lastError ? null : cbRes);
+            }
+          });
+          if (res && typeof res.then === 'function') {
+            res.then((val) => { if (!done) { done = true; resolve(val); } }).catch(() => { if (!done) { done = true; resolve(null); } });
+          }
+        } catch (_) {
+          if (!done) resolve(null);
+        }
+      });
+      if (ping && ping.ready) {
+        return { success: true, tabId, state: ping };
+      }
+    } catch (_) {
+      /* ignore */
+    }
+
+    // Attempt injection if scripting API is available
+    if (this.capabilities.scripting && this.env.chrome.scripting?.executeScript) {
+      try {
+        await this.env.chrome.scripting.executeScript({
+          target: { tabId, allFrames: false },
+          files: ['content.js'],
+        });
+
+        const handshake = await new Promise((resolve) => {
+          setTimeout(() => {
+            let done = false;
+            try {
+              const res = this.env.chrome.tabs.sendMessage(tabId, { action: 'PORTAL_CHECK_READY' }, (cbRes) => {
+                if (!done) {
+                  done = true;
+                  resolve(this.env.chrome?.runtime?.lastError ? null : cbRes);
+                }
+              });
+              if (res && typeof res.then === 'function') {
+                res.then((val) => { if (!done) { done = true; resolve(val); } }).catch(() => { if (!done) { done = true; resolve(null); } });
+              }
+            } catch (_) {
+              if (!done) resolve(null);
+            }
+          }, 100);
+        });
+
+        if (handshake && handshake.ready) {
+          return { success: true, tabId, state: handshake };
+        }
+      } catch (injectErr) {
+        const msg = injectErr?.message || '';
+        let errorCode = 'CONTENT_SCRIPT_INJECTION_FAILED';
+        if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('cannot access contents')) {
+          errorCode = 'HOST_PERMISSION_MISSING';
+        }
+        return { success: false, errorCode, error: msg };
+      }
+    }
+
+    return { success: false, errorCode: 'CONTENT_SCRIPT_NOT_READY', error: 'Could not establish connection to university portal tab.' };
+  }
+
+  /**
+   * Sends a message to a specific tab context, supporting both callback and Promise-based runtimes.
    * @param {number} tabId 
    * @param {Object} message 
    * @returns {Promise<any>}
@@ -95,7 +231,32 @@ export class BrowserAdapter {
     if (!this.capabilities.tabs || !tabId) {
       throw new Error('Tabs API not available or invalid tabId');
     }
-    return await this.env.chrome.tabs.sendMessage(tabId, message);
+
+    const sendFn = this.env.chrome.tabs.sendMessage;
+    if (typeof sendFn !== 'function') {
+      throw new Error('chrome.tabs.sendMessage is not a function');
+    }
+
+    // Modern Chrome MV3 & promise-based mocks
+    try {
+      const res = sendFn.call(this.env.chrome.tabs, tabId, message);
+      if (res && typeof res.then === 'function') {
+        return await res;
+      }
+    } catch (_) {
+      /* ignore */
+    }
+
+    // Callback-based fallback
+    return new Promise((resolve, reject) => {
+      sendFn.call(this.env.chrome.tabs, tabId, message, (response) => {
+        if (this.env.chrome?.runtime?.lastError) {
+          reject(new Error(this.env.chrome.runtime.lastError.message));
+        } else {
+          resolve(response);
+        }
+      });
+    });
   }
 
   /**
@@ -104,7 +265,6 @@ export class BrowserAdapter {
    * @returns {Promise<{ mode: 'sidePanel'|'window'|'tab'|'unsupported', success: boolean, id?: any }>}
    */
   async openBridgeInterface(path = 'sidepanel.html') {
-    // 1. Try sidePanel if supported
     if (this.capabilities.sidePanel && typeof this.env.chrome.sidePanel.open === 'function') {
       try {
         const activeTab = await this.getActiveTab();
@@ -113,11 +273,10 @@ export class BrowserAdapter {
           return { mode: 'sidePanel', success: true };
         }
       } catch (_sidePanelErr) {
-        // Fall through to window fallback
+        // Fall through
       }
     }
 
-    // 2. Fallback to companion popup window (e.g. Opera, Vivaldi, or standalone)
     if (this.capabilities.windows) {
       try {
         const win = await this.env.chrome.windows.create({
@@ -129,17 +288,16 @@ export class BrowserAdapter {
         });
         return { mode: 'window', success: true, id: win.id };
       } catch (_winErr) {
-        // Fall through to tab fallback
+        // Fall through
       }
     }
 
-    // 3. Fallback to extension tab
-    if (this.capabilities.tabs && typeof this.env.chrome.tabs.create === 'function') {
+    if (this.capabilities.tabs && typeof this.env.chrome.tabs?.create === 'function') {
       try {
         const tab = await this.env.chrome.tabs.create({ url: path, active: true });
         return { mode: 'tab', success: true, id: tab.id };
       } catch (_tabErr) {
-        // Unable to open tab
+        // Fall through
       }
     }
 

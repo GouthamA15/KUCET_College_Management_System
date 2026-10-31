@@ -117,7 +117,8 @@
         'Academic Scheme: 2013 (institutionally verified for B.Tech)',
         'Branch Mapping: Officially mapped to portal names (e.g., CSD ➔ DATA SCIENCE)',
         '190 KiB Hard Ceiling: Both photo and signature are strictly compressed below 194,560 bytes',
-        'Click "Fill KU Online Admission Info" to populate Step 1 fields in the university portal',
+        'Filename Convention: Uses established university filenames (e.g. 1802.jpg for photo, 1802(1).jpg for signature)',
+        'Independent Attachment: Separate status for photo and signature with individual Retry Attach actions',
       ],
       callout: 'Images can also be downloaded individually if manual portal attachment is preferred.',
     },
@@ -130,6 +131,8 @@
       description: 'Step 2 populates student personal information, parent names, social status, and address details.',
       keyPoints: [
         '5-Tier Income: Strictly mapped to numeric values (50000, 100001, 250001, 500001, 800001)',
+        'Blood Group Fallback: Absent or empty CMS blood groups automatically select Not-Available; unknown values require manual verification',
+        'Scope Restriction: Education & Fee Details and Documents are handled by browser autofill and are outside extension automation',
         'UTC-Safe Date of Birth: Separated cleanly across Day, Month, and Year portal dropdowns',
         'Permanent Address: Automatically selects "Same as Current" checkbox on the portal',
         'Institutional Policy: Student personal email is strictly excluded from portal population',

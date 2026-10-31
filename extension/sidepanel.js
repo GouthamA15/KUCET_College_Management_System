@@ -36,6 +36,7 @@ const workspaceView = document.getElementById('workspaceView');
 // Header Elements
 const tutorialBtn = document.getElementById('tutorialBtn');
 const logoutBtn = document.getElementById('logoutBtn');
+const staffIdentityBadge = document.getElementById('staffIdentityBadge');
 
 // Status Bar Elements
 const cmsDot = document.getElementById('cmsDot');
@@ -88,28 +89,10 @@ const fillFormBtn = document.getElementById('fillFormBtn');
 const fillBtnText = document.getElementById('fillBtnText');
 const fillResultAlert = document.getElementById('fillResultAlert');
 
-// Display Fields (Admission Info)
+// Display Header Elements
 const dispName = document.getElementById('dispName');
-const dispRollNo = document.getElementById('dispRollNo');
-const dispAdmissionNo = document.getElementById('dispAdmissionNo');
 const dispAdmissionTypeBadge = document.getElementById('dispAdmissionTypeBadge');
-const dispBranch = document.getElementById('dispBranch');
-const dispScheme = document.getElementById('dispScheme');
-const dispAdmissionDate = document.getElementById('dispAdmissionDate');
-const dispPreviousStudy = document.getElementById('dispPreviousStudy');
 const warningsContainer = document.getElementById('warningsContainer');
-
-// Display Fields (Primary Details - Phase 2)
-const dispFatherName = document.getElementById('dispFatherName');
-const dispMotherName = document.getElementById('dispMotherName');
-const dispDob = document.getElementById('dispDob');
-const dispGenderBlood = document.getElementById('dispGenderBlood');
-const dispLocationNat = document.getElementById('dispLocationNat');
-const dispSocialCaste = document.getElementById('dispSocialCaste');
-const dispAadhaar = document.getElementById('dispAadhaar');
-const dispContact = document.getElementById('dispContact');
-const dispIncome = document.getElementById('dispIncome');
-const dispCurrentAddress = document.getElementById('dispCurrentAddress');
 const fillPrimaryBtn = document.getElementById('fillPrimaryBtn');
 const fillPrimaryBtnText = document.getElementById('fillPrimaryBtnText');
 const primaryResultAlert = document.getElementById('primaryResultAlert');
@@ -118,12 +101,19 @@ const primaryResultAlert = document.getElementById('primaryResultAlert');
 const photoThumb = document.getElementById('photoThumb');
 const photoFilename = document.getElementById('photoFilename');
 const photoStats = document.getElementById('photoStats');
+const photoBadge = document.getElementById('photoBadge');
 const downloadPhotoBtn = document.getElementById('downloadPhotoBtn');
+const retryPhotoBtn = document.getElementById('retryPhotoBtn');
 
 const sigThumb = document.getElementById('sigThumb');
 const sigFilename = document.getElementById('sigFilename');
 const sigStats = document.getElementById('sigStats');
+const sigBadge = document.getElementById('sigBadge');
 const downloadSigBtn = document.getElementById('downloadSigBtn');
+const retrySigBtn = document.getElementById('retrySigBtn');
+
+let isRetryingPhoto = false;
+let isRetryingSig = false;
 
 // ==========================================
 // INITIAL SETUP & EVENT LISTENERS
@@ -195,6 +185,17 @@ function setupEventListeners() {
   if (downloadSigBtn) {
     downloadSigBtn.addEventListener('click', () => triggerDownload(optimizedSignature));
   }
+  if (retryPhotoBtn) {
+    retryPhotoBtn.addEventListener('click', handleRetryAttachPhoto);
+  }
+  if (retrySigBtn) {
+    retrySigBtn.addEventListener('click', handleRetryAttachSig);
+  }
+
+  const retryPortalBtn = document.getElementById('retryPortalBtn');
+  if (retryPortalBtn) {
+    retryPortalBtn.addEventListener('click', () => checkPortalTab(true));
+  }
 }
 
 // ==========================================
@@ -235,6 +236,12 @@ async function checkAuthSession() {
       const data = await res.json();
       authUser = data.user;
       setCMSStatus('active', `Active: ${authUser.name || authUser.email}`);
+
+      if (staffIdentityBadge) {
+        const staffName = authUser.name || (authUser.email ? authUser.email.split('@')[0] : 'Staff');
+        staffIdentityBadge.textContent = staffName;
+        staffIdentityBadge.classList.remove('hidden');
+      }
 
       // Check if user has already completed the tutorial
       const isCompleted = await getTutorialCompletedFlag();
@@ -332,6 +339,7 @@ async function handleSignOut() {
     currentStudent = null;
     optimizedPhoto = null;
     optimizedSignature = null;
+    if (staffIdentityBadge) staffIdentityBadge.classList.add('hidden');
     resetWorkspaceData();
     setCMSStatus('amber', 'Signed Out');
     showAuthInfo('You have successfully signed out of KUCET Admission Bridge.');
@@ -479,21 +487,55 @@ async function finishTutorial() {
 // ==========================================
 // WORKSPACE: PORTAL TAB & STEPPER
 // ==========================================
-async function checkPortalTab() {
+async function checkPortalTab(forceReinject = false) {
+  portalStatusText.textContent = 'Checking Portal...';
   try {
     const tab = browserAdapter 
       ? await browserAdapter.getActiveTab() 
-      : (await chrome.tabs.query({ active: true, currentWindow: true }))?.[0];
-    if (tab && tab.url && tab.url.toLowerCase().includes('btechreg.aspx')) {
-      portalDot.className = 'dot green';
-      portalStatusText.textContent = 'Portal Active (Btechreg.aspx)';
-    } else {
+      : (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))?.[0];
+
+    if (!tab || !tab.url || !tab.url.toLowerCase().includes('btechreg.aspx')) {
       portalDot.className = 'dot amber';
-      portalStatusText.textContent = 'Open KU Online Tab';
+      portalStatusText.textContent = 'Portal Tab Not Found';
+      return false;
     }
+
+    if (forceReinject && browserAdapter && tab.id) {
+      portalStatusText.textContent = 'Injecting Bridge...';
+      await browserAdapter.ensureContentScript(tab.id);
+    }
+
+    // Lightweight readiness handshake
+    const pingRes = await new Promise((resolve) => {
+      chrome.tabs.sendMessage(tab.id, { action: 'PORTAL_CHECK_READY' }, (res) => {
+        if (chrome.runtime.lastError) resolve(null);
+        else resolve(res);
+      });
+    });
+
+    if (pingRes && pingRes.ready) {
+      portalDot.className = 'dot green';
+      portalStatusText.textContent = 'Connected (Btechreg.aspx)';
+      return true;
+    }
+
+    // Try auto-inject once if not responding
+    if (browserAdapter && tab.id) {
+      const injectRes = await browserAdapter.ensureContentScript(tab.id);
+      if (injectRes.success) {
+        portalDot.className = 'dot green';
+        portalStatusText.textContent = 'Connected (Btechreg.aspx)';
+        return true;
+      }
+    }
+
+    portalDot.className = 'dot amber';
+    portalStatusText.textContent = 'Bridge Inactive (Click Retry)';
+    return false;
   } catch (_) {
     portalDot.className = 'dot amber';
     portalStatusText.textContent = 'Portal Tab Inactive';
+    return false;
   }
 }
 
@@ -510,12 +552,198 @@ function updateStepper(step) {
   });
 }
 
+// ==========================================
+// INDIVIDUAL STUDENT FIELD REGISTRY & COPY ENGINE
+// ==========================================
+
+const COPY_ICON_SVG = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><span>Copy</span>';
+
+/**
+ * Copies a single field value to clipboard with accessible feedback and fallback.
+ */
+async function copyFieldValue(value, btnEl) {
+  if (!value || value === 'Not provided' || value === '—') return;
+  try {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      await navigator.clipboard.writeText(String(value));
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = String(value);
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const success = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (!success) throw new Error('execCommand copy failed');
+    }
+
+    if (btnEl) {
+      btnEl.classList.add('copied');
+      btnEl.innerHTML = '<span>✓ Copied!</span>';
+      setTimeout(() => {
+        btnEl.classList.remove('copied');
+        btnEl.innerHTML = COPY_ICON_SVG;
+      }, 1500);
+    }
+  } catch (_err) {
+    if (btnEl) {
+      btnEl.innerHTML = '<span>Failed</span>';
+      setTimeout(() => {
+        btnEl.innerHTML = COPY_ICON_SVG;
+      }, 1500);
+    }
+  }
+}
+
+/**
+ * Updates a single field's display value and wires its dedicated Copy button.
+ */
+function updateField(valElId, btnElId, value, options = {}) {
+  const valEl = document.getElementById(valElId);
+  const btnEl = document.getElementById(btnElId);
+
+  const isAvailable = value !== null && value !== undefined && String(value).trim() !== '' && String(value).trim() !== '—';
+  const displayVal = isAvailable ? String(value).trim() : 'Not provided';
+  const rawCopyVal = isAvailable ? (options.rawCopy !== undefined ? options.rawCopy : String(value).trim()) : '';
+
+  if (valEl) {
+    valEl.textContent = displayVal;
+    if (!isAvailable) {
+      valEl.classList.add('not-provided');
+    } else {
+      valEl.classList.remove('not-provided');
+    }
+  }
+
+  if (btnEl) {
+    if (!isAvailable) {
+      btnEl.disabled = true;
+      btnEl.setAttribute('aria-disabled', 'true');
+      btnEl.title = 'No value available to copy';
+      btnEl.onclick = null;
+    } else {
+      btnEl.disabled = false;
+      btnEl.removeAttribute('aria-disabled');
+      btnEl.title = `Copy ${options.fieldName || 'field value'}`;
+      btnEl.onclick = () => copyFieldValue(rawCopyVal, btnEl);
+    }
+  }
+}
+
+/**
+ * Resets a single field and disables its Copy button.
+ */
+function resetField(valElId, btnElId) {
+  const valEl = document.getElementById(valElId);
+  const btnEl = document.getElementById(btnElId);
+  if (valEl) {
+    valEl.textContent = '—';
+    valEl.classList.remove('not-provided');
+  }
+  if (btnEl) {
+    btnEl.disabled = true;
+    btnEl.innerHTML = COPY_ICON_SVG;
+    btnEl.onclick = null;
+  }
+}
+
+const STUDENT_FIELDS = [
+  // A. Basic Student Information
+  { id: 'dispStudentName', btnId: 'copyBtn_name', label: 'Student Name', getValue: s => s.name },
+  { id: 'dispRollNo', btnId: 'copyBtn_rollNo', label: 'Student Roll Number', getValue: s => s.rollNo },
+  { id: 'dispAdmissionNo', btnId: 'copyBtn_admissionNo', label: 'College Admission Number', getValue: s => s.admissionNo },
+  { id: 'dispAdmissionType', btnId: 'copyBtn_admissionType', label: 'Admission Type', getValue: s => s.admissionType },
+  { id: 'dispBranch', btnId: 'copyBtn_branch', label: 'Branch', getValue: s => s.portalBranch || s.cmsBranch },
+  { id: 'dispAdmissionDate', btnId: 'copyBtn_admissionDate', label: 'Admission Date', getValue: s => s.formattedAdmissionDate || s.admissionDate },
+  { id: 'dispPreviousStudy', btnId: 'copyBtn_previousStudy', label: 'Previous Studying', getValue: s => s.previousStudying },
+  { id: 'dispAcademicYear', btnId: 'copyBtn_academicYear', label: 'Academic Year', getValue: s => s.academicYear || '2026-2027' },
+  { id: 'dispStudentStatus', btnId: 'copyBtn_studentStatus', label: 'Student Status', getValue: s => s.studentStatus || 'ACTIVE' },
+  { id: 'dispScheme', btnId: 'copyBtn_scheme', label: 'KU Online Scheme', getValue: s => s.scheme || '2013' },
+
+  // B. Personal Details
+  { id: 'dispFatherName', btnId: 'copyBtn_fatherName', label: "Father's Name", getValue: s => s.primaryDetails?.fatherName },
+  { id: 'dispMotherName', btnId: 'copyBtn_motherName', label: "Mother's Name", getValue: s => s.primaryDetails?.motherName },
+  { id: 'dispDob', btnId: 'copyBtn_dob', label: 'Date of Birth', getValue: s => s.primaryDetails?.dateOfBirth },
+  { id: 'dispGender', btnId: 'copyBtn_gender', label: 'Gender', getValue: s => s.primaryDetails?.gender },
+  { id: 'dispBloodGroup', btnId: 'copyBtn_bloodGroup', label: 'Blood Group', getValue: s => s.primaryDetails?.bloodGroup },
+  { id: 'dispPob', btnId: 'copyBtn_pob', label: 'Place of Birth', getValue: s => s.primaryDetails?.placeOfBirth },
+  { id: 'dispReligion', btnId: 'copyBtn_religion', label: 'Religion', getValue: s => s.primaryDetails?.religion },
+  { id: 'dispMotherTongue', btnId: 'copyBtn_motherTongue', label: "Mother's Tongue", getValue: s => s.primaryDetails?.motherTongue },
+  { id: 'dispNationality', btnId: 'copyBtn_nationality', label: 'Nationality', getValue: s => s.primaryDetails?.nationality },
+  { id: 'dispSocialStatus', btnId: 'copyBtn_socialStatus', label: 'Social Status', getValue: s => s.primaryDetails?.socialStatus },
+  { id: 'dispSubcategory', btnId: 'copyBtn_subcategory', label: 'Subcategory (Allotment)', getValue: s => s.primaryDetails?.subCategory },
+  { id: 'dispSubCaste', btnId: 'copyBtn_subCaste', label: 'Sub-Caste', getValue: s => s.primaryDetails?.subCaste },
+  { id: 'dispFatherOccupation', btnId: 'copyBtn_fatherOccupation', label: "Father's Occupation", getValue: s => s.primaryDetails?.fatherOccupation },
+  { id: 'dispMotherOccupation', btnId: 'copyBtn_motherOccupation', label: "Mother's Occupation", getValue: s => s.primaryDetails?.motherOccupation },
+  { id: 'dispIncome', btnId: 'copyBtn_income', label: 'Annual Income', getValue: s => s.primaryDetails?.incomeRange || s.primaryDetails?.portalIncome },
+
+  // C. Contact & Identity Details
+  { 
+    id: 'dispContact', 
+    btnId: 'copyBtn_contact', 
+    label: 'Student Contact Number', 
+    getValue: s => formatContact(s.primaryDetails?.contactNumber), 
+    rawCopy: s => s.primaryDetails?.contactNumber ? String(s.primaryDetails.contactNumber).replace(/\D/g, '').slice(-10) : '' 
+  },
+  { id: 'dispEmail', btnId: 'copyBtn_email', label: 'Student Email', getValue: s => s.primaryDetails?.email },
+  { 
+    id: 'dispGuardianContact', 
+    btnId: 'copyBtn_guardianContact', 
+    label: 'Guardian Contact Number', 
+    getValue: s => formatContact(s.primaryDetails?.guardianContact), 
+    rawCopy: s => s.primaryDetails?.guardianContact ? String(s.primaryDetails.guardianContact).replace(/\D/g, '').slice(-10) : '' 
+  },
+  { 
+    id: 'dispAadhaar', 
+    btnId: 'copyBtn_aadhaar', 
+    label: 'Aadhaar Number', 
+    getValue: s => formatAadhaar(s.primaryDetails?.aadhaarNumber), 
+    rawCopy: s => s.primaryDetails?.aadhaarNumber ? String(s.primaryDetails.aadhaarNumber).replace(/\D/g, '') : '' 
+  },
+  { id: 'dispApaarId', btnId: 'copyBtn_apaarId', label: 'APAAR ID', getValue: s => s.primaryDetails?.apaarId },
+
+  // D. Address Details
+  { id: 'dispCurrentAddress', btnId: 'copyBtn_currentAddress', label: 'Current Address', getValue: s => s.primaryDetails?.currentAddress },
+  { id: 'dispPermanentAddress', btnId: 'copyBtn_permanentAddress', label: 'Permanent Address', getValue: s => s.primaryDetails?.permanentAddress },
+  { id: 'dispState', btnId: 'copyBtn_state', label: 'State', getValue: s => s.primaryDetails?.state },
+  { id: 'dispDistrict', btnId: 'copyBtn_district', label: 'District / City', getValue: s => s.primaryDetails?.district },
+  { id: 'dispMandalStreet', btnId: 'copyBtn_mandalStreet', label: 'Mandal / Street', getValue: s => s.primaryDetails?.mandal },
+  { id: 'dispHouseVillage', btnId: 'copyBtn_houseVillage', label: 'Village / House No', getValue: s => s.primaryDetails?.village },
+  { id: 'dispPincode', btnId: 'copyBtn_pincode', label: 'PIN Code', getValue: s => s.primaryDetails?.pincode },
+];
+
 function resetWorkspaceData() {
   if (studentCard) studentCard.classList.add('hidden');
   if (activeStudentBanner) activeStudentBanner.classList.add('hidden');
   if (rollInput) rollInput.value = '';
   if (fillResultAlert) fillResultAlert.classList.add('hidden');
   if (primaryResultAlert) primaryResultAlert.classList.add('hidden');
+
+  STUDENT_FIELDS.forEach(f => resetField(f.id, f.btnId));
+
+  if (photoThumb && photoThumb.src && photoThumb.src.startsWith('blob:')) {
+    URL.revokeObjectURL(photoThumb.src);
+    photoThumb.src = '';
+  }
+  if (sigThumb && sigThumb.src && sigThumb.src.startsWith('blob:')) {
+    URL.revokeObjectURL(sigThumb.src);
+    sigThumb.src = '';
+  }
+
+  if (photoFilename) photoFilename.textContent = 'photo.jpg';
+  if (sigFilename) sigFilename.textContent = 'sign.jpg';
+  if (photoStats) photoStats.textContent = 'Processing...';
+  if (sigStats) sigStats.textContent = 'Processing...';
+  if (photoBadge) { photoBadge.className = 'badge badge-amber'; photoBadge.textContent = 'Ready'; }
+  if (sigBadge) { sigBadge.className = 'badge badge-amber'; sigBadge.textContent = 'Ready'; }
+  if (retryPhotoBtn) retryPhotoBtn.classList.add('hidden');
+  if (retrySigBtn) retrySigBtn.classList.add('hidden');
+
+  currentStudent = null;
+  optimizedPhoto = null;
+  optimizedSignature = null;
   hideError();
   updateStepper(2);
 }
@@ -561,6 +789,19 @@ async function handleFetchStudent() {
     }
 
     const payload = await res.json();
+
+    // Revoke old image blobs and clear old records to prevent cross-student contamination
+    if (photoThumb && photoThumb.src && photoThumb.src.startsWith('blob:')) {
+      URL.revokeObjectURL(photoThumb.src);
+      photoThumb.src = '';
+    }
+    if (sigThumb && sigThumb.src && sigThumb.src.startsWith('blob:')) {
+      URL.revokeObjectURL(sigThumb.src);
+      sigThumb.src = '';
+    }
+    optimizedPhoto = null;
+    optimizedSignature = null;
+
     currentStudent = payload.data || payload;
 
     renderStudentDetails(currentStudent);
@@ -574,6 +815,10 @@ async function handleFetchStudent() {
     showError(err.message);
     studentCard.classList.add('hidden');
     activeStudentBanner.classList.add('hidden');
+    currentStudent = null;
+    optimizedPhoto = null;
+    optimizedSignature = null;
+    STUDENT_FIELDS.forEach(f => resetField(f.id, f.btnId));
     updateStepper(2);
   } finally {
     fetchBtn.disabled = false;
@@ -581,70 +826,87 @@ async function handleFetchStudent() {
   }
 }
 
-function maskAadhaar(val) {
-  if (!val) return '—';
+function formatAadhaar(val) {
+  if (!val) return 'Not provided';
   const clean = String(val).replace(/\D/g, '');
-  if (clean.length < 4) return '••••';
-  return `•••• •••• ${clean.slice(-4)}`;
+  if (clean.length === 12) {
+    return `${clean.slice(0, 4)} ${clean.slice(4, 8)} ${clean.slice(8, 12)}`;
+  }
+  return clean || 'Not provided';
 }
 
-function maskContact(val) {
-  if (!val) return '—';
+function formatContact(val) {
+  if (!val) return 'Not provided';
   const clean = String(val).replace(/\D/g, '');
-  if (clean.length < 4) return '••••';
-  return `••••••${clean.slice(-4)}`;
+  if (clean.length >= 10) {
+    return clean.slice(-10);
+  }
+  return clean || 'Not provided';
 }
 
 function renderStudentDetails(s) {
-  dispName.textContent = s.name || '—';
-  dispRollNo.textContent = s.rollNo || '—';
-  dispAdmissionNo.textContent = s.admissionNo || '—';
-  dispAdmissionTypeBadge.textContent = s.admissionType || 'Regular';
-  dispAdmissionTypeBadge.className = s.admissionType === 'Lateral' ? 'badge badge-amber' : 'badge badge-blue';
-  
-  dispBranch.textContent = s.portalBranch || s.cmsBranch || '—';
-  dispScheme.textContent = s.scheme || '2013';
-  dispAdmissionDate.textContent = s.formattedAdmissionDate || '—';
-  dispPreviousStudy.textContent = s.previousStudying || '—';
+  if (dispName) dispName.textContent = s.name || '—';
+  if (dispAdmissionTypeBadge) {
+    dispAdmissionTypeBadge.textContent = s.admissionType || 'Regular';
+    dispAdmissionTypeBadge.className = s.admissionType === 'Lateral' ? 'badge badge-amber' : 'badge badge-blue';
+  }
 
   // Active Student Banner
-  bannerStudentName.textContent = s.name || 'Student';
-  bannerStudentMeta.textContent = `${s.rollNo} • ${s.portalBranch || s.cmsBranch || ''}`;
-  bannerTypeBadge.textContent = s.admissionType || 'Regular';
-  bannerTypeBadge.className = s.admissionType === 'Lateral' ? 'badge badge-amber' : 'badge badge-blue';
-  activeStudentBanner.classList.remove('hidden');
+  if (bannerStudentName) bannerStudentName.textContent = s.name || 'Student';
+  if (bannerStudentMeta) bannerStudentMeta.textContent = `${s.rollNo} • ${s.portalBranch || s.cmsBranch || ''}`;
+  if (bannerTypeBadge) {
+    bannerTypeBadge.textContent = s.admissionType || 'Regular';
+    bannerTypeBadge.className = s.admissionType === 'Lateral' ? 'badge badge-amber' : 'badge badge-blue';
+  }
+  if (activeStudentBanner) activeStudentBanner.classList.remove('hidden');
 
-  // Phase 2: Primary Details Rendering
-  const pd = s.primaryDetails || {};
-  if (dispFatherName) dispFatherName.textContent = pd.fatherName || '—';
-  if (dispMotherName) dispMotherName.textContent = pd.motherName || '—';
-  if (dispDob) dispDob.textContent = pd.dateOfBirth ? `${pd.dateOfBirth} (${pd.dobComponents?.monthName || ''})` : '—';
-  if (dispGenderBlood) dispGenderBlood.textContent = `${pd.gender || '—'} / ${pd.bloodGroup || '—'}`;
-  if (dispLocationNat) dispLocationNat.textContent = `${pd.location || '—'} / ${pd.nationality || 'Indian'}`;
-  if (dispSocialCaste) dispSocialCaste.textContent = `${pd.socialStatus || '—'}${pd.subCaste ? ' (' + pd.subCaste + ')' : ''}`;
-  if (dispAadhaar) dispAadhaar.textContent = maskAadhaar(pd.aadhaarNumber);
-  if (dispContact) dispContact.textContent = maskContact(pd.contactNumber);
-  if (dispIncome) dispIncome.textContent = pd.portalIncome ? `${pd.incomeRange || 'Range'} ➔ ${pd.portalIncome}` : (pd.incomeRange || '—');
-  if (dispCurrentAddress) dispCurrentAddress.textContent = pd.currentAddress || '—';
+  // Render every individual student field with dedicated copy button
+  STUDENT_FIELDS.forEach(field => {
+    const val = field.getValue(s);
+    const raw = field.rawCopy ? field.rawCopy(s) : val;
+    updateField(field.id, field.btnId, val, { rawCopy: raw, fieldName: field.label });
+  });
 
   // Warnings
-  warningsContainer.innerHTML = '';
-  if (s.warnings && s.warnings.length > 0) {
-    s.warnings.forEach(w => {
-      const div = document.createElement('div');
-      div.className = 'alert alert-amber';
-      div.innerHTML = `<span>⚠</span><span>${w}</span>`;
-      warningsContainer.appendChild(div);
-    });
+  if (warningsContainer) {
+    warningsContainer.innerHTML = '';
+    if (s.warnings && s.warnings.length > 0) {
+      s.warnings.forEach(w => {
+        const div = document.createElement('div');
+        div.className = 'alert alert-amber';
+        div.innerHTML = `<span>⚠</span><span>${w.message || w}</span>`;
+        warningsContainer.appendChild(div);
+      });
+    }
   }
+}
+
+function setMediaBadge(type, color, text) {
+  const badgeEl = type === 'photo' ? photoBadge : sigBadge;
+  if (!badgeEl) return;
+  badgeEl.className = `badge badge-${color}`;
+  badgeEl.textContent = text;
 }
 
 // ==========================================
 // MEDIA ASSET PROCESSING (< 190 KiB)
 // ==========================================
 async function processMediaAssets(s) {
+  const admissionNo = s.admissionNo ? String(s.admissionNo).trim().toUpperCase() : null;
+  const photoName = s.photo?.expectedFilename || s.photoFilename || (admissionNo ? `${admissionNo}.jpg` : `${s.rollNo}_photo.jpg`);
+  const sigName = s.signature?.expectedFilename || s.signatureFilename || (admissionNo ? `${admissionNo}(1).jpg` : `${s.rollNo}_sign.jpg`);
+  s.photoFilename = photoName;
+  s.signatureFilename = sigName;
+
+  if (photoFilename) photoFilename.textContent = photoName;
+  if (sigFilename) sigFilename.textContent = sigName;
+
+  setMediaBadge('photo', 'amber', 'Loading');
+  setMediaBadge('sig', 'amber', 'Loading');
   photoStats.textContent = 'Downloading...';
   sigStats.textContent = 'Downloading...';
+  if (retryPhotoBtn) retryPhotoBtn.classList.add('hidden');
+  if (retrySigBtn) retrySigBtn.classList.add('hidden');
 
   const photoUrl = `${CMS_BASE_URL}/api/staff/admission/bridge/students/${encodeURIComponent(s.rollNo)}/photo`;
   const sigUrl = `${CMS_BASE_URL}/api/staff/admission/bridge/students/${encodeURIComponent(s.rollNo)}/signature`;
@@ -655,29 +917,109 @@ async function processMediaAssets(s) {
   ]);
 
   if (photoBlob) {
-    photoFilename.textContent = s.photoFilename || `${s.rollNo}_photo.jpg`;
+    setMediaBadge('photo', 'amber', 'Optimizing');
     photoStats.textContent = 'Optimizing JPEG (< 190 KiB)...';
     optimizedPhoto = await optimizeImageClient(photoBlob, 'photo');
+    optimizedPhoto.filename = photoName;
+    if (photoThumb.src && photoThumb.src.startsWith('blob:')) {
+      URL.revokeObjectURL(photoThumb.src);
+    }
     photoThumb.src = URL.createObjectURL(optimizedPhoto.blob);
     photoStats.textContent = `${formatBytes(optimizedPhoto.sizeBytes)} • ${optimizedPhoto.dimensions.width}×${optimizedPhoto.dimensions.height} JPEG`;
+    setMediaBadge('photo', 'green', 'Ready');
     downloadPhotoBtn.disabled = false;
   } else {
     photoStats.textContent = 'No photo uploaded';
+    setMediaBadge('photo', 'amber', 'Missing');
     photoThumb.src = '';
     downloadPhotoBtn.disabled = true;
   }
 
   if (sigBlob) {
-    sigFilename.textContent = s.signatureFilename || `${s.rollNo}_sign.jpg`;
+    setMediaBadge('sig', 'amber', 'Optimizing');
     sigStats.textContent = 'Optimizing JPEG (< 190 KiB)...';
     optimizedSignature = await optimizeImageClient(sigBlob, 'signature');
+    optimizedSignature.filename = sigName;
+    if (sigThumb.src && sigThumb.src.startsWith('blob:')) {
+      URL.revokeObjectURL(sigThumb.src);
+    }
     sigThumb.src = URL.createObjectURL(optimizedSignature.blob);
     sigStats.textContent = `${formatBytes(optimizedSignature.sizeBytes)} • ${optimizedSignature.dimensions.width}×${optimizedSignature.dimensions.height} JPEG`;
+    setMediaBadge('sig', 'green', 'Ready');
     downloadSigBtn.disabled = false;
   } else {
     sigStats.textContent = 'No signature uploaded';
+    setMediaBadge('sig', 'amber', 'Missing');
     sigThumb.src = '';
     downloadSigBtn.disabled = true;
+  }
+}
+
+async function handleRetryAttachPhoto() {
+  if (!currentStudent || !optimizedPhoto?.blob || isRetryingPhoto) return;
+  isRetryingPhoto = true;
+  if (retryPhotoBtn) {
+    retryPhotoBtn.disabled = true;
+    retryPhotoBtn.textContent = 'Attaching...';
+  }
+  setMediaBadge('photo', 'blue', 'Attaching...');
+
+  try {
+    const photoBase64 = await blobToBase64(optimizedPhoto.blob);
+    const res = await sendPortalMessage({
+      action: 'PORTAL_ATTACH_STUDENT_MEDIA',
+      type: 'photo',
+      base64: photoBase64,
+      filename: currentStudent.photoFilename,
+    });
+
+    if (res?.success) {
+      setMediaBadge('photo', 'green', 'Attached');
+      if (retryPhotoBtn) retryPhotoBtn.classList.add('hidden');
+    } else {
+      setMediaBadge('photo', 'red', 'Failed');
+      if (retryPhotoBtn) retryPhotoBtn.textContent = '↻ Retry Attach';
+    }
+  } catch (_err) {
+    setMediaBadge('photo', 'red', 'Failed');
+    if (retryPhotoBtn) retryPhotoBtn.textContent = '↻ Retry Attach';
+  } finally {
+    isRetryingPhoto = false;
+    if (retryPhotoBtn) retryPhotoBtn.disabled = false;
+  }
+}
+
+async function handleRetryAttachSig() {
+  if (!currentStudent || !optimizedSignature?.blob || isRetryingSig) return;
+  isRetryingSig = true;
+  if (retrySigBtn) {
+    retrySigBtn.disabled = true;
+    retrySigBtn.textContent = 'Attaching...';
+  }
+  setMediaBadge('sig', 'blue', 'Attaching...');
+
+  try {
+    const sigBase64 = await blobToBase64(optimizedSignature.blob);
+    const res = await sendPortalMessage({
+      action: 'PORTAL_ATTACH_STUDENT_MEDIA',
+      type: 'signature',
+      base64: sigBase64,
+      filename: currentStudent.signatureFilename,
+    });
+
+    if (res?.success) {
+      setMediaBadge('sig', 'green', 'Attached');
+      if (retrySigBtn) retrySigBtn.classList.add('hidden');
+    } else {
+      setMediaBadge('sig', 'red', 'Failed');
+      if (retrySigBtn) retrySigBtn.textContent = '↻ Retry Attach';
+    }
+  } catch (_err) {
+    setMediaBadge('sig', 'red', 'Failed');
+    if (retrySigBtn) retrySigBtn.textContent = '↻ Retry Attach';
+  } finally {
+    isRetryingSig = false;
+    if (retrySigBtn) retrySigBtn.disabled = false;
   }
 }
 
@@ -793,104 +1135,265 @@ function triggerDownload(asset) {
 // ==========================================
 // WORKSPACE: FORM POPULATION (STEP 1 & STEP 2)
 // ==========================================
-async function handleFillPortal() {
-  if (!currentStudent) return;
 
+let isTransferringStep1 = false;
+let isTransferringStep2 = false;
+
+/**
+ * Sends a message to the active university portal tab via Background Relay with direct fallback.
+ * Ensures the content script is active and ready before dispatching.
+ */
+async function sendPortalMessage(message) {
+  // 1. Try background relay first (preferred MV3 architecture)
+  try {
+    const bgResponse = await new Promise((resolve) => {
+      chrome.runtime.sendMessage({ action: 'RELAY_TO_PORTAL', portalMessage: message }, (res) => {
+        if (chrome.runtime.lastError) {
+          resolve(null);
+        } else {
+          resolve(res);
+        }
+      });
+    });
+
+    if (bgResponse) {
+      if (bgResponse.errorCode) {
+        throw new Error(bgResponse.message || bgResponse.errorCode);
+      }
+      if (bgResponse.success || bgResponse.populatedFields || bgResponse.requiresPostback) {
+        return bgResponse;
+      }
+    }
+  } catch (err) {
+    if (err.message && (
+      err.message.includes('Btechreg.aspx') || 
+      err.message.includes('permission') || 
+      err.message.includes('Cannot access') ||
+      err.message.includes('Missing host permission') ||
+      err.message.includes('portal session has expired')
+    )) {
+      throw err;
+    }
+  }
+
+  // 2. Fallback: Direct tab communication
+  const targetTab = browserAdapter
+    ? await browserAdapter.getActiveTab()
+    : (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))?.[0];
+
+  if (!targetTab || !targetTab.url || !targetTab.url.toLowerCase().includes('btechreg.aspx')) {
+    throw new Error('Please open and activate the KU Online registration tab (https://kuonline.co.in/BTechsql/Btechreg.aspx).');
+  }
+
+  if (browserAdapter) {
+    const readyRes = await browserAdapter.ensureContentScript(targetTab.id);
+    if (!readyRes.success) {
+      if (readyRes.errorCode === 'HOST_PERMISSION_MISSING') {
+        let host = 'kuonline.co.in';
+        try { host = new URL(targetTab.url).hostname; } catch (_) {}
+        throw new Error(`Missing host permission for "${host}". Please reload the KUCET Admission Bridge extension in chrome://extensions.`);
+      }
+      throw new Error(readyRes.error || 'Could not connect to KU Online portal tab.');
+    }
+    return await browserAdapter.sendMessageToTab(targetTab.id, message);
+  }
+
+  return new Promise((resolve, reject) => {
+    chrome.tabs.sendMessage(targetTab.id, message, (response) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+      } else {
+        resolve(response);
+      }
+    });
+  });
+}
+
+function renderTransferStatus(response, alertEl, title) {
+  const populated = response.populatedFields || [];
+  const skipped = response.skippedFields || [];
+  const failed = response.failedFields || [];
+  const warnings = response.warnings || [];
+  const timeStr = new Date().toLocaleTimeString();
+
+  let statusClass = 'alert alert-green';
+  let statusBadge = '<span class="badge badge-green" style="font-size: 10px; margin-left: 6px;">COMPLETED</span>';
+
+  if (failed.length > 0) {
+    statusClass = 'alert alert-red';
+    statusBadge = '<span class="badge badge-red" style="font-size: 10px; margin-left: 6px;">NEEDS ATTENTION</span>';
+  } else if (response.requiresPostback) {
+    statusClass = 'alert alert-amber';
+    statusBadge = '<span class="badge badge-amber" style="font-size: 10px; margin-left: 6px;">POSTBACK PENDING</span>';
+  } else if (warnings.length > 0) {
+    statusClass = 'alert alert-amber';
+    statusBadge = '<span class="badge badge-amber" style="font-size: 10px; margin-left: 6px;">VERIFIED WITH WARNINGS</span>';
+  }
+
+  let html = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+    <div><strong>${title}</strong> ${statusBadge}</div>
+    <div style="font-size: 10px; color: var(--text-muted);">${timeStr}</div>
+  </div>`;
+
+  if (response.requiresPostback) {
+    html += `<div style="font-size: 11px; margin-bottom: 4px;">${response.message || 'Portal postback triggered. Waiting for university page reload...'}</div>`;
+  }
+
+  // Counts summary
+  html += `<div style="display: flex; gap: 8px; font-size: 11px; margin-top: 4px; padding-top: 4px; border-top: 1px dashed rgba(0,0,0,0.15);">
+    <span style="color: var(--success); font-weight: 600;">✓ ${populated.length} populated</span>`;
+  if (skipped.length > 0) {
+    html += `<span style="color: var(--warning); font-weight: 600;">○ ${skipped.length} skipped</span>`;
+  }
+  if (failed.length > 0) {
+    html += `<span style="color: var(--error); font-weight: 600;">✗ ${failed.length} failed</span>`;
+  }
+  html += `</div>`;
+
+  // Failures detail
+  if (failed.length > 0) {
+    html += `<div style="margin-top: 4px; font-size: 10px; color: var(--error);">
+      <strong>Attention required for:</strong> ${failed.join(', ')}
+    </div>`;
+  }
+
+  // Warnings detail
+  if (warnings.length > 0) {
+    html += `<div style="margin-top: 4px; font-size: 10px; color: #854d0e;">
+      <strong>Note:</strong> ${warnings.slice(0, 2).join('; ')}
+    </div>`;
+  }
+
+  alertEl.className = statusClass;
+  alertEl.innerHTML = html;
+  alertEl.classList.remove('hidden');
+}
+
+function renderTransferError(err, alertEl, title) {
+  let guidance = '';
+  const msg = err.message || 'Unknown transfer error';
+
+  if (msg.includes('Could not establish connection') || msg.includes('Receiving end does not exist')) {
+    guidance = `<div style="margin-top: 4px; font-size: 11px; line-height: 1.3;">
+      The extension lost connection with the university portal tab. Click <strong>Retry</strong> in the status bar above or refresh the portal page.
+    </div>`;
+  } else if (msg.includes('Btechreg.aspx')) {
+    guidance = `<div style="margin-top: 4px; font-size: 11px; line-height: 1.3;">
+      Please ensure <a href="https://kuonline.co.in/BTechsql/Btechreg.aspx" target="_blank" style="color: #0b3578; font-weight: 600; text-decoration: underline;">KU Online Registration (Btechreg.aspx)</a> is open and active.
+    </div>`;
+  }
+
+  alertEl.className = 'alert alert-red';
+  alertEl.innerHTML = `<div style="font-weight: 600;">Transfer Error: ${title}</div>
+    <div style="font-size: 11px; margin-top: 2px;">${msg}</div>
+    ${guidance}`;
+  alertEl.classList.remove('hidden');
+}
+
+async function handleFillPortal() {
+  if (!currentStudent || isTransferringStep1) return;
+
+  isTransferringStep1 = true;
   fillFormBtn.disabled = true;
   fillBtnText.innerHTML = '<span class="spinner"></span> Transferring Step 1...';
   fillResultAlert.classList.add('hidden');
 
   try {
-    const targetTab = browserAdapter
-      ? await browserAdapter.getActiveTab()
-      : (await chrome.tabs.query({ active: true, currentWindow: true }))?.[0];
-
-    if (!targetTab || !targetTab.url || !targetTab.url.toLowerCase().includes('btechreg.aspx')) {
-      throw new Error('Please open and activate the KU Online registration tab (Btechreg.aspx) before clicking fill.');
-    }
-
     let photoBase64 = null;
     let sigBase64 = null;
     if (optimizedPhoto?.blob) {
+      setMediaBadge('photo', 'blue', 'Attaching...');
       photoBase64 = await blobToBase64(optimizedPhoto.blob);
     }
     if (optimizedSignature?.blob) {
+      setMediaBadge('sig', 'blue', 'Attaching...');
       sigBase64 = await blobToBase64(optimizedSignature.blob);
     }
 
     const message = {
-      action: 'POPULATE_ADMISSION_INFO',
+      action: 'PORTAL_POPULATE_ADMISSION_INFO',
       student: currentStudent,
       photo: photoBase64 ? {
         base64: photoBase64,
-        filename: currentStudent.photoFilename || `${currentStudent.rollNo}_photo.jpg`
+        filename: currentStudent.photoFilename || `${currentStudent.rollNo}_photo.jpg`,
       } : null,
       signature: sigBase64 ? {
         base64: sigBase64,
-        filename: currentStudent.signatureFilename || `${currentStudent.rollNo}_sign.jpg`
-      } : null
+        filename: currentStudent.signatureFilename || `${currentStudent.rollNo}_sign.jpg`,
+      } : null,
     };
 
-    const response = browserAdapter
-      ? await browserAdapter.sendMessageToTab(targetTab.id, message)
-      : await chrome.tabs.sendMessage(targetTab.id, message);
+    const response = await sendPortalMessage(message);
 
-    if (response && response.success) {
-      fillResultAlert.className = 'alert alert-green';
-      fillResultAlert.innerHTML = `<strong>Success:</strong> Step 1 populated (${response.populatedFields.length} fields). Visual audit required before Step 2.`;
-      fillResultAlert.classList.remove('hidden');
+    if (response && (response.success || response.requiresPostback || (response.populatedFields && response.populatedFields.length > 0))) {
+      // Update media badges based on verified portal attachment status
+      if (response.verification?.photoAttached) {
+        setMediaBadge('photo', 'green', 'Attached');
+        if (retryPhotoBtn) retryPhotoBtn.classList.add('hidden');
+      } else if (optimizedPhoto?.blob) {
+        setMediaBadge('photo', 'red', 'Failed');
+        if (retryPhotoBtn) retryPhotoBtn.classList.remove('hidden');
+      }
+
+      if (response.verification?.signatureAttached) {
+        setMediaBadge('sig', 'green', 'Attached');
+        if (retrySigBtn) retrySigBtn.classList.add('hidden');
+      } else if (optimizedSignature?.blob) {
+        setMediaBadge('sig', 'red', 'Failed');
+        if (retrySigBtn) retrySigBtn.classList.remove('hidden');
+      }
+
+      renderTransferStatus(response, fillResultAlert, 'Step 1: Admission Info');
       updateStepper(4);
     } else {
-      throw new Error(response?.error || 'Could not populate portal fields.');
+      if (optimizedPhoto?.blob) setMediaBadge('photo', 'red', 'Failed');
+      if (optimizedSignature?.blob) setMediaBadge('sig', 'red', 'Failed');
+      throw new Error(response?.error || response?.message || 'Could not populate portal admission info fields.');
     }
   } catch (err) {
-    fillResultAlert.className = 'alert alert-red';
-    fillResultAlert.innerHTML = `<strong>Transfer Error:</strong> ${err.message}`;
-    fillResultAlert.classList.remove('hidden');
+    if (optimizedPhoto?.blob) {
+      setMediaBadge('photo', 'red', 'Failed');
+      if (retryPhotoBtn) retryPhotoBtn.classList.remove('hidden');
+    }
+    if (optimizedSignature?.blob) {
+      setMediaBadge('sig', 'red', 'Failed');
+      if (retrySigBtn) retrySigBtn.classList.remove('hidden');
+    }
+    renderTransferError(err, fillResultAlert, 'Admission Info');
   } finally {
+    isTransferringStep1 = false;
     fillFormBtn.disabled = false;
     fillBtnText.textContent = 'Fill KU Online Admission Info (Step 1)';
   }
 }
 
 async function handleFillPrimaryDetails() {
-  if (!currentStudent || !currentStudent.primaryDetails) return;
+  if (!currentStudent || !currentStudent.primaryDetails || isTransferringStep2) return;
 
+  isTransferringStep2 = true;
   fillPrimaryBtn.disabled = true;
   fillPrimaryBtnText.innerHTML = '<span class="spinner"></span> Transferring Step 2...';
   primaryResultAlert.classList.add('hidden');
 
   try {
-    const targetTab = browserAdapter
-      ? await browserAdapter.getActiveTab()
-      : (await chrome.tabs.query({ active: true, currentWindow: true }))?.[0];
-
-    if (!targetTab || !targetTab.url || !targetTab.url.toLowerCase().includes('btechreg.aspx')) {
-      throw new Error('Please open and activate the KU Online registration tab (Btechreg.aspx).');
-    }
-
     const message = {
-      action: 'POPULATE_PRIMARY_DETAILS',
-      student: currentStudent
+      action: 'PORTAL_POPULATE_PRIMARY_DETAILS',
+      student: currentStudent,
+      primaryDetails: currentStudent.primaryDetails,
     };
 
-    const response = browserAdapter
-      ? await browserAdapter.sendMessageToTab(targetTab.id, message)
-      : await chrome.tabs.sendMessage(targetTab.id, message);
+    const response = await sendPortalMessage(message);
 
-    if (response && response.success) {
-      primaryResultAlert.className = 'alert alert-green';
-      primaryResultAlert.innerHTML = `<strong>Success:</strong> Step 2 Primary Details populated (${response.populatedFields.length} fields). Please visually verify and click submit on the portal page.`;
-      primaryResultAlert.classList.remove('hidden');
+    if (response && (response.success || (response.populatedFields && response.populatedFields.length > 0))) {
+      renderTransferStatus(response, primaryResultAlert, 'Step 2: Primary Details');
       updateStepper(5);
     } else {
-      throw new Error(response?.error || 'Could not populate Primary Details on the portal page.');
+      throw new Error(response?.error || response?.message || 'Could not populate Primary Details on the portal page.');
     }
   } catch (err) {
-    primaryResultAlert.className = 'alert alert-red';
-    primaryResultAlert.innerHTML = `<strong>Transfer Error:</strong> ${err.message}`;
-    primaryResultAlert.classList.remove('hidden');
+    renderTransferError(err, primaryResultAlert, 'Primary Details');
   } finally {
+    isTransferringStep2 = false;
     fillPrimaryBtn.disabled = false;
     fillPrimaryBtnText.textContent = 'Populate KU Online Primary Details';
   }

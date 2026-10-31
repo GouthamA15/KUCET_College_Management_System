@@ -281,6 +281,7 @@ After signing in again, verify the active student and university page before con
 | Photograph/signature needs attention | Contact the administrator or review the image. |
 | Some details are missing | Verify and enter the missing information manually. |
 | University portal not responding | Wait and try again later. |
+| "Could not establish connection. Receiving end does not exist" | The extension lost contact with the portal tab (e.g. page was refreshed or loaded before the extension). Click the **Retry** button next to "KU Portal" in the extension header. The extension will automatically reinject the content script and re-establish the connection without requiring reinstallation. |
 | Extension is not opening | Refresh Chrome or contact the administrator. |
 
 ---

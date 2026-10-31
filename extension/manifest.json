@@ -5,6 +5,8 @@
   "description": "Cross-browser admission assistant for KUCET admission staff transferring records into the KU Online registration portal.",
   "permissions": [
     "activeTab",
+    "tabs",
+    "scripting",
     "sidePanel",
     "storage",
     "downloads",
@@ -15,7 +17,9 @@
     "https://kucet.in/*",
     "http://localhost:3000/*",
     "http://127.0.0.1:3000/*",
-    "https://kuonline.co.in/*"
+    "*://kuonline.co.in/*",
+    "*://www.kuonline.co.in/*",
+    "*://*.kuonline.co.in/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -34,8 +38,12 @@
   "content_scripts": [
     {
       "matches": [
-        "https://kuonline.co.in/BTechsql/Btechreg.aspx*",
-        "https://kuonline.co.in/btechsql/btechreg.aspx*"
+        "*://kuonline.co.in/BTechsql/Btechreg.aspx*",
+        "*://kuonline.co.in/btechsql/btechreg.aspx*",
+        "*://www.kuonline.co.in/BTechsql/Btechreg.aspx*",
+        "*://www.kuonline.co.in/btechsql/btechreg.aspx*",
+        "*://*.kuonline.co.in/BTechsql/Btechreg.aspx*",
+        "*://*.kuonline.co.in/btechsql/btechreg.aspx*"
       ],
       "js": [
         "content.js"

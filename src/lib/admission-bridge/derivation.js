@@ -463,12 +463,17 @@ export function parseDateOfBirth(dateInput) {
  * Maps CMS blood group string to KU Online blood group dropdown option.
  * Observed Portal Options: ['Select', 'O+', 'O-', 'AB+', 'A+', 'A-', 'B+', 'B-', 'AB-', 'Not-Available']
  * 
+ * Strict mapping:
+ * - A+, A-, B+, B-, AB+, AB-, O+, O- map to standard portal options.
+ * - Empty, null, undefined, whitespace, or explicitly unavailable map to 'Not-Available'.
+ * - Unknown non-empty values return null with an UNMAPPED warning (never silently fallback).
+ * 
  * @param {string} bloodGroup 
- * @returns {{ portalOption: string | null, status: 'VERIFIED' | 'DERIVED' | 'MISSING' }}
+ * @returns {{ portalOption: string | null, status: 'VERIFIED' | 'NOT_AVAILABLE' | 'UNMAPPED', warning?: string }}
  */
 export function mapBloodGroupToPortal(bloodGroup) {
-  if (!bloodGroup || String(bloodGroup).trim() === '') {
-    return { portalOption: null, status: 'MISSING' };
+  if (bloodGroup === undefined || bloodGroup === null || String(bloodGroup).trim() === '') {
+    return { portalOption: 'Not-Available', status: 'NOT_AVAILABLE' };
   }
 
   const clean = String(bloodGroup).toUpperCase().replace(/\s+/g, '').trim();
@@ -478,11 +483,23 @@ export function mapBloodGroupToPortal(bloodGroup) {
     return { portalOption: clean, status: 'VERIFIED' };
   }
 
-  if (clean.includes('NOTAVAILABLE') || clean.includes('N/A') || clean === 'NA') {
-    return { portalOption: 'Not-Available', status: 'VERIFIED' };
+  if (
+    clean.includes('NOTAVAILABLE') || 
+    clean.includes('NOT-AVAILABLE') || 
+    clean.includes('N/A') || 
+    clean === 'NA' ||
+    clean === 'NONE' ||
+    clean === 'UNKNOWN'
+  ) {
+    return { portalOption: 'Not-Available', status: 'NOT_AVAILABLE' };
   }
 
-  return { portalOption: clean, status: 'DERIVED' };
+  // Unknown non-empty value must NOT silently convert to Not-Available
+  return { 
+    portalOption: null, 
+    status: 'UNMAPPED', 
+    warning: `Unknown blood group "${bloodGroup}". Requires manual verification in university portal.` 
+  };
 }
 
 /**
@@ -633,4 +650,34 @@ export function formatStudentCurrentAddress(pd) {
 
   return pd.address ? String(pd.address).trim() : null;
 }
+
+/**
+ * Formats a student's personal details into a clean permanent address string.
+ * Combines house no, apartment, street, city, state, pincode, country.
+ * 
+ * @param {Object} pd - Student personal details record
+ * @returns {string | null}
+ */
+export function formatStudentPermanentAddress(pd) {
+  if (!pd) return null;
+
+  const permParts = [
+    pd.perm_house_no,
+    pd.perm_apartment,
+    pd.perm_street,
+    pd.perm_city,
+    pd.perm_state,
+    pd.perm_pincode,
+    pd.perm_country && pd.perm_country !== 'India' ? pd.perm_country : null,
+  ]
+  .map(p => (p ? String(p).trim() : ''))
+  .filter(Boolean);
+
+  if (permParts.length > 0) {
+    return permParts.join(', ');
+  }
+
+  return null;
+}
+
 

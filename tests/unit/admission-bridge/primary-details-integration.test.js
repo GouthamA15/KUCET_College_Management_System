@@ -178,7 +178,10 @@ describe('KUCET Admission Bridge — Phase 2 Primary Details Integration Suite',
       expect(mapBloodGroupToPortal('B-').portalOption).toBe('B-');
       expect(mapBloodGroupToPortal('Not available').portalOption).toBe('Not-Available');
       expect(mapBloodGroupToPortal('N/A').portalOption).toBe('Not-Available');
-      expect(mapBloodGroupToPortal(null).portalOption).toBeNull();
+      expect(mapBloodGroupToPortal(null).portalOption).toBe('Not-Available');
+      expect(mapBloodGroupToPortal('').portalOption).toBe('Not-Available');
+      expect(mapBloodGroupToPortal('   ').portalOption).toBe('Not-Available');
+      expect(mapBloodGroupToPortal('UNKNOWN_XYZ').portalOption).toBeNull();
     });
 
     it('should map Gender to Male or Female', () => {

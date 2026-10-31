@@ -708,5 +708,67 @@ The following key operational rules have been authoritatively confirmed by KUCET
    - Icons: [`extension/icons/`](file:///run/media/admino/New%20Volume/User/Desktop/CMS/extension/icons)
 8. **Automated Unit Test Suites:**
    - [`tests/unit/admission-bridge/derivation.test.js`](file:///run/media/admino/New%20Volume/User/Desktop/CMS/tests/unit/admission-bridge/derivation.test.js) (17 tests)
-   - [`tests/unit/admission-bridge/image-optimizer.test.js`](file:///run/media/admino/New%20Volume/User/Desktop/CMS/tests/unit/admission-bridge/image-optimizer.test.js) (7 tests)
-   - [`tests/unit/admission-bridge/api-bridge.test.js`](file:///run/media/admino/New%20Volume/User/Desktop/CMS/tests/unit/admission-bridge/api-bridge.test.js) (7 tests)
+   - [`tests/unit/admission-bridge/image-optimizer.test.js`](file:///run/media/admino/New%20Volume/User/Desktop/CMS/tests/unit/admission-bridge/image-optimizer.test.js) (16 tests)
+   - [`tests/unit/admission-bridge/api-bridge.test.js`](file:///run/media/admino/New%20Volume/User/Desktop/CMS/tests/unit/admission-bridge/api-bridge.test.js) (8 tests)
+   - [`tests/unit/admission-bridge/portal-communication-integration.test.js`](file:///run/media/admino/New%20Volume/User/Desktop/CMS/tests/unit/admission-bridge/portal-communication-integration.test.js) (14 tests)
+
+---
+
+## 17. Portal Communication & ASP.NET Web Forms Integration Architecture
+
+### 17.1 Preferred Communication Pipeline
+```text
+Side Panel (sidepanel.js)
+       │
+       ▼ (chrome.runtime.sendMessage / RELAY_TO_PORTAL)
+Background Service Worker (background.js)
+       │
+       ▼ (findPortalTab + ensureContentScriptReady + PORTAL_CHECK_READY ping)
+Active University Tab (kuonline.co.in/BTechsql/Btechreg.aspx)
+       │
+       ▼ (chrome.tabs.sendMessage / validated protocol payload)
+Content Script (content.js)
+       │
+       ▼ (ASP.NET Web Forms DOM Layer, DataTransfer, postback detection)
+University Registration DOM (aspnetForm)
+```
+
+### 17.2 Dynamic Content Script Injection & Readiness Handshake
+- **Permissions**: `manifest.json` declares `"tabs"` and `"scripting"` permissions alongside `"activeTab"` and `"sidePanel"`.
+- **Handshake (`PORTAL_CHECK_READY`)**: Prior to dispatching transfer payloads, the extension sends a lightweight ping to the target tab.
+- **Idempotent Reinjection**: If no receiver is listening (e.g., page was loaded before the extension was installed, or following a browser restart), the background worker dynamically injects `content.js` via `chrome.scripting.executeScript()`, waits 100ms for listener binding, and verifies readiness before proceeding.
+- **Manual Retry Action**: A dedicated "Retry" button in the sidebar status bar allows staff to force reconnection and reinjection with 1 click.
+
+### 17.3 ASP.NET Web Forms Interaction Layer & Postback Lifecycle
+- **Control Identification**: Maps controls using grounded server control IDs (e.g. `ctl00_ContentPlaceHolder1_TabContainer1_tbpnluser_ddlAdmisnInto`).
+- **Postback Detection**: Dropdowns with `onchange` triggering `__doPostBack` (Course `ddlAdmisnInto`, Branch `ddlCoursc`) trigger ASP.NET server roundtrips.
+- **State Preservation Across Postbacks**: When a postback is required to load dependent dropdowns (e.g. Branch options loaded only after Course is selected), `content.js` serializes pending stage state into `sessionStorage` (`kucet_bridge_pending_stage`). Upon document reload, `content.js` detects the pending stage, populates the remaining fields, and clears the session flag.
+- **Tab Activation**: If Primary Details are submitted while `TabPanel1` is hidden, the extension programmatically activates `__tab_ctl00_ContentPlaceHolder1_TabContainer1_TabPanel1`.
+- **DOM Verification**: All filled inputs, dropdown selections, and attached files are read back from the DOM. Transfers are reported as successful only when the target DOM matches expected values.
+
+### 17.4 Media Attachment via HTML5 DataTransfer
+- Checkboxes `ChkStudentPhoto` and `ChkSignature` are checked, activating parent `<span onchange="...">` inline handlers.
+- File inputs `fuStudentPhoto` and `fusign` have their `disabled` attribute explicitly removed.
+- JPEG byte arrays are packaged into genuine `File` objects and attached to `fileInput.files` via `DataTransfer`.
+- Verified upload limit conforms to the university's `< 250 KB` rule (targeting `< 190 KiB`).
+
+### 17.5 Student Aadhaar & Phone Number Visibility
+- **Unmasked Display**: Authorized admission staff view full, unmasked 10-digit contact numbers and standard 4-digit grouped 12-digit Aadhaar numbers (`XXXX XXXX XXXX`).
+- **Data Safeguards**:
+  1. Access restricted to authenticated staff with `admission` or `admin` roles.
+  2. Values are strictly never written to `console.log` or error alerts.
+  3. No persistence in `chrome.storage.local`, `sessionStorage`, or external telemetry.
+  4. In-memory data wiped immediately upon logout or student switch.
+  5. Missing values clearly designated as `Not provided`.
+
+### 17.6 Troubleshooting: `Could not establish connection. Receiving end does not exist.`
+**Root Cause:**
+Chromium throws this native error when `chrome.tabs.sendMessage()` is sent to a tab that does not have an active content script message listener registered. This happens when:
+1. The university portal was opened before loading or updating the extension.
+2. The university portal was refreshed, tearing down the previous execution context.
+3. The user switched to an invalid tab.
+
+**Automatic & Manual Recovery:**
+1. The extension background worker automatically intercepts missing receiver errors, injects `content.js` via `chrome.scripting.executeScript()`, performs a `PORTAL_CHECK_READY` handshake, and retries the message dispatch.
+2. If automatic recovery is blocked by browser security restrictions, the status bar displays `"Bridge Inactive (Click Retry)"`. Clicking **Retry** immediately triggers dynamic injection and restores communication without requiring extension reinstallation.
+
