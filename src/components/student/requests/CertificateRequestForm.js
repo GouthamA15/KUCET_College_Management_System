@@ -19,10 +19,12 @@ export default function CertificateRequestForm({
     paymentPreviewUrl: null,
     purposeOption: 'Select',
     customPurpose: '',
+    organizationName: '',
     fromDate: '',
     toDate: '',
     purposeError: '',
     dateError: '',
+    organizationError: '',
   });
 
   const [eligibilityMap, setEligibilityMap] = useState(null);
@@ -101,6 +103,13 @@ export default function CertificateRequestForm({
     const words = trimmed.split(/\s+/).filter(Boolean);
     if (words.length < 3) return 'Purpose must contain at least three words.';
     if (!/[A-Za-z0-9]/.test(trimmed)) return 'Purpose must contain valid descriptive text, not only symbols.';
+    return '';
+  };
+
+  const validateOrganization = (text) => {
+    const trimmed = (text || '').trim();
+    if (!trimmed) return 'Organization name is required.';
+    if (trimmed.length < 3) return 'Organization name must be at least 3 characters.';
     return '';
   };
 
@@ -193,17 +202,20 @@ export default function CertificateRequestForm({
       }
       
       let dateValidationError = '';
+      let organizationValidationError = '';
       if (isNoObjection) {
         dateValidationError = validateNocDates(formState.fromDate, formState.toDate);
+        organizationValidationError = validateOrganization(formState.organizationName);
       }
       
       setFormState(prev => ({
         ...prev,
         purposeError: purposeValidationError,
         dateError: dateValidationError,
+        organizationError: organizationValidationError,
       }));
       
-      if (purposeValidationError || dateValidationError) {
+      if (purposeValidationError || dateValidationError || organizationValidationError) {
         toast.error('Please fix the highlighted issues before submitting.');
         return;
       }
@@ -215,6 +227,7 @@ export default function CertificateRequestForm({
           paymentScreenshot: null, 
           purposeOption: formState.purposeOption,
           customPurpose: formState.customPurpose,
+          organizationName: formState.organizationName,
           fromDate: formState.fromDate, 
           toDate: formState.toDate 
         });
@@ -541,7 +554,7 @@ export default function CertificateRequestForm({
                         <p className="text-[11px] mt-1 text-gray-500">
                           Please clearly describe the purpose (min 20 characters).
                         </p>
-                      </div>
+                    </div>
                     )}
 
                     {formState.purposeError && (
@@ -549,10 +562,31 @@ export default function CertificateRequestForm({
                     )}
 
                     {isNoObjection && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">From Date <span className="text-red-500">*</span></label>
+                          <label className="block text-sm font-medium text-gray-700">Organization / Company Name <span className="text-red-500">*</span></label>
                           <input
+                            type="text"
+                            value={formState.organizationName}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setFormState(prev => ({
+                                ...prev,
+                                organizationName: val,
+                                organizationError: validateOrganization(val)
+                              }));
+                            }}
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578] sm:text-sm"
+                            placeholder="e.g. Google, TechCorp Inc, Osmania University"
+                          />
+                          {formState.organizationError && (
+                            <p className="text-xs text-red-600 mt-1">{formState.organizationError}</p>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">From Date <span className="text-red-500">*</span></label>
+                            <input
                             type="date"
                             value={formState.fromDate}
                             onChange={(e) => {
@@ -583,6 +617,7 @@ export default function CertificateRequestForm({
                           />
                         </div>
                       </div>
+                      </div>
                     )}
                     {isNoObjection && formState.dateError && (
                       <p className="text-xs text-red-600 mt-1">{formState.dateError}</p>
@@ -598,6 +633,7 @@ export default function CertificateRequestForm({
                       (formState.purposeOption === 'Other' && !!validateNocPurpose(formState.customPurpose))
                     );
                     const nocDatesInvalid = isNoObjection && !!validateNocDates(formState.fromDate, formState.toDate);
+                    const nocOrgInvalid = isNoObjection && !!validateOrganization(formState.organizationName);
                     
                     const paymentInvalid = !isNoObjection && (
                       (requiresPayment && !isIncomeTax && (!formState.transactionId || !formState.paymentScreenshot)) ||
@@ -611,7 +647,7 @@ export default function CertificateRequestForm({
                     );
                     const tcInvalid = isTC && eligibilityMap?.tc && !eligibilityMap.tc.isEligible;
 
-                    const isSubmitDisabled = isLoading || nocPurposeInvalid || nocDatesInvalid || paymentInvalid || bonafideInvalid || tcInvalid || ((isBonafide || isTC) && isLoadingEligibility);
+                    const isSubmitDisabled = isLoading || nocPurposeInvalid || nocDatesInvalid || nocOrgInvalid || paymentInvalid || bonafideInvalid || tcInvalid || ((isBonafide || isTC) && isLoadingEligibility);
                     
                     return (
                       <button

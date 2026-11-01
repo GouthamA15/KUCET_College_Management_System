@@ -177,18 +177,23 @@ export default function CertificateRequestsPage() {
     smoothScrollToId('certificate-type', { behavior: 'smooth', block: 'center' });
   };
 
-  const handleSubmit = async ({ transactionId, paymentScreenshot, purposeOption, customPurpose, fromDate, toDate }) => {
+  const handleSubmit = async ({ transactionId, paymentScreenshot, purposeOption, customPurpose, organizationName, fromDate, toDate }) => {
     setIsLoading(true);
     const formData = new FormData();
     formData.append('certificateType', selectedCertificate);
     formData.append('staffType', selectedOption.staffType);
     formData.append('paymentAmount', fee);
-    if (purposeOption) formData.append('purpose_type', purposeOption);
-    if (customPurpose) formData.append('purpose_custom', customPurpose);
-    
     // Fallback for older code/apis expecting 'purpose'
-    const finalPurpose = purposeOption === 'Other' ? customPurpose : purposeOption;
-    if (finalPurpose) formData.append('purpose', finalPurpose);
+    let finalPurpose = purposeOption === 'Other' ? customPurpose : purposeOption;
+    if (selectedCertificate === 'No Objection Certificate' && organizationName) {
+        finalPurpose = `${finalPurpose} at ${organizationName.trim()}`;
+    }
+    
+    if (finalPurpose) {
+        formData.append('purpose_type', finalPurpose);
+        formData.append('purpose', finalPurpose);
+    }
+    if (customPurpose) formData.append('purpose_custom', customPurpose);
 
     if (fromDate) formData.append('fromDate', fromDate);
     if (toDate) formData.append('toDate', toDate);
