@@ -7,6 +7,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { AdmissionModal } from "@/components/ui/edit-modals/AdmissionModal";
 import AdmissionWorkspaceFilter from "@/components/staff/requests/AdmissionWorkspaceFilter";
 import RealtimeListener from "@/components/RealtimeListener";
+import FinalizeAllPreviewModal from "@/components/staff/admission/FinalizeAllPreviewModal";
 import { 
     getDefaultAdmissionWorkspace, 
     normalizeAdmissionWorkspace, 
@@ -40,6 +41,17 @@ function FinalizeAdmissionContent() {
     const [rollNumbers, setRollNumbers] = useState({});
     const [finalizingId, setFinalizingId] = useState(null);
     const [generating, setGenerating] = useState(false);
+    const [showFinalizeAllPreview, setShowFinalizeAllPreview] = useState(false);
+    const [finalizingAll, setFinalizingAll] = useState(false);
+    const [finalizeAllResults, setFinalizeAllResults] = useState(null);
+
+    const allRollNumbersFilled = useMemo(() => {
+        if (!drafts || drafts.length === 0) return false;
+        return drafts.every(d => {
+            const roll = rollNumbers[d.id];
+            return typeof roll === 'string' && roll.trim().length > 0;
+        });
+    }, [drafts, rollNumbers]);
 
     // Modal & Editing state
     const [selectedDraftId, setSelectedDraftId] = useState(null);
@@ -76,7 +88,6 @@ function FinalizeAdmissionContent() {
     }, [workspace]);
 
     const fetchVerifiedDrafts = useCallback(async (currentWs = workspaceRef.current) => {
-
         if (!currentWs?.targetBranch || !currentWs?.intakeExam) return;
         setLoading(true);
         try {
@@ -302,13 +313,61 @@ function FinalizeAdmissionContent() {
     };
 
     const getRollValidation = (rollNo, draft) => {
-        if (!rollNo) return { isValid: false };
+        if (!rollNo) return { isValid: false, error: 'Roll number required' };
         const result = validateRollNo(rollNo);
         if (!result.isValid) return { isValid: false, error: 'Invalid Format' };
         if (result.branch !== draft.branch) return { isValid: false, error: `Branch Mismatch (Got ${result.branch})` };
         const expectedType = draft.entrance_exam === 'TG ECET' ? 'Lateral' : 'Regular';
         if (result.admissionType !== expectedType) return { isValid: false, error: `${draft.entrance_exam} must be ${expectedType}` };
         return { isValid: true };
+    };
+
+    const handleConfirmFinalizeAll = async () => {
+        if (drafts.length === 0) return;
+
+        const invalidItems = drafts.filter(d => !getRollValidation(rollNumbers[d.id], d).isValid);
+        if (invalidItems.length > 0) {
+            toast.error(`Cannot finalize: ${invalidItems.length} student(s) have missing or invalid roll numbers.`);
+            return;
+        }
+
+        setFinalizingAll(true);
+        const toastId = toast.loading('Finalizing all student admissions...');
+
+        try {
+            const items = drafts.map(d => ({
+                draftId: d.id,
+                roll_no: rollNumbers[d.id]
+            }));
+
+            const res = await fetch('/api/staff/admission/drafts/bulk-finalize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items }),
+            });
+
+            const data = await res.json();
+            if (!res.ok && !data.results) {
+                throw new Error(data.error || 'Failed to bulk finalize admissions.');
+            }
+
+            setFinalizeAllResults(data);
+
+            if (data.successful > 0 && data.failed === 0) {
+                toast.success(`Successfully admitted all ${data.successful} students! Welcome emails sent.`, { id: toastId });
+            } else if (data.successful > 0 && data.failed > 0) {
+                toast.error(`Finalized ${data.successful} student(s), but ${data.failed} failed.`, { id: toastId });
+            } else {
+                toast.error(data.error || 'Bulk finalization failed.', { id: toastId });
+            }
+
+            // Refresh draft queue
+            fetchVerifiedDrafts();
+        } catch (error) {
+            toast.error(error.message, { id: toastId });
+        } finally {
+            setFinalizingAll(false);
+        }
     };
 
     // Realtime integration: Workspace-aware event dispatcher
@@ -390,7 +449,26 @@ function FinalizeAdmissionContent() {
                                         <th className="px-6 py-5 w-16 border-r border-gray-200">ID</th>
                                         <th className="px-6 py-5 border-r border-gray-200 w-full">Applicant Identity</th>
                                         <th className="px-6 py-5 w-[18ch] border-r border-gray-200">Institutional Roll Number</th>
-                                        <th className="px-6 py-5 text-right">Operational Actions</th>
+                                        <th className="px-6 py-3.5 text-right">
+                                            <div className="flex items-center justify-end">
+                                                <button
+                                                    type="button"
+                                                    id="finalize-all-btn"
+                                                    onClick={() => {
+                                                        setFinalizeAllResults(null);
+                                                        setShowFinalizeAllPreview(true);
+                                                    }}
+                                                    disabled={drafts.length === 0 || loading || finalizingAll || !allRollNumbersFilled}
+                                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0b3578] text-white rounded-md text-xs font-semibold hover:bg-blue-900 shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap active:scale-95"
+                                                    title={!allRollNumbersFilled ? "Please fill roll numbers for all students first" : "Preview roll number mapping and finalize all students"}
+                                                >
+                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                    <span>Finalize All</span>
+                                                </button>
+                                            </div>
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 text-sm">
@@ -455,6 +533,24 @@ function FinalizeAdmissionContent() {
                         </div>
                         
                         <div className="md:hidden flex flex-col gap-4 p-4 bg-slate-50/50">
+                            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                                <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Queue ({drafts.length})</span>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setFinalizeAllResults(null);
+                                        setShowFinalizeAllPreview(true);
+                                    }}
+                                    disabled={drafts.length === 0 || loading || finalizingAll || !allRollNumbersFilled}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#0b3578] text-white rounded-md text-xs font-bold hover:bg-blue-900 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                    title={!allRollNumbersFilled ? "Please fill roll numbers for all students first" : "Preview roll number mapping and finalize all students"}
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span>Finalize All</span>
+                                </button>
+                            </div>
                             {drafts.map((draft, _index) => {
                                 const validation = getRollValidation(rollNumbers[draft.id], draft);
                                 const hasValue = !!rollNumbers[draft.id];
@@ -539,6 +635,24 @@ function FinalizeAdmissionContent() {
                     setRejectionReason={setRejectionReason}
                 />
             )}
+
+            {/* Bulk Finalize Preview Modal */}
+            <FinalizeAllPreviewModal
+                isOpen={showFinalizeAllPreview}
+                onClose={() => {
+                    if (!finalizingAll) {
+                        setShowFinalizeAllPreview(false);
+                        setFinalizeAllResults(null);
+                    }
+                }}
+                drafts={drafts}
+                rollNumbers={rollNumbers}
+                getRollValidation={getRollValidation}
+                workspace={workspace}
+                onConfirmFinalizeAll={handleConfirmFinalizeAll}
+                isFinalizing={finalizingAll}
+                finalizationResults={finalizeAllResults}
+            />
         </div>
     );
 }

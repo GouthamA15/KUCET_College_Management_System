@@ -1,16 +1,8 @@
 import logger from '@/lib/logger';
-import { db } from '@/db';
-import { 
-  studentAdmissionDrafts 
-} from '@/db/schema';
-import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, wrapHandler } from '@/lib/api-utils';
-import { validateRollNo } from '@/lib/rollNumber';
 import { z } from 'zod';
-import { decrypt } from '@/lib/encryption';
-
 import IdempotencyService from '@/services/IdempotencyService';
-import { StudentService } from '@/services/StudentService';
+import { finalizeAdmissionDraft } from '@/services/admission/AdmissionDraftFinalizeService';
 
 export const POST = wrapHandler({
   auth: 'admission',
@@ -22,7 +14,7 @@ export const POST = wrapHandler({
 
     try {
       const params = await context.params;
-      const id = parseInt(params.id);
+      const id = parseInt(params.id, 10);
       const json = await req.json();
 
       if (idempotencyKey) {
@@ -41,136 +33,19 @@ export const POST = wrapHandler({
       const rollNo = validatedData.roll_no;
       const admissionDateInput = validatedData.admission_date;
 
-      const parsed = validateRollNo(rollNo);
-      if (!parsed.isValid) return apiError('Invalid roll number format', 400);
-
-      const result = await db.transaction(async (tx) => {
-        // 1. Fetch the full draft data with lock
-        const draftRows = await tx.select()
-          .from(studentAdmissionDrafts)
-          .where(eq(studentAdmissionDrafts.id, id))
-          .for('update');
-
-        if (draftRows.length === 0) throw new Error('DRAFT_NOT_FOUND');
-        const draft = draftRows[0];
-        if (draft.status !== 'PROCESSED') throw new Error('DRAFT_NOT_VERIFIED');
-
-        // Enforce branch + admission type consistency with the draft
-        if (String(parsed.branch).toUpperCase() !== String(draft.branch).toUpperCase()) throw new Error('ROLL_BRANCH_MISMATCH');
-        const expectedType = String(draft.entrance_exam).toUpperCase() === 'TG ECET' ? 'Lateral' : 'Regular';
-        if (String(parsed.admissionType) !== expectedType) throw new Error('ROLL_TYPE_MISMATCH');
-
-        const { getPermanentAddressFromDetails, getContactAddressFromDetails } = require('@/lib/address-utils');
-        
-        // 2. Proactively check if this roll number already exists to prevent duplicate/overwrite issues
-        const { students: studentsTable } = require('@/db/schema');
-        const existingStudent = await tx.select({ id: studentsTable.id })
-          .from(studentsTable)
-          .where(eq(studentsTable.roll_no, rollNo))
-          .limit(1);
-          
-        if (existingStudent.length > 0) {
-          throw new Error('STUDENT_EXISTS');
-        }
-
-        // 3. Map draft fields to upsert data structure
-        const studentData = {
-          ...draft,
-          roll_no: rollNo,
-          date_of_birth: draft.dob,
-          admission_date: admissionDateInput || draft.admission_date,
-          mobile: decrypt(draft.student_mobile),
-          guardian_mobile: draft.guardian_mobile ? decrypt(draft.guardian_mobile) : null,
-          aadhaar_no: draft.aadhaar_no ? decrypt(draft.aadhaar_no) : null,
-          apaar_id: draft.apaar_id || null,
-          permanent_address: getPermanentAddressFromDetails(draft),
-          contact_address: getContactAddressFromDetails(draft),
-          identification_marks: `${draft.identification_mark_1 || ''}\n${draft.identification_mark_2 || ''}`.trim(),
-          qualifying_exam: draft.entrance_exam,
-          inter_marks: draft.inter_diploma_marks,
-          ranks: draft.exam_rank
-        };
-
-        // 3. Perform Upsert via Service
-        const studentId = await StudentService.upsertStudent(studentData, user.staffId || user.id, tx);
-        if (!studentId) throw new Error('UPSERT_FAILED');
-
-        // 4. Mark draft as FINALIZED and cleanup large strings
-        await tx.update(studentAdmissionDrafts)
-          .set({ 
-            status: "FINALIZED",
-            pfp: null,
-            signature: null,
-            updated_at: new Date()
-          })
-          .where(eq(studentAdmissionDrafts.id, id));
-
-        return { 
-          studentId, 
-          studentEmail: studentData.email, 
-          studentName: studentData.name, 
-          rollNo,
-          branch: draft.branch,
-          entrance_exam: draft.entrance_exam,
-          admission_year: draft.admission_year
-        };
+      const result = await finalizeAdmissionDraft({
+        draftId: id,
+        rollNo,
+        admissionDateInput,
+        user
       });
 
-      // Send Welcome Email asynchronously
-      if (result.studentEmail) {
-        try {
-          const { sendInstitutionalEmail, getBaseUrl, EMAIL_CATEGORIES } = require('@/lib/email');
-          const emailHtml = `
-            <p>Dear <strong>${result.studentName}</strong>,</p>
-            <p>Congratulations! Your admission has been finalized and your KUCET student account is now institutionally active.</p>
-            <p>Your official institutional roll number has been generated: <strong>${result.rollNo}</strong>.</p>
-            <p>Your account is now ready for institutional use. You can log in and access the KUCET College Management System using your Date of Birth (YYYY-MM-DD) as the initial password.</p>
-            <p>Please log in to the portal and set a new secure password to unlock full portal features.</p>
-          `;
-          
-          sendInstitutionalEmail({
-            to: result.studentEmail,
-            subject: 'Welcome to KUCET! Your Account is Active',
-            title: 'Account Activated',
-            bodyHtml: emailHtml,
-            action: {
-              label: 'Login to Student Portal',
-              url: `${getBaseUrl()}/student`,
-              expiresIn: 'unlimited time. Please set your new password upon first login'
-            },
-            category: EMAIL_CATEGORIES.ADMISSIONS,
-          }).catch(e => logger.error(e, 'Failed to send welcome email'));
-        } catch (e) {
-          logger.error(e, 'Failed to initialize welcome email');
-        }
-      }
-
-      const responseData = { success: true, studentId: result.studentId, message: 'Student successfully admitted and record created.' };
-
-      try {
-        const { broadcastUpdate } = await import('@/lib/sse');
-        await broadcastUpdate('ADMISSION_DRAFT_FINALIZED', { 
-          id, 
-          studentId: result.studentId, 
-          rollNo: result.rollNo,
-          branch: result.branch,
-          entrance_exam: result.entrance_exam,
-          admission_year: result.admission_year
-        });
-      } catch (_e) {
-        /* non-blocking */
-      }
-
-      try {
-        const { AdmissionFinalizationService } = await import('@/services/AdmissionFinalizationService');
-        await AdmissionFinalizationService.handleDraftFinalized({
-          branch: result.branch,
-          admissionYear: result.admission_year,
-          updatedBy: user.email || 'admission_staff',
-        });
-      } catch (_finErr) {
-        /* non-blocking */
-      }
+      const responseData = { 
+        success: true, 
+        studentId: result.studentId, 
+        rollNo: result.rollNo,
+        message: result.message || 'Student successfully admitted and record created.' 
+      };
 
       if (idempotencyStarted) {
         await IdempotencyService.complete(idempotencyKey, 201, responseData);
@@ -182,6 +57,7 @@ export const POST = wrapHandler({
       if (idempotencyStarted) await IdempotencyService.fail(idempotencyKey);
       
       if (error instanceof z.ZodError) return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
+      if (error.message === 'INVALID_ROLL_NO') return apiError('Invalid roll number format', 400);
       if (error.message === 'DRAFT_NOT_FOUND') return apiError('Draft not found', 404);
       if (error.message === 'DRAFT_NOT_VERIFIED') return apiError('Only verified drafts can be finalized', 400);
       if (error.message === 'INVALID_AREA_STATUS') return apiError("Invalid area status. Must be 'Local' or 'Non-Local'.", 400);
