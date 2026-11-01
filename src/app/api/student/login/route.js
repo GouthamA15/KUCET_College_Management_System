@@ -9,8 +9,8 @@ import { z } from 'zod';
 import crypto from 'crypto';
 
 const loginSchema = z.object({
-  rollno: z.string().trim().toUpperCase().min(10).max(12),
-  dob: z.string().trim().max(255), // Can be DOB (8-10) or Password (up to 255)
+  rollno: z.string().trim().toUpperCase().min(10, 'Roll number must be at least 10 characters').max(12, 'Roll number must not exceed 12 characters'),
+  dob: z.string().trim().min(1, 'Password or Date of Birth is required').max(255), // Can be DOB (8-10) or Password (up to 255)
   rememberMe: z.boolean().default(false)
 });
 
@@ -55,7 +55,9 @@ export const POST = wrapHandler({
       mobile: students.mobile,
       date_of_birth: students.date_of_birth,
       password_hash: students.password_hash,
-      academic_offset_years: students.academic_offset_years
+      academic_offset_years: students.academic_offset_years,
+      student_status: students.student_status,
+      academic_status: students.academic_status
     })
     .from(students)
     .leftJoin(studentPersonalDetails, eq(students.id, studentPersonalDetails.student_id))
@@ -64,20 +66,149 @@ export const POST = wrapHandler({
 
     if (rows.length === 0) {
       logger.warn({ rollno }, '[Student Login Failed] User not found');
-      return apiError('Invalid credentials', 401);
+
+      // 1. Authoritatively parse and validate roll number format
+      const { validateRollNo, getIntakeYear } = await import('@/lib/rollNumber');
+      const rollValidation = validateRollNo(rollno);
+      const activeIntakeYear = getIntakeYear();
+
+      // If roll number format is invalid, or branch cannot be parsed
+      if (!rollValidation.isValid || !rollValidation.branch || !rollValidation.entryYear) {
+        return apiError('Student account not found', 404, {
+          code: 'BRANCH_STATUS_UNAVAILABLE',
+          title: 'Student Account Not Found',
+          message: "We couldn't find an active student account for this roll number in the portal. Please verify your roll number and try again. If you need assistance, please contact the college administration or admission office."
+        });
+      }
+
+      const rollYear = parseInt(rollValidation.entryYear, 10);
+      const branchCode = rollValidation.branch;
+
+      // Older/non-active admission batches: finalization has concluded, do not claim pending
+      if (rollYear !== activeIntakeYear) {
+        return apiError('Student account not found', 404, {
+          code: 'STUDENT_NOT_FOUND',
+          title: 'Student Account Not Found',
+          message: "We couldn't find an active student account for this roll number in the portal. Please verify your roll number and try again. If you believe your account should be active, please contact the college administration."
+        });
+      }
+
+      // 2. Query authoritative dynamic branch finalization status for active intake batch
+      const { AdmissionFinalizationService, FINALIZATION_STATUS } = await import('@/services/AdmissionFinalizationService');
+      const branchStatusResult = await AdmissionFinalizationService.getBranchFinalizationStatus({
+        branch: branchCode,
+        admissionYear: activeIntakeYear
+      });
+
+      const branchName = branchStatusResult.branchName || branchCode;
+      const status = branchStatusResult.status;
+
+      // Case A: Roll number does not exist and branch is not yet finalized (NOT_STARTED)
+      if (status === FINALIZATION_STATUS.NOT_STARTED) {
+        return apiError('Admission finalization pending', 404, {
+          code: 'BRANCH_FINALIZATION_PENDING',
+          title: 'Admission Finalization Pending',
+          branch: branchCode,
+          branchName,
+          status,
+          message: `Admission finalization for ${branchName} is currently pending. Please wait for your official admission-finalization email before attempting to log in.\n\nIf you have already received your finalization email, please verify your roll number and try again.`
+        });
+      }
+
+      // Case C: Branch finalization is in progress (IN_PROGRESS)
+      if (status === FINALIZATION_STATUS.IN_PROGRESS) {
+        return apiError('Admission finalization in progress', 404, {
+          code: 'BRANCH_FINALIZATION_IN_PROGRESS',
+          title: 'Admission Finalization In Progress',
+          branch: branchCode,
+          branchName,
+          status,
+          message: `Admission finalization for ${branchName} is currently in progress and student accounts are actively being set up. Please wait for your official admission-finalization email before attempting to log in.\n\nIf you have already received your email, please verify your roll number and try again.`
+        });
+      }
+
+      // Case B: Roll number does not exist and branch is finalized (FINALIZED)
+      if (status === FINALIZATION_STATUS.FINALIZED) {
+        return apiError('Student account not found', 404, {
+          code: 'BRANCH_FINALIZED_ACCOUNT_NOT_FOUND',
+          title: 'Student Account Not Found',
+          branch: branchCode,
+          branchName,
+          status,
+          message: `No active student account was found for this roll number in the portal, even though admission finalization for ${branchName} has been completed.\n\nPlease verify your roll number. If you have already received your admission-finalization email, please contact college administration or the admission office.`
+        });
+      }
+
+      // Case E: Branch status cannot be determined (UNAVAILABLE)
+      return apiError('Student account not found', 404, {
+        code: 'BRANCH_STATUS_UNAVAILABLE',
+        title: 'Student Account Not Found',
+        branch: branchCode,
+        branchName,
+        status: FINALIZATION_STATUS.UNAVAILABLE,
+        message: "We couldn't find an active student account for this roll number in the portal. Please verify your roll number and try again. If you believe this is an error, please contact the college administration or admission office."
+      });
     }
 
     const student = rows[0];
+
+    // Enforce Student Account Lifecycle & Inactivity Status
+    if (student.student_status === 'INACTIVE_ATTENDANCE') {
+      logger.warn({ rollno, studentId: student.id }, '[Student Login Blocked] Account deactivated due to inactivity');
+      return apiError('Your student account has been deactivated due to prolonged attendance inactivity. You may submit a reactivation request at /student/reactivate.', 403, {
+        code: 'ACCOUNT_DEACTIVATED',
+        title: 'Account Deactivated',
+        actionUrl: '/student/reactivate',
+        message: 'Your student account has been deactivated due to prolonged attendance inactivity. You may submit a reactivation request at /student/reactivate.'
+      });
+    }
+    if (student.student_status === 'DISCONTINUED') {
+      logger.warn({ rollno, studentId: student.id }, '[Student Login Blocked] Account discontinued');
+      return apiError('Your student account has been marked as discontinued. Please contact college administration.', 403, {
+        code: 'ACCOUNT_DISCONTINUED',
+        title: 'Account Discontinued',
+        message: 'Your student account has been marked as discontinued. Please contact the college administration office.'
+      });
+    }
+    if (['SUSPENDED', 'DROPPED'].includes(student.academic_status)) {
+      logger.warn({ rollno, studentId: student.id, academic_status: student.academic_status }, '[Student Login Blocked] Academic suspension');
+      return apiError(`Your student account is currently ${student.academic_status.toLowerCase()}. Access is restricted.`, 403, {
+        code: 'ACCOUNT_SUSPENDED',
+        title: 'Account Restricted',
+        message: `Your student account is currently ${student.academic_status.toLowerCase()}. Access is restricted. Please contact the academic administration.`
+      });
+    }
+
     let isAuthenticated = false;
 
     if (student.password_hash) {
       const match = await bcrypt.compare(dob, student.password_hash);
-      if (match) isAuthenticated = true;
-      else {
+      if (match) {
+        isAuthenticated = true;
+      } else {
         logger.warn({ rollno }, '[Student Login Failed] Password mismatch');
-        return apiError('Invalid credentials', 401);
+        const isDatePattern = /^\d{4}-\d{2}-\d{2}$/.test(dob) || /^\d{1,2}-\d{1,2}-\d{4}$/.test(dob);
+        const message = isDatePattern
+          ? 'The password you entered could not be verified. If you have already changed your password from the default date of birth, use your updated password, or use Forgot Password to reset it.'
+          : 'The password you entered could not be verified. Check your password and try again. If you have forgotten it, use Forgot Password to reset it.';
+        return apiError('Invalid credentials', 401, {
+          code: 'INVALID_CREDENTIALS',
+          title: 'Login unsuccessful',
+          message
+        });
       }
     } else {
+      // First-time login: student has not set a custom password, requires Date of Birth
+      const isDatePattern = /^\d{4}-\d{2}-\d{2}$/.test(dob) || /^\d{1,2}-\d{1,2}-\d{4}$/.test(dob);
+      if (!isDatePattern) {
+        logger.warn({ rollno }, '[Student Login Failed] First-time login password format mismatch');
+        return apiError('Invalid credentials', 401, {
+          code: 'FIRST_TIME_DOB_FORMAT_REQUIRED',
+          title: 'Check your password format',
+          message: 'For your first login, enter your date of birth in DD-MM-YYYY format (for example, 05-09-2007). If you have already changed your password, use your current password instead.'
+        });
+      }
+
       const dbDate = new Date(student.date_of_birth);
       const dbDateString = dbDate.getFullYear() + '-' + String(dbDate.getMonth() + 1).padStart(2, '0') + '-' + String(dbDate.getDate()).padStart(2, '0');
       
@@ -90,14 +221,25 @@ export const POST = wrapHandler({
       }
 
       // ─── FIX #7: Use timingSafeStringEqual instead of plain === ───
-      if (timingSafeStringEqual(dbDateString, inputDateString)) isAuthenticated = true;
-      else {
+      if (timingSafeStringEqual(dbDateString, inputDateString)) {
+        isAuthenticated = true;
+      } else {
         logger.warn({ rollno }, '[Student Login Failed] DOB mismatch');
-        return apiError('Invalid credentials', 401);
+        return apiError('Invalid credentials', 401, {
+          code: 'DOB_MISMATCH',
+          title: 'Login unsuccessful',
+          message: 'The date of birth entered could not be verified against college records. For first-time login, verify your date of birth in DD-MM-YYYY format and try again. If you have already changed your password, use your current password, or use Forgot Password to reset it.'
+        });
       }
     }
 
-    if (!isAuthenticated) return apiError('Authentication failed', 401);
+    if (!isAuthenticated) {
+      return apiError('Authentication failed', 401, {
+        code: 'INVALID_CREDENTIALS',
+        title: 'Login unsuccessful',
+        message: 'The password you entered could not be verified. Check your password and try again. If you have forgotten it, use Forgot Password to reset it.'
+      });
+    }
     
     // Log Security Event & Update Last Login
     const SecurityService = (await import('@/services/SecurityService')).default;

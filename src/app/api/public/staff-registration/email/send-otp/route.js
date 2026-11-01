@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { otpCodes } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { sendInstitutionalEmail } from '@/lib/email';
+import { sendInstitutionalEmail, EMAIL_CATEGORIES } from '@/lib/email';
+import { logger } from '@/lib/logger';
 
 export async function POST(req) {
   try {
@@ -39,11 +40,12 @@ export async function POST(req) {
                    ${otp}
                  </div>`,
       bodyText: `Your OTP for staff registration is: ${otp}. It will expire in 15 minutes.`,
+      category: EMAIL_CATEGORIES.AUTH_OTP,
     });
 
     return NextResponse.json({ success: true, message: 'OTP sent successfully.' });
   } catch (error) {
-    console.error('[SEND_OTP_ERROR]', error);
-    return NextResponse.json({ success: false, message: 'Internal server error while sending OTP.' }, { status: 500 });
+    logger.error({ err: error.message }, '[SEND_OTP_ERROR]');
+    return NextResponse.json({ success: false, message: 'Unable to send OTP. Please try again.' }, { status: 500 });
   }
 }

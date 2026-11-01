@@ -7,12 +7,34 @@ export default function CertificateRecordsView({ records = [], onViewDetails, lo
 
   const formatDateForDisplay = (val) => formatDate(val, '-');
 
-  const statusClass = (s) => {
-    const st = String(s || '').toUpperCase();
-    if (st === 'APPROVED') return 'inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200';
-    if (st === 'REJECTED') return 'inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200';
-    if (st === 'PENDING') return 'inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200';
-    return 'inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-700 border border-gray-200';
+  const renderStatusBadge = (r) => {
+    const s = String(r.status || '').toUpperCase();
+    const hod = String(r.hod_approval_status || '').toUpperCase();
+
+    if (s === 'APPROVED') {
+      return <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">APPROVED</span>;
+    }
+    if (s === 'REJECTED') {
+      return <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">REJECTED</span>;
+    }
+    if (s === 'PENDING') {
+      if (hod === 'APPROVED') {
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-[#0b3578] border border-blue-200" title="Endorsed by HOD, awaiting final Admission Staff clearance">
+            HOD ENDORSED
+          </span>
+        );
+      }
+      if (hod === 'PENDING') {
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200" title="Awaiting Stage 1 HOD Review">
+            PENDING HOD
+          </span>
+        );
+      }
+      return <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">PENDING</span>;
+    }
+    return <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-700 border border-gray-200">{s}</span>;
   };
 
   if (loading && records.length === 0) {
@@ -79,7 +101,7 @@ export default function CertificateRecordsView({ records = [], onViewDetails, lo
                   <div className="text-sm font-medium text-gray-700">{formatDateForDisplay(r.date)}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <span className={statusClass(r.status)}>{r.status}</span>
+                  {renderStatusBadge(r)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right">
                   <button

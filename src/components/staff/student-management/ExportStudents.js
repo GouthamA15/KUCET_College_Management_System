@@ -1,16 +1,17 @@
 "use client";
 import React, { useState } from 'react';
-import Image from 'next/image';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx-js-style';
 import { branchCodes, getBatchFromRoll } from '@/lib/rollNumber';
 import { getAssetUrl } from '@/lib/assets';
 import { formatDate } from '@/lib/date';
+import ImageWithLoading from '@/components/ui/ImageWithLoading';
 
 const ExportStudents = () => {
   const [branch, setBranch] = useState('');
   const [year, setYear] = useState('');
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [previewData, setPreviewData] = useState(null);
 
   // Generate admission years as Batches (e.g., 2023 - 2027)
@@ -55,71 +56,113 @@ const ExportStudents = () => {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!previewData || previewData.length === 0) {
       toast.error('No data available to export');
       return;
     }
-    exportToExcel(previewData, branch, year);
-    toast.success(`Successfully exported ${previewData.length} student records.`);
-  };
-
-  const maskAadhaar = (value) => {
-    if (!value || typeof value !== 'string' || value.length < 4) return 'N/A';
-    return `XXXX-XXXX-${value.slice(-4)}`;
-  };
-
-
-
-  const isValidImageUrl = (url) => {
-    if (!url) return false;
+    const branchName = branchCodes[branch] || branch;
+    setExporting(true);
+    const toastId = toast.loading('Generating Excel workbook with embedded photographs...');
     try {
-      const urlObj = new URL(url);
-      return urlObj.hostname.includes('cloudinary.com');
+      const params = new URLSearchParams({
+        branch: branch,
+        year: year,
+        format: 'excel'
+      });
+      const response = await fetch(`/api/staff/admission/export-students?${params.toString()}`);
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to generate Excel workbook');
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `KUCET_Students_${branchName}_Batch_${year}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(downloadUrl);
+      document.body.removeChild(a);
+      toast.success(`Successfully exported ${previewData.length} student records.`, { id: toastId });
+    } catch (err) {
+      // Fallback to client-side generation if server stream fails
+      try {
+        exportToExcel(previewData, branch, year);
+        toast.success(`Successfully exported ${previewData.length} student records (fallback).`, { id: toastId });
+      } catch (_fallbackErr) {
+        toast.error(err.message || 'Failed to export Excel workbook', { id: toastId });
+      }
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const _isValidImageUrl = (url) => {
+    if (!url || typeof url !== 'string') return false;
+    const clean = url.trim();
+    if (clean === '' || clean === 'N/A' || clean === 'NA' || clean === 'None') return false;
+    if (clean.startsWith('data:image/')) return true;
+    if (clean.startsWith('/api/assets/view/') || clean.startsWith('/assets/')) return true;
+    try {
+      const urlObj = new URL(clean, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+      return !!urlObj.pathname;
     } catch {
       return false;
     }
+  };
+
+  const sanitizeExcelCell = (val) => {
+    if (typeof val === 'string' && /^[=+\-@]/.test(val)) {
+      return `'${val}`;
+    }
+    return val;
   };
 
   const exportToExcel = (students, branchCode, batch) => {
     const branchName = branchCodes[branchCode] || branchCode;
     
     // Flatten and format data for Excel
-    const worksheetData = students.map(s => ({
-      'Roll Number': s.roll_no,
-      'Admission Number': s.admission_no,
-      'Batch': getBatchFromRoll(s.roll_no),
-      'Full Name': s.name,
-      'Gender': s.gender,
-      'Date of Birth': s.dob ? formatDate(s.dob) : 'N/A',
-      'Email': s.email,
-      'Mobile Number': s.mobile,
-      'Father Name': s.father_name,
-      'Mother Name': s.mother_name,
-      'Nationality': s.nationality,
-      'Religion': s.religion,
-      'Category': s.category,
-      'Sub-Caste': s.sub_caste,
-      'Area Status': s.area_status,
-      'Mother Tongue': s.mother_tongue,
-      'Place of Birth': s.place_of_birth,
-      'Father Occupation': s.father_occupation,
-      'Annual Income': s.annual_income,
-      'Aadhaar Number': maskAadhaar(s.aadhaar_no),
-      'Guardian Mobile': s.guardian_mobile || 'N/A',
-      'Permanent Address': s.permanent_address ? s.permanent_address.split(',')[0] : 'N/A',
-      'Identification Marks': s.identification_marks,
-      'Seat Allotted Category': s.seat_allotted_category,
-      'Blood Group': s.blood_group,
-      'Fee Reimbursement': s.fee_reimbursement,
-      'Qualifying Exam': s.qualifying_exam,
-      'SSC Marks': s.ssc_marks,
-      'Inter/Diploma Marks': s.inter_marks,
-      'Entrance Exam Rank': s.entrance_exam_rank,
-      'Previous College': s.previous_college,
-      'Photo URL': s.photo ? getAssetUrl(s.photo) : 'N/A',
-      'Signature URL': s.signature ? getAssetUrl(s.signature) : 'N/A'
-    }));
+    const worksheetData = students.map(s => {
+      const dobVal = s.date_of_birth || s.dob;
+      return {
+        'Roll Number': sanitizeExcelCell(s.roll_no),
+        'Admission Number': sanitizeExcelCell(s.admission_no),
+        'Batch': sanitizeExcelCell(getBatchFromRoll(s.roll_no) || batch),
+        'Full Name': sanitizeExcelCell(s.name),
+        'Gender': sanitizeExcelCell(s.gender),
+        'Date of Birth': sanitizeExcelCell(dobVal ? formatDate(dobVal, 'N/A') : 'N/A'),
+        'Email': sanitizeExcelCell(s.email),
+        'Mobile Number': sanitizeExcelCell(s.mobile),
+        'Father Name': sanitizeExcelCell(s.father_name),
+        'Mother Name': sanitizeExcelCell(s.mother_name),
+        'Nationality': sanitizeExcelCell(s.nationality),
+        'Religion': sanitizeExcelCell(s.religion),
+        'Category': sanitizeExcelCell(s.category),
+        'Sub-Caste': sanitizeExcelCell(s.sub_caste),
+        'Area Status': sanitizeExcelCell(s.area_status),
+        'Mother Tongue': sanitizeExcelCell(s.mother_tongue),
+        'Place of Birth': sanitizeExcelCell(s.place_of_birth),
+        'Father Occupation': sanitizeExcelCell(s.father_occupation),
+        'Annual Income': sanitizeExcelCell(s.annual_income),
+        'Aadhaar Number': sanitizeExcelCell(s.aadhaar_no || 'N/A'),
+        'APAAR ID': sanitizeExcelCell(s.apaar_id || 'Not Submitted'),
+        'Guardian Mobile': sanitizeExcelCell(s.guardian_mobile || 'N/A'),
+        'Permanent Address': sanitizeExcelCell(s.permanent_address ? s.permanent_address.split(',')[0] : 'N/A'),
+        'Identification Marks': sanitizeExcelCell(s.identification_marks),
+        'Seat Allotted Category': sanitizeExcelCell(s.seat_allotted_category),
+        'Blood Group': sanitizeExcelCell(s.blood_group || 'Not available'),
+        'Fee Reimbursement': sanitizeExcelCell(s.fee_reimbursement),
+        'Qualifying Exam': sanitizeExcelCell(s.qualifying_exam),
+        'SSC Marks': sanitizeExcelCell(s.ssc_marks),
+        'Inter/Diploma Marks': sanitizeExcelCell(s.inter_marks),
+        'Entrance Exam Rank': sanitizeExcelCell(s.entrance_exam_rank),
+        'Previous College': sanitizeExcelCell(s.previous_college),
+        'Photo URL': s.photo ? getAssetUrl(s.photo) : 'N/A',
+        'Signature URL': s.signature ? getAssetUrl(s.signature) : 'N/A'
+      };
+    });
 
     const worksheet = XLSX.utils.json_to_sheet(worksheetData);
     
@@ -130,18 +173,18 @@ const ExportStudents = () => {
       if (!worksheet[address]) continue;
       worksheet[address].s = {
         font: { bold: true, color: { rgb: "FFFFFF" } },
-        fill: { fgColor: { rgb: "4F46E5" } }, // Indigo-600
+        fill: { fgColor: { rgb: "0B3578" } },
         alignment: { horizontal: "center" }
       };
     }
 
     // Setting column widths
     const columnWidths = [
-      { wch: 15 }, { wch: 18 }, { wch: 12 }, { wch: 25 }, { wch: 10 }, { wch: 12 }, { wch: 25 }, { wch: 15 },
-      { wch: 25 }, { wch: 25 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 15 }, { wch: 12 },
-      { wch: 15 }, { wch: 12 }, { wch: 20 }, { wch: 15 }, { wch: 18 }, { wch: 15 }, { wch: 40 },
-      { wch: 30 }, { wch: 20 }, { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 15 },
-      { wch: 15 }, { wch: 30 }, { wch: 50 }, { wch: 50 }
+      { wch: 16 }, { wch: 18 }, { wch: 14 }, { wch: 28 }, { wch: 12 }, { wch: 16 }, { wch: 30 }, { wch: 16 },
+      { wch: 26 }, { wch: 26 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 14 },
+      { wch: 16 }, { wch: 20 }, { wch: 22 }, { wch: 18 }, { wch: 20 }, { wch: 18 }, { wch: 16 }, { wch: 40 },
+      { wch: 32 }, { wch: 22 }, { wch: 14 }, { wch: 18 }, { wch: 16 }, { wch: 14 }, { wch: 18 },
+      { wch: 18 }, { wch: 30 }, { wch: 16 }, { wch: 20 }
     ];
     worksheet['!cols'] = columnWidths;
 
@@ -230,12 +273,22 @@ const ExportStudents = () => {
              
              <button 
                 onClick={handleExport}
-                className="h-10 px-5 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-all flex items-center gap-2 shadow-sm"
+                disabled={exporting}
+                className="h-10 px-5 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-all flex items-center gap-2 shadow-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-                Download Excel
+                {exporting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <span>Generating Excel...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                    <span>Download Excel</span>
+                  </>
+                )}
              </button>
           </div>
           
@@ -260,22 +313,32 @@ const ExportStudents = () => {
                     <td className="px-6 py-3 font-medium text-gray-700">{student.name}</td>
                     <td className="px-6 py-3 font-mono text-gray-500 text-xs">{student.mobile || 'N/A'}</td>
                     <td className="px-6 py-3">
-                      {isValidImageUrl(getAssetUrl(student.photo)) ? (
-                        <div className="w-8 h-8 rounded-full border border-gray-200 overflow-hidden bg-gray-100">
-                           <Image src={getAssetUrl(student.photo)} width={32} height={32} className="w-full h-full object-cover" alt="S" unoptimized onError={() => {}} />
-                        </div>
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs text-gray-400">NA</div>
-                      )}
+                      <div className="w-8 h-8 rounded-full border border-gray-200 overflow-hidden bg-gray-100">
+                        <ImageWithLoading
+                          src={student.photo}
+                          alt={student.name || "Student"}
+                          width={32}
+                          height={32}
+                          variant="avatar"
+                          className="w-full h-full object-cover"
+                          emptyText="NA"
+                          errorText="NA"
+                        />
+                      </div>
                     </td>
                     <td className="px-6 py-3">
-                      {student.signature ? (
-                        <div className="h-6 w-16 bg-white border border-gray-200 p-1 flex items-center justify-center rounded">
-                           <Image src={getAssetUrl(student.signature)} width={64} height={24} className="h-full object-contain" alt="SIG" unoptimized />
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-400 italic">None</span>
-                      )}
+                      <div className="h-6 w-16 bg-white border border-gray-200 p-0.5 flex items-center justify-center rounded overflow-hidden">
+                        <ImageWithLoading
+                          src={student.signature}
+                          alt="Signature"
+                          width={64}
+                          height={24}
+                          variant="signature"
+                          className="h-full object-contain"
+                          emptyText="None"
+                          errorText="None"
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -293,16 +356,30 @@ const ExportStudents = () => {
                     <span className="ml-2 text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{getBatchFromRoll(student.roll_no)}</span>
                   </div>
                   <div className="flex gap-2">
-                    {isValidImageUrl(getAssetUrl(student.photo)) ? (
-                      <div className="w-8 h-8 rounded-full border border-gray-200 overflow-hidden bg-gray-100">
-                         <Image src={getAssetUrl(student.photo)} width={32} height={32} className="w-full h-full object-cover" alt="S" unoptimized onError={() => {}} />
-                      </div>
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs text-gray-400">NA</div>
-                    )}
+                    <div className="w-8 h-8 rounded-full border border-gray-200 overflow-hidden bg-gray-100">
+                      <ImageWithLoading
+                        src={student.photo}
+                        alt={student.name || "Student"}
+                        width={32}
+                        height={32}
+                        variant="avatar"
+                        className="w-full h-full object-cover"
+                        emptyText="NA"
+                        errorText="NA"
+                      />
+                    </div>
                     {student.signature && (
-                      <div className="h-8 w-12 bg-white border border-gray-200 p-1 flex items-center justify-center rounded">
-                         <Image src={getAssetUrl(student.signature)} width={48} height={24} className="h-full object-contain" alt="SIG" unoptimized />
+                      <div className="h-8 w-12 bg-white border border-gray-200 p-0.5 flex items-center justify-center rounded overflow-hidden">
+                        <ImageWithLoading
+                          src={student.signature}
+                          alt="Signature"
+                          width={48}
+                          height={24}
+                          variant="signature"
+                          className="h-full object-contain"
+                          emptyText="None"
+                          errorText="None"
+                        />
                       </div>
                     )}
                   </div>

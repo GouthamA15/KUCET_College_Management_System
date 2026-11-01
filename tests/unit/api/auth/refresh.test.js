@@ -207,6 +207,7 @@ describe('/api/auth/refresh API Route', () => {
       user_type: 'student',
       expires_at: new Date('2026-06-10T10:00:00Z'),
       revoked_at: new Date('2026-06-02T09:59:55Z'), // 5s before mock clock 10:00:00
+      replaced_by_token_id: 2,
     };
     db.query.refreshTokens.findFirst.mockResolvedValue(tokenRecord);
 
@@ -251,6 +252,7 @@ describe('/api/auth/refresh API Route', () => {
       user_type: 'student',
       expires_at: new Date('2026-06-10T10:00:00Z'),
       revoked_at: new Date('2026-06-02T09:57:30Z'), // 150s before mock clock 10:00:00
+      replaced_by_token_id: 2,
     };
     db.query.refreshTokens.findFirst.mockResolvedValue(tokenRecord);
 

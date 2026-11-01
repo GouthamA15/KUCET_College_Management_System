@@ -84,7 +84,7 @@ sequenceDiagram
 
 ---
 
-## Migration Version Registry (0000 – 0018)
+## Migration Version Registry (0000 – 0024)
 
 | Index | Migration Tag | Applied Changes & Domain | Safety Level |
 | :---: | :--- | :--- | :--- |
@@ -98,6 +98,21 @@ sequenceDiagram
 | `0007` | `0007_flippant_harry_osborn` | Security events and notifications | `SAFE` |
 | `0008` | `0008_solid_black_tarantula` | Archive domain tables and retention policies | `SAFE` |
 | `0009` | `0009_tiny_sabretooth` | Bug reporting and feedback tables | `SAFE` |
+| `0010` | `0010_tan_cerebro` | Institutional asset metadata | `SAFE` |
+| `0011` | `0011_curious_terrax` | Payment screenshot consolidation | `SAFE` |
+| `0012` | `0012_clerk_registration_requests` | Staff onboarding & branch verification | `SAFE` |
+| `0013` | `0013_thin_outlaw_kid` | Performance & foreign key indexes | `SAFE` |
+| `0014` | `0014_zero_clerk_hard_break` | Zero Clerk Hard Break & staff unification | `SAFE` |
+| `0015` | `0015_database_backup_logs` | Operational backup logs tracking | `SAFE` |
+| `0016` | `0016_reconcile_staff_and_hod_schema` | Staff accounts & HOD assignments reconciliation | `SAFE` |
+| `0017` | `0017_add_staff_registration_address` | Address fields on staff registration requests | `SAFE` |
+| `0018` | `0018_admission_rejection_and_history` | Admission rejection audit history tracking | `SAFE` |
+| `0019` | `0019_timetable_instances` | Timetable instances table for tracking semester schedule revisions | `SAFE` |
+| `0020` | `0020_subject_module_and_elective_groups` | Subject modules, elective groups, and syllabus curriculum structure | `SAFE` |
+| `0021` | `0021_students_achievements_schema` | Student achievements, verified certificates, and institutional portfolios | `SAFE` |
+| `0022` | `0022_academic_calendar_attendance_disputes_and_workflows` | Academic calendar semester dates, attendance correction disputes with evidence uploads, 90-day student account inactivity automation, and branch-specific HOD request workflows | `SAFE` |
+| `0023` | `0023_principal_staff_role` | `PRINCIPAL` supervisor role in staff identity system with cross-branch authority | `SAFE` |
+| `0024` | `0024_canonical_gender_enum` | Canonical `'MALE' \| 'FEMALE'` enum enforcement across students, drafts, and archived students | `SAFE` |
 | `0010` | `0010_tan_cerebro` | Certificate verification lookup tracking | `SAFE` |
 | `0011` | `0011_curious_terrax` | Cloudinary relative storage key migrations | `SAFE` |
 | `0012` | `0012_clerk_registration_requests` | Staff self-registration request workflow | `SAFE` |

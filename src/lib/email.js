@@ -204,11 +204,19 @@ export const buildInstitutionalEmailText = ({
   return lines.join('\n');
 };
 
+export {
+  EMAIL_CATEGORIES,
+  CATEGORY_CONFIG_MAP,
+  DEFAULT_SENDER_NAMES,
+  resolveBrevoCategoryConfig,
+  resolveBrevoApiKey
+} from './email-categories';
+
 // Low-level email sender (Uses configured provider)
-export const sendEmail = async (to, subject, html, text) => {
+export const sendEmail = async (to, subject, html, text, category, replyTo) => {
   try {
     const { email } = await import('./providers');
-    return await email.send({ to, subject, html, text });
+    return await email.send({ to, subject, html, text, category, replyTo });
   } catch (error) {
     console.error('[EMAIL_EXCEPTION] Error calling email provider:', error);
     return { success: false, message: 'Internal error connecting to email service.' };
@@ -223,9 +231,11 @@ export const sendInstitutionalEmail = async ({
   bodyHtml,
   bodyText,
   action,
-  infoRows
+  infoRows,
+  category,
+  replyTo
 }) => {
   const html = buildInstitutionalEmailHtml({ title, bodyHtml, action, infoRows });
   const text = buildInstitutionalEmailText({ title, bodyText: bodyText || bodyHtml.replace(/<[^>]+>/g, ' '), action, infoRows });
-  return sendEmail(to, subject, html, text);
+  return sendEmail(to, subject, html, text, category, replyTo);
 };

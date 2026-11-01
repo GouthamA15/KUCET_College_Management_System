@@ -72,10 +72,10 @@ export function useEmailVerification(identifier, initialEmail, onVerified, role 
         setOtpSent(true);
         startCountdown();
       } else {
-        toast.error(data.error || data.message || 'Failed to send OTP');
+        toast.error(data.error || data.message || 'Failed to send OTP. Please try again.');
       }
     } catch {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     } finally {
       setEmailSending(false);
     }
@@ -103,10 +103,10 @@ export function useEmailVerification(identifier, initialEmail, onVerified, role 
         setOtpInput('');
       } else {
         const data = await res.json();
-        toast.error(data.error || data.message || 'Verification failed');
+        toast.error(data.error || data.message || 'Verification failed. Please check the OTP and try again.');
       }
     } catch {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     } finally {
       setOtpVerifying(false);
     }

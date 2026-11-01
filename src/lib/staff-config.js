@@ -33,3 +33,14 @@ export const isValidStaffCategory = (cat) => Object.keys(STAFF_CATEGORIES).inclu
 export const isValidFacultyBranch = (branch) => FACULTY_BRANCHES.includes(branch);
 
 export const getStaffCategoryDetails = (catKey) => STAFF_CATEGORIES[catKey] || null;
+
+/**
+ * Canonical helper for formatting and displaying faculty & staff names.
+ * Preserves the exact submitted name including initials, spaces, and multi-part tokens.
+ * Trims extraneous edge whitespace without fabricating, shortening, or reordering components.
+ */
+export const formatFacultyName = (name, fallback = 'Faculty') => {
+  if (!name || typeof name !== 'string') return fallback;
+  const trimmed = name.trim();
+  return trimmed.length > 0 ? trimmed : fallback;
+};

@@ -41,13 +41,18 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false,
   const now = new Date();
   const expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
 
-  await db.insert(refreshTokens).values({
+  const insertRes = await db.insert(refreshTokens).values({
     token_hash: tokenHash,
     user_id: String(userId),
     user_type: userType,
     expires_at: expiresAt,
     created_at: now,
   });
+
+  const insertedTokenId = insertRes?.[0]?.insertId || insertRes?.insertId || null;
+  if (response && insertedTokenId) {
+    response._newRefreshTokenId = insertedTokenId;
+  }
 
   const cookieName = `${userType}_refresh_token`;
   
@@ -208,6 +213,8 @@ export async function issueStaffAuthCookie(response, staff, rememberMe = false, 
     email: staff.email,
     role: staff.role,
     is_hod: !!staff.is_hod,
+    is_principal: !!staff.is_principal,
+    is_first_year_coordinator: !!staff.is_first_year_coordinator,
     branch: staff.branch,
   })
     .setProtectedHeader({ alg: 'HS256' })
@@ -346,6 +353,8 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
       }
 
       let isHod = false;
+      let isPrincipal = roleRecords.some(r => r.role_code === 'PRINCIPAL');
+      let isCoordinator = false;
       let branch = null;
       if (resolvedRole === 'faculty') {
           const affil = await db.select({ branch_code: academicDepartments.department_code })
@@ -357,7 +366,7 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
             branch = affil[0].branch_code;
           }
 
-          const { facultyHodAssignments } = await import('@/db/schema');
+          const { facultyHodAssignments, facultyCoordinatorAssignments } = await import('@/db/schema');
           const hodRow = await db.select({ id: facultyHodAssignments.id })
               .from(facultyHodAssignments)
               .where(and(
@@ -365,8 +374,37 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
                 eq(facultyHodAssignments.is_active, true)
               ))
               .limit(1);
-          if (hodRow.length > 0) {
+          if (hodRow.length > 0 || isPrincipal) {
             isHod = true;
+          }
+
+          if (facultyCoordinatorAssignments) {
+            const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+            const coordRows = await db.select({ 
+              id: facultyCoordinatorAssignments.id,
+              start_date: facultyCoordinatorAssignments.start_date,
+              end_date: facultyCoordinatorAssignments.end_date
+            })
+            .from(facultyCoordinatorAssignments)
+            .where(and(
+              eq(facultyCoordinatorAssignments.staff_account_id, user.id),
+              eq(facultyCoordinatorAssignments.coordinator_type, 'FIRST_YEAR'),
+              eq(facultyCoordinatorAssignments.is_active, true)
+            ));
+
+            const toDateStr = (val) => {
+              if (!val) return null;
+              if (val instanceof Date) return val.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+              return String(val).split('T')[0];
+            };
+
+            isCoordinator = coordRows.some(c => {
+              const sStr = toDateStr(c.start_date);
+              const eStr = toDateStr(c.end_date);
+              if (sStr && todayStr < sStr) return false;
+              if (eStr && todayStr > eStr) return false;
+              return true;
+            });
           }
       }
 
@@ -375,6 +413,8 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
          email: user.email,
          role: resolvedRole,
          is_hod: isHod,
+         is_principal: isPrincipal,
+         is_first_year_coordinator: isCoordinator || false,
          branch: branch
       };
 
@@ -405,8 +445,12 @@ export async function handleLogoutRevocation(request, userType = 'staff') {
 
     if (refreshToken) {
       const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+      // Explicit logout: revoked_at is stamped, replaced_by_token_id is explicitly set to NULL (no successor token)
       await db.update(refreshTokens)
-        .set({ revoked_at: new Date() })
+        .set({
+          revoked_at: new Date(),
+          replaced_by_token_id: null
+        })
         .where(eq(refreshTokens.token_hash, tokenHash));
     }
 
@@ -425,22 +469,39 @@ export async function handleLogoutRevocation(request, userType = 'staff') {
 
 /**
  * Clears all role and session cookies across the entire application domain.
+ * Avoids duplicate delete/set race conditions and matches original httpOnly attributes.
  */
 export function clearAllAuthCookies(response) {
-  const cookiesToClear = [
-    'admin_auth', 'admin_logged_in', 'admin_refresh_token', 'admin_session_id',
-    'staff_auth', 'staff_logged_in', 'staff_refresh_token', 'staff_role', 'staff_session_id',
-    'student_auth', 'student_logged_in', 'student_refresh_token', 'student_session_id',
+  const httpOnlyCookies = [
+    'admin_auth', 'admin_refresh_token', 'admin_session_id',
+    'staff_auth', 'staff_refresh_token', 'staff_session_id',
+    'student_auth', 'student_refresh_token', 'student_session_id',
     'session_id'
   ];
 
-  cookiesToClear.forEach(name => {
-    response.cookies.delete(name);
+  const companionCookies = [
+    'admin_logged_in',
+    'staff_logged_in', 'staff_role',
+    'student_logged_in'
+  ];
+
+  httpOnlyCookies.forEach(name => {
     response.cookies.set(name, '', {
       path: '/',
       maxAge: 0,
       expires: new Date(0),
       httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax'
+    });
+  });
+
+  companionCookies.forEach(name => {
+    response.cookies.set(name, '', {
+      path: '/',
+      maxAge: 0,
+      expires: new Date(0),
+      httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax'
     });

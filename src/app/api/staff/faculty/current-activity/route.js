@@ -1,9 +1,10 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { branchTimetable, syllabusSubjects, semesters } from '@/db/schema';
-import { eq, and, desc, sql, like, or } from 'drizzle-orm';
+import { branchTimetable, syllabusSubjects } from '@/db/schema';
+import { eq, and, sql, like } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { Clock } from '@/lib/clock';
+import { getCollegeAcademicYear } from '@/lib/academic-utils';
 
 export async function GET(req) {
   try {
@@ -20,11 +21,7 @@ export async function GET(req) {
     }
 
     const facultyId = user.staffId || user.id;
-    const semRows = await db.select({ academic_year: semesters.academic_year })
-      .from(semesters)
-      .orderBy(desc(semesters.id))
-      .limit(1);
-    const systemYear = semRows[0]?.academic_year || '2025-26';
+    const systemYear = await getCollegeAcademicYear();
     const yearPattern = `%${systemYear.substring(0, 4)}%`;
 
     const rows = await db.select({
@@ -40,10 +37,7 @@ export async function GET(req) {
       eq(branchTimetable.faculty_id, facultyId),
       eq(branchTimetable.day_of_week, day),
       eq(branchTimetable.period_number, period),
-      or(
-        like(branchTimetable.academic_year, yearPattern),
-        eq(branchTimetable.academic_year, '2025-26')
-      )
+      like(branchTimetable.academic_year, yearPattern)
     ))
     .limit(1);
 

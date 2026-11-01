@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStaff } from '@/context/StaffContext';
 import toast from 'react-hot-toast';
@@ -8,6 +8,7 @@ import { StaffDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
 
 export default function AdmissionDashboardClient() {
   const router = useRouter();
+  const [missingApaarCount, setMissingApaarCount] = useState(0);
   const { 
     staffData: staff, 
     loading: isLoading, 
@@ -22,7 +23,7 @@ export default function AdmissionDashboardClient() {
     refreshAdmissionDrafts
   } = useStaff();
 
-  const firstName = staff?.name?.split(' ')[0] || 'Staff';
+  const fullName = (staff?.name || '').trim() || 'Staff';
   const employeeLabel = staff?.employee_id || (staff?.role ? staff.role.toUpperCase() : 'ADMISSION');
   const profilePendingCount = Array.isArray(pendingProfileRequests) ? pendingProfileRequests.length : 0;
   const certificatePendingCount = Array.isArray(pendingCertificateRequests) ? pendingCertificateRequests.length : 0;
@@ -69,6 +70,27 @@ export default function AdmissionDashboardClient() {
   }, [studentHistory]);
 
   useEffect(() => {
+    let isMounted = true;
+    async function fetchStats() {
+      try {
+        const res = await fetch('/api/staff/admission/apaar-stats');
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted) {
+            setMissingApaarCount(Number(data.missing_count || 0));
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load APAAR stats', e);
+      }
+    }
+    if (staff?.role === 'admission' || staff?.role === 'admin') {
+      fetchStats();
+    }
+    return () => { isMounted = false; };
+  }, [staff?.role]);
+
+  useEffect(() => {
     if (!isLoading && staff && staff.role !== 'admission') {
       toast.error('Access Denied');
     }
@@ -107,6 +129,24 @@ export default function AdmissionDashboardClient() {
       tone: 'bg-emerald-50 text-emerald-700',
       path: profilePendingCount > certificatePendingCount ? '/staff/admission/requests?tab=updates' : '/staff/admission/requests?tab=certificates',
       badge: profilePendingCount + certificatePendingCount
+    },
+    {
+      key: 'id-cards',
+      label: 'Student ID Cards',
+      description: 'Audit, preview and generate student identity cards.',
+      icon: '🪪',
+      tone: 'bg-amber-50 text-amber-800',
+      path: '/staff/admission/id-cards',
+      badge: 0
+    },
+    {
+      key: 'bulk-id-cards',
+      label: 'Bulk ID Card Download',
+      description: 'Generate individual student ID card PDFs and download them together as a ZIP archive.',
+      icon: '📦',
+      tone: 'bg-blue-50 text-blue-800',
+      path: '/staff/admission/id-cards/bulk',
+      badge: 0
     }
   ];
 
@@ -169,7 +209,7 @@ export default function AdmissionDashboardClient() {
             <div className="lg:hidden flex flex-col justify-between gap-2.5">
               <div className="space-y-1 text-left text-white">
                 <h1 className="text-2xl font-bold tracking-tight text-white leading-tight select-none">
-                  Welcome, {firstName}
+                  Welcome, {fullName}
                 </h1>
                 <div className="flex flex-wrap items-center justify-start gap-2 pt-1">
                   <span className="text-[10px] font-semibold uppercase tracking-wider bg-white/10 text-white border border-white/20 px-1.5 py-0.5 rounded-full">
@@ -185,7 +225,7 @@ export default function AdmissionDashboardClient() {
 
             <div className="hidden lg:block text-left text-white">
               <h1 className="text-2xl font-bold tracking-tight text-white select-none">
-                Welcome back, {firstName}
+                Welcome back, {fullName}
               </h1>
               <div className="mt-2 text-xs font-medium text-blue-100/90 space-y-0.5 select-none">
                 <div>{employeeLabel}</div>
@@ -194,6 +234,28 @@ export default function AdmissionDashboardClient() {
             </div>
           </div>
         </header>
+
+        {missingApaarCount > 0 && (
+          <div 
+            onClick={() => router.push('/staff/admission/student-management?missing_apaar=true')}
+            className="cursor-pointer bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 text-amber-900 px-4 py-3 rounded-lg flex items-center justify-between gap-3 shadow-sm hover:border-amber-400 transition-all group shrink-0"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-xl">⚠️</span>
+              <div>
+                <p className="text-sm font-bold text-amber-900">
+                  {missingApaarCount} Active Student{missingApaarCount > 1 ? 's' : ''} Missing APAAR ID
+                </p>
+                <p className="text-xs text-amber-700">
+                  Academic Bank of Credits compliance requires 12-digit APAAR registration. Click to open Student Registry with filtered records.
+                </p>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-200/70 px-2.5 py-1 rounded-md group-hover:bg-amber-200 transition-colors shrink-0">
+              Resolve Registry &rarr;
+            </span>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-4 lg:flex lg:flex-col lg:gap-3 lg:flex-1 lg:min-h-0">
           <div className="order-1 lg:order-none lg:contents flex flex-col gap-4 lg:gap-3 lg:min-h-0">

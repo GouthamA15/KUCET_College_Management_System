@@ -5,8 +5,9 @@ import { eq } from 'drizzle-orm';
 import { apiError, wrapHandler } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
 import { storage } from '@/lib/providers';
-import { sendInstitutionalEmail } from '@/lib/email';
+import { sendInstitutionalEmail, EMAIL_CATEGORIES } from '@/lib/email';
 import { encrypt, decrypt } from '@/lib/encryption';
+import { normalizeAreaStatus, normalizeGender, normalizeBloodGroup, normalizeFeeReimbursement } from '@/lib/college-config';
 
 export const GET = wrapHandler({
   auth: 'admission',
@@ -147,7 +148,8 @@ export const PUT = wrapHandler({
               infoRows: [
                 { label: 'Application ID', value: id },
                 { label: 'Status', value: 'REJECTED' }
-              ]
+              ],
+              category: EMAIL_CATEGORIES.ADMISSIONS,
             }).catch(e => logger.error(e, 'Failed to send rejection email'));
           }
 
@@ -244,13 +246,57 @@ export const PUT = wrapHandler({
         if (body[field] !== undefined) {
             let value = body[field] === '' ? null : body[field];
             
-            if (field === 'dob') {
+            if (field === 'name' && value) {
+                value = String(value).trim().toUpperCase();
+            }
+            else if (field === 'gender') {
+                if (value === null || value === undefined || value === '') {
+                    value = null;
+                } else {
+                    const normG = normalizeGender(value);
+                    if (!normG) {
+                        return apiError('Invalid gender value. Must be MALE or FEMALE', 400);
+                    }
+                    value = normG;
+                }
+            }
+            else if (field === 'fee_reimbursement') {
+                value = normalizeFeeReimbursement(value);
+            }
+            else if (field === 'dob') {
                 value = toMySQLDate(body[field]);
             } 
             else if (field === 'inter_diploma_marks' && value !== null) {
                 const num = parseFloat(value);
                 if (isNaN(num) || num < 0 || num > 1000) {
                     return apiError('Intermediate/Diploma marks must be between 0 and 1000.', 400);
+                }
+            }
+            else if (field === 'blood_group') {
+                if (value === null || value === undefined || value === '') {
+                    value = null;
+                } else {
+                    const s = String(value).trim();
+                    if (s.toLowerCase() === 'not available' || s.toUpperCase() === 'UNKNOWN' || s.toLowerCase() === 'n/a') {
+                        value = null;
+                    } else {
+                        const normBg = normalizeBloodGroup(s);
+                        if (!normBg) {
+                            return apiError('Invalid blood group value', 400);
+                        }
+                        value = normBg;
+                    }
+                }
+            }
+            else if (field === 'area_status') {
+                if (value === null || value === undefined || value === '') {
+                    value = null;
+                } else {
+                    const norm = normalizeAreaStatus(value);
+                    if (!norm) {
+                        return apiError("Invalid area status. Must be 'Local' or 'Non-Local'", 400);
+                    }
+                    value = norm;
                 }
             }
             // Encrypt sensitive fields before saving

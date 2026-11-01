@@ -38,6 +38,36 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                function shouldSuppress(msg, src, err) {
+                  var s = (src || '') + ' ' + (err && err.stack ? err.stack : '');
+                  var m = msg || (err && err.message) || '';
+                  return s.indexOf('share-modal.js') !== -1 || m.indexOf('share-modal') !== -1 || s.indexOf('extension') !== -1;
+                }
+                window.addEventListener('error', function(e) {
+                  if (shouldSuppress(e.message, e.filename, e.error)) {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                    return true;
+                  }
+                }, true);
+                window.addEventListener('unhandledrejection', function(e) {
+                  var reason = e && e.reason;
+                  if (shouldSuppress(reason && reason.message, '', reason)) {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                    return true;
+                  }
+                }, true);
+              })();
+            `,
+          }}
+        />
+      </head>
       <body className={`${inter.className} antialiased bg-institutional min-h-screen`} suppressHydrationWarning>
         <a
           href="#main-content"

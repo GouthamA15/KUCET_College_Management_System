@@ -140,12 +140,23 @@ export async function POST(req) {
 
     // Task 3: Verify Hash Rotation / Stale Hash / Grace Period
     if (tokenRecord.revoked_at) {
+      // SAFEGUARD 2: Distinguish explicit logout revocation from normal concurrent token rotation.
+      // An explicitly logged-out token has NO replacement token (replaced_by_token_id is null/0)
+      // or its session was revoked. NEVER grant grace period to explicitly logged-out tokens!
+      const hasReplacement = tokenRecord.replaced_by_token_id && Number(tokenRecord.replaced_by_token_id) > 0;
+      const isSessionRevoked = sessionRecord ? (sessionRecord.is_revoked === true || sessionRecord.is_revoked === 1) : false;
+
+      if (!hasReplacement || isSessionRevoked) {
+        logDevValues();
+        return apiError('Session has been logged out. Please login again.', 401);
+      }
+
       const revokedAtTime = new Date(tokenRecord.revoked_at).getTime();
-      const gracePeriodMs = 120000; // 2 minutes grace period for concurrent/canceled requests
+      const gracePeriodMs = 120000; // 2 minutes grace period for concurrent requests during rotation
       const isWithinGracePeriod = (now.getTime() - revokedAtTime) < gracePeriodMs;
 
       if (isWithinGracePeriod) {
-        // This is a concurrent request within the grace period.
+        // This is a legitimate concurrent request within the grace period during normal rotation.
         // Instead of failing and revoking everything, we return a fresh access token (JWT)
         // and keep the same refresh token cookie (do not rotate again).
         
@@ -160,17 +171,20 @@ export async function POST(req) {
             const roleRecords = await db.select({ role_code: staffRoles.role_code })
               .from(staffAccountRoles)
               .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
-              .where(eq(staffAccountRoles.staff_account_id, user.id))
-              .limit(1);
+              .where(eq(staffAccountRoles.staff_account_id, user.id));
+
+            const roleCodes = roleRecords.map(r => r.role_code);
+            const isPrincipal = roleCodes.includes('PRINCIPAL');
+
             let resolvedRole = 'faculty';
-            if (roleRecords.length > 0) {
-                const rCode = roleRecords[0].role_code;
-                if (rCode === 'ADMISSION_STAFF') resolvedRole = 'admission';
-                else if (rCode === 'SCHOLARSHIP_STAFF') resolvedRole = 'scholarship';
-                else resolvedRole = 'faculty';
-            }
+            if (roleCodes.includes('ADMISSION_STAFF')) resolvedRole = 'admission';
+            else if (roleCodes.includes('SCHOLARSHIP_STAFF')) resolvedRole = 'scholarship';
+            else resolvedRole = 'faculty';
+
             user.role = resolvedRole;
-            user.is_hod = false;
+            user.is_principal = isPrincipal;
+            user.is_hod = isPrincipal;
+            user.is_first_year_coordinator = false;
             user.branch = null;
             if (resolvedRole === 'faculty') {
                 const affil = await db.select({ branch_code: academicDepartments.department_code })
@@ -180,9 +194,11 @@ export async function POST(req) {
                     .limit(1);
                 if (affil.length > 0) {
                     user.branch = affil[0].branch_code;
+                } else if (isPrincipal) {
+                    user.branch = 'CSE';
                 }
 
-                const { facultyHodAssignments } = await import('@/db/schema');
+                const { facultyHodAssignments, facultyCoordinatorAssignments } = await import('@/db/schema');
                 const hodRow = await db.select({ id: facultyHodAssignments.id })
                     .from(facultyHodAssignments)
                     .where(and(
@@ -190,8 +206,37 @@ export async function POST(req) {
                       eq(facultyHodAssignments.is_active, true)
                     ))
                     .limit(1);
-                if (hodRow.length > 0) {
+                if (hodRow.length > 0 || isPrincipal) {
                     user.is_hod = true;
+                }
+
+                if (facultyCoordinatorAssignments) {
+                  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+                  const coordRows = await db.select({
+                    id: facultyCoordinatorAssignments.id,
+                    start_date: facultyCoordinatorAssignments.start_date,
+                    end_date: facultyCoordinatorAssignments.end_date
+                  })
+                  .from(facultyCoordinatorAssignments)
+                  .where(and(
+                    eq(facultyCoordinatorAssignments.staff_account_id, user.id),
+                    eq(facultyCoordinatorAssignments.coordinator_type, 'FIRST_YEAR'),
+                    eq(facultyCoordinatorAssignments.is_active, true)
+                  ));
+
+                  const toDateStr = (val) => {
+                    if (!val) return null;
+                    if (val instanceof Date) return val.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+                    return String(val).split('T')[0];
+                  };
+
+                  user.is_first_year_coordinator = coordRows.some(c => {
+                    const sStr = toDateStr(c.start_date);
+                    const eStr = toDateStr(c.end_date);
+                    if (sStr && todayStr < sStr) return false;
+                    if (eStr && todayStr > eStr) return false;
+                    return true;
+                  });
                 }
             }
           }
@@ -207,6 +252,13 @@ export async function POST(req) {
         if (type === 'staff' && user.account_status !== 'ACTIVE') {
           logDevValues();
           return apiError('User not found or inactive', 401);
+        }
+
+        if (type === 'student') {
+          if (user.student_status === 'INACTIVE_ATTENDANCE' || user.student_status === 'DISCONTINUED' || ['SUSPENDED', 'DROPPED'].includes(user.academic_status)) {
+            logDevValues();
+            return apiError('Student account is inactive, discontinued, or suspended', 403);
+          }
         }
 
         // Task 6: Ownership validation
@@ -278,9 +330,12 @@ export async function POST(req) {
         } else if (type === 'staff') {
           const token = await new (await import('jose')).SignJWT({
             id: user.id,
+            staffId: user.id,
             email: user.email,
             role: user.role,
             is_hod: !!user.is_hod,
+            is_principal: !!user.is_principal,
+            is_first_year_coordinator: !!user.is_first_year_coordinator,
             branch: user.branch,
           })
             .setProtectedHeader({ alg: 'HS256' })
@@ -349,17 +404,20 @@ export async function POST(req) {
         const roleRecords = await db.select({ role_code: staffRoles.role_code })
           .from(staffAccountRoles)
           .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
-          .where(eq(staffAccountRoles.staff_account_id, user.id))
-          .limit(1);
+          .where(eq(staffAccountRoles.staff_account_id, user.id));
+
+        const roleCodes = roleRecords.map(r => r.role_code);
+        const isPrincipal = roleCodes.includes('PRINCIPAL');
+
         let resolvedRole = 'faculty';
-        if (roleRecords.length > 0) {
-            const rCode = roleRecords[0].role_code;
-            if (rCode === 'ADMISSION_STAFF') resolvedRole = 'admission';
-            else if (rCode === 'SCHOLARSHIP_STAFF') resolvedRole = 'scholarship';
-            else resolvedRole = 'faculty';
-        }
+        if (roleCodes.includes('ADMISSION_STAFF')) resolvedRole = 'admission';
+        else if (roleCodes.includes('SCHOLARSHIP_STAFF')) resolvedRole = 'scholarship';
+        else resolvedRole = 'faculty';
+
         user.role = resolvedRole;
-        user.is_hod = false;
+        user.is_principal = isPrincipal;
+        user.is_hod = isPrincipal;
+        user.is_first_year_coordinator = false;
         user.branch = null;
         if (resolvedRole === 'faculty') {
             const affil = await db.select({ branch_code: academicDepartments.department_code })
@@ -369,9 +427,11 @@ export async function POST(req) {
                 .limit(1);
             if (affil.length > 0) {
                 user.branch = affil[0].branch_code;
+            } else if (isPrincipal) {
+                user.branch = 'CSE';
             }
 
-            const { facultyHodAssignments } = await import('@/db/schema');
+            const { facultyHodAssignments, facultyCoordinatorAssignments } = await import('@/db/schema');
             const hodRow = await db.select({ id: facultyHodAssignments.id })
                 .from(facultyHodAssignments)
                 .where(and(
@@ -379,8 +439,37 @@ export async function POST(req) {
                   eq(facultyHodAssignments.is_active, true)
                 ))
                 .limit(1);
-            if (hodRow.length > 0) {
+            if (hodRow.length > 0 || isPrincipal) {
                 user.is_hod = true;
+            }
+
+            if (facultyCoordinatorAssignments) {
+              const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+              const coordRows = await db.select({
+                id: facultyCoordinatorAssignments.id,
+                start_date: facultyCoordinatorAssignments.start_date,
+                end_date: facultyCoordinatorAssignments.end_date
+              })
+              .from(facultyCoordinatorAssignments)
+              .where(and(
+                eq(facultyCoordinatorAssignments.staff_account_id, user.id),
+                eq(facultyCoordinatorAssignments.coordinator_type, 'FIRST_YEAR'),
+                eq(facultyCoordinatorAssignments.is_active, true)
+              ));
+
+              const toDateStr = (val) => {
+                if (!val) return null;
+                if (val instanceof Date) return val.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+                return String(val).split('T')[0];
+              };
+
+              user.is_first_year_coordinator = coordRows.some(c => {
+                const sStr = toDateStr(c.start_date);
+                const eStr = toDateStr(c.end_date);
+                if (sStr && todayStr < sStr) return false;
+                if (eStr && todayStr > eStr) return false;
+                return true;
+              });
             }
         }
       }
@@ -396,6 +485,13 @@ export async function POST(req) {
     if (type === 'staff' && user.account_status !== 'ACTIVE') {
       logDevValues();
       return apiError('User not found or inactive', 401);
+    }
+
+    if (type === 'student') {
+      if (user.student_status === 'INACTIVE_ATTENDANCE' || user.student_status === 'DISCONTINUED' || ['SUSPENDED', 'DROPPED'].includes(user.academic_status)) {
+        logDevValues();
+        return apiError('Student account is inactive, discontinued, or suspended', 403);
+      }
     }
 
     // Task 6: Ownership validation
@@ -433,12 +529,7 @@ export async function POST(req) {
       return apiError('Security validation failed', 401);
     }
 
-    // 5. Revoke old token
-    await db.update(refreshTokens)
-      .set({ revoked_at: now })
-      .where(eq(refreshTokens.id, tokenRecord.id));
-
-    // 6. Fetch user and issue new tokens
+    // 5. Issue new tokens first to capture successor token ID
     const response = apiResponse({ success: true, message: 'Token refreshed' });
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
     const userAgent = req.headers.get('user-agent') || 'Unknown';
@@ -453,6 +544,16 @@ export async function POST(req) {
     } else if (type === 'admin') {
       await issueAdminAuthCookie(response, user, true, ip, userAgent);
     }
+
+    const nextTokenId = response._newRefreshTokenId || null;
+
+    // 6. Revoke old token and link to successor token for legitimate concurrent grace period
+    await db.update(refreshTokens)
+      .set({
+        revoked_at: now,
+        replaced_by_token_id: nextTokenId ? Number(nextTokenId) : null
+      })
+      .where(eq(refreshTokens.id, tokenRecord.id));
 
     return response;
 

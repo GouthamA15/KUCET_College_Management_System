@@ -23,32 +23,37 @@ export const INSTITUTIONAL_ASSETS_MAP = {
   [INSTITUTION_ASSET_KEYS.PRINCIPAL_SIGNATURE]: {
     filename: 'principal-sign.png',
     mimeType: 'image/png',
+    isPrivate: true,
     description: 'Primary digital signature of Principal',
-    legacyAliases: ['principal-sign.png', '/assets/principal-sign.png', 'assets/principal-sign.png']
+    legacyAliases: ['principal-sign.png', 'principal-signature', 'principal/signature']
   },
   [INSTITUTION_ASSET_KEYS.PRINCIPAL_SIGNATURE_STAMP]: {
     filename: 'principal-signStamp.png',
     mimeType: 'image/png',
+    isPrivate: true,
     description: 'Principal digital signature with official seal/stamp',
-    legacyAliases: ['principal-signStamp.png', 'principal-sign-stamp.png', '/assets/principal-signStamp.png', '/assets/principal-sign-stamp.png']
+    legacyAliases: ['principal-signStamp.png', 'principal-sign-stamp.png', 'principal/signature-stamp']
   },
   [INSTITUTION_ASSET_KEYS.PRINCIPAL_SIGNATURE_BLACK]: {
     filename: 'principal-sign-black.png',
     mimeType: 'image/png',
+    isPrivate: true,
     description: 'Monochrome digital signature of Principal',
-    legacyAliases: ['principal-sign-black.png', '/assets/principal-sign-black.png']
+    legacyAliases: ['principal-sign-black.png', 'principal/signature-black']
   },
   [INSTITUTION_ASSET_KEYS.PRINCIPAL_SIGNATURE_V3]: {
     filename: 'principal-sign3.png',
     mimeType: 'image/png',
+    isPrivate: true,
     description: 'Alternative signature variant 3',
-    legacyAliases: ['principal-sign3.png', '/assets/principal-sign3.png']
+    legacyAliases: ['principal-sign3.png', 'principal/signature-v3']
   },
   [INSTITUTION_ASSET_KEYS.PRINCIPAL_SIGNATURE_V4]: {
     filename: 'principal-sign4.png',
     mimeType: 'image/png',
+    isPrivate: true,
     description: 'Alternative signature variant 4',
-    legacyAliases: ['principal-sign4.png', '/assets/principal-sign4.png']
+    legacyAliases: ['principal-sign4.png', 'principal/signature-v4']
   },
   [INSTITUTION_ASSET_KEYS.PRINCIPAL_QR]: {
     filename: 'principal_ku_qr.png',
@@ -137,3 +142,41 @@ export function isInstitutionalAssetPath(pathOrFolder) {
   }
   return resolveInstitutionalFilename(pathOrFolder) !== null;
 }
+
+/**
+ * Returns true if an asset is a sensitive institutional asset (e.g. Principal signature).
+ * Such assets must NEVER have a public URL, must never be routed through static endpoints,
+ * and can only be accessed server-side by authorized document renderers.
+ * @param {string} keyOrPath 
+ * @returns {boolean}
+ */
+export function isPrivateInstitutionalAsset(keyOrPath) {
+  if (!keyOrPath || typeof keyOrPath !== 'string') return false;
+  const clean = keyOrPath.toLowerCase().trim().replace(/^[/\\]+/, '');
+  const basename = clean.split(/[/\\]/).pop();
+
+  if (
+    clean.includes('principal-sign') ||
+    clean.includes('principal_sign') ||
+    clean.includes('principal/sign') ||
+    basename.startsWith('principal-sign')
+  ) {
+    return true;
+  }
+
+  for (const asset of Object.values(INSTITUTIONAL_ASSETS_MAP)) {
+    if (asset.isPrivate) {
+      if (
+        asset.filename === basename ||
+        asset.legacyAliases.includes(keyOrPath) ||
+        asset.legacyAliases.includes(clean) ||
+        asset.legacyAliases.includes(basename)
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+

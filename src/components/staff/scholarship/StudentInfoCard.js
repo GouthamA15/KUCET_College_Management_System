@@ -1,10 +1,7 @@
-'use client';
-import { useState } from 'react';
-import Image from 'next/image';
+import ImageWithLoading from '@/components/ui/ImageWithLoading';
 import { getAssetUrl } from '@/lib/assets';
 
 export default function StudentInfoCard({ student, onImageClick }) {
-  const [imageLoading, setImageLoading] = useState(true);
   if (!student) return null;
   const p = getAssetUrl(student.pfp);
   const has = p && String(p).trim() !== '';
@@ -33,32 +30,24 @@ export default function StudentInfoCard({ student, onImageClick }) {
       <div className="mt-5 grid grid-cols-1 sm:grid-cols-[128px_1fr] gap-5">
         <div>
           {has && dataHasBody ? (
-            <div className="relative w-32 h-36 rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
-              {imageLoading && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50 z-10 space-y-1">
-                  <div className="animate-spin h-5 w-5 border-2 border-slate-200 border-t-[#0b3578] rounded-full"></div>
-                  <span className="text-[8px] text-slate-500 font-medium uppercase tracking-widest">Loading</span>
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onImageClick?.(String(p));
-                }}
-                className="w-full h-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0b3578]"
-                aria-label="Open student profile image preview"
-              >
-                <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-                  src={String(p)}
-                  alt="Student photo"
-                  width={128}
-                  height={144}
-                  unoptimized
-                  className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
-                  onLoad={() => setImageLoading(false)}
-                />
-              </button>
+            <div 
+              onClick={(e) => {
+                e.stopPropagation();
+                onImageClick?.(String(p));
+              }}
+              className="relative w-32 h-36 rounded-xl overflow-hidden border border-slate-200 bg-slate-50 cursor-pointer shadow-2xs hover:border-[#0b3578] transition-colors"
+              title="Click to preview photo"
+            >
+              <ImageWithLoading
+                src={String(p)}
+                alt={`${student.name || 'Student'}'s photograph`}
+                width={128}
+                height={144}
+                className="w-full h-full"
+                imageClassName="w-full h-full object-cover"
+                variant="photo"
+                fallbackText="No Photo"
+              />
             </div>
           ) : (
             <div className="w-32 h-36 rounded-xl border border-dashed border-slate-200 bg-slate-50 flex items-center justify-center">

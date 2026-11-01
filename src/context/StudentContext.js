@@ -87,16 +87,16 @@ export function StudentProvider({ children }) {
       } else {
         try {
           const data = await profileRes.json();
-          setError(data.message || 'Failed to fetch profile');
+          setError(data.message || data.error || 'Unable to load student profile. Please refresh the page.');
         } catch {
-          setError('Failed to fetch profile');
+          setError('Unable to load student profile. Please refresh the page.');
         }
         if (profileRes.status === 401 || profileRes.status === 403) {
           setStudentData(null);
         }
       }
     } catch (_e) {
-      setError('Network error');
+      setError('Unable to connect to the server. Please check your internet connection and try again.');
     }
     return null;
   }, []);
@@ -145,7 +145,7 @@ export function StudentProvider({ children }) {
           setStudentData(null);
         }
       } catch (_e) {
-        setError('Failed to refresh data');
+        setError('Unable to refresh session data. Please check your connection and reload the page.');
       } finally {
         activePromiseRef.current = null;
       }

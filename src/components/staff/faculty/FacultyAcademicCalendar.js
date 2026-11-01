@@ -63,7 +63,8 @@ export default function FacultyAcademicCalendar({ assignment, selectedDate, onSe
 
   const academicYear = assignment?.academic_year;
   const courseSemester = assignment?.course_semester || assignment?.semester;
-  const academicTerm = assignment?.academic_term || assignment?.course_semester || assignment?.semester || null;
+  const rawTerm = assignment?.academic_term || assignment?.course_semester || assignment?.semester;
+  const academicTerm = rawTerm ? String(((Number(rawTerm) - 1) % 2) + 1) : null;
 
   const fetchSemesterWindow = useCallback(async () => {
     if (!academicYear || !academicTerm) return;
@@ -287,19 +288,28 @@ export default function FacultyAcademicCalendar({ assignment, selectedDate, onSe
           : `${style.bg} ${style.border} ${style.text} cursor-pointer hover:bg-gray-100`
         : "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60";
 
+      const isHoliday = dayData.day_type === 'HOLIDAY';
+      const isWeekendOnly = isHoliday && dayData.holiday_name === 'Weekend';
+      const displayLabel = isHoliday ? (dayData.holiday_name || 'Holiday') : dayData.day_type;
+      const tooltipText = !withinSemester 
+        ? 'Outside Semester Window' 
+        : isFuture 
+        ? `Future Date (${displayLabel})` 
+        : displayLabel;
+
       cells.push(
         <button
           key={dayStr}
           type="button"
           onClick={() => withinSemester && !isFuture && handleDayClick(dayStr)}
-          className={`relative border-b border-r px-2 py-1 text-left text-xs flex flex-col gap-1 ${baseClasses}`}
+          title={tooltipText}
+          aria-label={`${dayNum} ${formatMonthYear(currentYear, currentMonth)}, ${displayLabel}`}
+          className={`relative border-b border-r px-2 py-1 text-left text-xs flex flex-col gap-1 min-h-[56px] ${baseClasses}`}
         >
           <span className="font-semibold text-sm">{dayNum}</span>
           {dayData.day_type !== "WORKING" && withinSemester && !isFuture && (
-            <span className="text-[10px] font-semibold uppercase tracking-wide">
-              {dayData.day_type === "HOLIDAY" && dayData.holiday_name
-                ? dayData.holiday_name
-                : dayData.day_type}
+            <span className="text-[10px] font-semibold uppercase tracking-wide line-clamp-2 break-words leading-tight" title={displayLabel}>
+              {isWeekendOnly ? 'Weekend' : displayLabel}
             </span>
           )}
           {isToday && withinSemester && !isFuture && (
@@ -430,25 +440,34 @@ export default function FacultyAcademicCalendar({ assignment, selectedDate, onSe
               }
             })();
 
+            const isHoliday = dayData.day_type === 'HOLIDAY';
+            const isWeekendOnly = isHoliday && dayData.holiday_name === 'Weekend';
+            const displayLabel = isHoliday ? (dayData.holiday_name || 'Holiday') : dayData.day_type;
+            const tooltipText = !withinSemester 
+              ? 'Outside Semester Window' 
+              : isFuture 
+              ? `Future Date (${displayLabel})` 
+              : displayLabel;
+
             return (
               <button
                 key={dayStr}
                 type="button"
                 onClick={() => withinSemester && !isFuture && handleDayClick(dayStr)}
+                title={tooltipText}
+                aria-label={`${dayNum} ${weekday}, ${displayLabel}`}
                 className={`w-full flex items-center justify-between px-3 py-2 border-b ${rowClasses}`}
               >
-                <div className="flex items-center gap-3">
-                  <div className="flex flex-col items-center justify-center w-10">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="flex flex-col items-center justify-center w-10 shrink-0">
                     <span className="text-base font-bold">{dayNum}</span>
                     {isToday && <span className="mt-0.5 h-1 w-1 rounded-full bg-gray-700" />}
                   </div>
-                  <div className="text-left">
+                  <div className="text-left min-w-0 flex-1">
                     <p className="text-xs font-semibold text-gray-700">{weekday}</p>
                     {dayData.day_type !== "WORKING" && withinSemester && (
-                      <p className="text-[11px] font-semibold">
-                        {dayData.day_type === "HOLIDAY" && dayData.holiday_name
-                          ? dayData.holiday_name
-                          : dayData.day_type}
+                      <p className="text-[11px] font-semibold break-words leading-tight" title={displayLabel}>
+                        {isWeekendOnly ? 'Weekend' : displayLabel}
                       </p>
                     )}
                   </div>

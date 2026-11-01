@@ -12,6 +12,7 @@ import { broadcastUpdate } from '@/lib/sse';
 import logger from '@/lib/logger';
 import { parseUA } from '@/lib/ua-parser';
 import { sendInstitutionalEmail, getBaseUrl } from '@/lib/email';
+import { EMAIL_CATEGORIES } from '@/lib/email-categories';
 import { formatInstitutionalDateTime } from '@/lib/date';
 import crypto from 'crypto';
 
@@ -147,7 +148,8 @@ export class SecurityService {
           url: (userType || '').toLowerCase() === 'admin'
             ? `${getBaseUrl()}/admin`
             : `${getBaseUrl()}/${(userType || '').toLowerCase()}/settings/security`
-        }
+        },
+        category: EMAIL_CATEGORIES.SECURITY_ALERTS,
       });
     } catch (err) {
       logger.error(err, '[SEND_SECURITY_EMAIL_FAILED]');

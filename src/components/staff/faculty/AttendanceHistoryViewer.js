@@ -1,13 +1,16 @@
 'use client';
 import { useState, useEffect, Fragment } from 'react';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Calendar, Users, Activity, History, BookOpen, Edit3, Plus } from 'lucide-react';
+import { 
+  ArrowLeft, Calendar, Users, Activity, History, BookOpen, 
+  Edit3, Plus, FileText, CheckCircle2, Clock, Download, FileSpreadsheet 
+} from 'lucide-react';
 import LectureTopicModal from './LectureTopicModal';
-import { formatDate } from '@/lib/date';
+import { formatDate, formatDateTime } from '@/lib/date';
 
 export default function AttendanceHistoryViewer({ assignment, onBack }) {
   const [historyData, setHistoryData] = useState([]);
-  const [uniqueSessions, setUniqueSessions] = useState([]);
+  const [submittedSessions, setSubmittedSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedSession, setExpandedSession] = useState(null);
   const [topicModalSession, setTopicModalSession] = useState(null);
@@ -31,8 +34,51 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
         if (!res.ok) throw new Error(data.error || 'Failed to fetch history');
         
         if (isMounted) {
-          setHistoryData(data.data.attendance || []);
-          setUniqueSessions(data.data.uniqueDates || []);
+          const attendanceList = data.data.attendance || [];
+          setHistoryData(attendanceList);
+
+          // Resolve authoritative submitted sessions
+          if (Array.isArray(data.data.submittedSessions) && data.data.submittedSessions.length > 0) {
+            setSubmittedSessions(data.data.submittedSessions);
+          } else {
+            // Client-side fallback: group attendance records by (date, session)
+            const map = new Map();
+            for (const r of attendanceList) {
+              const key = `${r.date}__${r.session}`;
+              if (!map.has(key)) {
+                map.set(key, {
+                  date: r.date,
+                  session: r.session,
+                  total_students: 0,
+                  present_count: 0,
+                  submitted_at: r.submitted_at || r.created_at || null,
+                  has_verified_submitted_at: Boolean(r.submitted_at),
+                });
+              }
+              const item = map.get(key);
+              item.total_students += 1;
+              if (r.status === 'PRESENT') item.present_count += 1;
+              if (r.submitted_at && !item.has_verified_submitted_at) {
+                item.submitted_at = r.submitted_at;
+                item.has_verified_submitted_at = true;
+              }
+            }
+
+            const derived = Array.from(map.values()).map(s => ({
+              date: s.date,
+              session: s.session,
+              topic_covered: null,
+              submitted_at: s.submitted_at,
+              is_historical: !s.has_verified_submitted_at,
+              total_students: s.total_students,
+              present_count: s.present_count
+            })).sort((a, b) => {
+              if (a.date !== b.date) return b.date.localeCompare(a.date);
+              return b.session - a.session;
+            });
+
+            setSubmittedSessions(derived);
+          }
         }
       } catch (err) {
         if (isMounted) toast.error(err.message);
@@ -62,7 +108,7 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
 
   const handleTopicSavedInHistory = (newTopic) => {
     if (!topicModalSession) return;
-    setUniqueSessions((prev) =>
+    setSubmittedSessions((prev) =>
       prev.map((s) => {
         if (s.date === topicModalSession.date && s.session === topicModalSession.session) {
           return { ...s, topic_covered: newTopic };
@@ -72,8 +118,8 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
     );
   };
 
-  // Aggregate data for summary cards
-  const totalClasses = uniqueSessions.length;
+  // Authoritative Aggregate Statistics: strictly derived from SUBMITTED attendance sessions
+  const totalClasses = submittedSessions.length;
   let totalPresentCount = 0;
   let totalRecords = 0;
   
@@ -91,15 +137,68 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
         Back to Mode Selection
       </button>
 
+      {/* Subject Information Card */}
       <div className="bg-white border-2 border-gray-200 p-4 rounded-xl mb-6 shadow-sm">
-        <div className="flex justify-between items-center border-b-2 border-gray-100 pb-3 mb-4">
-          <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
-            <History className="w-6 h-6 text-indigo-500" />
-            Attendance History & Teaching Record
-          </h2>
-          <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-gray-100 text-gray-600 uppercase tracking-widest">
-            View & Manage Topics
-          </span>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b-2 border-gray-100 pb-3 mb-4 gap-3">
+          <div className="flex items-center gap-2">
+            <History className="w-6 h-6 text-indigo-500 shrink-0" />
+            <div>
+              <h2 className="text-xl font-black text-gray-900">
+                Attendance History & Teaching Record
+              </h2>
+              <p className="text-xs text-gray-500">
+                Official log of submitted attendance sessions and covered syllabus topics
+              </p>
+            </div>
+          </div>
+          
+          {/* Action Buttons: Full Attendance Export (PDF & CSV) */}
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+            <a
+              href={submittedSessions.length > 0 ? `/api/staff/faculty/attendance/export/pdf?assignment_id=${assignment.id}` : '#'}
+              target={submittedSessions.length > 0 ? '_blank' : '_self'}
+              rel="noopener noreferrer"
+              onClick={(e) => {
+                if (submittedSessions.length === 0) {
+                  e.preventDefault();
+                  toast.error('No submitted attendance sessions to export.');
+                }
+              }}
+              className={`inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-bold rounded-lg shadow-sm transition-all ${
+                submittedSessions.length > 0
+                  ? 'text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 cursor-pointer'
+                  : 'text-gray-400 bg-gray-100 cursor-not-allowed opacity-60'
+              }`}
+              title="Download Full Semester Attendance Register (A4 Landscape PDF)"
+            >
+              <Download className="w-4 h-4" />
+              <span>Download Full Attendance</span>
+            </a>
+
+            <a
+              href={submittedSessions.length > 0 ? `/api/staff/faculty/attendance/export/csv?assignment_id=${assignment.id}` : '#'}
+              onClick={(e) => {
+                if (submittedSessions.length === 0) {
+                  e.preventDefault();
+                  toast.error('No submitted attendance sessions to export.');
+                }
+              }}
+              className={`inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border transition-all ${
+                submittedSessions.length > 0
+                  ? 'text-gray-700 bg-gray-50 hover:bg-gray-100 border-gray-200 active:scale-95 cursor-pointer'
+                  : 'text-gray-400 bg-gray-50 border-gray-200 cursor-not-allowed opacity-60'
+              }`}
+              title="Export Full Attendance Sheet as Spreadsheet (CSV)"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <span>Export CSV</span>
+            </a>
+
+            <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-widest hidden md:inline-flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              Official Academic Record
+            </span>
+          </div>
         </div>
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-6">
@@ -121,7 +220,7 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
           </div>
         </div>
 
-        {/* Analytics Summary */}
+        {/* Analytics Summary: strictly derived from genuine conducted sessions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
           <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex items-center gap-4">
             <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center shrink-0">
@@ -155,26 +254,47 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
         </div>
       </div>
 
+      {/* Main Container: Strictly Submitted Sessions */}
       <div className="bg-white border-2 border-gray-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-          <h3 className="font-black text-gray-800 uppercase text-sm tracking-wide flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-[#0b3578]" />
-            Session Logs & Topics Taught
-          </h3>
+        {/* Table Section Header */}
+        <div className="px-5 py-3.5 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          <div>
+            <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">
+              Submitted Attendance Sessions ({submittedSessions.length})
+            </h3>
+            <p className="text-xs text-gray-500">
+              Showing authoritative conducted sessions with verified attendance records and timestamps
+            </p>
+          </div>
+          {submittedSessions.length > 0 && (
+            <a
+              href={`/api/staff/faculty/attendance/export/pdf?assignment_id=${assignment.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-all"
+            >
+              <FileText className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Export Full Register (PDF)</span>
+            </a>
+          )}
         </div>
         
         {loading ? (
-          <div className="text-center py-12">
+          <div className="text-center py-16">
             <div className="inline-block h-8 w-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-            <p className="text-sm font-bold text-gray-500">Loading history data...</p>
+            <p className="text-sm font-bold text-gray-500">Loading attendance history...</p>
           </div>
-        ) : uniqueSessions.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 font-medium">
-            No attendance sessions recorded yet.
+        ) : submittedSessions.length === 0 ? (
+          <div className="text-center py-16 px-4">
+            <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <h4 className="text-base font-bold text-gray-800">No Submitted Attendance Sessions</h4>
+            <p className="text-xs text-gray-500 max-w-md mx-auto mt-1">
+              Attendance sessions will appear here once submitted by faculty. Unsubmitted calendar dates, weekends, and holidays are excluded.
+            </p>
           </div>
         ) : (
           <>
-            {/* Desktop Table Layout */}
+            {/* Desktop Table View */}
             <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -182,48 +302,34 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Session</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Topic Covered</th>
-                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Present</th>
-                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Total</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Submission Time</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Present / Total</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Attendance %</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
-                  {uniqueSessions.map((session, idx) => {
+                  {submittedSessions.map((session, idx) => {
                     const sessionRecords = historyData.filter(r => r.date === session.date && r.session === session.session);
-                    const presentCount = sessionRecords.filter(r => r.status === 'PRESENT').length;
-                    const totalCount = sessionRecords.length;
+                    const presentCount = session.present_count ?? sessionRecords.filter(r => r.status === 'PRESENT').length;
+                    const totalCount = session.total_students ?? sessionRecords.length;
                     const percentage = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
                     
-                    const isHoliday = session.day_type && session.day_type !== 'WORKING';
                     const sessionKey = `${session.date}-${session.session}-${idx}`;
                     const isExpanded = expandedSession === sessionKey;
-                    
-                    if (isHoliday && totalCount === 0) {
-                      return (
-                        <tr key={sessionKey} className="bg-gray-50 border-b border-gray-100">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-400">
-                            {formatDate(session.date)}
-                          </td>
-                          <td colSpan="5" className="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-500 uppercase tracking-widest">
-                            {session.holiday_name ? `${session.day_type} - ${session.holiday_name}` : session.day_type}
-                          </td>
-                        </tr>
-                      );
-                    }
 
                     return (
                       <Fragment key={sessionKey}>
-                        <tr onClick={() => toggleSession(sessionKey)} className={`hover:bg-gray-50 transition-colors cursor-pointer group ${isHoliday ? 'bg-red-50/30' : ''}`}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 flex flex-col">
-                            <span>{formatDate(session.date)}</span>
-                            {isHoliday && <span className="text-[10px] font-black text-red-600 uppercase mt-1">{session.day_type}</span>}
+                        <tr onClick={() => toggleSession(sessionKey)} className="hover:bg-gray-50 transition-colors cursor-pointer group">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                            {formatDate(session.date)}
                           </td>
                           <td className="px-4 py-4 whitespace-nowrap text-center">
-                            <span className="bg-gray-100 text-gray-800 text-xs font-black px-2.5 py-1 rounded-md uppercase border border-gray-200">
+                            <span className="bg-indigo-50 text-indigo-900 text-xs font-black px-2.5 py-1 rounded-md uppercase border border-indigo-100">
                               S{session.session}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-sm">
+                          <td className="px-6 py-4 text-sm max-w-xs">
                             {session.topic_covered ? (
                               <div className="flex items-start justify-between gap-2">
                                 <span className="font-medium text-gray-800 line-clamp-2 leading-relaxed" title={session.topic_covered}>
@@ -254,11 +360,20 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                               </div>
                             )}
                           </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-center text-sm font-bold text-emerald-600">
-                            {presentCount}
+                          <td className="px-4 py-4 whitespace-nowrap text-xs text-gray-600">
+                            <div className="flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                              <span>{session.submitted_at ? formatDateTime(session.submitted_at) : 'Recorded'}</span>
+                              {session.is_historical ? (
+                                <span className="text-[9px] font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded uppercase" title="Historical attendance record without authoritative submit timestamp">
+                                  Archive
+                                </span>
+                              ) : null}
+                            </div>
                           </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-600">
-                            {totalCount}
+                          <td className="px-4 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-900">
+                            <span className="text-emerald-600">{presentCount}</span>
+                            <span className="text-gray-400 font-normal"> / {totalCount}</span>
                           </td>
                           <td className="px-4 py-4 whitespace-nowrap text-center">
                             <div className="flex items-center justify-center gap-2">
@@ -268,10 +383,22 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                               <span className="text-xs font-bold text-gray-700 w-8">{percentage}%</span>
                             </div>
                           </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                            <a
+                              href={`/api/staff/faculty/attendance/session/pdf?assignment_id=${assignment.id}&date=${encodeURIComponent(session.date)}&session=${encodeURIComponent(session.session)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg shadow-2xs transition-all active:scale-95"
+                              title="Download Official A4 Attendance Report"
+                            >
+                              <FileText className="w-3.5 h-3.5 text-red-600" />
+                              <span>PDF</span>
+                            </a>
+                          </td>
                         </tr>
                         {isExpanded && (
                           <tr>
-                            <td colSpan="6" className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                            <td colSpan="7" className="px-6 py-4 bg-gray-50 border-t border-gray-100">
                               <div className="max-h-64 overflow-y-auto pr-2 rounded border border-gray-200 bg-white shadow-inner">
                                 <table className="min-w-full divide-y divide-gray-100 text-sm">
                                   <thead className="bg-gray-100 sticky top-0">
@@ -320,45 +447,50 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
               </table>
             </div>
 
-            {/* Mobile Card Layout */}
+            {/* Mobile Card View */}
             <div className="md:hidden flex flex-col divide-y divide-gray-100 bg-gray-50">
-              {uniqueSessions.map((session, idx) => {
+              {submittedSessions.map((session, idx) => {
                 const sessionRecords = historyData.filter(r => r.date === session.date && r.session === session.session);
-                const presentCount = sessionRecords.filter(r => r.status === 'PRESENT').length;
-                const totalCount = sessionRecords.length;
+                const presentCount = session.present_count ?? sessionRecords.filter(r => r.status === 'PRESENT').length;
+                const totalCount = session.total_students ?? sessionRecords.length;
                 const percentage = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
                 
-                const isHoliday = session.day_type && session.day_type !== 'WORKING';
                 const sessionKey = `${session.date}-${session.session}-${idx}`;
                 const isExpanded = expandedSession === sessionKey;
 
-                if (isHoliday && totalCount === 0) {
-                  return (
-                    <div key={sessionKey} className="flex flex-col bg-gray-50 border-b border-gray-100 p-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-bold text-gray-400">{formatDate(session.date)}</span>
-                      </div>
-                      <div className="text-center py-2 text-sm font-bold text-gray-500 uppercase tracking-widest">
-                        {session.holiday_name ? `${session.day_type} - ${session.holiday_name}` : session.day_type}
-                      </div>
-                    </div>
-                  );
-                }
-
                 return (
-                  <div key={sessionKey} className={`flex flex-col bg-white ${isHoliday ? 'bg-red-50/30' : ''}`}>
+                  <div key={sessionKey} className="flex flex-col bg-white">
                     <div onClick={() => toggleSession(sessionKey)} className="p-4 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
                       <div className="flex justify-between items-center mb-2">
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-gray-900">{formatDate(session.date)}</span>
-                          {isHoliday && <span className="text-[10px] font-black text-red-600 uppercase">{session.day_type}</span>}
-                          <span className="bg-gray-100 text-gray-800 text-[10px] font-black px-2 py-0.5 rounded-md uppercase border border-gray-200">
+                          <span className="bg-indigo-50 text-indigo-900 text-[10px] font-black px-2 py-0.5 rounded-md uppercase border border-indigo-100">
                             Session {session.session}
                           </span>
                         </div>
-                        <div className="text-[10px] text-gray-400 font-bold">
-                          {isExpanded ? '▲ HIDE' : '▼ VIEW'}
+                        <div className="flex items-center gap-3">
+                          <a
+                            href={`/api/staff/faculty/attendance/session/pdf?assignment_id=${assignment.id}&date=${encodeURIComponent(session.date)}&session=${encodeURIComponent(session.session)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-[10px] font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-200 uppercase"
+                          >
+                            PDF
+                          </a>
+                          <span className="text-[10px] text-gray-400 font-bold">
+                            {isExpanded ? '▲ HIDE' : '▼ VIEW'}
+                          </span>
                         </div>
+                      </div>
+
+                      {/* Submission Time */}
+                      <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mb-2">
+                        <Clock className="w-3 h-3 text-gray-400" />
+                        <span>Submitted: {session.submitted_at ? formatDateTime(session.submitted_at) : 'Recorded'}</span>
+                        {session.is_historical ? (
+                          <span className="text-[8px] bg-slate-100 text-slate-500 font-bold px-1 rounded uppercase">Archive</span>
+                        ) : null}
                       </div>
 
                       {/* Mobile Topic Section */}
@@ -404,6 +536,7 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                         </div>
                       </div>
                     </div>
+
                     {isExpanded && (
                       <div className="bg-gray-50 border-t border-gray-100 p-3 shadow-inner">
                         <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">

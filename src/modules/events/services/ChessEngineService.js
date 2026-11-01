@@ -255,7 +255,7 @@ export class ChessEngineService {
       });
     }
 
-    // 5. Broadcast real-time move event (Socket.IO + Supabase Realtime)
+    // 5. Broadcast real-time move event (Socket.IO via Redis pub/sub)
     broadcastUpdate('CHESS_MOVE_PLAYED', {
       matchId: Number(matchId),
       move: {

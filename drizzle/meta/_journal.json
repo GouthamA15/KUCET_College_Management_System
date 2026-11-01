@@ -155,6 +155,69 @@
                         "when":  1789989423000,
                         "version":  "5",
                         "tag":  "0021_students_achievements_schema"
+                    },
+                    {
+                        "idx":  22,
+                        "breakpoints":  true,
+                        "when":  1790000000000,
+                        "version":  "5",
+                        "tag":  "0022_academic_calendar_attendance_disputes_and_workflows"
+                    },
+                    {
+                        "idx":  23,
+                        "breakpoints":  true,
+                        "when":  1790100000000,
+                        "version":  "5",
+                        "tag":  "0023_principal_staff_role"
+                    },
+                    {
+                        "idx":  24,
+                        "breakpoints":  true,
+                        "when":  1790200000000,
+                        "version":  "5",
+                        "tag":  "0024_canonical_gender_enum"
+                    },
+                    {
+                        "idx":  25,
+                        "breakpoints":  true,
+                        "when":  1790300000000,
+                        "version":  "5",
+                        "tag":  "0025_canonical_area_status"
+                    },
+                    {
+                        "idx":  26,
+                        "breakpoints":  true,
+                        "when":  1790400000000,
+                        "version":  "5",
+                        "tag":  "0026_faculty_coordinator_assignments"
+                    },
+                    {
+                        "idx":  27,
+                        "breakpoints":  true,
+                        "when":  1790500000000,
+                        "version":  "5",
+                        "tag":  "0027_remove_class_section"
+                    },
+                    {
+                        "idx":  28,
+                        "breakpoints":  true,
+                        "when":  1790600000000,
+                        "version":  "5",
+                        "tag":  "0028_add_apaar_id"
+                    },
+                    {
+                        "idx":  29,
+                        "breakpoints":  true,
+                        "when":  1790700000000,
+                        "version":  "5",
+                        "tag":  "0029_attendance_submission_timestamp"
+                    },
+                    {
+                        "idx":  30,
+                        "breakpoints":  true,
+                        "when":  1790800000000,
+                        "version":  "5",
+                        "tag":  "0030_attendance_architecture_optimization"
                     }
                 ]
 }

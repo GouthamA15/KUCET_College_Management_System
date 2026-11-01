@@ -2,6 +2,9 @@
 import { useEffect, useState, useRef } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import toast from 'react-hot-toast';
+import { extractRollNumberFromQR } from '@/lib/rollNumber';
+
+export { extractRollNumberFromQR };
 
 export default function QRScannerPanel({ onScanSuccess, onScannerStop }) {
   const [isScanning, setIsScanning] = useState(false);
@@ -37,29 +40,7 @@ export default function QRScannerPanel({ onScanSuccess, onScannerStop }) {
           isStartingRef.current = true;
           
           const qrCodeSuccessCallback = (decodedText) => {
-            let extractedRoll = null;
-            
-            // 1. Direct Regex Search: Look for the specific KUCET roll number pattern anywhere in the text
-            // Note: Removed word boundaries (\b) and restricted serial to exactly 2 chars to extract safely from squashed text (e.g. 255671862LNAME)
-            const rollPatternMatch = decodedText.match(/(\d{2}567T?(?:09|30|15|12|00|18|03)[A-Za-z0-9]{2}L?)/i);
-            
-            if (rollPatternMatch) {
-              extractedRoll = rollPatternMatch[1].trim();
-            } else {
-              // Fallback: If it's formatted weirdly but has a clear label, extract exactly 10 characters (KUCET roll length)
-              const labelMatch = decodedText.match(/(?:HALL-TICKET-NO|HT-No|HT NO|ROLL NO)\s*[:-]?\s*([A-Za-z0-9]{10})/i);
-              if (labelMatch) {
-                 extractedRoll = labelMatch[1].trim();
-              } else if (decodedText.length < 10) {
-                 extractedRoll = decodedText.trim();
-              } else {
-                 // Log internally and ignore to prevent polluting the scanner with giant strings
-                 console.warn("Could not find a valid Roll Number in QR code:", decodedText);
-                 return;
-              }
-            }
-            
-            const rollNo = extractedRoll.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            const rollNo = extractRollNumberFromQR(decodedText);
             
             if (rollNo) {
               setLastScanned(rollNo);

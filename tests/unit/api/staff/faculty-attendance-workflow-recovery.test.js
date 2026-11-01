@@ -214,6 +214,18 @@ describe('Faculty Attendance Complete Workflow & Recovery Tests', () => {
               onDuplicateKeyUpdate: vi.fn().mockResolvedValue({ affectedRows: 58 }),
             }),
           }),
+          select: vi.fn().mockReturnValue({
+            from: () => ({
+              where: () => ({
+                limit: () => Promise.resolve([{ id: 101 }]),
+              }),
+            }),
+          }),
+          update: vi.fn().mockReturnValue({
+            set: () => ({
+              where: () => Promise.resolve(),
+            }),
+          }),
         };
         return await callback(tx);
       });

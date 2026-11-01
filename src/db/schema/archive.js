@@ -42,7 +42,7 @@ export const archiveStudentPersonalDetails = mysqlTable('archive_student_persona
   dob: date('dob'),
   category: varchar('category', { length: 50 }),
   sub_caste: varchar('sub_caste', { length: 50 }),
-  gender: varchar('gender', { length: 20 }),
+  gender: mysqlEnum('gender', ['MALE', 'FEMALE']),
   aadhaar_no: varchar('aadhaar_no', { length: 512 }),
   guardian_mobile: varchar('guardian_mobile', { length: 512 }),
   permanent_address: text('permanent_address'),

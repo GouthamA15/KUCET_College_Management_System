@@ -2,7 +2,7 @@ import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students, otpCodes } from '@/db/schema';
 import { eq, and, ne } from 'drizzle-orm';
-import { sendInstitutionalEmail } from '@/lib/email';
+import { sendInstitutionalEmail, EMAIL_CATEGORIES } from '@/lib/email';
 import crypto from 'crypto';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -59,9 +59,8 @@ export async function POST(req) {
           expires_at: expiresAt
         });
       } catch (dbError) {
-        logger.error(dbError, '[DATABASE ERROR] OTP management failed');
-        console.error('CRITICAL DATABASE ERROR IN OTP SEND:', dbError);
-        return apiError(`Please try again after 15 minutes. (DB Error: ${dbError.message || dbError})`, 500);
+        logger.error({ err: dbError.message, stack: dbError.stack }, '[DATABASE ERROR] OTP management failed');
+        return apiError('Unable to generate verification code. Please try again in a few moments.', 500);
       }
 
       const isActivating = !user.is_email_verified;
@@ -88,6 +87,7 @@ export async function POST(req) {
           subject,
           title: isActivating ? 'Account Activation' : 'Email Verification',
           bodyHtml: bodyHtml,
+          category: EMAIL_CATEGORIES.AUTH_OTP,
         });
       } catch (mailError) {
         logger.error(mailError, '[MAIL EXCEPTION] Failed during sendEmail');

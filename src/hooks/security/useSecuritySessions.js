@@ -42,10 +42,11 @@ export function useSecuritySessions(activeTab) {
         fetchSessions();
         return true;
       } else {
-        toast.error('Failed to logout device.');
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || data.message || 'Unable to log out device. Please try again.');
       }
     } catch {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     }
     return false;
   };
@@ -60,10 +61,11 @@ export function useSecuritySessions(activeTab) {
         if (onSuccess) onSuccess();
         return true;
       } else {
-        toast.error('Failed to logout other devices.');
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || data.message || 'Unable to log out other devices. Please try again.');
       }
     } catch {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     }
     return false;
   };

@@ -84,23 +84,28 @@ export async function POST(request) {
           return apiError('Your account is not active. Please contact the administrator.', 403);
         }
 
-        // Fetch Role
-        const roleRecords = await db.select({ role_code: staffRoles.role_code })
+        // Fetch Roles (all assigned roles to preserve supervisor/principal status)
+        const roleRecordsQuery = db.select({ role_code: staffRoles.role_code })
           .from(staffAccountRoles)
           .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
-          .where(eq(staffAccountRoles.staff_account_id, staff.id))
-          .limit(1);
+          .where(eq(staffAccountRoles.staff_account_id, staff.id));
           
-        let resolvedRole = 'faculty';
-        if (roleRecords.length > 0) {
-            const rCode = roleRecords[0].role_code;
-            if (rCode === 'ADMISSION_STAFF') resolvedRole = 'admission';
-            else if (rCode === 'SCHOLARSHIP_STAFF') resolvedRole = 'scholarship';
-            else resolvedRole = 'faculty';
-        }
+        const roleRecordsRaw = (typeof roleRecordsQuery?.then === 'function')
+          ? await roleRecordsQuery
+          : (typeof roleRecordsQuery?.limit === 'function' ? await roleRecordsQuery.limit(50) : await roleRecordsQuery);
+        const roleRecords = Array.isArray(roleRecordsRaw) ? roleRecordsRaw : [];
+          
+        const roleCodes = roleRecords.map(r => r.role_code);
+        const isPrincipal = roleCodes.includes('PRINCIPAL');
 
-        // Fetch HOD & Branch
-        let isHod = false;
+        let resolvedRole = 'faculty';
+        if (roleCodes.includes('ADMISSION_STAFF')) resolvedRole = 'admission';
+        else if (roleCodes.includes('SCHOLARSHIP_STAFF')) resolvedRole = 'scholarship';
+        else resolvedRole = 'faculty';
+
+        // Fetch HOD, Coordinator & Branch
+        let isHod = isPrincipal;
+        let isCoordinator = false;
         let branch = null;
         if (resolvedRole === 'faculty') {
             const affil = await db.select({ branch_code: academicDepartments.department_code })
@@ -110,9 +115,11 @@ export async function POST(request) {
                 .limit(1);
             if (affil.length > 0) {
               branch = affil[0].branch_code;
+            } else if (isPrincipal) {
+              branch = 'CSE';
             }
 
-            const { facultyHodAssignments } = await import('@/db/schema');
+            const { facultyHodAssignments, facultyCoordinatorAssignments } = await import('@/db/schema');
             const hodRow = await db.select({ id: facultyHodAssignments.id })
                 .from(facultyHodAssignments)
                 .where(and(
@@ -120,8 +127,37 @@ export async function POST(request) {
                   eq(facultyHodAssignments.is_active, true)
                 ))
                 .limit(1);
-            if (hodRow.length > 0) {
+            if (hodRow.length > 0 || isPrincipal) {
               isHod = true;
+            }
+
+            if (facultyCoordinatorAssignments) {
+              const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+              const coordRows = await db.select({
+                id: facultyCoordinatorAssignments.id,
+                start_date: facultyCoordinatorAssignments.start_date,
+                end_date: facultyCoordinatorAssignments.end_date
+              })
+              .from(facultyCoordinatorAssignments)
+              .where(and(
+                eq(facultyCoordinatorAssignments.staff_account_id, staff.id),
+                eq(facultyCoordinatorAssignments.coordinator_type, 'FIRST_YEAR'),
+                eq(facultyCoordinatorAssignments.is_active, true)
+              ));
+
+              const toDateStr = (val) => {
+                if (!val) return null;
+                if (val instanceof Date) return val.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+                return String(val).split('T')[0];
+              };
+
+              isCoordinator = coordRows.some(c => {
+                const sStr = toDateStr(c.start_date);
+                const eStr = toDateStr(c.end_date);
+                if (sStr && todayStr < sStr) return false;
+                if (eStr && todayStr > eStr) return false;
+                return true;
+              });
             }
         }
 
@@ -149,6 +185,8 @@ export async function POST(request) {
            email: staff.email,
            role: resolvedRole,
            is_hod: isHod,
+           is_principal: isPrincipal,
+           is_first_year_coordinator: isCoordinator,
            branch: branch
         };
         await issueStaffAuthCookie(response, adaptedStaff, rememberMe, ip, userAgent);

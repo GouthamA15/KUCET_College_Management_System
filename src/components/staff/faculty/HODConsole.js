@@ -6,6 +6,7 @@ import { useStaff } from '@/context/StaffContext';
 import { toast } from 'react-hot-toast';
 import SyllabusManager from './SyllabusManager';
 import BranchAnalytics from './BranchAnalytics';
+import { deriveDefaultAcademicYear } from '@/lib/academic-constants';
 
 const INSTITUTIONAL_ACTIVITIES = [
   { code: 'SPORTS', name: 'Sports & Athletics' },
@@ -116,13 +117,12 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
 
     const payload = {
       semester: selectedSem,
-      section: 'A',
       day_of_week: editingSlot.day,
       period_number: editingSlot.period,
       subject_code: formData.get('subject_code'),
       faculty_id: formData.get('faculty_id'),
       room_no: formData.get('room_no'),
-      academic_year: staffData?.academic_year || '2025-26'
+      academic_year: staffData?.academic_year || deriveDefaultAcademicYear()
     };
 
     if (!payload.subject_code) return toast.error('Please select a subject or activity');
@@ -140,10 +140,10 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
         fetchSemesterTimetable(selectedSem);
         refreshHOD();
       } else {
-        toast.error(data.error || 'Failed to update');
+        toast.error(data.error || data.message || 'Unable to update timetable slot. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server while updating timetable. Please check your internet connection.');
     } finally {
       setIsSaving(false);
     }
@@ -165,10 +165,10 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
         refreshHOD();
       } else {
         const data = await res.json();
-        toast.error(data.error || 'Deletion failed');
+        toast.error(data.error || data.message || 'Unable to remove lecture slot. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server while deleting lecture. Please check your internet connection.');
     } finally {
       setIsSaving(false);
     }
@@ -191,10 +191,10 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
         refreshHOD();
       } else {
         const data = await res.json();
-        toast.error(data.error || 'Clear failed');
+        toast.error(data.error || data.message || 'Unable to clear timetable. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server while clearing timetable. Please check your internet connection.');
     } finally {
       setIsSaving(false);
     }
@@ -472,7 +472,7 @@ function WorkloadView({ data, branch }) {
                     {f.name.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-base text-slate-800 group-hover:text-[#0b3578] transition-colors uppercase tracking-wider truncate">{f.name}</h4>
+                    <h4 className="font-bold text-base text-slate-800 group-hover:text-[#0b3578] transition-colors uppercase tracking-wider break-words" title={f.name}>{f.name}</h4>
                     <p className="text-xs text-slate-400 font-medium tracking-widest uppercase mt-0.5 truncate">{f.email}</p>
                   </div>
                 </div>
@@ -638,7 +638,7 @@ function TimetableManager({ data, onEditSlot }) {
                           <div className={`font-bold text-[10px] mb-1 line-clamp-2 uppercase tracking-tight leading-tight ${isActivity ? 'text-amber-800' : 'text-[#0b3578]'}`}>
                             {isActivity ? INSTITUTIONAL_ACTIVITIES.find(a => a.code === slot.subject_code)?.name : (slot.subject_name || slot.subject_code)}
                           </div>
-                          <div className="text-[9px] text-slate-500 font-bold mb-2 line-clamp-1 opacity-90">{slot.faculty_name || (isActivity ? 'N/A' : 'NOT ASSIGNED')}</div>
+                          <div className="text-[9px] text-slate-500 font-bold mb-2 line-clamp-1 opacity-90" title={slot.faculty_name || ''}>{slot.faculty_name || (isActivity ? 'N/A' : 'NOT ASSIGNED')}</div>
                           <div className="flex items-center justify-center gap-1.5">
                             <span className={`text-[8px] px-2 py-0.5 border font-bold uppercase tracking-widest ${isActivity ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
                               {slot.room_no || 'TBD'}
@@ -791,7 +791,7 @@ function TimetableManager({ data, onEditSlot }) {
                               {slot.faculty_name && (
                                 <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center gap-1.5 text-xs text-slate-600 font-medium truncate">
                                   <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider flex-shrink-0">Faculty:</span>
-                                  <span className="truncate font-semibold text-slate-800">{slot.faculty_name}</span>
+                                  <span className="truncate font-semibold text-slate-800" title={slot.faculty_name}>{slot.faculty_name}</span>
                                 </div>
                               )}
                             </>
@@ -861,10 +861,10 @@ function SubjectAllocation({ subjects, faculty, assignments, refresh }) {
         refresh();
       } else {
         const data = await res.json();
-        toast.error(data.error || 'Failed');
+        toast.error(data.error || data.message || 'Unable to authorize faculty substitution. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server while authorizing faculty. Please check your internet connection.');
     } finally {
       setIsSaving(false);
     }
@@ -996,7 +996,7 @@ function BranchConfig({ config, branch, refresh }) {
           branch,
           mid_max: mid,
           assignment_max: ass,
-          academic_year: '2025-26',
+          academic_year: config?.academic_year || deriveDefaultAcademicYear(),
           semester: 6
         })
       });

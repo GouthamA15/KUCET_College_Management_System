@@ -22,31 +22,34 @@ export default function TimetableInstancePage({ params }) {
   const [editingSlot, setEditingSlot] = useState(null);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
 
+  const isAuthorized = !!(staffData?.is_hod || staffData?.is_first_year_coordinator || staffData?.is_principal || staffData?.role === 'admin');
+
   const fetchData = useCallback(async () => {
-    if (!staffData?.is_hod || !instanceId) return;
+    if (!isAuthorized || !instanceId) return;
     setIsLoading(true);
     try {
       const res = await fetch(`/api/staff/hod/timetable-instances/${instanceId}`);
       if (res.ok) {
         const json = await res.json();
-        setData(json.data);
+        setData(json.data || json);
       } else {
-        toast.error('Failed to load instance');
-        router.push('/staff/faculty/time-table');
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || d.message || 'Unable to load timetable. Please try again.');
+        router.push(staffData?.is_first_year_coordinator && !staffData?.is_hod ? '/staff/first-year/dashboard' : '/staff/faculty/time-table');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [staffData?.is_hod, instanceId, router]);
+  }, [isAuthorized, instanceId, staffData, router]);
 
   useEffect(() => {
-    if (staffData?.is_hod && instanceId) {
+    if (isAuthorized && instanceId) {
       const timer = setTimeout(() => fetchData(), 0);
       return () => clearTimeout(timer);
     }
-  }, [staffData?.is_hod, instanceId, fetchData]);
+  }, [isAuthorized, instanceId, fetchData]);
 
   const handleArchive = async () => {
     setIsPublishing(true);
@@ -61,11 +64,11 @@ export default function TimetableInstancePage({ params }) {
         setShowArchiveConfirm(false);
         fetchData();
       } else {
-        const d = await res.json();
-        toast.error(d.error || 'Failed to archive');
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || d.message || 'Unable to archive timetable. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     } finally {
       setIsPublishing(false);
     }
@@ -83,11 +86,11 @@ export default function TimetableInstancePage({ params }) {
         toast.success('Timetable reactivated to Draft');
         fetchData();
       } else {
-        const d = await res.json();
-        toast.error(d.error || 'Failed to reactivate');
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || d.message || 'Unable to reactivate timetable. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     } finally {
       setIsPublishing(false);
     }
@@ -105,35 +108,41 @@ export default function TimetableInstancePage({ params }) {
         toast.success('Timetable published successfully');
         fetchData();
       } else {
-        const d = await res.json();
-        toast.error(d.error || 'Failed to publish');
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || d.message || 'Unable to publish timetable. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     } finally {
       setIsPublishing(false);
     }
   };
 
-  if (!staffData?.is_hod) return null;
+  if (!isAuthorized) return null;
 
   if (isLoading) {
     return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-[#0b3578] border-t-transparent animate-spin rounded-full"></div></div>;
   }
 
   if (!data) return null;
-  const { instance, entries } = data;
+  const instance = data.instance || (data.branch ? data : null);
+  const entries = data.entries || [];
+  if (!instance) return null;
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 text-sm pb-10">
       <div className="mb-2">
-        <button onClick={() => router.push('/staff/faculty/time-table')} className="text-[#0b3578] hover:underline font-medium text-xs cursor-pointer">
-          &larr; Back to Timetable
+        <button 
+          onClick={() => router.push(staffData?.is_first_year_coordinator && !staffData?.is_hod ? '/staff/first-year/dashboard' : '/staff/faculty/time-table')} 
+          className="text-[#0b3578] hover:underline font-medium text-xs cursor-pointer"
+        >
+          &larr; {staffData?.is_first_year_coordinator && !staffData?.is_hod ? 'Back to Coordinator Workspace' : 'Back to Timetable'}
         </button>
       </div>
 
       <header className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white border border-slate-200 p-6 rounded-md shadow-sm">
         <div>
+          <p className="text-xs font-bold text-[#0b3578] uppercase tracking-wider mb-1">Timetable Editor</p>
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-2xl font-semibold text-gray-800">{instance.branch} &mdash; Semester {instance.semester}</h1>
             <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${

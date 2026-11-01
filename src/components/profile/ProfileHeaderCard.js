@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
-import Image from 'next/image';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { getAssetUrl } from '@/lib/assets';
+
+import ImageWithLoading from '@/components/ui/ImageWithLoading';
 
 export default function ProfileHeaderCard({
   name,
@@ -14,8 +15,6 @@ export default function ProfileHeaderCard({
   fallback = 'placeholder',
   compact = false,
 }) {
-  const [imageLoading, setImageLoading] = useState(true);
-
   const resolvedPhotoUrl = useMemo(() => getAssetUrl(photoUrl), [photoUrl]);
 
   const initials = useMemo(() => {
@@ -31,25 +30,16 @@ export default function ProfileHeaderCard({
     <div className={`flex items-center gap-3 ${compact ? 'flex-row xl:flex-col xl:items-start' : 'flex-col md:items-start'}`}>
       <div className={`${compact ? 'w-28 h-28 sm:w-32 sm:h-32 xl:w-40 xl:h-40' : 'w-40 h-40'} shrink-0 rounded-[28px] border-4 border-white overflow-hidden flex items-center justify-center bg-slate-100 relative shadow-[0_8px_18px_rgba(11,53,120,0.1)]`}>
         {resolvedPhotoUrl ? (
-          <>
-            {imageLoading && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 z-10 space-y-2">
-                <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full"></div>
-                <span className="text-xs text-gray-500 font-medium">Image is loading...</span>
-              </div>
-            )}
-            <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-              src={resolvedPhotoUrl}
-              alt="Profile Photo"
-              width={160}
-              height={160}
-              unoptimized
-              className={`object-cover w-full h-full transition-opacity duration-300 ${
-                imageLoading ? 'opacity-0' : 'opacity-100'
-              }`}
-              onLoad={() => setImageLoading(false)}
-            />
-          </>
+          <ImageWithLoading
+            src={resolvedPhotoUrl}
+            alt={name ? `${name}'s profile photo` : 'Profile Photo'}
+            width={160}
+            height={160}
+            className="w-full h-full"
+            imageClassName="object-cover w-full h-full"
+            variant="photo"
+            fallbackText={initials || 'Profile Pic'}
+          />
         ) : fallback === 'initials' && initials ? (
           <div className="w-full h-full flex items-center justify-center text-4xl font-bold text-slate-500">
             {initials}

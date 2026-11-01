@@ -41,10 +41,10 @@ export default function useEmailVerification({ rollno, newEmail, setEmail, origi
         toast.success(data.message);
         setIsOtpSent(true);
       } else {
-        toast.error(data.error || data.message || 'Please try again after 15 minutes.');
+        toast.error(data.error || data.message || 'Unable to send verification OTP. Please try again.');
       }
     } catch (_error) {
-      toast.error('Network error. Please try again.');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     } finally {
       setIsVerifying(false);
     }
@@ -69,10 +69,10 @@ export default function useEmailVerification({ rollno, newEmail, setEmail, origi
           refreshData && refreshData();
         }
       } else {
-        toast.error(data.error || data.message || 'OTP verification failed.');
+        toast.error(data.error || data.message || 'Invalid or expired OTP. Please check the code and try again.');
       }
     } catch (_error) {
-      toast.error('Network error. Please try again.');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     } finally {
       setIsVerifying(false);
     }

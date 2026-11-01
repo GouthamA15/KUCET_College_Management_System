@@ -1,6 +1,6 @@
 # Chronological Forensics of Major Resolved Incidents
 
-**Last Updated:** September 18, 2026
+**Last Updated:** October 25, 2026
 **Status:** Forensic Incident Repository  
 **Scope:** Root Cause Analysis, Forensic Call Stacks, Resolution Steps, and Diagnostic Audits.
 
@@ -10,6 +10,7 @@
 
 | Session | Date | Category | Affected Subsystem | Primary Root Cause Summary | Resolution Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Session 226** | Oct 25, 2026 | Security Forensics & Server Actions | Ingress & Next.js Core Action Protocol | External automated vulnerability scanner (`34.186.4.63`) sent probe requests `POST /` with header `Next-Action: x`. Next.js framework requires 42-character action IDs, throwing `Error: The Server Reference ID did not match the expected format. Received "x"` and returning standard HTTP 404. Zero real users affected. KUCET CMS does not use Server Actions anywhere; authentication refresh `null` session logs verified as expected student token rotation behavior. | **RESOLVED / BENIGN PROBE CONFIRMED** |
 | **Session 218** | Sep 24, 2026 | Security & PWA | Next.js Server & Service Worker | Next.js 16.3.0 dev server crashed on Windows due to unauthenticated RCE vulnerability (`GHSA-p293-qw3h-jr36`), dropping the connection. Concurrently, `public/sw.js` intercepted the `proxy.js` `/` -> `/student` 303 auth redirect with `redirect: 'follow'`, stripping the `Set-Cookie` header and causing an infinite `ERR_TOO_MANY_REDIRECTS` loop. Upgraded `next@16.3.3` and excluded `/` and `/api/` from SW navigation trap. | **RESOLVED** |
 | **Session 217 (Part 2)** | Sep 22, 2026 | CI/CD & Database Migrations | TiDB Cloud & Drizzle Migrator | Migration `0021_students_achievements_schema.sql` failed on `main` branch CI runner with `CREATE TABLE student_achievements` failure due to unsupported MySQL 8.0 `COLLATE=utf8mb4_0900_ai_ci` and `ON UPDATE CASCADE` in TiDB Cloud; missing Rule 21 in `src/db/baseline-rules.js` prevented multi-environment baseline detection | **RESOLVED** |
 | **Session 217 (Part 1)** | Sep 21, 2026 | Security & Storage | Student Certificate Uploads | Unchecked `/api/student/achievements` endpoint accepted arbitrary payload sizes and non-image MIME types; `src/lib/cloudinary.js` skipped byte checks on raw base64 data URIs; client modal lacked bounded multi-pass compression | **RESOLVED** |
@@ -35,6 +36,72 @@
 ---
 
 ## Detailed Forensics & Technical Resolutions
+
+### 00. Session 226: Forensic Investigation of Production Next.js Server Action Reference Errors & Student Auth Refresh Behavior
+
+#### Incident Summary
+Production application logs on the Hostinger VPS (`kucet-dev-HP-Pro-Tower-280-G9-PCI-Desktop-PC`) contained repeated occurrences of:
+```text
+Error: The Server Reference ID did not match the expected format. Received "x".
+Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
+    at ignore-listed frames
+```
+The error appeared three times within 600ms on 2026-10-25 between 01:34:55 UTC and 01:34:56 UTC. Production auth refresh logs also logged `[AUTH_REFRESH_SESSION_LOOKUP] { sessionCookieId: null, dbSessionId: null }` around that period, while other production endpoints (`GET /api/student/me`, `GET /api/events/config`, `GET /api/events/matches`) responded with HTTP 200.
+
+#### Root Cause Analysis
+1. **Next.js Framework Server Action Reference Protocol Invariant:**
+   - In Next.js 16 (App Router), any HTTP request containing a `Next-Action` header is intercepted by Next.js's internal Server Action dispatcher (`node_modules/next/dist/server/app-render/action-handler.js`).
+   - The action dispatcher invokes `parseServerReferenceId()` from `next/dist/shared/lib/server-reference-info.js`:
+     ```javascript
+     const SERVER_REFERENCE_ID_LENGTH = 42;
+     function parseServerReferenceId(actionId) {
+       if (actionId.length < SERVER_REFERENCE_ID_LENGTH) {
+         throw new Error(`The Server Reference ID did not match the expected format. Received "${actionId}".`);
+       }
+     }
+     ```
+   - When Next.js encounters an invalid ID, it logs the error to standard error and immediately terminates the request with HTTP 404 and response body `Server action not found.` (Content-Length: 24 bytes).
+2. **Attacker / Automated Scanner Probing (Confirmed External Ingress):**
+   - Correlating `kucet-cms-app` timestamps with Nginx reverse-proxy ingress logs (`docker logs kucet-cms-proxy`) revealed the exact matching requests:
+     ```text
+     172.18.0.1 - - [25/Oct/2026:01:34:55 +0000] "POST / HTTP/1.1" 404 24 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" "34.186.4.63"
+     172.18.0.1 - - [25/Oct/2026:01:34:55 +0000] "POST / HTTP/1.1" 404 24 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" "34.186.4.63"
+     172.18.0.1 - - [25/Oct/2026:01:34:56 +0000] "POST / HTTP/1.1" 404 24 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" "34.186.4.63"
+     ```
+   - The client IP was `34.186.4.63` (Google Cloud infrastructure in us-central1).
+   - Immediately following the three `POST /` requests, the identical IP executed rapid automated directory and secret brute-force scanning:
+     - `GET /.git/config` -> 404
+     - `GET /.env`, `/.env.local`, `/.env.production`, `/.env.staging` -> 404
+     - `GET /api/health` -> 200
+     - `GET /admin/config.json` -> 404
+3. **Application Architecture Zero-Action Invariant:**
+   - A global audit (`git grep "use server"`) confirmed that **KUCET CMS contains 0 Server Actions**. The application uses DDD REST API endpoints wrapped in `wrapHandler` and standard client-side `fetch` calls. No application form or navigation workflow ever emits `Next-Action` headers.
+4. **Student Auth Refresh Session Lookup Investigation:**
+   - In `src/app/api/auth/refresh/route.js`, line 102 specifies:
+     ```javascript
+     if (type !== 'student' && sessionCookieId) {
+       sessionRecord = await db.query.userSessions.findFirst({ ... });
+     }
+     ```
+   - Student authentication relies exclusively on rotating cryptographically signed JWTs tracked in the `refresh_tokens` table. Device session records (`user_sessions`) are only provisioned for Staff and Admin roles.
+   - Consequently, logging `{ sessionCookieId: null, dbSessionId: null }` for student refresh is completely intended and normal. The token rotation successfully completed and issued fresh cookies, immediately followed by successful `GET /api/student/me` (200 OK).
+
+#### Verification & Reproduction
+- Executed on-host verification curl against the local Next.js standalone runner:
+  ```bash
+  curl -i -X POST http://127.0.0.1:3000/ -H "Next-Action: x"
+  ```
+- **Result:** Exact reproduction:
+  - HTTP status: `404 Not Found`
+  - Body: `Server action not found.` (Content-Length: 24)
+  - Next.js stderr: `Error: The Server Reference ID did not match the expected format. Received "x".`
+- Confirmed that Next.js handles this safely without server crash, resource leak, or memory corruption.
+
+#### Engineering Recommendation
+- Following Phase 8 defensive engineering guardrails: **No application code modification is required or desirable**. Suppressing Next.js framework error logs or monkey-patching internal action dispatchers violates framework integrity. Next.js natively and correctly rejects malformed action requests with HTTP 404.
+- Optional edge hardening recommendation: Configure Cloudflare WAF or Nginx to rate-limit or block known generic scanners scanning dotfiles (`/.env`, `/.git`).
+
+---
 
 ### 00. Session 217: Forensic Resolution of TiDB Collation Incompatibility (utf8mb4_0900_ai_ci) & Missing Migration Baseline Tracking in CI/CD Pipeline
 

@@ -3,7 +3,7 @@ import { normalizeEventName } from './events/realtime-events';
 
 /**
  * Broadcasts a real-time event to connected clients across authorized rooms.
- * Uses the configured realtime provider (Hybrid strategy with Redis & optional Supabase).
+ * Uses the authoritative self-hosted realtime provider (Redis pub/sub with Socket.IO).
  *
  * @param {string} type - Event type (e.g., 'ADMISSION_DRAFT_CREATED', 'request:updated')
  * @param {Object} payload - Data associated with the event (targeted/minimal payload)

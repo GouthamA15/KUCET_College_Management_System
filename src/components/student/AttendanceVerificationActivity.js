@@ -275,7 +275,7 @@ export default function AttendanceVerificationActivity({ sessions, onSessionVeri
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Faculty</div>
-                          <div className="mt-0.5 text-xs font-semibold text-slate-700 truncate">{facultyName}</div>
+                          <div className="mt-0.5 text-xs font-semibold text-slate-700 truncate" title={facultyName}>{facultyName}</div>
                         </div>
                         <div>
                           <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Session Date</div>

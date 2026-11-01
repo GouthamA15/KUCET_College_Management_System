@@ -57,7 +57,6 @@ export const branchTimetable = mysqlTable('branch_timetable', {
   timetable_instance_id: int('timetable_instance_id'),
   branch: varchar('branch', { length: 50 }).notNull(),
   semester: tinyint('semester').notNull(),
-  section: varchar('section', { length: 5 }).default('A'),
   day_of_week: mysqlEnum('day_of_week', ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']).notNull(),
   period_number: int('period_number').notNull(),
   subject_code: varchar('subject_code', { length: 50 }),
@@ -72,7 +71,7 @@ export const branchTimetable = mysqlTable('branch_timetable', {
   dayPeriodIdx: index('idx_bt_day_period').on(table.day_of_week, table.period_number),
   facultyIdx: index('idx_bt_faculty').on(table.faculty_id),
   instanceIdIdx: index('idx_bt_instance').on(table.timetable_instance_id),
-  uqTimetableSlot: uniqueIndex('uq_timetable_slot').on(table.branch, table.semester, table.section, table.day_of_week, table.period_number, table.academic_year),
+  uqTimetableSlot: uniqueIndex('uq_timetable_slot').on(table.branch, table.semester, table.day_of_week, table.period_number, table.academic_year),
 }));
 
 export const facultyHodAssignments = mysqlTable('faculty_hod_assignments', {
@@ -89,6 +88,23 @@ export const facultyHodAssignments = mysqlTable('faculty_hod_assignments', {
 }, (table) => ({
   staffIdIdx: index('idx_hod_staff_id').on(table.staff_account_id),
   deptIdx: index('idx_hod_dept_code').on(table.department_code),
+}));
+
+export const facultyCoordinatorAssignments = mysqlTable('faculty_coordinator_assignments', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  staff_account_id: int('staff_account_id').notNull(),
+  coordinator_type: varchar('coordinator_type', { length: 50 }).default('FIRST_YEAR').notNull(),
+  academic_year: varchar('academic_year', { length: 9 }).notNull(),
+  start_date: date('start_date').notNull(),
+  end_date: date('end_date'),
+  is_active: boolean('is_active').default(true).notNull(),
+  assigned_by: int('assigned_by').references(() => principal.id, { onDelete: 'set null', onUpdate: 'cascade' }),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').onUpdateNow(),
+}, (table) => ({
+  staffIdIdx: index('idx_coord_staff_id').on(table.staff_account_id),
+  typeActiveIdx: index('idx_coord_type_active').on(table.coordinator_type, table.is_active),
+  acadYearIdx: index('idx_coord_acad_year').on(table.academic_year),
 }));
 
 export const facultyHodRequests = mysqlTable('faculty_hod_requests', {
@@ -118,7 +134,7 @@ export const facultySubjectAssignments = mysqlTable('faculty_subject_assignments
   academic_year: varchar('academic_year', { length: 9 }).notNull(),
   created_at: timestamp('created_at').defaultNow(),
   is_active: boolean('is_active').default(true),
-  mid_max: int('mid_max').default(20),
+  mid_max: int('mid_max'),
 }, (table) => ({
   branchIdx: index('idx_faculty_subject_active').on(table.branch, table.is_active),
   fsaBranchSemIdx: index('idx_fsa_branch_sem').on(table.branch, table.course_semester),
@@ -175,6 +191,10 @@ export const studentRequests = mysqlTable('student_requests', {
   completed_at: timestamp('completed_at'),
   reject_reason: text('reject_reason'),
   generated_attendance: varchar('generated_attendance', { length: 10 }),
+  hod_approval_status: mysqlEnum('hod_approval_status', ['PENDING', 'APPROVED', 'REJECTED', 'NOT_REQUIRED']).default('NOT_REQUIRED'),
+  hod_staff_id: int('hod_staff_id'),
+  hod_approved_at: timestamp('hod_approved_at'),
+  hod_rejection_reason: text('hod_rejection_reason'),
   action_by_staff_id: int('action_by_staff_id'),
   action_by_role: varchar('action_by_role', { length: 50 }),
   is_flagged: boolean('is_flagged').default(false),
@@ -183,6 +203,7 @@ export const studentRequests = mysqlTable('student_requests', {
 }, (table) => ({
   genCertIdx: index('idx_gen_cert_id').on(table.generated_certificate_id),
   studentIdx: index('idx_sr_student').on(table.student_id),
+  hodStatusIdx: index('idx_sr_hod_status').on(table.hod_approval_status),
   statusIdx: index('idx_sr_status').on(table.status),
   hashIdx: index('idx_sr_payment_hash').on(table.payment_hash),
   transIdx: index('idx_sr_transaction').on(table.transaction_id),

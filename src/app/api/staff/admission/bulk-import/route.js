@@ -9,6 +9,7 @@ import { toMySQLDate, parseDate } from '@/lib/date';
 import { apiError, wrapHandler } from '@/lib/api-utils';
 import { encrypt, hashForIndex } from '@/lib/encryption';
 import { StudentService } from '@/services/StudentService';
+import { normalizeAreaStatus } from '@/lib/college-config';
 
 // Header normalization: lowercase, trim, spaces & hyphens to _, remove non-word chars
 const normalizeHeader = (h) => {
@@ -82,9 +83,8 @@ function buildHeaderMapping(originalHeaders) {
 function normalizeGender(value) {
   const v = String(value || '').trim().toLowerCase();
   if (!v) return null;
-  if (['male', 'm', 'boy'].includes(v)) return 'Male';
-  if (['female', 'f', 'girl'].includes(v)) return 'Female';
-  if (['other', 'o', 'others'].includes(v)) return 'Other';
+  if (['male', 'm', 'boy'].includes(v)) return 'MALE';
+  if (['female', 'f', 'girl'].includes(v)) return 'FEMALE';
   return null;
 }
 
@@ -190,6 +190,9 @@ export const POST = wrapHandler({
               if (cleanGMobile.length === 10) {
                 personal['guardian_mobile'] = encrypt(cleanGMobile);
               }
+            } else if (key === 'area_status' && val) {
+              const norm = normalizeAreaStatus(val);
+              personal['area_status'] = norm || val;
             } else {
               personal[key] = val;
             }
@@ -205,7 +208,7 @@ export const POST = wrapHandler({
       // Simple Inline Validation
       const gender = normalizeGender(student.gender);
       const dob = normalizeDateToMySQL(student.date_of_birth);
-      const name = String(student.name || '').trim();
+      const name = String(student.name || '').trim().toUpperCase();
       const fatherName = String(personal.father_name || '').trim();
       let category = String(personal.category || '').trim().replace(/\s*-\s*/g, '-').toUpperCase();
       if (category === 'OC-EWS' || category === 'O-EWS') category = 'EWS';

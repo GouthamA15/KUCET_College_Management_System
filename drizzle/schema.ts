@@ -87,7 +87,6 @@ export const branchTimetable = mysqlTable("branch_timetable", {
 	id: int().autoincrement().notNull(),
 	branch: varchar({ length: 50 }).notNull(),
 	semester: tinyint().notNull(),
-	section: varchar({ length: 5 }).default('A'),
 	dayOfWeek: mysqlEnum("day_of_week", ['MON','TUE','WED','THU','FRI','SAT']).notNull(),
 	periodNumber: int("period_number").notNull(),
 	subjectCode: varchar("subject_code", { length: 50 }),

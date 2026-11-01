@@ -3,6 +3,7 @@ import logger from '@/lib/logger';
 
 export const DOMAIN_EVENTS = Object.freeze({
   ATTENDANCE_SUBMITTED: 'attendance.submitted',
+  ATTENDANCE_BATCH_SUBMITTED: 'attendance.batch_submitted',
   TOPIC_UPDATED: 'topic.updated',
   MARKS_PUBLISHED: 'marks.published',
   FEE_PAID: 'fee.paid',
@@ -98,6 +99,27 @@ class CentralDomainEventBus {
       }
     });
 
+    this.subscribe(DOMAIN_EVENTS.ATTENDANCE_BATCH_SUBMITTED, async (eventData) => {
+      try {
+        const { invalidateTags } = await import('@/lib/cache');
+        const tags = [];
+        if (Array.isArray(eventData.payload?.student_ids)) {
+          for (const sId of eventData.payload.student_ids) {
+            tags.push(`attendance:${sId}`);
+          }
+        }
+        if (eventData.payload?.assignment_id) {
+          tags.push(`attendance:topics:${eventData.payload.assignment_id}`);
+          tags.push(`attendance:assignment:${eventData.payload.assignment_id}`);
+        }
+        if (tags.length > 0) {
+          await invalidateTags(tags);
+        }
+      } catch (err) {
+        logger.warn({ err }, '[EventBus] Failed batched cache invalidation on attendance');
+      }
+    });
+
     this.subscribe(DOMAIN_EVENTS.FEE_PAID, async (eventData) => {
       try {
         const { invalidateTag } = await import('@/lib/cache');
@@ -106,6 +128,74 @@ class CentralDomainEventBus {
         }
       } catch (err) {
         logger.warn({ err }, '[EventBus] Failed cache invalidation on fee payment');
+      }
+    });
+
+    this.subscribe(DOMAIN_EVENTS.TOPIC_UPDATED, async (eventData) => {
+      try {
+        const { invalidateTag } = await import('@/lib/cache');
+        if (eventData.payload?.assignment_id) {
+          await invalidateTag(`attendance:topics:${eventData.payload.assignment_id}`);
+        }
+      } catch (err) {
+        logger.warn({ err }, '[EventBus] Failed cache invalidation on topic update');
+      }
+    });
+
+    this.subscribe(DOMAIN_EVENTS.MARKS_PUBLISHED, async (eventData) => {
+      try {
+        const { invalidateTag } = await import('@/lib/cache');
+        if (eventData.payload?.assignment_id) {
+          await invalidateTag(`marks:${eventData.payload.assignment_id}`);
+        }
+      } catch (err) {
+        logger.warn({ err }, '[EventBus] Failed cache invalidation on marks publish');
+      }
+    });
+
+    this.subscribe(DOMAIN_EVENTS.STUDENT_REGISTERED, async (eventData) => {
+      try {
+        const { invalidateTag } = await import('@/lib/cache');
+        if (eventData.payload?.roll_no) {
+          await invalidateTag(`student:${eventData.payload.roll_no}`);
+        }
+      } catch (err) {
+        logger.warn({ err }, '[EventBus] Failed cache invalidation on student registered');
+      }
+    });
+
+    this.subscribe(DOMAIN_EVENTS.STUDENT_RESTORED, async (eventData) => {
+      try {
+        const { invalidateTag } = await import('@/lib/cache');
+        if (eventData.payload?.roll_no) {
+          await invalidateTag(`student:${eventData.payload.roll_no}`);
+        }
+        await invalidateTag('archive:overview');
+      } catch (err) {
+        logger.warn({ err }, '[EventBus] Failed cache invalidation on student restored');
+      }
+    });
+
+    this.subscribe(DOMAIN_EVENTS.ARCHIVE_COMPLETED, async (_eventData) => {
+      try {
+        const { invalidateTag } = await import('@/lib/cache');
+        await invalidateTag('archive:overview');
+      } catch (err) {
+        logger.warn({ err }, '[EventBus] Failed cache invalidation on archive completed');
+      }
+    });
+
+    this.subscribe(DOMAIN_EVENTS.CERTIFICATE_ISSUED, async (eventData) => {
+      try {
+        const { invalidateTag } = await import('@/lib/cache');
+        if (eventData.payload?.student_id) {
+          await invalidateTag(`student:requests:${eventData.payload.student_id}`);
+        }
+        if (eventData.payload?.roll_no) {
+          await invalidateTag(`certificates:${eventData.payload.roll_no}`);
+        }
+      } catch (err) {
+        logger.warn({ err }, '[EventBus] Failed cache invalidation on certificate issued');
       }
     });
   }

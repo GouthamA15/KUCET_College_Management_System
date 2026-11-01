@@ -7,11 +7,10 @@ test.describe('Student Admission Flow', () => {
   const mockImagePath = path.join(__dirname, 'mock-image.png');
 
   test.beforeAll(async () => {
-    // Create a mock image file for testing uploads
-    if (!fs.existsSync(mockImagePath)) {
-      const buffer = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64');
-      fs.writeFileSync(mockImagePath, buffer);
-    }
+    // Create a mock image file for testing uploads (200x200 PNG to satisfy dimension constraints)
+    const validPng200x200 = 'iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAYAAACtWK6eAAAB20lEQVR4Ae3BAQEAIAACIPP/5zqQD4BzkxvgqwGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYGqAqQGmBpgaYHpjUwOOHV5ikQAAAABJRU5ErkJggg==';
+    const buffer = Buffer.from(validPng200x200, 'base64');
+    fs.writeFileSync(mockImagePath, buffer);
   });
 
   test.afterAll(async () => {
@@ -24,12 +23,30 @@ test.describe('Student Admission Flow', () => {
     // Mock image 404s to avoid noise and potential interruptions
     await page.route('**/*.{png,jpg,jpeg,svg}', route => route.fulfill({ status: 200, body: '' }));
 
-    // Mock the admission submission API
-    await page.route('/api/public/admission', async (route) => {
+    // Mock Send OTP
+    await page.route('**/api/public/admission/email/send-otp*', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ message: 'Success' }),
+        body: JSON.stringify({ success: true, message: 'OTP sent successfully', maskedEmail: 't***t@example.com' }),
+      });
+    });
+
+    // Mock Verify OTP
+    await page.route('**/api/public/admission/email/verify-otp*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, verificationToken: 'mock-valid-admission-jwt' }),
+      });
+    });
+
+    // Mock the admission submission API
+    await page.route('**/api/public/admission', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, message: 'Success', draftId: 101 }),
       });
     });
 
@@ -54,7 +71,7 @@ test.describe('Student Admission Flow', () => {
     await page.getByLabel('9. Seat Allotted Category').fill('OC_GEN_UR');
     
     // Date of Birth
-    await page.getByLabel('10. Date of Birth').fill('2005-01-01');
+    await page.locator('#dob').fill('01-01-2005');
     
     await page.getByLabel('13. Religion').selectOption('HINDU');
     await page.getByLabel('14. Mother Tongue').fill('TELUGU');
@@ -68,12 +85,18 @@ test.describe('Student Admission Flow', () => {
     await page.getByLabel('20. Annual Income').selectOption('Less than 1,00,000');
 
     await page.getByLabel('21. Student Aadhaar Number').fill('1234 5678 9012');
+    await page.locator('#apaar_id').fill('9876 5432 1098');
     
     // Mobile numbers
     await page.getByLabel('22. Student Mobile Number').fill('9876543210');
     await page.getByLabel('23. Father / Guardian Mobile Number').fill('9876543211');
     
     await page.getByLabel('24. Mail ID of the Student').fill(`teststudent_${Date.now()}@example.com`);
+    await page.getByRole('button', { name: 'Verify Email' }).click();
+    await expect(page.locator('#admission-otp')).toBeVisible();
+    await page.locator('#admission-otp').fill('123456');
+    await page.getByRole('button', { name: 'Submit Code' }).click();
+    await expect(page.getByText('Verified', { exact: true })).toBeVisible();
     
     // Current Address
     await page.locator('#curr_house_no').fill('123');
@@ -97,8 +120,13 @@ test.describe('Student Admission Flow', () => {
     // Accept legal consent
     await page.locator('#legal_consent').check();
 
-    // Submit the form
-    await page.getByRole('button', { name: 'Submit Application' }).click();
+    // Proceed to Review
+    await page.getByRole('button', { name: 'Proceed to Review' }).click();
+    await expect(page.getByRole('heading', { name: 'Application Review & Confirmation' })).toBeVisible();
+    await expect(page.getByText('TEST STUDENT')).toBeVisible();
+
+    // Confirm & Submit the application
+    await page.getByRole('button', { name: 'Confirm & Submit Application' }).click();
 
     // Wait for success message
     await expect(page.getByRole('heading', { name: 'Success!' })).toBeVisible({ timeout: 15000 });

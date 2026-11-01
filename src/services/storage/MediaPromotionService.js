@@ -21,13 +21,28 @@ const TEMP_SIG_PATTERNS = [/requests\/signatures\//, /admission_drafts\/signatur
  */
 export class MediaPromotionService {
   /**
+   * Cleans and normalizes a storage key, stripping any leading view prefixes.
+   * @param {string} key 
+   * @returns {string}
+   */
+  static cleanKey(key) {
+    if (!key || typeof key !== 'string') return '';
+    let clean = key.trim();
+    if (clean.includes('/api/assets/view/')) {
+      clean = clean.split('/api/assets/view/')[1] || clean;
+    }
+    return clean.replace(/^\/+/, '');
+  }
+
+  /**
    * Checks if a storage key is in a temporary/staging location for PFPs.
    * @param {string} key 
    * @returns {boolean}
    */
   static isTemporaryPfp(key) {
     if (!key || typeof key !== 'string') return false;
-    return TEMP_PFP_PATTERNS.some(p => p.test(key));
+    const clean = this.cleanKey(key);
+    return TEMP_PFP_PATTERNS.some(p => p.test(clean));
   }
 
   /**
@@ -37,7 +52,8 @@ export class MediaPromotionService {
    */
   static isTemporarySignature(key) {
     if (!key || typeof key !== 'string') return false;
-    return TEMP_SIG_PATTERNS.some(p => p.test(key));
+    const clean = this.cleanKey(key);
+    return TEMP_SIG_PATTERNS.some(p => p.test(clean));
   }
 
   /**
@@ -51,13 +67,15 @@ export class MediaPromotionService {
 
   /**
    * Promotes a profile photo from temporary staging to permanent student storage.
-   * @param {string} sourceKey - e.g., 'kucet/requests/pfp/abc.jpg' or 'admission_drafts/pfp/abc.jpg'
+   * @param {string} rawSourceKey - e.g., 'kucet/requests/pfp/abc.jpg' or '/api/assets/view/kucet/admission_drafts/pfp/abc.jpg'
    * @returns {Promise<{ newKey: string, originalKey: string, moved: boolean }>}
    */
-  static async promoteStudentProfile(sourceKey) {
-    if (!sourceKey || typeof sourceKey !== 'string') {
-      return { newKey: sourceKey, originalKey: sourceKey, moved: false };
+  static async promoteStudentProfile(rawSourceKey) {
+    if (!rawSourceKey || typeof rawSourceKey !== 'string') {
+      return { newKey: rawSourceKey, originalKey: rawSourceKey, moved: false };
     }
+
+    const sourceKey = this.cleanKey(rawSourceKey);
 
     if (!this.isTemporaryPfp(sourceKey)) {
       // Already permanent or non-temporary
@@ -89,13 +107,15 @@ export class MediaPromotionService {
 
   /**
    * Promotes a signature from temporary staging to permanent student storage.
-   * @param {string} sourceKey - e.g., 'kucet/requests/signatures/abc.png' or 'admission_drafts/signatures/abc.png'
+   * @param {string} rawSourceKey - e.g., 'kucet/requests/signatures/abc.png' or '/api/assets/view/kucet/admission_drafts/signatures/abc.png'
    * @returns {Promise<{ newKey: string, originalKey: string, moved: boolean }>}
    */
-  static async promoteStudentSignature(sourceKey) {
-    if (!sourceKey || typeof sourceKey !== 'string') {
-      return { newKey: sourceKey, originalKey: sourceKey, moved: false };
+  static async promoteStudentSignature(rawSourceKey) {
+    if (!rawSourceKey || typeof rawSourceKey !== 'string') {
+      return { newKey: rawSourceKey, originalKey: rawSourceKey, moved: false };
     }
+
+    const sourceKey = this.cleanKey(rawSourceKey);
 
     if (!this.isTemporarySignature(sourceKey)) {
       // Already permanent or non-temporary

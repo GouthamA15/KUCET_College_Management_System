@@ -292,6 +292,12 @@ const AdmissionRequestsPanel = ({ mode = 'DRAFT' }) => {
     // Stable field change handler
     const handleFieldChange = useCallback((name, value) => {
         let val = value;
+        if (name === 'name' && typeof val === 'string') {
+            val = val.toUpperCase();
+        }
+        if (name === 'gender' && typeof val === 'string') {
+            val = val.toUpperCase();
+        }
         if (name === 'inter_diploma_marks' && val !== '' && val !== '.') {
             const num = parseFloat(val);
             if (!isNaN(num)) {

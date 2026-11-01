@@ -1,11 +1,10 @@
 'use client';
-import React, { useState, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import Image from 'next/image';
-import { COLLEGE_CONFIG } from '@/lib/college-config';
-import { getAssetUrl } from '@/lib/assets';
+import { COLLEGE_CONFIG, formatGenderLabel } from '@/lib/college-config';
 import { formatDate, formatDateTime, toMySQLDate } from '@/lib/date';
 import { X, CheckCircle, XCircle } from 'lucide-react';
+import ImageWithLoading from '@/components/ui/ImageWithLoading';
 
 export const BLOOD_GROUP_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
 
@@ -37,7 +36,8 @@ export const EditableField = React.memo(function EditableField({
 
     let resolvedValue = value || '';
     if (options && value) {
-        const match = options.find(o => String(o).toLowerCase() === String(value).toLowerCase());
+        const cleanVal = String(value).toLowerCase().replace(/[\s_-]+/g, '');
+        const match = options.find(o => String(o).toLowerCase().replace(/[\s_-]+/g, '') === cleanVal);
         if (match) resolvedValue = match;
     }
 
@@ -52,9 +52,14 @@ export const EditableField = React.memo(function EditableField({
                     className={`${baseClass} ${isEditing ? activeClass : readOnlyClass}`}
                 >
                     <option value="">SELECT</option>
+                    {value && !options.some(o => String(o).toLowerCase().replace(/[\s_-]+/g, '') === String(value).toLowerCase().replace(/[\s_-]+/g, '')) && (
+                        <option value={value} disabled>
+                            {String(value)} (Legacy Record)
+                        </option>
+                    )}
                     {options.map((o) => (
                         <option key={o} value={o}>
-                            {String(o)}
+                            {name === 'gender' ? formatGenderLabel(o) : String(o)}
                         </option>
                     ))}
                 </select>
@@ -90,12 +95,6 @@ export const EditableField = React.memo(function EditableField({
 });
 
 export function MediaSection({ detail, isEditing, onFieldChange }) {
-    const [failedPfp, setFailedPfp] = useState(null);
-    const [failedSig, setFailedSig] = useState(null);
-
-    const imgError = Boolean(detail.pfp) && failedPfp === detail.pfp;
-    const sigError = Boolean(detail.signature) && failedSig === detail.signature;
-
     const handleFileChange = (e, name) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -104,9 +103,6 @@ export function MediaSection({ detail, isEditing, onFieldChange }) {
             alert('File size exceeds 1MB limit.');
             return;
         }
-
-        if (name === 'pfp') setFailedPfp(null);
-        if (name === 'signature') setFailedSig(null);
 
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -135,24 +131,18 @@ export function MediaSection({ detail, isEditing, onFieldChange }) {
                         </label>
                     )}
                 </div>
-                <div className="w-full bg-gray-50 border border-gray-200 rounded-md flex items-center justify-center overflow-hidden" style={{ aspectRatio: '3 / 4' }}>
-                    {detail.pfp && !imgError ? (
-                        <div className="w-full h-full relative">
-                            <Image 
-                                src={getAssetUrl(detail.pfp)} 
-                                alt="Student Photo" 
-                                fill 
-                                sizes="180px" 
-                                className="object-cover" 
-                                unoptimized 
-                                onError={() => setFailedPfp(detail.pfp)} 
-                            />
-                        </div>
-                    ) : (
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                            {imgError ? 'Image Unavailable' : 'No Record Found'}
-                        </span>
-                    )}
+                <div className="w-full bg-gray-50 border border-gray-200 rounded-md flex items-center justify-center overflow-hidden relative" style={{ aspectRatio: '3 / 4' }}>
+                    <ImageWithLoading
+                        src={detail.pfp}
+                        alt="Identification Photo"
+                        fill
+                        sizes="180px"
+                        variant="avatar"
+                        className="object-cover w-full h-full"
+                        imageClassName="object-cover"
+                        emptyText="No Record Found"
+                        errorText="Image Unavailable"
+                    />
                 </div>
             </div>
             
@@ -174,24 +164,18 @@ export function MediaSection({ detail, isEditing, onFieldChange }) {
                         </label>
                     )}
                 </div>
-                <div className="w-full h-24 bg-gray-50 border border-gray-200 rounded-md flex items-center justify-center overflow-hidden">
-                    {detail.signature && !sigError ? (
-                        <div className="w-full h-full relative p-2">
-                            <Image 
-                                src={getAssetUrl(detail.signature)} 
-                                alt="Signature" 
-                                fill 
-                                sizes="240px" 
-                                className="object-contain" 
-                                unoptimized 
-                                onError={() => setFailedSig(detail.signature)}
-                            />
-                        </div>
-                    ) : (
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                            {sigError ? 'Image Unavailable' : 'No Record Found'}
-                        </span>
-                    )}
+                <div className="w-full h-24 bg-gray-50 border border-gray-200 rounded-md flex items-center justify-center overflow-hidden relative p-2">
+                    <ImageWithLoading
+                        src={detail.signature}
+                        alt="Specimen Signature"
+                        fill
+                        sizes="240px"
+                        variant="signature"
+                        className="object-contain w-full h-full"
+                        imageClassName="object-contain"
+                        emptyText="No Record Found"
+                        errorText="Image Unavailable"
+                    />
                 </div>
             </div>
         </div>
@@ -207,7 +191,7 @@ export function PersonalDetailsSection({ editForm, isEditing, onFieldChange }) {
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <EditableField label="Full Name" name="name" value={editForm.name} isEditing={isEditing} onChange={onFieldChange} />
-                <EditableField label="Gender" name="gender" value={editForm.gender} isEditing={isEditing} onChange={onFieldChange} />
+                <EditableField label="Gender" name="gender" value={editForm.gender} isEditing={isEditing} onChange={onFieldChange} options={COLLEGE_CONFIG.genders} />
                 <EditableField label="Father's Name" name="father_name" value={editForm.father_name} isEditing={isEditing} onChange={onFieldChange} />
                 <EditableField label="Mother's Name" name="mother_name" value={editForm.mother_name} isEditing={isEditing} onChange={onFieldChange} />
                 <EditableField label="Date of Birth" name="dob" type="date" value={editForm.dob} isEditing={isEditing} onChange={onFieldChange} />

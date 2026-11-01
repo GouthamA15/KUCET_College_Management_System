@@ -14,7 +14,6 @@ export const CertificateReviewModal = ({
   fetchRecords,
   staffType
 }) => {
-
   if (!isDialogOpen || typeof document === 'undefined') return null;
 
   const modal = (

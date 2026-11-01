@@ -283,4 +283,24 @@ Real-time pub/sub features and caching utilize **Upstash (Serverless)** or **Sel
 
 ---
 
+## 🏛️ Database Boundaries: Core CMS (`kucet_cms`) vs. Tournament Engine (`experiment_college_db`)
+
+The persistence tier maintains a strict architectural boundary between institutional enterprise data and competitive collegiate events:
+
+### Core CMS Database (`kucet_cms`)
+- **Domain Scope**: Identity registry, student profiles, academic courses, timetable instances, attendance sessions & verification logs, scholarships, fee ledgers, digital certificates, user sessions, and audit logs.
+- **ORM & Migrations**: Managed via Drizzle ORM schemas in `src/db/schema/*.js` and tracked in `drizzle/` versioned SQL migrations (0000–0013) with automated schema checks (`npm run db:check`).
+- **Connection Configuration**: Managed via `db` client in `src/db/index.js` using `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_DATABASE`.
+- **Fault Tolerance**: The primary mission-critical system. Backed up nightly via `DatabaseBackupService`.
+
+### Event & Tournament Database (`experiment_college_db`)
+- **Domain Scope**: Event configurations, contender registrations, tournament fixtures (`event_matches`), chess live game state & move history, technical quiz question bank, and quiz sessions.
+- **Lifecycle & Migrations**: Managed via idempotent DDL initializers in `src/modules/events/db/init.js` (`initExperimentDb()`).
+- **Connection Configuration**: Managed via `getExperimentDb()` pool in `src/modules/events/db/connection.js`, configurable via `EXPERIMENT_DATABASE_URL` or `EXPERIMENT_DB_*` with automatic fallback to the local DB host.
+- **Cross-Database Interaction Pattern**: `ParticipantService.resolveAuthoritativeUser` performs a **read-only** check against `kucet_cms` (`students` table) to verify student academic standing. Registrations and tournament states are written strictly to `experiment_college_db`. No cross-database foreign keys, joins, or distributed transactions exist.
+- **Fault Isolation Guarantee**: An outage, schema change, or maintenance window in `experiment_college_db` has **zero impact** on core CMS authentication, student attendance, faculty evaluation, or certificate workflows.
+- **Preservation Invariant**: The databases MUST remain separate. Consolidating event tables into `kucet_cms` would violate domain boundaries, pollute enterprise backups with ephemeral game states, and increase lock contention during high-frequency move broadcasts.
+
+---
+
 > 💡 **Next Steps**: Learn how file failovers work in [Storage Architecture](./storage.md) or explore host container configurations in [Deployment Architecture](./deployment.md).

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { validateRollNo, _branchCodes } from '@/lib/rollNumber';
-import { _COLLEGE_CONFIG } from '@/lib/college-config';
+import { _COLLEGE_CONFIG, normalizeAreaStatus } from '@/lib/college-config';
 
 /**
  * Zod schema for creating a new student record.
@@ -16,7 +16,8 @@ export const studentCreateSchema = z.object({
     .trim()
     .min(3, "Full name must be at least 3 characters")
     .max(255)
-    .regex(/^[a-zA-Z\s.]+$/, "Name should only contain letters, spaces, and dots"),
+    .regex(/^[a-zA-Z\s.]+$/, "Name should only contain letters, spaces, and dots")
+    .transform((val) => val.toUpperCase()),
   email: z.string()
     .trim()
     .email("Invalid email address")
@@ -30,6 +31,11 @@ export const studentCreateSchema = z.object({
   aadhaar_no: z.string()
     .transform((val) => val?.replace(/\D/g, '') || '')
     .refine((val) => val === '' || val.length === 12, "Aadhaar number must be exactly 12 digits")
+    .optional()
+    .or(z.literal('')),
+  apaar_id: z.string()
+    .transform((val) => val?.replace(/\s+/g, '') || '')
+    .refine((val) => val === '' || /^\d{12}$/.test(val), "APAAR ID must be exactly 12 numeric digits")
     .optional()
     .or(z.literal('')),
   admission_no: z.string()
@@ -46,7 +52,7 @@ export const studentCreateSchema = z.object({
   ).optional(),
   gender: z.preprocess(
     (v) => typeof v === 'string' ? v.toUpperCase() : v,
-    z.enum(['MALE', 'FEMALE', 'OTHER']).optional()
+    z.enum(['MALE', 'FEMALE']).optional()
   ),
   father_name: z.string().trim().max(255).optional().or(z.literal('')),
   mother_name: z.string().trim().max(255).optional().or(z.literal('')),
@@ -93,7 +99,12 @@ export const studentCreateSchema = z.object({
     .optional()
     .or(z.literal('')),
   blood_group: z.preprocess(
-    (v) => (v === '' || v === 'Not available') ? null : v,
+    (v) => {
+      if (v === null || v === undefined) return null;
+      const s = String(v).trim();
+      if (s === '' || s.toLowerCase() === 'not available' || s.toUpperCase() === 'UNKNOWN' || s.toLowerCase() === 'n/a') return null;
+      return s;
+    },
     z.enum(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']).nullable().optional()
   ),
   seat_allotted_category: z.string().trim().max(100).optional().or(z.literal('')),
@@ -115,7 +126,18 @@ export const studentCreateSchema = z.object({
       z.date().refine((d) => !Number.isNaN(d.getTime()), "Invalid date")
     ])
   ).optional(),
-  area_status: z.enum(['Local', 'Non-Local']).optional().or(z.literal('')),
+  area_status: z.preprocess(
+    (v) => (v === '' || v === undefined || v === null ? null : v),
+    z.string().nullable().optional().superRefine((val, ctx) => {
+      if (val === null || val === undefined) return;
+      if (!normalizeAreaStatus(val)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Area status must be 'Local' or 'Non-Local'",
+        });
+      }
+    }).transform((val) => (val ? normalizeAreaStatus(val) : ''))
+  ).optional(),
 });
 
 /**

@@ -156,17 +156,34 @@ const CalendarGrid = ({ academicYear, semester, isEditor = false }) => {
                     text = 'text-gray-500'; // Dim text for out-of-semester days
                 }
 
+                const isHoliday = dayData.day_type === 'HOLIDAY';
+                const isWeekendOnly = isHoliday && dayData.holiday_name === 'Weekend';
+                const displayLabel = isHoliday ? (dayData.holiday_name || 'Holiday') : dayData.day_type;
+                const tooltipText = isOutsideSemesterRange 
+                    ? 'Outside Active Semester Range'
+                    : (isHoliday && dayData.holiday_name ? dayData.holiday_name : dayData.day_type);
+
                 gridCells.push(
                     <div
                         key={`current-${dayNum}`}
-                        className={`border-b border-r p-2 flex flex-col h-24 md:h-32 group relative ${bg} ${isOutsideSemesterRange ? 'opacity-60 cursor-not-allowed' : (isEditor ? 'cursor-pointer group-hover:border-indigo-400' : '')}`}
+                        role="button"
+                        tabIndex={isOutsideSemesterRange ? -1 : 0}
+                        aria-label={`${dayNum} ${formatMonthYear(currentYear, currentMonth - 1)}, ${displayLabel}`}
+                        title={tooltipText}
+                        className={`border-b border-r p-2 flex flex-col h-24 md:h-32 group relative ${bg} ${isOutsideSemesterRange ? 'opacity-60 cursor-not-allowed' : (isEditor ? 'cursor-pointer group-hover:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-500' : '')}`}
                         onClick={isOutsideSemesterRange ? undefined : () => handleDayClick(dayNum)}
+                        onKeyDown={isOutsideSemesterRange || !isEditor ? undefined : (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleDayClick(dayNum); } }}
                     >
-                        <span className={`text-sm font-bold ${isToday && !isOutsideSemesterRange ? 'text-indigo-600' : text}`}>{dayNum}</span>
+                        <div className="flex items-center justify-between">
+                            <span className={`text-sm font-bold ${isToday && !isOutsideSemesterRange ? 'text-indigo-600' : text}`}>{dayNum}</span>
+                            {isWeekendOnly && !isOutsideSemesterRange && (
+                                <span className="text-[10px] font-medium text-red-500 uppercase tracking-wide">Weekend</span>
+                            )}
+                        </div>
                         <div className="mt-1 text-xs overflow-hidden">
-                            {dayData.day_type !== 'WORKING' && !isOutsideSemesterRange && (
-                                <span className={`font-semibold ${text}`}>
-                                    {dayData.day_type === 'HOLIDAY' ? dayData.holiday_name : dayData.day_type}
+                            {dayData.day_type !== 'WORKING' && !isOutsideSemesterRange && !isWeekendOnly && (
+                                <span className={`font-semibold line-clamp-2 break-words leading-tight ${text}`} title={dayData.holiday_name || dayData.day_type}>
+                                    {displayLabel}
                                 </span>
                             )}
                         </div>
@@ -228,22 +245,35 @@ const CalendarGrid = ({ academicYear, semester, isEditor = false }) => {
                                 text = 'text-gray-500'; // Dim text for out-of-semester days
                             }
 
+                             const isHoliday = dayData.day_type === 'HOLIDAY';
+                             const isWeekendOnly = isHoliday && dayData.holiday_name === 'Weekend';
+                             const displayLabel = isWeekendOnly ? 'Weekend' : (isHoliday ? (dayData.holiday_name || 'Holiday') : dayData.day_type);
+                             const tooltipText = isOutsideSemesterRange 
+                                 ? 'Outside Active Semester Range'
+                                 : (isHoliday && dayData.holiday_name ? dayData.holiday_name : dayData.day_type);
+
                              return (
                                 <div 
                                     key={`mobile-${dayNum}`} 
+                                    role="button"
+                                    tabIndex={isOutsideSemesterRange ? -1 : 0}
+                                    aria-label={`${dayNum} ${dateStr}, ${displayLabel}`}
+                                    title={tooltipText}
                                     className={`flex items-center justify-between p-3 border-b ${bg} ${isOutsideSemesterRange ? 'opacity-60 cursor-not-allowed' : (isEditor ? 'cursor-pointer' : '')} ${isToday && !isOutsideSemesterRange ? 'border-l-4 border-indigo-500' : ''}`} 
                                     onClick={isOutsideSemesterRange ? undefined : () => handleDayClick(dayNum)}
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <span className="font-bold text-lg">{dayNum}</span>
-                                        <div>
-                                            <p className="font-semibold text-gray-700">{dateStr}</p>
+                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                        <span className="font-bold text-lg w-7 shrink-0 text-center">{dayNum}</span>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="font-semibold text-gray-700 text-xs">{dateStr}</p>
                                             {dayData.day_type !== 'WORKING' && !isOutsideSemesterRange && (
-                                                <p className={`text-xs font-bold ${text}`}>{dayData.day_type === 'HOLIDAY' ? dayData.holiday_name : dayData.day_type}</p>
+                                                <p className={`text-xs font-bold break-words leading-tight ${text}`} title={dayData.holiday_name || dayData.day_type}>
+                                                    {displayLabel}
+                                                </p>
                                             )}
                                         </div>
                                     </div>
-                                    <span className="text-gray-400">▶</span>
+                                    <span className="text-gray-400 shrink-0 ml-2">▶</span>
                                 </div>
                              )
                         })}

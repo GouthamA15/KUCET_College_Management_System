@@ -14,11 +14,13 @@ export const NAV_MENU_CONFIG = {
     { label: 'REQUESTS', children: [
         { label: 'Certificates', route: '/student/requests/certificates' }
       ]
+      
     },
 
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/student/settings/edit-profile' },
-        { label: 'Security & Privacy', route: '/student/settings/security' }
+        { label: 'Security & Privacy', route: '/student/settings/security' },
+        { label: 'APAAR ID Guidance', route: '/student/apaar' }
       ]
     }
   ],
@@ -37,7 +39,9 @@ export const NAV_MENU_CONFIG = {
     { label: 'STUDENT RECORDS', children: [
         { label: 'Student Registry', route: '/staff/admission/student-management' },
         { label: 'Student Requests', route: '/staff/admission/requests' },
-        { label: 'Finalize', route: '/staff/admission/finalize' }
+        { label: 'Finalize', route: '/staff/admission/finalize' },
+        { label: 'ID Cards', route: '/staff/admission/id-cards' },
+        { label: 'Bulk ID Card Download', route: '/staff/admission/id-cards/bulk' }
       ]
     },
     { label: 'SETTINGS', children: [
@@ -64,7 +68,9 @@ export const NAV_MENU_CONFIG = {
     { label: 'STUDENT RECORDS', children: [
         { label: 'Student Registry', route: '/staff/admission/student-management' },
         { label: 'Student Requests', route: '/staff/admission/requests' },
-        { label: 'Finalize', route: '/staff/admission/finalize' }
+        { label: 'Finalize', route: '/staff/admission/finalize' },
+        { label: 'ID Cards', route: '/staff/admission/id-cards' },
+        { label: 'Bulk ID Card Download', route: '/staff/admission/id-cards/bulk' }
       ]
     },
     { label: 'SETTINGS', children: [
@@ -101,6 +107,7 @@ export const NAV_MENU_CONFIG = {
     { label: 'ACADEMIC CALENDAR', route: '/admin/academic-calendar' },
     { label: 'PAYMENTS', route: '/admin/payments' },
     { label: 'MANAGE STAFF', route: '/admin/manage-staff' },
+    { label: 'INSTITUTIONAL ROLES', route: '/admin/institutional-roles' },
     { label: 'STAFF REQUESTS', route: '/admin/staff-requests' },
     { label: 'INFRASTRUCTURE', children: [
         { label: 'System Configuration', route: '/admin/infrastructure?tab=config' },

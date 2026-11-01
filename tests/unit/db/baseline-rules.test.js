@@ -115,4 +115,68 @@ describe('Multi-Environment Drizzle Baseline Rules Registry', () => {
     };
     expect(await rule0021.isSatisfied(mockConnFalse)).toBe(false);
   });
+
+  it('resolves and evaluates 0024_canonical_gender_enum baseline rule', async () => {
+    const rule0024 = BASELINE_RULES.find((r) => r.id === 24);
+    expect(rule0024).toBeDefined();
+
+    const mockEntries = [
+      { idx: 23, tag: '0023_principal_staff_role', when: 230 },
+      { idx: 24, tag: '0024_canonical_gender_enum', when: 240 },
+    ];
+
+    const matched = rule0024.getEntries(mockEntries);
+    expect(matched.length).toBe(1);
+    expect(matched[0].idx).toBe(24);
+    expect(rule0024.getReason(matched[0])).toContain('canonical ENUM');
+
+    // Both tables have ENUM columns
+    const mockBothEnum = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce([[{ COLUMN_TYPE: "enum('MALE','FEMALE')" }]])
+        .mockResolvedValueOnce([[{ COLUMN_TYPE: "enum('MALE','FEMALE')" }]]),
+    };
+    expect(await rule0024.isSatisfied(mockBothEnum)).toBe(true);
+
+    // One table has varchar
+    const mockVarcharStudents = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce([[{ COLUMN_TYPE: 'varchar(50)' }]])
+        .mockResolvedValueOnce([[{ COLUMN_TYPE: "enum('MALE','FEMALE')" }]]),
+    };
+    expect(await rule0024.isSatisfied(mockVarcharStudents)).toBe(false);
+  });
+
+  it('resolves and evaluates 0028_add_apaar_id baseline rule', async () => {
+    const rule0028 = BASELINE_RULES.find((r) => r.id === 28);
+    expect(rule0028).toBeDefined();
+
+    const mockEntries = [
+      { idx: 27, tag: '0027_remove_class_section', when: 270 },
+      { idx: 28, tag: '0028_add_apaar_id', when: 280 },
+    ];
+
+    const matched = rule0028.getEntries(mockEntries);
+    expect(matched.length).toBe(1);
+    expect(matched[0].idx).toBe(28);
+    expect(rule0028.getReason(matched[0])).toContain('student_personal_details.apaar_id');
+
+    // Both tables already have apaar_id and index
+    const mockBothHaveApaar = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce([[{ count: '1' }]]) // student_personal_details has apaar_id
+        .mockResolvedValueOnce([[{ count: '1' }]]) // student_admission_drafts has apaar_id
+        .mockResolvedValueOnce([[{ count: '1' }]]), // idx_spd_apaar_id exists
+    };
+    expect(await rule0028.isSatisfied(mockBothHaveApaar)).toBe(true);
+
+    // Missing from student_personal_details
+    const mockMissingSpd = {
+      query: vi.fn().mockResolvedValueOnce([[{ count: '0' }]]),
+    };
+    expect(await rule0028.isSatisfied(mockMissingSpd)).toBe(false);
+  });
 });

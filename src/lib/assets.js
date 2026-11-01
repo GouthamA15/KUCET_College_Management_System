@@ -1,4 +1,4 @@
-import { resolveInstitutionalFilename } from '@/lib/institution-assets';
+import { resolveInstitutionalFilename, isPrivateInstitutionalAsset } from '@/lib/institution-assets';
 
 /**
  * ============================================================
@@ -53,6 +53,14 @@ export const STATIC_ASSETS = new Set([
   '/assets/Payment QR/ku_payment_150.png',
   '/assets/Payment QR/ku_payment_200.png',
   '/assets/Payment QR/kucet-logo.png',
+  '/assets/guidance/student-photo-correct.png',
+  '/assets/guidance/student-photo-printed-image.png',
+  '/assets/guidance/student-photo-full-body.png',
+  '/assets/guidance/student-photo-casual-outdoor.png',
+  '/assets/guidance/student-signature-acceptable-1.png',
+  '/assets/guidance/student-signature-acceptable-2.png',
+  '/assets/guidance/student-signature-incorrect-crop.png',
+  '/assets/guidance/student-signature-incorrect-orientation.png',
   '/manifest.json',
   '/favicon.ico',
 ]);
@@ -111,11 +119,16 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto', options = {
   // Guard: reject serialization corruption
   if (path.includes('[object') || path.includes('undefined')) return '';
 
+  // Security guard: private institutional assets (e.g. principal signature) must never have public URLs
+  if (isPrivateInstitutionalAsset(path)) return '';
+
   // 1. Normalize and clean the path
   let cleanPath = path;
   if (cleanPath.startsWith('data:')) {
     return cleanPath;
   }
+
+  if (isPrivateInstitutionalAsset(cleanPath)) return '';
 
   // Handle full external URLs or Cloudinary CDN URLs
   if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
@@ -212,7 +225,8 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto', options = {
         ? finalCleanPath
         : `kucet/${finalCleanPath}`;
 
-      resolvedUrl = `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformations}/${cloudinaryPath}`;
+      const transformSegment = (resourceType === 'raw' || !transformations) ? '' : `${transformations}/`;
+      resolvedUrl = `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformSegment}${cloudinaryPath}`;
     } else {
       // Secure Private Storage (Local Mode): All non-static asset keys are served through /api/assets/view/
       resolvedUrl = `/api/assets/view/${finalCleanPath}`;

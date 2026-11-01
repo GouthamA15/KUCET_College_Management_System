@@ -56,4 +56,5 @@ const logger = {
   runWithContext: (context, fn) => storage.run(context, fn),
 };
 
+export { logger };
 export default logger;

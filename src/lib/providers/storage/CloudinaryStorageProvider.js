@@ -65,7 +65,8 @@ export default class CloudinaryStorageProvider extends StorageProvider {
       ? cleanPath
       : `kucet/${cleanPath}`;
 
-    return `https://res.cloudinary.com/${this.cloudName}/${resourceType}/upload/${transformations}/${cloudinaryPath}`;
+    const transformSegment = (resourceType === 'raw' || !transformations) ? '' : `${transformations}/`;
+    return `https://res.cloudinary.com/${this.cloudName}/${resourceType}/upload/${transformSegment}${cloudinaryPath}`;
   }
 
   async upload(file, folder, publicId = null) {

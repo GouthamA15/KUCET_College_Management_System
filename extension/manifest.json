@@ -1,0 +1,59 @@
+{
+  "manifest_version": 3,
+  "name": "KUCET Admission Bridge",
+  "version": "1.0.0",
+  "description": "Cross-browser admission assistant for KUCET admission staff transferring records into the KU Online registration portal.",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "scripting",
+    "sidePanel",
+    "storage",
+    "downloads",
+    "windows"
+  ],
+  "host_permissions": [
+    "https://kucet.tech/*",
+    "https://kucet.in/*",
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*",
+    "*://kuonline.co.in/*",
+    "*://www.kuonline.co.in/*",
+    "*://*.kuonline.co.in/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "action": {
+    "default_title": "KUCET Admission Bridge",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://kuonline.co.in/BTechsql/Btechreg.aspx*",
+        "*://kuonline.co.in/btechsql/btechreg.aspx*",
+        "*://www.kuonline.co.in/BTechsql/Btechreg.aspx*",
+        "*://www.kuonline.co.in/btechsql/btechreg.aspx*",
+        "*://*.kuonline.co.in/BTechsql/Btechreg.aspx*",
+        "*://*.kuonline.co.in/btechsql/btechreg.aspx*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

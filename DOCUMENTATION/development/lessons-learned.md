@@ -233,12 +233,46 @@ This document synthesizes those key lessons into **21 Inviolable Rules** and def
 - **The Pitfall:** Running post-boot recovery scripts via `@reboot` immediately executes before local DHCP negotiation, Wi-Fi/Ethernet link convergence, or mesh VPN connection completes. Probing `tailscale ip -4` once without retry immediately declares the network offline and prematurely aborts public ingress restoration.
 - **The Inviolable Guardrail:** Post-boot and recovery scripts MUST implement bounded retry loops (e.g. 30 seconds, 3-second polling interval) when waiting for network interfaces, Tailscale IP assignment, and reverse proxy availability before concluding that ingress configuration failed.
 
+### Rule 28: Dynamic Nginx Docker DNS Resolution to Prevent 502 Bad Gateway
+- **The Pitfall:** In Nginx reverse proxy configurations, hardcoding static upstream container IP addresses or relying on startup-time DNS resolution causes Nginx to retain stale IP mappings when Docker recreates backend containers (e.g. `kucet-cms-app` recreating with a new bridge IP `172.18.0.5` -> `172.18.0.7`). Nginx continues sending traffic to the dead IP, returning persistent `502 Bad Gateway` errors until Nginx is restarted.
+- **The Inviolable Guardrail:** Configure Nginx with Docker's embedded DNS server (`resolver 127.0.0.11 valid=10s ipv6=off;`) and resolve upstream hostnames dynamically via variables (`set $app_upstream kucet-cms-app:3000; proxy_pass http://$app_upstream;`), forcing runtime DNS cache invalidation.
+
+### Rule 29: Standalone Redis Client Reuse in Health Probing
+- **The Pitfall:** Creating new `ioredis` instances inside frequent health check endpoints (`/api/health`, `HealthService.checkRedis()`) opens new TCP connections on every monitor probe (e.g., every 10 seconds). This exhausts file descriptors, generates excessive TCP TIME_WAIT socket churn, and triggers intermittent connection timeout exceptions.
+- **The Inviolable Guardrail:** Maintain a pooled, singleton Redis client in `HealthService` across health probes, reusing existing connections and verifying ping latency without socket churn.
+
+### Rule 30: Transactional Email Category Isolation & Dedicated Circuit Breakers
+- **The Pitfall:** Dispatching all transactional emails (password resets, attendance alerts, payment receipts, general notifications) through a single shared Brevo API key and sender identity allows bulk alerts to exhaust API quotas or trigger rate limits, causing critical security and authentication OTP emails to fail.
+- **The Inviolable Guardrail:** Organize transactional emails into distinct categories (`auth`, `admission`, `security`, `attendance`, `request`, `notification`, `system`), configure per-category Brevo API keys and sender identities, and isolate them under independent circuit breakers (`BrevoEmail_${category}`).
+
+### Rule 31: Canonical Gender Enum Consistency Across Identity, Drafts & Archives
+- **The Pitfall:** Storing polymorphic, non-standardized gender inputs (`'Male'`, `'male'`, `'M'`, `'FEMALE'`, whitespace-padded strings) breaks institutional cohort queries and produces reporting errors on statutory regulatory exports.
+- **The Inviolable Guardrail:** Constrain gender columns strictly to canonical enum `'MALE' | 'FEMALE'` across `students`, `student_admission_drafts`, and `archive_students`, validating and normalizing all incoming API payloads before database insertion.
+
+### Rule 32: Strict Targeted Room Isolation in Realtime Pub/Sub
+- **The Pitfall:** Broadcasting system events without room targeting leaks sensitive operational updates (e.g. student attendance verification, dispute filings, fee sanctions) to all connected clients or opposite roles on the WebSocket server.
+- **The Inviolable Guardrail:** ALWAYS resolve target rooms via `resolveEventRooms(event, payload, options)` before Redis publishing. Suppress public broadcast unless explicitly marked `isPublic: true`. Ensure frontend components subscribe to targeted rooms (`match:<id>`, `dept:<branch>`, `student:<roll>`).
+
+### Rule 33: Client-Side Realtime Provider Abstraction & Explicit Room Subscriptions
+- **The Pitfall:** Depending directly on vendor-specific websocket clients (e.g. `socket.io-client`) inside UI components locks the client to a single transport, prevents cloud fallback (e.g. Supabase Broadcast), and causes silent message loss if components subscribe to events without emitting the required room joins (e.g. chess match room).
+- **The Inviolable Guardrail:** ALWAYS interact with real-time communications through the shared client interface in `@/lib/realtime/client` (or `@/components/RealtimeListener`). Any component viewing a room-scoped resource MUST invoke `joinRealtimeRoom()` on mount and `leaveRealtimeRoom()` on unmount, and the client adapter MUST track active rooms to re-join automatically upon network reconnection.
+
+### Rule 34: Canonical Data Contract Synchronization Across Staging, Service, and Persistence Layers
+- **The Pitfall:** Subtle format drift between loose staging schemas (e.g. `varchar(50)` storing `"Non Local"` or uppercase `"NON-LOCAL"`) and strict persistence schemas (e.g. `enum('Local', 'Non-Local')`), along with boolean-like fields (`"Yes"`/`"No"` vs boolean/numeric), causes fatal runtime database crashes (`Data truncated for column`, MySQL error code 1265) during critical multi-table transactions like admission finalization. Furthermore, media promotion fails when asset view prefixes (`/api/assets/view/`) are passed into storage path resolvers.
+- **The Inviolable Guardrail:**
+  1. Centralize all canonical normalizers and domain validators in `@/lib/college-config.js` (`normalizeAreaStatus`, `normalizeGender`, `normalizeBloodGroup`, `normalizeFeeReimbursement`).
+  2. Enforce input normalization at every lifecycle boundary: public intake forms, staff draft modifications, and identity service upserts.
+  3. Strip routing and view prefixes (`/api/assets/view/`) in `MediaPromotionService` before invoking storage migration engines.
+  4. Standardize API error boundaries in `wrapHandler` to catch database constraint errors (`WARN_DATA_TRUNCATED`, `ER_DATA_TOO_LONG`, `ER_NO_REFERENCED_ROW_2`) and return actionable 400 client errors instead of opaque 500 crashes.
+
 ---
 
 ## 9. Incident Summary Matrix
 
 | Incident Tag | Root Cause | Engineering Fix Applied |
 | :--- | :--- | :--- |
+| **Session 225 Realtime & Chess Room Defect** | Client listener hardcoded to Socket.IO without Supabase adapter; `ChessGameView` omitted `join_match` emission | Implemented modular `@/lib/realtime/client` with Supabase Broadcast support; wired `joinRealtimeRoom('match:' + matchId)` with reconnect tracking; activated all 8 domain events in `EventBus.js`. |
+| **Session 226 Admission Finalization & Data Contract Hardening** | Admission finalization crash (`Data truncated for column 'area_status'`, incoming value `'Non Local'`), staging URL path leak (`/api/assets/view/`) breaking media promotion, and loose draft updates | Canonical `AREA_STATUSES` enum migration (`0025_canonical_area_status.sql`), centralized normalizers in `college-config.js`, `toMySQLDate` timezone safety, `cleanKey` in `MediaPromotionService`, and DB constraint error mapping in `wrapHandler`. |
 | **Session 205 Cookie Drop** | Next.js Edge proxy header comma-merging | Implemented raw `newCookiesToSet` array buffering in `src/proxy.js`. |
 | **Session 204 DB Throttling** | High-frequency academic session queries | Added 5-minute in-memory cache to `getCurrentCalendarSession()`. |
 | **Session 200 Storage Collision** | Mixed SDK calls and raw filenames | Enforced UUID v4 names and relative keys (`kucet/...`). |

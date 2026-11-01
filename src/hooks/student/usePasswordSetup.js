@@ -55,11 +55,11 @@ export default function usePasswordSetup(rollno) {
         setShowSetPasswordModal(false);
         return true;
       } else {
-        toast.error(data.error || 'Failed to set password');
+        toast.error(data.error || data.message || 'Unable to set password. Please try again.');
         return false;
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
       return false;
     } finally {
       setPasswordSaving(false);

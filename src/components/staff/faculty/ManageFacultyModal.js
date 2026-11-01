@@ -23,11 +23,11 @@ export default function ManageFacultyModal({ faculty, onClose, onSaved }) {
           setData(json.data);
           setPendingAccountStatus(json.data.account_status);
         } else {
-          toast.error(json.error || 'Failed to fetch faculty details');
+          toast.error(json.error || json.message || 'Unable to load faculty details. Please try again.');
           onClose();
         }
       } catch (_e) {
-        toast.error('An error occurred while fetching details');
+        toast.error('Unable to connect to the server while fetching faculty details. Please check your internet connection.');
         onClose();
       } finally {
         setLoading(false);
@@ -84,10 +84,10 @@ export default function ManageFacultyModal({ faculty, onClose, onSaved }) {
         toast.success(json.message || 'Faculty managed successfully');
         onSaved(); // trigger parent refresh
       } else {
-        toast.error(json.error || 'Failed to save changes');
+        toast.error(json.error || json.message || 'Unable to save faculty changes. Please verify inputs and try again.');
       }
     } catch (_e) {
-      toast.error('An error occurred while saving changes');
+      toast.error('Unable to connect to the server while saving changes. Please check your internet connection and try again.');
     } finally {
       setSaving(false);
     }

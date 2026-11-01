@@ -30,6 +30,7 @@ const nextConfig = {
     webpackBuildWorker: false,
   },
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
@@ -66,12 +67,14 @@ const nextConfig = {
         const parsed = new URL(process.env.NEXT_PUBLIC_BASE_URL);
         dynamicOrigin = ` ${parsed.host} wss://${parsed.host}`;
         dynamicImgHost = ` ${parsed.host}`;
-      } catch {}
+      } catch {
+        // Intentionally ignore invalid or incomplete URLs during build/test environments
+      }
     }
     const devConnectSrc = process.env.NODE_ENV !== 'production' ? ' localhost:4000 ws://localhost:4000' : ' localhost:4000 ws://localhost:4000';
     const cspHeader = `
       default-src 'self';
-      script-src 'self' 'unsafe-eval' 'unsafe-inline';
+      script-src 'self' 'unsafe-eval' 'unsafe-inline' https://static.cloudflareinsights.com;
       worker-src 'self' blob:;
       child-src 'self' blob:;
       style-src 'self' 'unsafe-inline';
@@ -81,7 +84,7 @@ const nextConfig = {
       base-uri 'self';
       form-action 'self';
       frame-ancestors 'none';
-      connect-src 'self' res.cloudinary.com *.cloudinary.com *.s3.amazonaws.com *.r2.dev *.sentry.io *.supabase.co wss://*.supabase.co login.kucet.ac.in *.kucet.ac.in wss://*.kucet.ac.in *.tailf6b4a7.ts.net wss://*.tailf6b4a7.ts.net *.onrender.com wss://*.onrender.com *.trycloudflare.com wss://*.trycloudflare.com${dynamicOrigin}${devConnectSrc};
+      connect-src 'self' https://cloudflareinsights.com res.cloudinary.com *.cloudinary.com *.s3.amazonaws.com *.r2.dev *.sentry.io *.supabase.co wss://*.supabase.co login.kucet.ac.in *.kucet.ac.in wss://*.kucet.ac.in *.tailf6b4a7.ts.net wss://*.tailf6b4a7.ts.net *.onrender.com wss://*.onrender.com *.trycloudflare.com wss://*.trycloudflare.com${dynamicOrigin}${devConnectSrc};
     `.replace(/\s{2,}/g, ' ').trim();
 
     return [

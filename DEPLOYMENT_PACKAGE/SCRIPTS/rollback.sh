@@ -14,6 +14,7 @@
 # =============================================================================
 set -eu
 set -o pipefail 2>/dev/null || true
+umask 002
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -108,7 +109,7 @@ git reset --hard "$TARGET_COMMIT" 2>&1 || git checkout --force --detach "$TARGET
   send_webhook "❌ KUCET CMS: Rollback FAILED — git checkout ${TARGET_COMMIT:0:8} failed."
   exit 1
 }
-git clean -fd 2>&1
+git clean -fd -e DEPLOYMENT_PACKAGE/ -e backups/ -e .env* 2>&1
 
 log "Git reset to $TARGET_COMMIT completed."
 

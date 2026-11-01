@@ -48,10 +48,10 @@ export default function SecurityCenterPage() {
         setPhoneEditing(false);
         refreshData();
       } else {
-        toast.error(data.error || 'Failed to update phone number');
+        toast.error(data.error || data.message || 'Unable to update phone number. Please try again.');
       }
     } catch (_err) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server. Please check your internet connection and try again.');
     } finally {
       setPhoneSaving(false);
     }

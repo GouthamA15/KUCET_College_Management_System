@@ -154,13 +154,12 @@ function buildMenuItems({ effectiveRole, studentData, staffData, hasActiveEvents
   }
 
   // Add HOD Dashboard dynamically
+  let enhancedMenu = [...menuItemsRaw];
   if (effectiveRole === 'faculty' && staffData?.is_hod) {
-    const enhancedMenu = [...menuItemsRaw];
-    
     // Find ACADEMICS to place ACADEMIC CALENDAR and STAFF MANAGEMENT right after it
     const academicsIdx = enhancedMenu.findIndex(i => i.label === 'ACADEMICS');
     let insertIdx = enhancedMenu.length;
-    
+
     if (academicsIdx > -1) {
       insertIdx = academicsIdx + 1;
     } else {
@@ -168,20 +167,35 @@ function buildMenuItems({ effectiveRole, studentData, staffData, hasActiveEvents
       insertIdx = settingsIdx > -1 ? settingsIdx : enhancedMenu.length;
     }
 
-    // Insert backwards so they appear in order: ACADEMICS -> ACADEMIC CALENDAR -> STAFF MANAGEMENT -> CERTIFICATES
+    // Insert in order: ACADEMICS -> ACADEMIC CALENDAR -> STAFF MANAGEMENT -> STUDENT REQUESTS
     enhancedMenu.splice(insertIdx, 0,
-      { label: 'CERTIFICATE REQUESTS', route: '/staff/hod/certificates' }
+      { label: 'ACADEMIC CALENDAR', route: '/staff/academic-calendar' },
+      { label: 'STAFF MANAGEMENT', route: '/staff/hod/staff-management' },
+      { label: 'STUDENT REQUESTS', route: '/staff/hod/requests' }
     );
-    enhancedMenu.splice(insertIdx, 0,
-      { label: 'STAFF MANAGEMENT', route: '/staff/hod/staff-management' }
-    );
-    enhancedMenu.splice(insertIdx, 0,
-      { label: 'ACADEMIC CALENDAR', route: '/staff/academic-calendar' }
-    );
-    return enhancedMenu;
   }
 
-  return filterDynamicMenuItems(menuItemsRaw, { hasActiveEvents });
+  // Add First Year Coordinator Dashboard dynamically
+  if ((effectiveRole === 'faculty' || effectiveRole === 'staff') && staffData?.is_first_year_coordinator) {
+    const academicsIdx = enhancedMenu.findIndex(i => i.label === 'ACADEMICS');
+    let insertIdx = academicsIdx > -1 ? academicsIdx + 1 : enhancedMenu.length;
+    enhancedMenu.splice(insertIdx, 0, {
+      label: 'FIRST YEAR COORDINATION',
+      route: '/staff/first-year/dashboard'
+    });
+  }
+
+  // Add Academic Supervisor Dashboard dynamically
+  if ((effectiveRole === 'faculty' || effectiveRole === 'staff') && staffData?.is_designated_supervisor) {
+    const academicsIdx = enhancedMenu.findIndex(i => i.label === 'ACADEMICS');
+    let insertIdx = academicsIdx > -1 ? academicsIdx + 1 : enhancedMenu.length;
+    enhancedMenu.splice(insertIdx, 0, {
+      label: 'ACADEMIC MONITORING',
+      route: '/staff/supervisor/academic-monitoring'
+    });
+  }
+
+  return filterDynamicMenuItems(enhancedMenu, { hasActiveEvents });
 }
 
 function getDisplayLabel({ effectiveRole, label }) {
@@ -201,22 +215,22 @@ function isDashboardLike({ label, route }) {
 
 function isActiveRoute({ pathname, searchParams, route, exact }) {
   if (!pathname || !route) return false;
-  
+
   const [routePath, routeQuery] = route.split('?');
-  
+
   if (exact) {
     if (pathname !== routePath) return false;
   } else {
     if (!pathname.startsWith(routePath)) return false;
   }
-  
+
   if (routeQuery && searchParams) {
     const params = new URLSearchParams(routeQuery);
     for (const [key, value] of params.entries()) {
       if (searchParams.get(key) !== value) return false;
     }
   }
-  
+
   return true;
 }
 
@@ -224,7 +238,7 @@ function pickIconKey(label) {
   const upper = String(label || '').toUpperCase();
   if (upper === 'DASHBOARD' || upper === 'HOME' || upper.includes('DASHBOARD')) return 'dashboard';
   if (upper === 'PROFILE') return 'profile';
-  if (upper.includes('ACADEMIC') || upper === 'ACADEMICS' || upper === 'ATTENDANCE' || upper === 'MATERIALS') return 'academics';
+  if (upper.includes('COORDINAT') || upper.includes('FIRST YEAR') || upper.includes('ACADEMIC') || upper === 'ACADEMICS' || upper === 'ATTENDANCE' || upper === 'MATERIALS' || upper.includes('ROLES')) return 'academics';
   if (upper === 'FINANCES') return 'finances';
   if (upper.includes('TIME TABLE') || upper.includes('TIMETABLE')) return 'timetable';
   if (upper === 'MY EVENT' || upper.includes('EVENT') || upper.includes('TOURNAMENT')) return 'events';
@@ -775,7 +789,7 @@ function SidebarInner({
                     </div>
                   </button>
 
-                  <div 
+                  <div
                     className="ml-8 mr-2 pl-3 bg-blue-50/30 border-l border-blue-200/80 rounded-r-lg space-y-0.5 overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]"
                     style={{
                       maxHeight: open ? `${item.children.length * 36 + 8}px` : '0px',
@@ -794,7 +808,7 @@ function SidebarInner({
                           <circle cx="12" cy="12" r="4" fill="currentColor" />
                         </svg>
                       );
-                      
+
                       const childClass = cn(
                         'group w-full text-left rounded-md px-2.5 py-1.5 flex items-center gap-2.5',
                         'text-[12px] font-semibold transition-all duration-200',

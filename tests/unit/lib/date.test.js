@@ -85,6 +85,15 @@ describe('toMySQLDate & parseDate', () => {
     expect(toMySQLDate('18-09-2026')).toBe('2026-09-18');
   });
 
+  it('converts DD/MM/YYYY to YYYY-MM-DD for DB queries', () => {
+    expect(toMySQLDate('18/09/2026')).toBe('2026-09-18');
+  });
+
+  it('converts Date object to YYYY-MM-DD for DB queries', () => {
+    const d = new Date(2026, 8, 18);
+    expect(toMySQLDate(d)).toBe('2026-09-18');
+  });
+
   it('preserves YYYY-MM-DD input', () => {
     expect(toMySQLDate('2026-09-18')).toBe('2026-09-18');
   });
@@ -95,5 +104,33 @@ describe('toMySQLDate & parseDate', () => {
     expect(d.getDate()).toBe(18);
     expect(d.getMonth()).toBe(8);
     expect(d.getFullYear()).toBe(2026);
+  });
+
+  it('parses YYYY-MM-DD into a valid Date object', () => {
+    const d = parseDate('2026-09-18');
+    expect(d).toBeInstanceOf(Date);
+    expect(d.getDate()).toBe(18);
+    expect(d.getMonth()).toBe(8);
+    expect(d.getFullYear()).toBe(2026);
+  });
+
+  it('correctly handles single-digit day and month zero-padding', () => {
+    expect(formatDate('2026-03-05')).toBe('05-03-2026');
+    expect(formatDate('2026-01-09')).toBe('09-01-2026');
+    const d = new Date(2026, 2, 5); // March 5, 2026
+    expect(toMySQLDate(d)).toBe('2026-03-05');
+  });
+
+  it('handles leap day (29-02) accurately', () => {
+    const leapDate = parseDate('29-02-2024');
+    expect(leapDate).toBeInstanceOf(Date);
+    expect(leapDate.getDate()).toBe(29);
+    expect(leapDate.getMonth()).toBe(1);
+    expect(leapDate.getFullYear()).toBe(2024);
+    expect(formatDate(leapDate)).toBe('29-02-2024');
+    expect(toMySQLDate(leapDate)).toBe('2024-02-29');
+
+    // Non-leap year 29-02 is invalid
+    expect(parseDate('29-02-2023')).toBeNull();
   });
 });

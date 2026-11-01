@@ -9,6 +9,8 @@ export default class EmailProvider {
    * @param {string} options.subject 
    * @param {string} options.html 
    * @param {string} [options.text] 
+   * @param {string} [options.category] 
+   * @param {string} [options.replyTo] 
    * @returns {Promise<{success: boolean, message: string}>}
    */
   async send(_options) {

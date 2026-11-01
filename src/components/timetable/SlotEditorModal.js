@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import { useStaff } from '@/context/StaffContext';
 
@@ -22,21 +22,59 @@ export default function SlotEditorModal({
   const { hodBranchData } = useStaff();
   const [isSaving, setIsSaving] = useState(false);
   const [modalSelectedSubject, setModalSelectedSubject] = useState(editingSlot?.current?.subject_code || '');
+  const [fallbackSubjects, setFallbackSubjects] = useState([]);
+  const [fallbackFaculty, setFallbackFaculty] = useState([]);
   const formRef = useRef(null);
+
+  useEffect(() => {
+    let active = true;
+    async function loadFallbackData() {
+      if ((!hodBranchData?.allSubjects || hodBranchData.allSubjects.length === 0) && instance?.branch && instance?.semester) {
+        try {
+          const res = await fetch(`/api/staff/hod/available-subjects?branch=${instance.branch}&semester=${instance.semester}`);
+          if (res.ok) {
+            const json = await res.json();
+            if (active) setFallbackSubjects(json.data || []);
+          }
+        } catch (_e) {
+          // ignore error
+        }
+      }
+      if (!hodBranchData?.faculty || hodBranchData.faculty.length === 0) {
+        try {
+          const res = await fetch('/api/staff/hod/faculty-load');
+          if (res.ok) {
+            const json = await res.json();
+            if (active) setFallbackFaculty(json.data || []);
+          }
+        } catch (_e) {
+          // ignore error
+        }
+      }
+    }
+    loadFallbackData();
+    return () => { active = false; };
+  }, [hodBranchData, instance?.branch, instance?.semester]);
   
   const branchSubjects = useMemo(() => {
-    const subjects = hodBranchData?.allSubjects || [];
+    const subjects = (hodBranchData?.allSubjects && hodBranchData.allSubjects.length > 0)
+      ? hodBranchData.allSubjects
+      : fallbackSubjects;
     const seen = new Set();
     return subjects
-      .filter(s => s.semester === instance.semester && s.branch === instance.branch)
+      .filter(s => Number(s.semester) === Number(instance.semester) && s.branch === instance.branch)
       .filter(s => {
         if (seen.has(s.subject_code)) return false;
         seen.add(s.subject_code);
         return true;
       });
-  }, [hodBranchData?.allSubjects, instance]);
+  }, [hodBranchData, fallbackSubjects, instance]);
   
-  const collegeFaculty = useMemo(() => hodBranchData?.faculty || [], [hodBranchData?.faculty]);
+  const collegeFaculty = useMemo(() => {
+    return (hodBranchData?.faculty && hodBranchData.faculty.length > 0)
+      ? hodBranchData.faculty
+      : fallbackFaculty;
+  }, [hodBranchData, fallbackFaculty]);
   const officialAssignments = hodBranchData?.officialAssignments || [];
   
   const handleCopyPrevious = () => {
@@ -83,10 +121,10 @@ export default function SlotEditorModal({
         toast.success(`Slot updated`);
         onSaved();
       } else {
-        toast.error(data.error || 'Failed to update');
+        toast.error(data.error || data.message || 'Unable to update timetable slot. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server while updating slot. Please check your internet connection.');
     } finally {
       setIsSaving(false);
     }
@@ -108,10 +146,10 @@ export default function SlotEditorModal({
         onSaved();
       } else {
         const data = await res.json();
-        toast.error(data.error || 'Deletion failed');
+        toast.error(data.error || data.message || 'Unable to delete lecture slot. Please try again.');
       }
     } catch (_e) {
-      toast.error('Network error');
+      toast.error('Unable to connect to the server while deleting slot. Please check your internet connection.');
     } finally {
       setIsSaving(false);
     }

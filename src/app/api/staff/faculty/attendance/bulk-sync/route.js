@@ -1,21 +1,26 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { 
-  facultySubjectAssignments, 
-  studentAttendance, 
+import {
+  facultySubjectAssignments,
+  studentAttendance,
+  attendanceSessions,
   collegeInfo as collegeInfoTable,
   facultySubstitutions
 } from '@/db/schema';
 import { eq, and, asc, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { isSemesterActive } from '@/lib/academic-utils';
+import { Clock } from '@/lib/clock';
+import crypto from 'crypto';
 import { z } from 'zod';
 
 const itemSchema = z.object({
-  id: z.string().optional(),
+  id: z.union([z.string(), z.number()]).optional(),
+  client_op_id: z.string().optional(),
   assignment_id: z.preprocess(v => Number(v), z.number().int().positive()),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   session: z.number().int().min(1).max(8),
+  topic_covered: z.string().trim().max(500).optional().nullable(),
   attendance_data: z.array(z.object({
     student_id: z.number().int().positive(),
     status: z.enum(['PRESENT', 'ABSENT', 'NCC', 'MEDICAL'])
@@ -42,10 +47,12 @@ export async function POST(request) {
 
     const syncedIds = [];
     const errors = [];
+    const successfulEvents = [];
 
     await db.transaction(async (tx) => {
       for (const record of records) {
-        const { assignment_id, date, session, attendance_data, id: offlineId } = record;
+        const { assignment_id, date, session, attendance_data, id: offlineId, client_op_id, topic_covered } = record;
+        const recordIdentifier = offlineId ?? client_op_id;
 
         // 1. Verify assignment existence
         const assignments = await tx.select({
@@ -61,7 +68,7 @@ export async function POST(request) {
         .limit(1);
 
         if (assignments.length === 0) {
-          errors.push({ id: offlineId, error: `Assignment #${assignment_id} not found` });
+          errors.push({ id: recordIdentifier, error: `Assignment #${assignment_id} not found` });
           continue;
         }
 
@@ -69,10 +76,13 @@ export async function POST(request) {
 
         // 2. Authorization
         let isAuthorized = false;
-        if (assignment.faculty_id === user.id) {
+        if (assignment.faculty_id === user.id || user.role === 'admin') {
           isAuthorized = true;
-        } else if (user.is_hod && user.branch === assignment.branch) {
-          isAuthorized = true;
+        } else if (user.is_principal || user.is_hod) {
+          const authorizedBranches = user.authorized_branches || (user.branch ? [user.branch] : []);
+          if (authorizedBranches.includes(assignment.branch) || user.branch === assignment.branch) {
+            isAuthorized = true;
+          }
         } else {
           const sub = await tx.select()
             .from(facultySubstitutions)
@@ -86,14 +96,32 @@ export async function POST(request) {
         }
 
         if (!isAuthorized) {
-          errors.push({ id: offlineId, error: `Unauthorized for assignment #${assignment_id}` });
+          errors.push({ id: recordIdentifier, error: `Unauthorized for assignment #${assignment_id}` });
           continue;
         }
 
         // 3. Semester Lock check
         const { subject_code, branch, course_semester, academic_year } = assignment;
         if (!await isSemesterActive(course_semester, academic_year, collegeInfo)) {
-          errors.push({ id: offlineId, error: `Semester ended for assignment #${assignment_id}` });
+          errors.push({ id: recordIdentifier, error: `Semester ended for assignment #${assignment_id}` });
+          continue;
+        }
+
+        // 3b. Calendar & Makeup Class validation
+        try {
+          const { AttendanceService } = await import('@/services/AttendanceService');
+          if (typeof AttendanceService?.validateAttendanceDate === 'function') {
+            await AttendanceService.validateAttendanceDate({
+              assignmentId: assignment_id,
+              date,
+              sessionNumber: session,
+              academicYear: academic_year,
+              semester: course_semester,
+              tx
+            });
+          }
+        } catch (valErr) {
+          errors.push({ id: recordIdentifier, error: valErr.message });
           continue;
         }
 
@@ -108,26 +136,131 @@ export async function POST(request) {
           ))
           .orderBy(asc(facultySubjectAssignments.created_at))
           .limit(1);
-        
+
         const targetAssignmentId = canonicalRows[0]?.id || assignment_id;
 
+        const syncTime = Clock.now(request);
+        const totalStudents = attendance_data.length;
+        const presentCount = attendance_data.filter(i => i.status === 'PRESENT').length;
+        const absentCount = attendance_data.filter(i => i.status === 'ABSENT').length;
+        const cleanTopic = (topic_covered && topic_covered.trim().length >= 2) ? topic_covered.trim().slice(0, 500) : null;
+
+        // 1. Upsert session-level record in attendanceSessions
+        const [existingSession] = await tx.select({
+          id: attendanceSessions.id,
+          topic_covered: attendanceSessions.topic_covered
+        })
+        .from(attendanceSessions)
+        .where(and(
+          eq(attendanceSessions.assignment_id, targetAssignmentId),
+          eq(attendanceSessions.attendance_date, date),
+          eq(attendanceSessions.session_number, session)
+        ))
+        .limit(1);
+
+        let sessionId;
+        const finalTopic = cleanTopic || existingSession?.topic_covered || null;
+
+        if (existingSession) {
+          sessionId = existingSession.id;
+          await tx.update(attendanceSessions)
+            .set({
+              submitted_at: syncTime,
+              is_active: false,
+              total_students: totalStudents,
+              present_count: presentCount,
+              absent_count: absentCount,
+              topic_covered: finalTopic
+            })
+            .where(eq(attendanceSessions.id, sessionId));
+        } else {
+          const [insRes] = await tx.insert(attendanceSessions).values({
+            assignment_id: targetAssignmentId,
+            attendance_date: date,
+            session_number: session,
+            faculty_id: user.id,
+            submitted_at: syncTime,
+            is_active: false,
+            session_pin: '0000',
+            session_token: crypto.randomBytes(32).toString('hex'),
+            expires_at: syncTime,
+            total_students: totalStudents,
+            present_count: presentCount,
+            absent_count: absentCount,
+            topic_covered: finalTopic
+          });
+          sessionId = insRes.insertId;
+        }
+
+        // 2. Bulk upsert attendance records linking directly to session_id with unique constraint
         const values = attendance_data.map(item => ({
+          session_id: sessionId,
           student_id: item.student_id,
           assignment_id: targetAssignmentId,
           date: date,
           session: session,
-          status: item.status
+          status: item.status,
+          submitted_at: syncTime
         }));
 
         await tx.insert(studentAttendance)
           .values(values)
           .onDuplicateKeyUpdate({
-            set: { status: sql`VALUES(status)` }
+            set: {
+              status: sql`VALUES(status)`,
+              submitted_at: sql`VALUES(submitted_at)`,
+              session_id: sql`VALUES(session_id)`
+            }
           });
 
-        if (offlineId) syncedIds.push(offlineId);
+        if (recordIdentifier !== undefined && recordIdentifier !== null) {
+          syncedIds.push(recordIdentifier);
+        }
+
+        if (cleanTopic) {
+          try {
+            const { AttendanceService } = await import('@/services/AttendanceService');
+            await AttendanceService.updateLectureTopic({
+              assignmentId: assignment_id,
+              date,
+              sessionNumber: session,
+              topicCovered: cleanTopic,
+              user
+            });
+          } catch (topicErr) {
+            logger.warn({ err: topicErr }, 'Bulk sync: saving lecture topic failed');
+          }
+        }
+
+        successfulEvents.push({
+          assignment_id: targetAssignmentId,
+          session_id: sessionId,
+          date,
+          session,
+          student_ids: attendance_data.map(item => item.student_id)
+        });
       }
     });
+
+    // Fire batched domain events asynchronously
+    if (successfulEvents.length > 0) {
+      Promise.resolve().then(async () => {
+        try {
+          const { EventBus, DOMAIN_EVENTS } = await import('@/lib/events/EventBus');
+          for (const ev of successfulEvents) {
+            EventBus.publish(DOMAIN_EVENTS.ATTENDANCE_BATCH_SUBMITTED, {
+              assignment_id: ev.assignment_id,
+              session_id: ev.session_id,
+              date: ev.date,
+              session: ev.session,
+              student_ids: ev.student_ids
+            });
+          }
+        } catch (ebErr) {
+          logger.warn({ err: ebErr }, '[EventBus] Bulk sync attendance batch publish failed');
+        }
+      }).catch(() => {});
+    }
 
     return apiResponse({
       message: `Bulk offline attendance processed successfully. Synced: ${syncedIds.length}`,

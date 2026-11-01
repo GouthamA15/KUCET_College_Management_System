@@ -1,8 +1,9 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { staffAccounts, staffAccountRoles, staffRoles, staffAcademicAffiliations, academicDepartments, academicPrograms, semesters } from '@/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { staffAccounts, staffAccountRoles, staffRoles, staffAcademicAffiliations, academicDepartments, academicPrograms } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { apiError, wrapHandler } from '@/lib/api-utils';
+import { getCollegeAcademicYear } from '@/lib/academic-utils';
 
 export const GET = wrapHandler({
   auth: 'staff',
@@ -40,19 +41,19 @@ export const GET = wrapHandler({
     const roleRecords = await db.select({ role_code: staffRoles.role_code })
       .from(staffAccountRoles)
       .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
-      .where(eq(staffAccountRoles.staff_account_id, staff.id))
-      .limit(1);
+      .where(eq(staffAccountRoles.staff_account_id, staff.id));
       
+    const roleCodes = roleRecords.map(r => r.role_code);
     let resolvedRole = 'faculty';
-    if (roleRecords.length > 0) {
-        const rCode = roleRecords[0].role_code;
-        if (rCode === 'ADMISSION_STAFF') resolvedRole = 'admission';
-        else if (rCode === 'SCHOLARSHIP_STAFF') resolvedRole = 'scholarship';
-        else resolvedRole = 'faculty';
-    }
+    if (roleCodes.includes('ADMISSION_STAFF')) resolvedRole = 'admission';
+    else if (roleCodes.includes('SCHOLARSHIP_STAFF')) resolvedRole = 'scholarship';
+    else resolvedRole = 'faculty';
 
     // Fetch HOD & Branch
     let isHod = false;
+    let isPrincipal = false;
+    let hodBranches = [];
+    let authorizedBranches = [];
     let branch = null;
     let branches = [];
     let departments = [];
@@ -86,36 +87,53 @@ export const GET = wrapHandler({
         const now = new Date();
         const nowStr = now.toISOString().split('T')[0];
 
-        // 1. Check if they have the HOD role code
-        const hasHodRole = await db.select({ role_code: staffRoles.role_code })
+        // 1. Check if they have the PRINCIPAL role
+        const principalCheck = await db.select({ role_code: staffRoles.role_code })
             .from(staffAccountRoles)
             .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
             .where(
                 and(
                     eq(staffAccountRoles.staff_account_id, staff.id),
-                    eq(staffRoles.role_code, 'HOD')
+                    eq(staffRoles.role_code, 'PRINCIPAL')
                 )
             ).limit(1);
+        isPrincipal = principalCheck.length > 0;
 
-        if (hasHodRole.length > 0) {
-            // 2. Check if they have an active assignment
-            const hodRow = await db.select({ id: facultyHodAssignments.id })
-                .from(facultyHodAssignments)
-                .where(and(
-                  eq(facultyHodAssignments.staff_account_id, staff.id),
-                  eq(facultyHodAssignments.is_active, true),
-                  lte(facultyHodAssignments.start_date, nowStr),
-                  or(
-                    isNull(facultyHodAssignments.end_date),
-                    gte(facultyHodAssignments.end_date, nowStr)
-                  )
-                ))
-                .limit(1);
-            if (hodRow.length > 0) {
-              isHod = true;
-            }
-        }
+        // 2. Fetch active HOD assignments
+        const activeHodRows = await db.select({ dept: facultyHodAssignments.department_code })
+            .from(facultyHodAssignments)
+            .where(and(
+              eq(facultyHodAssignments.staff_account_id, staff.id),
+              eq(facultyHodAssignments.is_active, true),
+              lte(facultyHodAssignments.start_date, nowStr),
+              or(
+                isNull(facultyHodAssignments.end_date),
+                gte(facultyHodAssignments.end_date, nowStr)
+              )
+            ));
+
+        hodBranches = activeHodRows.map(r => r.dept);
+        isHod = isPrincipal || hodBranches.length > 0;
+        authorizedBranches = isPrincipal
+          ? Array.from(new Set([...hodBranches, 'CSE', 'IT', 'CSD', 'ECE', 'CIVIL', 'MECH', 'EEE']))
+          : hodBranches;
     }
+
+    let isFirstYearCoordinator = false;
+    let coordinatorAssignment = null;
+    if (resolvedRole === 'faculty') {
+      try {
+        const { CoordinatorAssignmentService } = await import('@/services/identity/CoordinatorAssignmentService');
+        const activeCoord = await CoordinatorAssignmentService.getActiveCoordinatorForStaff(staff.id);
+        if (activeCoord) {
+          isFirstYearCoordinator = true;
+          coordinatorAssignment = activeCoord;
+        }
+      } catch (_e) {
+        // Non-fatal
+      }
+    }
+
     let decryptedMobile = '';
     if (staff.mobile_hash) {
       try {
@@ -132,7 +150,13 @@ export const GET = wrapHandler({
       mobile: decryptedMobile,
       role: resolvedRole,
       is_hod: isHod,
-      branch: branch,
+      is_principal: Boolean(isPrincipal),
+      is_first_year_coordinator: isFirstYearCoordinator,
+      coordinator_assignment: coordinatorAssignment,
+      hod_branches: hodBranches,
+      authorized_branches: authorizedBranches,
+      hod_department_code: hodBranches[0] || (isPrincipal ? 'CSE' : branch),
+      branch: branch || hodBranches[0] || (isPrincipal ? 'CSE' : null),
       branches: branches,
       department: departments.length > 0 ? departments[0] : null,
       departments: departments,
@@ -158,15 +182,9 @@ export const GET = wrapHandler({
     staffData.signature = imageHelper(staffData.signature);
 
     try {
-      const semRows = await db.select({ academic_year: semesters.academic_year })
-        .from(semesters)
-        .orderBy(desc(semesters.id))
-        .limit(1);
-      
-      staffData.academic_year = semRows[0]?.academic_year || '2025-26';
+      staffData.academic_year = await getCollegeAcademicYear();
     } catch (semErr) {
       logger.error({ err: semErr.message }, '[STAFF_ME_SEMESTER_FAILED]');
-      staffData.academic_year = '2025-26';
     }
 
     return { data: staffData };

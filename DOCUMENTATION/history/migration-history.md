@@ -1,12 +1,12 @@
 # Database & Infrastructure Migration Log
 
-**Last Updated:** August 31, 2026  
+**Last Updated:** October 21, 2026  
 **Status:** Historical & Architectural Log  
-**Scope:** Drizzle ORM Schema Migrations (`0000` to `0018`), Storage Key Transformations, and Infrastructure Upgrades.
+**Scope:** Drizzle ORM Schema Migrations (`0000` to `0024`), Storage Key Transformations, and Infrastructure Upgrades.
 
 ---
 
-## 1. Drizzle ORM Migration Evolution (`0000` to `0018`)
+## 1. Drizzle ORM Migration Evolution (`0000` to `0024`)
 
 The database schema evolution is managed version-by-version using Drizzle Kit. Each migration SQL script in `drizzle/` represents a milestone in database structure and data integrity.
 
@@ -28,7 +28,15 @@ The database schema evolution is managed version-by-version using Drizzle Kit. E
 | **`0013`** | `0013_thin_outlaw_kid.sql` | **Performance & Foreign Key Indexes:** Optimized indexes across active operations and registration lookup tables. |
 | **`0014`** | `0014_zero_clerk_hard_break.sql` | **Zero Clerk Hard Break & Staff Unification:** Migrated all role enums from `clerk` to `staff`, dropped legacy `clerks` and `clerk_registration_requests` tables. |
 | **`0015`** | `0015_database_backup_logs.sql` | **Database Backup & Recovery Engine:** Created `database_backup_logs` operational metadata table tracking backup filenames, SHA-256 checksums, durations, types, and statuses. |
-| **`0016`** | `0016_elective_groups.sql` | **Elective Groups & Curriculum Structure:** Created `elective_groups` and `elective_group_subjects` tables for professional, open, and mandatory non-credit course buckets. |
+| **`0016`** | `0016_reconcile_staff_and_hod_schema.sql` | **Staff Accounts & HOD Reconciliation:** Reconciled staff schema and added `faculty_hod_assignments` table with branch constraint. |
+| **`0017`** | `0017_add_staff_registration_address.sql` | **Staff Registration Address:** Added address fields to `staff_registration_requests`. |
+| **`0018`** | `0018_admission_rejection_and_history.sql` | **Admission History & Soft Rejection:** Created `admission_status_history` table for tracking audit transitions and soft rejections. |
+| **`0019`** | `0019_timetable_instances.sql` | **Timetable Instances:** Created `timetable_instances` table for tracking versioned semester schedules. |
+| **`0020`** | `0020_subject_module_and_elective_groups.sql` | **Elective Groups & Curriculum Structure:** Created `elective_groups` and `elective_group_subjects` tables for curriculum buckets. |
+| **`0021`** | `0021_students_achievements_schema.sql` | **Student Achievements & Certificates:** Created `student_achievements` and `student_achievement_categories` tables for verified portfolio tracking. |
+| **`0022`** | `0022_academic_calendar_attendance_disputes_and_workflows.sql` | **Disputes, Calendar & Inactivity:** Added `academic_calendar` day types, `attendance_disputes` with evidence uploads, and 90-day inactivity automation. |
+| **`0023`** | `0023_principal_staff_role.sql` | **Principal Supervisor Role:** Added `PRINCIPAL` supervisor role in `staff_roles` with cross-branch authority over HOD operations. |
+| **`0024`** | `0024_canonical_gender_enum.sql` | **Canonical Gender Enum:** Standardized gender enum strictly to `'MALE' \| 'FEMALE'` across students, drafts, and archives. |
 
 ---
 
@@ -333,7 +341,83 @@ Prior to Session 210, rejecting a student admission draft executed an unrecovera
 
 ---
 
-## 17. Cross-References & Related Documentation
+## 17. Session 221–224 — Brevo Email Categorization, Academic Workflows, Principal Role, Canonical Gender & Modular Providers (October 13–21, 2026)
+
+### Key Engineering Milestones:
+- **Transactional Email Separation by Category (Commit `b8682873`)**:
+  - Implemented 7 distinct categories in `src/lib/email-categories.js` (`auth`, `admission`, `security`, `attendance`, `request`, `notification`, `system`).
+  - Configured dedicated Brevo API keys, sender identities (`sender_email`, `sender_name`), and optional `reply_to` per category.
+  - Isolated per-category circuit breakers (`BrevoEmail_${category}`) to prevent systemic failures.
+  - Preserved legacy migration fallback via `ENABLE_LEGACY_BREVO_KEY_FALLBACK`.
+- **Academic Calendar, Attendance Disputes & Inactivity Automation (Commit `1d49ca60`, `c40cce56`, Migration `0022`)**:
+  - Enforced academic calendar dates, holidays, exam days, and attendance exceptions (`academic_calendar`).
+  - Student attendance correction disputes with supporting evidence uploads, proof viewer, reviewer notes, and IDOR resolution (`attendance_disputes`).
+  - 90-day student account inactivity automation with auto-deactivation and reactivation workflow (`/student/reactivate`).
+  - Branch-specific HOD request routing and certificate approval segregation.
+- **Principal Supervisor Staff Role (Commit `3582e48c`, Migration `0023`)**:
+  - Added `PRINCIPAL` supervisor role code in `staff_roles` lookup table.
+  - Principal granted cross-branch supervision across HOD management routes without overriding departmental HOD appointments.
+  - Cross-branch teaching and independent branch-HOD appointments enabled.
+- **Canonical Gender Enum Enforcement (Commit `a693972d`, Migration `0024`)**:
+  - Enforced canonical `'MALE' | 'FEMALE'` enum strictly across `students`, `student_admission_drafts`, and `archive_students`.
+  - Added cross-app asset loading states and fixed embedded photo export in admissions.
+- **Modular Hybrid Realtime & Storage Providers (Commit `0ae54de8`)**:
+  - Environment-driven `REALTIME_PROVIDER`: `socketio` (default Redis pub/sub), `supabase`, or `hybrid` (Socket.IO + Supabase).
+  - Environment-driven `STORAGE_PROVIDER`: `local` (default VPS disk), `cloudinary`, `s3`, `r2`.
+  - Targeted Socket room isolation via `resolveEventRooms` in `src/lib/events/realtime-events.js` preventing event leakage.
+  - Microservice ingress updated in `DEPLOYMENT_PACKAGE/CONFIGS/socket-server.js`.
+- **Infrastructure & Operational Resilience (Commits `bb7d264c`, `c549f957`)**:
+  - Nginx dynamic Docker DNS resolution (`resolver 127.0.0.11 valid=10s`) preventing 502 Bad Gateway during container recreation.
+  - Pooled and reused self-hosted Redis client in `HealthService` to eliminate connection churn and socket timeouts.
+- **Collegiate Tournament & Event Architecture (`experiment_college_db`)**:
+  - Two active modules: Rapid Chess (FIDE rules, 3-tier sync) and Technical Quiz (sanitized questions, server timer, autosave, deterministic leaderboard).
+  - Isolated database `experiment_college_db` preventing any mutation of core `kucet_cms` tables.
+- **Current Verification Metrics**:
+  - **95/95 test files passed (856/856 unit tests passing)**.
+  - `drizzle-kit check` and `npm run db:check` passing with 25 migration entries (`0000` to `0024`).
+
+---
+
+## 18. Session 225 — Comprehensive Architecture Stabilization, Client Realtime Abstraction, Chess Room Joining & Domain EventBus Activation (October 21, 2026)
+
+### Key Engineering Milestones:
+- **Shared Client-Side Realtime Provider Interface (`src/lib/realtime/client.js`)**:
+  - Implemented decoupled, transport-agnostic client adapter supporting `socketio`, `supabase`, and `hybrid` transports via `NEXT_PUBLIC_REALTIME_PROVIDER`.
+  - Added centralized room-state tracking (`activeRooms`) with automatic resubscription upon network reconnections.
+  - Implemented 30-second rolling event deduplication (`seenEventIds`) to prevent duplicate dispatches in multi-provider/hybrid fanout environments.
+  - Re-exported unified contract from `src/components/RealtimeListener.js` (`joinRealtimeRoom`, `leaveRealtimeRoom`, `getRealtimeStatus`, `subscribeToRealtimeStatus`, `subscribeToRealtimeEvents`, `disconnectRealtime`).
+- **Chess Match Real-Time Room Integration (`ChessGameView.js` & `socket-server.js`)**:
+  - Resolved confirmed defect where `ChessGameView` subscribed to global events but omitted `join_match`, preventing room-scoped updates from reaching players across devices.
+  - Wired `joinRealtimeRoom('match:' + matchId)` and `leaveRealtimeRoom('match:' + matchId)` upon mount/unmount and match switching.
+  - Hardened `DEPLOYMENT_PACKAGE/CONFIGS/socket-server.js` with authentication validation and `/^[a-zA-Z0-9_-]+$/` match ID sanitization before joining `match:<matchId>`.
+  - Preserved multi-tier fallback architecture: Socket.IO / Supabase push + cross-tab `BroadcastChannel` (0ms) + 5.0-second safety background polling.
+- **Supabase Realtime Provider Options & Targeted Room Ingress (`SupabaseRealtimeProvider.js`)**:
+  - Enhanced `broadcast(type, payload, options)` to accept room options, normalize event names via `normalizeEventName()`, resolve rooms via `resolveEventRooms()`, and inject canonical `eventId`.
+  - Broadcasts on `kucet-updates` and dispatches directly to room-specific channels when `options.room` is supplied.
+  - Added `disconnect()` cleanup method for graceful resource deallocation.
+- **Domain Event Bus Full Activation (`src/lib/events/EventBus.js`)**:
+  - Preserved established `ATTENDANCE_SUBMITTED` and `FEE_PAID` event flows and cache invalidations.
+  - Activated all 6 dormant domain events into their post-transaction lifecycle points:
+    - `TOPIC_UPDATED`: Dispatched in `AttendanceService.updateLectureTopic`.
+    - `MARKS_PUBLISHED`: Dispatched in `/api/staff/faculty/marks` after audit logging.
+    - `STUDENT_REGISTERED`: Dispatched in `StudentProfileService.upsertStudentProfile` after database transaction commit.
+    - `ARCHIVE_COMPLETED`: Dispatched in `ArchiveService.runSemesterArchive` and `runAlumniArchive`.
+    - `STUDENT_RESTORED`: Dispatched in `ArchiveRestoreService.restoreStudent`.
+    - `CERTIFICATE_ISSUED`: Dispatched in `/api/staff/requests/[request_id]` upon certificate approval.
+  - Added corresponding cache invalidation tags (`attendance:topics:*`, `marks:*`, `student:*`, `certificates:*`, `archive:overview`) and preserved wildcard audit logging.
+  - Expanded unit test coverage in `tests/unit/events/EventBus.test.js` from 2 to 5 comprehensive tests.
+- **Architectural Database Boundary Preservation**:
+  - Confirmed and documented strict isolation between core CMS (`kucet_cms`) and tournament engine (`experiment_college_db`).
+  - Formalized read-only student validation pattern in `ParticipantService` without cross-database joins or distributed transactions.
+- **Current Verification Metrics**:
+  - **95/95 test files passed (863/863 unit tests passing)** — +7 newly added passing tests.
+  - **127/127 tests passed** across all event and real-time test suites.
+  - `npm run db:check` passing with 25 migration entries (`0000` to `0024`) and 74 tracked tables.
+  - Next.js 16 standalone production build compiles cleanly (236 routes compiled, 0 errors).
+
+---
+
+## 19. Cross-References & Related Documentation
 
 - [System Architectural Decision Records (ADRs)](./architectural-decisions.md)
 - [Chronological Forensics of Resolved Incidents](./resolved-incidents.md)

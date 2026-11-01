@@ -50,13 +50,15 @@ export const Queue = {
   },
 
   // 2. Email Dispatch Queue
-  enqueueEmail: async (to, subject, html, title, infoRows) => {
+  enqueueEmail: async (to, subject, html, title, infoRows, category, replyTo) => {
     return await enqueueJob('/api/webhooks/qstash/send-email', {
       to,
       subject,
       html,
       title,
-      infoRows
+      infoRows,
+      category,
+      replyTo
     });
   },
 

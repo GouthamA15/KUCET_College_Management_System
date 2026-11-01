@@ -8,6 +8,9 @@ import { getAssetUrl } from '@/lib/assets';
 import { formatDateTime, toMySQLDate } from '@/lib/date';
 import { createPortal } from 'react-dom';
 import { Info, X, Camera, UploadCloud, FileText } from 'lucide-react';
+import UploadWarningModal from '@/components/student/UploadWarningModal';
+import { validateStudentPhotoFile } from '@/components/admission/StudentPhotoGuidance';
+import { validateStudentSignatureFile } from '@/components/admission/StudentSignatureGuidance';
 
 export default function EditProfilePage() {
   const { studentData, loading: contextLoading, profileDetails, refreshProfile } = useStudent();
@@ -37,9 +40,45 @@ export default function EditProfilePage() {
   const [isHovered, setIsHovered] = useState(false);
   const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
 
+  // Upload Confirmation Warning Modal state
+  const [uploadWarning, setUploadWarning] = useState({ isOpen: false, type: 'pfp' });
+
   const fileInputRef = useRef(null);
   const signatureInputRef = useRef(null);
   const proofInputRef = useRef(null);
+
+  const handlePhotoClick = () => {
+    if (latestRequest && latestRequest.status === 'pending') return;
+    setUploadWarning({ isOpen: true, type: 'pfp' });
+  };
+
+  const handleSignatureClick = () => {
+    if (latestRequest && latestRequest.status === 'pending') return;
+    setUploadWarning({ isOpen: true, type: 'signature' });
+  };
+
+  const handleWarningCancel = () => {
+    setUploadWarning(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const handleWarningContinue = () => {
+    const targetType = uploadWarning.type;
+    setUploadWarning(prev => ({ ...prev, isOpen: false }));
+    // Open the corresponding file picker cleanly
+    setTimeout(() => {
+      if (targetType === 'pfp') {
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+          fileInputRef.current.click();
+        }
+      } else if (targetType === 'signature') {
+        if (signatureInputRef.current) {
+          signatureInputRef.current.value = '';
+          signatureInputRef.current.click();
+        }
+      }
+    }, 50);
+  };
 
   const displayedPhoto = pfpDataUrl === 'REMOVE' ? null : (pfpDataUrl || getAssetUrl(currentPfp) || null);
   const displayedSignature = signatureDataUrl === 'REMOVE' ? null : (signatureDataUrl || getAssetUrl(currentSignature));
@@ -215,9 +254,72 @@ export default function EditProfilePage() {
       return;
     }
 
-    if (file) {
+    if (!file) return;
+
+    if (type === 'pfp') {
+      const validation = await validateStudentPhotoFile(file);
+      if (!validation.valid) {
+        toast.error(validation.error || 'Invalid photograph file.');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
+      let processedFile = file;
+      try {
+        const { compressImage } = await import('@/lib/image-compressor');
+        processedFile = await compressImage(file, 1200, 1200, 0.6);
+      } catch (err) {
+        console.error('Image compression failed:', err);
+      }
+
+      const MAX_BYTES = 1048576; // 1 MB = 1,048,576 bytes
+      if (processedFile.size > MAX_BYTES) {
+        toast.error(`File exceeds the 1 MB limit (1,048,576 bytes). Current size: ${(processedFile.size / (1024 * 1024)).toFixed(2)} MB.`);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPfpDataUrl(reader.result);
+      };
+      reader.readAsDataURL(processedFile);
+    } else if (type === 'sig') {
+      const validation = await validateStudentSignatureFile(file);
+      if (!validation.valid) {
+        toast.error(validation.error || 'Invalid signature file.');
+        if (signatureInputRef.current) signatureInputRef.current.value = '';
+        return;
+      }
+
+      if (validation.warning) {
+        toast(validation.warning, { icon: '⚠️', duration: 5000 });
+      }
+
+      let processedFile = file;
+      try {
+        const { compressImage } = await import('@/lib/image-compressor');
+        processedFile = await compressImage(file, 1200, 1200, 0.6);
+      } catch (err) {
+        console.error('Image compression failed:', err);
+      }
+
+      const MAX_BYTES = 1048576; // 1 MB = 1,048,576 bytes
+      if (processedFile.size > MAX_BYTES) {
+        toast.error(`File exceeds the 1 MB limit (1,048,576 bytes). Current size: ${(processedFile.size / (1024 * 1024)).toFixed(2)} MB.`);
+        if (signatureInputRef.current) signatureInputRef.current.value = '';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        setSignatureDataUrl(reader.result);
+      };
+      reader.readAsDataURL(processedFile);
+    } else if (type === 'proof') {
       if (!['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'application/pdf'].includes(file.type)) {
         toast.error('File format rejected. Use JPG/PNG/PDF.');
+        if (proofInputRef.current) proofInputRef.current.value = '';
         return;
       }
 
@@ -235,17 +337,16 @@ export default function EditProfilePage() {
         }
       }
 
-      const MAX_BYTES = type === 'proof' ? 5242880 : 1048576; // 5MB for proof, 1MB for photo/sig
+      const MAX_BYTES = 5242880; // 5 MB limit for proof document
       if (processedFile.size > MAX_BYTES) {
-          toast.error(`File exceeds limit. Current size: ${(processedFile.size / (1024 * 1024)).toFixed(2)} MB.`);
-          return;
+        toast.error(`Proof document exceeds the 5 MB limit. Current size: ${(processedFile.size / (1024 * 1024)).toFixed(2)} MB.`);
+        if (proofInputRef.current) proofInputRef.current.value = '';
+        return;
       }
-      
+
       const reader = new FileReader();
       reader.onload = () => {
-        if (type === 'pfp') setPfpDataUrl(reader.result);
-        else if (type === 'sig') setSignatureDataUrl(reader.result);
-        else if (type === 'proof') setProofDataUrl(reader.result);
+        setProofDataUrl(reader.result);
       };
       reader.readAsDataURL(processedFile);
       
@@ -438,7 +539,7 @@ export default function EditProfilePage() {
               <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm flex flex-col items-center">
                 <div 
                   className="w-36 h-36 rounded-full border-4 border-gray-100 bg-gray-50 overflow-hidden relative group shadow-sm flex items-center justify-center cursor-pointer"
-                  onClick={() => !isPending && fileInputRef.current?.click()}
+                  onClick={handlePhotoClick}
                 >
                   {displayedPhoto ? (
                     <Image unoptimized src={displayedPhoto} alt="Profile" width={144} height={144} className="object-cover w-full h-full" />
@@ -455,7 +556,7 @@ export default function EditProfilePage() {
                 {!isPending && (
                   <div className="flex flex-col sm:flex-row gap-2 mt-4 w-full">
                     <button 
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={handlePhotoClick}
                       className="md:hidden text-xs font-medium text-[#0b3578] border border-[#0b3578] rounded-md px-3 py-1.5 hover:bg-blue-50 transition-colors flex-1"
                     >
                       Change Photo
@@ -470,7 +571,7 @@ export default function EditProfilePage() {
                     )}
                   </div>
                 )}
-                {!isPending && <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/jpg" className="hidden" onChange={(e) => onFileSelect(e.target.files[0], 'pfp')} />}
+                {!isPending && <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/jpg" className="hidden" onChange={(e) => onFileSelect(e.target.files[0], 'pfp')} />}
               </div>
 
               {/* Signature Card */}
@@ -478,7 +579,7 @@ export default function EditProfilePage() {
                 <h3 className="text-xs font-semibold text-gray-800 uppercase tracking-wide mb-3">Signature</h3>
                 <div 
                   className={`w-full h-24 border-2 border-dashed ${isPending ? 'border-gray-200 bg-gray-50 cursor-not-allowed' : 'border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer'} flex flex-col items-center justify-center relative group overflow-hidden rounded-md transition-colors`} 
-                  onClick={() => !isPending && signatureInputRef.current.click()}
+                  onClick={handleSignatureClick}
                 >
                   {displayedSignature ? (
                     <Image unoptimized src={displayedSignature} alt="Signature" width={200} height={80} className="object-contain w-full h-full p-2" />
@@ -489,7 +590,7 @@ export default function EditProfilePage() {
                     </>
                   )}
                 </div>
-                {!isPending && <input ref={signatureInputRef} type="file" accept="image/jpeg,image/png,image/jpg" className="hidden" onChange={(e) => onFileSelect(e.target.files[0], 'sig')} />}
+                {!isPending && <input ref={signatureInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/jpg" className="hidden" onChange={(e) => onFileSelect(e.target.files[0], 'sig')} />}
               </div>
 
               {/* Supporting Documents Card */}
@@ -567,15 +668,15 @@ export default function EditProfilePage() {
                         <input disabled={isPending} value={formData.personal.curr_house_no || ''} onChange={e => handleAddressChange('curr_house_no', e.target.value)} className="w-full border border-gray-300 px-2.5 py-1.5 text-xs rounded focus:ring-1 focus:ring-blue-500 outline-none disabled:bg-gray-50 disabled:text-gray-400" />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[11px] text-gray-500 font-medium">Street</label>
+                        <label className="text-[11px] text-gray-500 font-medium">Street Name</label>
                         <input disabled={isPending} value={formData.personal.curr_street || ''} onChange={e => handleAddressChange('curr_street', e.target.value)} className="w-full border border-gray-300 px-2.5 py-1.5 text-xs rounded focus:ring-1 focus:ring-blue-500 outline-none disabled:bg-gray-50 disabled:text-gray-400" />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[11px] text-gray-500 font-medium">Apartment</label>
+                        <label className="text-[11px] text-gray-500 font-medium">Apartment / Area Name</label>
                         <input disabled={isPending} value={formData.personal.curr_apartment || ''} onChange={e => handleAddressChange('curr_apartment', e.target.value)} className="w-full border border-gray-300 px-2.5 py-1.5 text-xs rounded focus:ring-1 focus:ring-blue-500 outline-none disabled:bg-gray-50 disabled:text-gray-400" />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[11px] text-gray-500 font-medium">City</label>
+                        <label className="text-[11px] text-gray-500 font-medium">City / Town / Village </label>
                         <input disabled={isPending} value={formData.personal.curr_city || ''} onChange={e => handleAddressChange('curr_city', e.target.value)} className="w-full border border-gray-300 px-2.5 py-1.5 text-xs rounded focus:ring-1 focus:ring-blue-500 outline-none disabled:bg-gray-50 disabled:text-gray-400" />
                       </div>
                       <div className="space-y-1">
@@ -793,6 +894,13 @@ export default function EditProfilePage() {
       </div>
 
       {typeof document !== 'undefined' && isBottomSheetOpen && isMobileDevice && createPortal(bottomSheet, document.body)}
+
+      <UploadWarningModal
+        isOpen={uploadWarning.isOpen}
+        type={uploadWarning.type}
+        onCancel={handleWarningCancel}
+        onContinue={handleWarningContinue}
+      />
     </div>
   );
 }

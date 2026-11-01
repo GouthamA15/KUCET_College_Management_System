@@ -82,6 +82,7 @@ export const POST = wrapHandler({
           mobile: decrypt(draft.student_mobile),
           guardian_mobile: draft.guardian_mobile ? decrypt(draft.guardian_mobile) : null,
           aadhaar_no: draft.aadhaar_no ? decrypt(draft.aadhaar_no) : null,
+          apaar_id: draft.apaar_id || null,
           permanent_address: getPermanentAddressFromDetails(draft),
           contact_address: getContactAddressFromDetails(draft),
           identification_marks: `${draft.identification_mark_1 || ''}\n${draft.identification_mark_2 || ''}`.trim(),
@@ -118,7 +119,7 @@ export const POST = wrapHandler({
       // Send Welcome Email asynchronously
       if (result.studentEmail) {
         try {
-          const { sendInstitutionalEmail, getBaseUrl } = require('@/lib/email');
+          const { sendInstitutionalEmail, getBaseUrl, EMAIL_CATEGORIES } = require('@/lib/email');
           const emailHtml = `
             <p>Dear <strong>${result.studentName}</strong>,</p>
             <p>Congratulations! Your admission has been finalized and your KUCET student account is now institutionally active.</p>
@@ -136,7 +137,8 @@ export const POST = wrapHandler({
               label: 'Login to Student Portal',
               url: `${getBaseUrl()}/student`,
               expiresIn: 'unlimited time. Please set your new password upon first login'
-            }
+            },
+            category: EMAIL_CATEGORIES.ADMISSIONS,
           }).catch(e => logger.error(e, 'Failed to send welcome email'));
         } catch (e) {
           logger.error(e, 'Failed to initialize welcome email');
@@ -159,6 +161,17 @@ export const POST = wrapHandler({
         /* non-blocking */
       }
 
+      try {
+        const { AdmissionFinalizationService } = await import('@/services/AdmissionFinalizationService');
+        await AdmissionFinalizationService.handleDraftFinalized({
+          branch: result.branch,
+          admissionYear: result.admission_year,
+          updatedBy: user.email || 'admission_staff',
+        });
+      } catch (_finErr) {
+        /* non-blocking */
+      }
+
       if (idempotencyStarted) {
         await IdempotencyService.complete(idempotencyKey, 201, responseData);
       }
@@ -171,6 +184,7 @@ export const POST = wrapHandler({
       if (error instanceof z.ZodError) return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
       if (error.message === 'DRAFT_NOT_FOUND') return apiError('Draft not found', 404);
       if (error.message === 'DRAFT_NOT_VERIFIED') return apiError('Only verified drafts can be finalized', 400);
+      if (error.message === 'INVALID_AREA_STATUS') return apiError("Invalid area status. Must be 'Local' or 'Non-Local'.", 400);
       if (error.message === 'STUDENT_EXISTS') return apiError('A student with this Roll No or Email already exists.', 409);
       if (error.message === 'ROLL_BRANCH_MISMATCH') return apiError('Roll number branch does not match the draft branch.', 400);
       if (error.message === 'ROLL_TYPE_MISMATCH') return apiError('Roll number admission type does not match the draft entrance exam.', 400);

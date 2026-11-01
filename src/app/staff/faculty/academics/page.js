@@ -8,7 +8,12 @@ import InterestStatusList from '@/components/staff/faculty/InterestStatusList';
 import HodAccessManager from '@/components/staff/faculty/HodAccessManager';
 import StudentsLookupPanel from '@/components/staff/faculty/StudentsLookupPanel';
 import SubjectAssignmentsList from '@/components/staff/faculty/SubjectAssignmentsList';
+import TeachingAssignmentDirectory from '@/components/staff/academic/TeachingAssignmentDirectory';
 import SyllabusManager from '@/components/staff/faculty/SyllabusManager';
+import AttendanceDisputesPanel from '@/components/staff/faculty/AttendanceDisputesPanel';
+import StudentReactivationsPanel from '@/components/staff/faculty/StudentReactivationsPanel';
+import PatternSelectionModal from '@/components/staff/faculty/PatternSelectionModal';
+import AcademicMonitoringConsole from '@/components/staff/academic/monitoring/AcademicMonitoringConsole';
 
 import { Info, X, Search, ChevronDown } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -166,22 +171,31 @@ function AcademicsContent() {
   const router = useRouter();
   const { loading, isLoadingFaculty, facultyAssignments, staffData, refreshFaculty, hasFetchedFaculty } = useStaff();
 
+  const canAssign = Boolean(staffData?.is_hod || staffData?.is_first_year_coordinator || staffData?.is_principal);
+
   const tabs = [
     { id: 'subjects', label: 'My Subjects' },
+    ...(canAssign ? [
+      { id: 'assign-subjects', label: 'Assign Subjects' }
+    ] : []),
+    ...(staffData?.is_hod || staffData?.is_principal ? [
+      { id: 'monitoring', label: 'Academic Monitoring' }
+    ] : []),
+    { id: 'requests', label: 'Request Subjects' },
     ...(staffData?.is_hod ? [
-      { id: 'assign-subjects', label: 'Assign Subjects' },
-      { id: 'syllabus', label: 'Syllabus Management' }
-    ] : [
-      { id: 'requests', label: 'Request Subjects' }
-    ]),
+      { id: 'syllabus', label: 'Syllabus Management' },
+      { id: 'reactivations', label: 'Reactivations' }
+    ] : []),
     { id: 'roster', label: 'Students' },
-          { id: 'hod', label: 'HOD Access' },
+    { id: 'disputes', label: 'Disputes' },
+    { id: 'hod', label: 'HOD Access' },
   ];
 
   const [activeTab, setActiveTab] = useState('subjects');
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
+  const [selectedForPattern, setSelectedForPattern] = useState(null);
 
   // Filter state
   const [search, setSearch] = useState('');
@@ -244,8 +258,32 @@ function AcademicsContent() {
     if (mode === 'attendance') {
       router.push(`/staff/faculty/attendance/${assignment.id}`);
     } else if (mode === 'marks') {
-      router.push(`/staff/faculty/evaluation/${assignment.id}`);
+      const isLab = assignment.subject_type === 'lab' || assignment.subject_type === 'practical';
+      if (!isLab && (assignment.mid_max === null || assignment.mid_max === undefined)) {
+        setSelectedForPattern(assignment);
+      } else {
+        router.push(`/staff/faculty/evaluation/${assignment.id}`);
+      }
     }
+  };
+
+  const handlePatternSelectedAndContinue = async (targetPattern) => {
+    if (!selectedForPattern) return;
+    const targetId = selectedForPattern.id;
+    const res = await fetch('/api/staff/faculty/evaluation/pattern', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        assignment_id: targetId,
+        pattern_id: targetPattern.id
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to save assessment pattern');
+    }
+    setSelectedForPattern(null);
+    router.push(`/staff/faculty/evaluation/${targetId}`);
   };
 
   const bottomSheet = (
@@ -403,13 +441,13 @@ function AcademicsContent() {
         </div>
       )}
 
-      {/* ── Request Subjects (Normal Faculty) ── */}
-      {!staffData?.is_hod && activeTab === 'requests' && (
+      {/* ── Request Subjects ── */}
+      {activeTab === 'requests' && (
         <div className="space-y-5">
           <div className="bg-gradient-to-br from-blue-50/50 via-white to-blue-50/50 border border-blue-100 shadow-sm rounded-sm p-4 sm:p-6">
             <div className="mb-5">
-              <h2 className="text-base font-semibold text-gray-800">Subject Request Workflow</h2>
-              <p className="text-xs text-gray-500 mt-1">Submit teaching preferences below. Requests are routed to the department HOD for approval and formal assignment.</p>
+              <h2 className="text-base font-semibold text-gray-800">Subject Request & Interest Workflow</h2>
+              <p className="text-xs text-gray-500 mt-1">Submit teaching preferences across branches and semesters. First-Year requests are routed to the First-Year Coordinator; higher semesters are routed to the departmental HOD.</p>
             </div>
             <SubjectInterestForm />
           </div>
@@ -423,11 +461,21 @@ function AcademicsContent() {
         </div>
       )}
 
-      {/* ── Assign Subjects (HOD) ── */}
-      {staffData?.is_hod && activeTab === 'assign-subjects' && (
-        <div className="bg-gradient-to-br from-blue-50/50 via-white to-blue-50/50 border border-blue-100 shadow-sm rounded-sm p-4 sm:p-6">
-          <SubjectAssignmentsList />
+      {/* ── Assign Subjects (HOD & First-Year Coordinator) ── */}
+      {canAssign && activeTab === 'assign-subjects' && (
+        <div className="space-y-4">
+          <TeachingAssignmentDirectory />
         </div>
+      )}
+
+      {/* ── Academic Monitoring (HOD & Institutional Leaders) ── */}
+      {(staffData?.is_hod || staffData?.is_principal) && activeTab === 'monitoring' && (
+        <AcademicMonitoringConsole
+          initialBranch={staffData?.branch || 'CSE'}
+          initialSemester={1}
+          title="Departmental Academic Performance & Attendance Monitoring"
+          subtitle="Real-time attendance compliance, Continuous Internal Evaluation (CIE) tracking, and student risk identification."
+        />
       )}
 
       {/* ── Syllabus Management (HOD) ── */}
@@ -440,10 +488,37 @@ function AcademicsContent() {
         <StudentsLookupPanel />
       )}
 
+      {/* ── Attendance Disputes ── */}
+      {activeTab === 'disputes' && (
+        <div className="bg-white border border-gray-300 rounded-sm p-4 sm:p-6 shadow-sm">
+          <AttendanceDisputesPanel />
+        </div>
+      )}
+
+      {/* ── Student Reactivations (HOD) ── */}
+      {staffData?.is_hod && activeTab === 'reactivations' && (
+        <div className="bg-white border border-gray-300 rounded-sm p-4 sm:p-6 shadow-sm">
+          <StudentReactivationsPanel />
+        </div>
+      )}
+
       {/* ── HOD Access ── */}
-      
-        {activeTab === 'hod' && (
+      {activeTab === 'hod' && (
         <HodAccessManager />
+      )}
+
+      {/* Pattern Selection Modal for new theory evaluations */}
+      {selectedForPattern && (
+        <PatternSelectionModal
+          isOpen={Boolean(selectedForPattern)}
+          assignment={selectedForPattern}
+          existingMarks={[]}
+          currentPatternId={null}
+          isPublished={false}
+          isChanging={false}
+          onSelectPattern={handlePatternSelectedAndContinue}
+          onClose={() => setSelectedForPattern(null)}
+        />
       )}
 
       {typeof document !== 'undefined' && isBottomSheetOpen && isMobileDevice && createPortal(bottomSheet, document.body)}

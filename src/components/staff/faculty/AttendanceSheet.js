@@ -1,14 +1,13 @@
 'use client';
-/* eslint-disable @next/next/no-img-element */
-import { useState, _useEffect } from 'react';
+import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
 import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
 import { canonicalizeRollNo } from '@/lib/rollNumber';
 import dynamic from 'next/dynamic';
 import LectureTopicModal from './LectureTopicModal';
-import { getAssetUrl } from '@/lib/assets';
 import { formatDate } from '@/lib/date';
+import ImageWithLoading from '@/components/ui/ImageWithLoading';
 
 const QRScannerPanel = dynamic(() => import('./QRScannerPanel'), {
   ssr: false,
@@ -211,21 +210,35 @@ const SessionSelector = () => {
 };
 
 const SaveControls = () => {
-  const { assignment, submitting, students, dateValidation, existingSessionsForSelectedDate, selectedSession, handleSaveAttendance, handleDeleteAttendance } =
+  const { assignment, submitting, students, dateValidation, existingSessionsForSelectedDate, selectedSession, handleSaveAttendance, handleDeleteAttendance, isDraftDirty } =
     useFacultyAttendance();
 
   return (
     <div className="flex flex-col items-stretch md:items-end gap-2 min-w-[180px]">
       {assignment.is_active ? (
         <>
-          <button
-            type="button"
-            onClick={() => handleSaveAttendance()}
-            disabled={submitting || !students.length || !dateValidation.isValid || !assignment.is_active}
-            className="px-4 py-2 bg-gray-900 text-white text-xs font-bold uppercase tracking-wide border border-gray-900 disabled:opacity-60"
-          >
-            {submitting ? 'Saving…' : 'Save Attendance'}
-          </button>
+          <div className="flex items-center gap-2">
+            {isDraftDirty && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 uppercase">
+                Draft Saved
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => handleSaveAttendance()}
+              disabled={submitting || !students.length || !dateValidation.isValid || !assignment.is_active}
+              className="px-4 py-2 bg-gray-900 text-white text-xs font-bold uppercase tracking-wide border border-gray-900 disabled:opacity-60 flex items-center gap-1.5"
+            >
+              {submitting ? (
+                <>
+                  <span className="inline-block h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Saving…</span>
+                </>
+              ) : (
+                'Save Attendance'
+              )}
+            </button>
+          </div>
           <button
             type="button"
             onClick={handleDeleteAttendance}
@@ -337,22 +350,25 @@ const AttendanceGrid = () => {
           <div key={student.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col gap-3">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-500 flex-shrink-0">
-                  {student.pfp ? (
-                    <img src={getAssetUrl(student.pfp)} alt={student.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = student.name.charAt(0).toUpperCase(); }} />
-                  ) : (
-                    student.name.charAt(0).toUpperCase()
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-mono font-bold text-slate-800">{student.roll_no}</span>
+                <ImageWithLoading
+                  src={student.pfp}
+                  alt={student.name || 'Student'}
+                  width={40}
+                  height={40}
+                  variant="avatar"
+                  fallbackText={student.name?.charAt(0).toUpperCase()}
+                  className="w-10 h-10 rounded-full border border-slate-200 shrink-0"
+                  imageClassName="w-full h-full object-cover rounded-full"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center flex-wrap gap-1.5 mb-1">
+                    <span className="text-sm sm:text-base font-mono font-black tracking-tight text-slate-900 break-all">{student.roll_no}</span>
                     {verifiedStudentIds.has(student.id) && (
                       <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" title="Self-Verified via QR/PIN"></span>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">{student.name}</span>
+                    <span className="text-xs font-medium text-slate-500 uppercase tracking-wide break-words">{student.name}</span>
                     {verifiedStudentIds.has(student.id) && (
                       <span className="text-[8px] font-black text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100 uppercase">Verified</span>
                     )}
@@ -362,31 +378,25 @@ const AttendanceGrid = () => {
             </div>
             
             <div className="pt-3 border-t border-slate-100">
-              {statusLoading ? (
-                <div className="flex justify-center py-2">
-                  <span className="inline-block h-6 w-6 border-2 border-slate-300 border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : (
-                <button
-                  onClick={() => assignment.is_active && toggleAttendanceStatus(student.id)}
-                  disabled={!assignment.is_active || !dateValidation.isValid}
-                  className={`w-full py-2.5 rounded-lg text-xs font-black uppercase tracking-widest transition-colors ${
-                    student.status === null
-                      ? 'bg-slate-100 text-slate-500 border border-slate-200'
-                      : student.status === 'PRESENT'
-                      ? 'bg-green-500 text-white shadow-md shadow-green-500/20'
-                      : student.status === 'ABSENT'
-                      ? 'bg-red-500 text-white shadow-md shadow-red-500/20'
-                      : student.status === 'NCC'
-                      ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20'
-                      : student.status === 'MEDICAL'
-                      ? 'bg-purple-500 text-white shadow-md shadow-purple-500/20'
-                      : 'bg-slate-100 text-slate-500'
-                  } ${!assignment.is_active || !dateValidation.isValid ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98]'}`}
-                >
-                  {student.status === null ? 'NOT SET (TAP TO CHANGE)' : student.status}
-                </button>
-              )}
+              <button
+                onClick={() => assignment.is_active && toggleAttendanceStatus(student.id)}
+                disabled={!assignment.is_active || !dateValidation.isValid}
+                className={`w-full py-2.5 rounded-lg text-xs font-black uppercase tracking-widest transition-colors ${
+                  student.status === null
+                    ? 'bg-slate-100 text-slate-500 border border-slate-200'
+                    : student.status === 'PRESENT'
+                    ? 'bg-green-500 text-white shadow-md shadow-green-500/20'
+                    : student.status === 'ABSENT'
+                    ? 'bg-red-500 text-white shadow-md shadow-red-500/20'
+                    : student.status === 'NCC'
+                    ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20'
+                    : student.status === 'MEDICAL'
+                    ? 'bg-purple-500 text-white shadow-md shadow-purple-500/20'
+                    : 'bg-slate-100 text-slate-500'
+                } ${!assignment.is_active || !dateValidation.isValid ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98]'}`}
+              >
+                {student.status === null ? 'NOT SET (TAP TO CHANGE)' : student.status}
+              </button>
             </div>
           </div>
         ))}
@@ -437,15 +447,18 @@ const AttendanceGrid = () => {
             {students.map((student) => (
               <tr key={student.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-500">
-                    {student.pfp ? (
-                      <img src={getAssetUrl(student.pfp)} alt={student.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = student.name.charAt(0).toUpperCase(); }} />
-                    ) : (
-                      student.name.charAt(0).toUpperCase()
-                    )}
-                  </div>
+                  <ImageWithLoading
+                    src={student.pfp}
+                    alt={student.name || 'Student'}
+                    width={32}
+                    height={32}
+                    variant="avatar"
+                    fallbackText={student.name?.charAt(0).toUpperCase()}
+                    className="w-8 h-8 rounded-full border border-slate-200"
+                    imageClassName="w-full h-full object-cover rounded-full"
+                  />
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-800">
+                <td className="px-6 py-4 whitespace-nowrap text-base font-mono font-black tracking-tight text-gray-900">
                   <div className="flex items-center gap-2">
                     {student.roll_no}
                     {verifiedStudentIds.has(student.id) && (
@@ -453,40 +466,34 @@ const AttendanceGrid = () => {
                     )}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                  <div className="flex items-center gap-2">
-                    {student.name}
+                <td className="px-6 py-4 text-xs font-medium text-gray-500 max-w-xs break-words">
+                  <div className="flex items-center flex-wrap gap-2">
+                    <span className="break-words">{student.name}</span>
                     {verifiedStudentIds.has(student.id) && (
                       <span className="text-[9px] font-black text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100 uppercase">Verified</span>
                     )}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-center">
-                  {statusLoading ? (
-                    <div className="flex justify-center">
-                      <span className="inline-block h-6 w-6 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => assignment.is_active && toggleAttendanceStatus(student.id)}
-                      disabled={!assignment.is_active || !dateValidation.isValid}
-                      className={`w-28 px-3 py-2 rounded text-sm font-bold uppercase ${
-                        student.status === null
-                          ? 'bg-gray-100 text-gray-700'
-                          : student.status === 'PRESENT'
-                          ? 'bg-green-100 text-green-800'
-                          : student.status === 'ABSENT'
-                          ? 'bg-red-100 text-red-800'
-                          : student.status === 'NCC'
-                          ? 'bg-blue-100 text-blue-800'
-                          : student.status === 'MEDICAL'
-                          ? 'bg-purple-100 text-purple-800'
-                          : 'bg-gray-100 text-gray-700'
-                      } ${!assignment.is_active || !dateValidation.isValid ? 'cursor-default opacity-50' : 'cursor-pointer'}`}
-                    >
-                      {student.status === null ? 'NOT SET' : student.status}
-                    </button>
-                  )}
+                  <button
+                    onClick={() => assignment.is_active && toggleAttendanceStatus(student.id)}
+                    disabled={!assignment.is_active || !dateValidation.isValid}
+                    className={`w-28 px-3 py-2 rounded text-sm font-bold uppercase transition-colors ${
+                      student.status === null
+                        ? 'bg-gray-100 text-gray-700'
+                        : student.status === 'PRESENT'
+                        ? 'bg-green-100 text-green-800'
+                        : student.status === 'ABSENT'
+                        ? 'bg-red-100 text-red-800'
+                        : student.status === 'NCC'
+                        ? 'bg-blue-100 text-blue-800'
+                        : student.status === 'MEDICAL'
+                        ? 'bg-purple-100 text-purple-800'
+                        : 'bg-gray-100 text-gray-700'
+                    } ${!assignment.is_active || !dateValidation.isValid ? 'cursor-default opacity-50' : 'cursor-pointer active:scale-95'}`}
+                  >
+                    {student.status === null ? 'NOT SET' : student.status}
+                  </button>
                 </td>
               </tr>
             ))}
@@ -641,7 +648,9 @@ const LectureTopicInlinePanel = () => {
 };
 
 export default function AttendanceSheet({ onBack, mode }) {
-  const { assignment, loading, students, selectedDate, dayInfo, dateValidation, handleCalendarSelect, setAttendanceStatus, setBatchAttendanceStatus, verifiedStudentIds: _verifiedStudentIds, setVerifiedStudentIds, topicModalSession, setTopicModalSession } = useFacultyAttendance();
+  const { assignment, loading, students, selectedDate, dayInfo, dateValidation, handleCalendarSelect, setAttendanceStatus, setBatchAttendanceStatus, verifiedStudentIds: _verifiedStudentIds, setVerifiedStudentIds, topicModalSession, setTopicModalSession, currentTopicCovered, setCurrentTopicCovered } = useFacultyAttendance();
+  const lastScannedRollRef = useRef('');
+  const lastScannedTimeRef = useRef(0);
 
   const handleQRScan = (rollNo) => {
     if (!selectedDate || !dateValidation?.isValid) {
@@ -649,9 +658,21 @@ export default function AttendanceSheet({ onBack, mode }) {
       return;
     }
     const targetRoll = canonicalizeRollNo(rollNo);
+    const now = Date.now();
+    if (lastScannedRollRef.current === targetRoll && (now - lastScannedTimeRef.current) < 1500) {
+      return; // Debounce rapid repeat scan
+    }
+    lastScannedRollRef.current = targetRoll;
+    lastScannedTimeRef.current = now;
+
     const student = students.find(s => canonicalizeRollNo(s.roll_no) === targetRoll);
     if (student) {
-      setAttendanceStatus(student.id, 'PRESENT');
+      if (student.status === 'PRESENT') {
+        toast.success(`${rollNo} is already marked PRESENT`, { id: 'qr-success' });
+      } else {
+        setAttendanceStatus(student.id, 'PRESENT');
+        toast.success(`Marked ${rollNo} present!`, { id: 'qr-success' });
+      }
       // optionally add them to verified list to show visual feedback
       if (setVerifiedStudentIds) {
         setVerifiedStudentIds(prev => {
@@ -660,7 +681,6 @@ export default function AttendanceSheet({ onBack, mode }) {
           return next;
         });
       }
-      toast.success(`Marked ${rollNo} present!`, { id: 'qr-success' });
     } else {
       toast.error(`Student with Roll No ${rollNo} not found in this class.`);
     }
@@ -756,8 +776,12 @@ export default function AttendanceSheet({ onBack, mode }) {
         assignmentId={topicModalSession?.assignmentId}
         date={topicModalSession?.date}
         session={topicModalSession?.session}
-        initialTopic={topicModalSession?.initialTopic || ''}
+        initialTopic={topicModalSession?.initialTopic || currentTopicCovered || ''}
         onClose={() => setTopicModalSession(null)}
+        onTopicSaved={(newTopic) => {
+          setCurrentTopicCovered(newTopic);
+          setTopicModalSession(null);
+        }}
       />
     </div>
   );

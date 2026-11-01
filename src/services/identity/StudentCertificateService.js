@@ -199,4 +199,88 @@ export class StudentCertificateService {
       };
     }
   }
+
+  /**
+   * Check if a branch has an active HOD assignment
+   */
+  static async getActiveHodForBranch(branch) {
+    if (!branch) return null;
+    try {
+      const { facultyHodAssignments } = await import('@/db/schema');
+      const { lte, or, isNull, gte, and, eq } = await import('drizzle-orm');
+      const todayStr = new Date().toISOString().split('T')[0];
+      
+      const hodAssignment = await db.query.facultyHodAssignments.findFirst({
+        where: and(
+          eq(facultyHodAssignments.department_code, branch),
+          eq(facultyHodAssignments.is_active, true),
+          lte(facultyHodAssignments.start_date, todayStr),
+          or(
+            isNull(facultyHodAssignments.end_date),
+            gte(facultyHodAssignments.end_date, todayStr)
+          )
+        )
+      });
+      return hodAssignment || null;
+    } catch (e) {
+      logger.warn({ err: e.message, branch }, '[GET_ACTIVE_HOD_WARN]');
+      return null;
+    }
+  }
+
+  /**
+   * Determine initial routing and approval status for a certificate request
+   */
+  static async determineCertificateRouting(certificateType, rollNo) {
+    const { getBranchFromRoll } = await import('@/lib/rollNumber');
+    const branch = getBranchFromRoll(rollNo);
+    
+    if (certificateType === 'No Objection Certificate') {
+      return {
+        staffType: 'hod',
+        hodApprovalStatus: 'PENDING',
+        branch,
+        requiresHod: true,
+      };
+    }
+    
+    if (certificateType === 'Bonafide Certificate') {
+      const activeHod = await this.getActiveHodForBranch(branch);
+      if (activeHod) {
+        return {
+          staffType: 'hod',
+          hodApprovalStatus: 'PENDING',
+          branch,
+          requiresHod: true,
+          hodStaffId: activeHod.staff_account_id,
+        };
+      } else {
+        return {
+          staffType: 'admission',
+          hodApprovalStatus: 'NOT_REQUIRED',
+          branch,
+          requiresHod: false,
+        };
+      }
+    }
+    
+    // Scholarship certificates
+    if (['Income Tax (IT) Certificate', 'Custodian Certificate'].includes(certificateType)) {
+      return {
+        staffType: 'scholarship',
+        hodApprovalStatus: 'NOT_REQUIRED',
+        branch,
+        requiresHod: false,
+      };
+    }
+    
+    // Default Admission certificates
+    return {
+      staffType: 'admission',
+      hodApprovalStatus: 'NOT_REQUIRED',
+      branch,
+      requiresHod: false,
+    };
+  }
 }
+

@@ -22,6 +22,8 @@ export const POST = wrapHandler({
 
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
+    const activationError = (message, status) => Object.assign(new Error(message), { status });
+
     const result = await db.transaction(async (tx) => {
       // Find token
       const [tokenRecord] = await tx
@@ -31,15 +33,15 @@ export const POST = wrapHandler({
         .for('update'); // lock token row
 
       if (!tokenRecord) {
-        throw new Error('This activation link is invalid.');
+        throw activationError('This activation link is invalid or unavailable.', 400);
       }
 
       if (tokenRecord.used_at) {
-        throw new Error('This activation link has already been used.');
+        throw activationError('This activation link has already been used. Sign in if your account is active.', 409);
       }
 
       if (new Date() > new Date(tokenRecord.expires_at)) {
-        throw new Error('This activation link has expired.');
+        throw activationError('This activation link has expired.', 410);
       }
 
       // Find account
@@ -50,15 +52,15 @@ export const POST = wrapHandler({
         .for('update'); // lock account row
 
       if (!account) {
-        throw new Error('Associated staff account not found.');
+        throw activationError('This activation link is invalid or unavailable.', 400);
       }
 
       if (account.account_status === 'ACTIVE') {
-        throw new Error('This account has already been activated.');
+        throw activationError('This activation link has already been used. Sign in if your account is active.', 409);
       }
 
       if (account.account_status !== 'PENDING_ACTIVATION') {
-        throw new Error(`Cannot activate account in status: ${account.account_status}`);
+        throw activationError('This activation link is invalid or unavailable.', 400);
       }
 
       // Hash password using project standard SALT_ROUNDS = 12
@@ -79,12 +81,12 @@ export const POST = wrapHandler({
 
       // Audit log
       await tx.insert(auditLogs).values({
-        user_id: account.id.toString(),
+        user_id: account.id,
         user_type: 'system',
         action: 'STAFF_ACCOUNT_ACTIVATED',
-        entity_type: 'staff_accounts',
-        entity_id: account.id.toString(),
-        metadata: { method: 'token_activation' },
+        target_type: 'staff_accounts',
+        target_id: String(account.id),
+        payload_after: { account_status: 'ACTIVE', method: 'token_activation' },
         ip_address: context?.ip || '127.0.0.1'
       });
 

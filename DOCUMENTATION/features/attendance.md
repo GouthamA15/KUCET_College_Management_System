@@ -212,7 +212,44 @@ When attendance marking or session verification fails in the classroom, follow t
 
 ---
 
-## 10. Cross-References
+## 10. Attendance Correction Disputes Workflow (Migration `0022`)
+
+To resolve legitimate student attendance grievances (e.g., official institutional duty, medical leaves, NCC/NSS camps, or technical geofence failures):
+
+```mermaid
+flowchart TD
+    Student[Student in Portal /student/academics] -->|File Correction Request| Form[Dispute Form: Date, Session, Reason]
+    Form -->|Upload Proof Document| Storage[Private Storage: kucet/disputes/uuid.ext]
+    Storage -->|Insert Record| DB[(attendance_disputes table\nStatus: PENDING)]
+    
+    DB --> Reviewer[Faculty / HOD Classroom Console /staff/faculty/academics]
+    Reviewer -->|Inspect Evidence in Proof Viewer| Decision{Review Decision}
+    Decision -->|Reject with Feedback| Rejected[Status: REJECTED\nReviewer Notes Persisted]
+    Decision -->|Approve Dispute| Approved[Status: APPROVED\nstudentAttendance Marked PRESENT\nAtomic DB Transaction]
+```
+
+### Key Security & Operational Invariants
+1. **Evidence Upload IDOR Defense**: The proof viewer endpoint (`/api/assets/view/...`) authoritatively checks that the requester is either the owning student, the assigned faculty, or the department HOD. Students cannot view or tamper with other students' dispute evidence.
+2. **Atomic Correction**: When a dispute is marked `APPROVED`, the student's corresponding record in `studentAttendance` is updated to `PRESENT` within a database transaction, recalculating aggregate percentage immediately.
+3. **Reviewer Audit Trail**: Rejections and approvals mandate reviewer comments and store `reviewed_by` and `reviewed_at` timestamps for institutional auditing.
+
+---
+
+## 11. Academic Calendar & Instructional Scheduling Engine
+
+The academic calendar subsystem (`src/app/staff/academic-calendar/`) establishes institutional dates and attendance boundaries:
+1. **Day Classification**: Classifies each calendar date into:
+   - `WORKING`: Standard instructional day. Attendance sessions permitted.
+   - `HOLIDAY`: Declared public or university holiday. Attendance blocked unless explicit HOD exception is granted.
+   - `EXAM`: Semester or internal examination period.
+   - `INTERNAL`: Continuous internal assessment days.
+   - `EVENT`: College festivals, technical symposiums, sports championships, or orientation programs.
+2. **Automated Batch Setup**: HODs and Super Admins can auto-populate a semester's calendar by specifying start date, end date, and weekend policies (Sunday, alternate Saturdays).
+3. **Session Boundary Invariant**: Faculty members cannot initiate attendance sessions on dates outside active semester bounds or on declared holidays without HOD authorization.
+
+---
+
+## 12. Cross-References
 
 - Examinations & Evaluation System: [examinations.md](./examinations.md)
 - Institutional Reports & Attendance Archival: [reports.md](./reports.md)

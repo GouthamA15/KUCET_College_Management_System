@@ -2,10 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
-import Image from 'next/image';
-import { getAssetUrl } from '@/lib/assets';
 import { formatDateTime } from '@/lib/date';
 import RealtimeListener from '@/components/RealtimeListener';
+import ImageWithLoading from '@/components/ui/ImageWithLoading';
 
 export default function PendingStaffRequests({ onRequestAction, categoryFilter }) {
   const [requests, setRequests] = useState([]);
@@ -90,10 +89,10 @@ export default function PendingStaffRequests({ onRequestAction, categoryFilter }
         fetchRequests();
         if (onRequestAction) onRequestAction();
       } else {
-        toast.error(data.error || 'Failed to approve request', { id: toastId });
+        toast.error(data.error || 'Unable to approve registration request. Please try again.', { id: toastId });
       }
     } catch (_err) {
-      toast.error('Network error approving request', { id: toastId });
+      toast.error('Unable to connect to the server while approving request. Please check your internet connection.', { id: toastId });
     } finally {
       setActionId(null);
     }
@@ -126,10 +125,10 @@ export default function PendingStaffRequests({ onRequestAction, categoryFilter }
         fetchRequests();
         if (onRequestAction) onRequestAction();
       } else {
-        toast.error(data.error || 'Failed to reject request', { id: toastId });
+        toast.error(data.error || 'Unable to reject registration request. Please try again.', { id: toastId });
       }
     } catch (_err) {
-      toast.error('Network error rejecting request', { id: toastId });
+      toast.error('Unable to connect to the server while rejecting request. Please check your internet connection.', { id: toastId });
     } finally {
       setSubmittingReject(false);
     }
@@ -211,20 +210,21 @@ export default function PendingStaffRequests({ onRequestAction, categoryFilter }
             className="border border-slate-200 rounded-lg p-4 sm:p-5 bg-slate-50/50 hover:bg-white hover:border-slate-300 transition-all duration-150 flex flex-col md:flex-row md:items-center justify-between gap-4"
           >
             <div className="flex items-start gap-4">
-              {req.pfp ? (
-                <Image
-                  src={getAssetUrl(req.pfp)}
-                  alt={req.name || 'Staff PFP'}
+              <div className="w-14 h-14 rounded-full overflow-hidden border border-slate-300 shrink-0">
+                <ImageWithLoading
+                  src={req.pfp}
+                  alt={req.name || 'Staff Profile'}
                   width={56}
                   height={56}
-                  className="w-14 h-14 rounded-full object-cover border border-slate-300 shrink-0"
-                  unoptimized
+                  variant="avatar"
+                  className="w-full h-full object-cover"
+                  fallbackAvatar={
+                    <div className="w-full h-full bg-blue-100 text-[#0b3578] flex items-center justify-center font-bold text-xl">
+                      {req.name?.charAt(0).toUpperCase()}
+                    </div>
+                  }
                 />
-              ) : (
-                <div className="w-14 h-14 rounded-full bg-blue-100 text-[#0b3578] flex items-center justify-center font-bold text-xl shrink-0 border border-blue-200">
-                  {req.name?.charAt(0).toUpperCase()}
-                </div>
-              )}
+              </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-bold text-slate-900 text-base">{req.name}</h3>

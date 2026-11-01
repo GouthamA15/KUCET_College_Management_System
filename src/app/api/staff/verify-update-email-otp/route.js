@@ -86,6 +86,8 @@ export async function POST(req) {
         email: updatedStaff.email,
         role: user.role,
         is_hod: user.is_hod,
+        is_principal: user.is_principal,
+        is_first_year_coordinator: user.is_first_year_coordinator,
         branch: user.branch
       };
       await issueStaffAuthCookie(response, staffPayload);

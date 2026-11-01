@@ -61,7 +61,11 @@ refactor_*.js
 next-env.d.ts
 
 # scripts
-/scripts
+/scripts/*
+!/scripts/deployment/
+!/scripts/prepare-standalone.mjs
+!/scripts/audit-subject-catalog-consistency.mjs
+!/scripts/reconcile_attendance_oct28.mjs
 /scratch
 
 # Playwright
@@ -82,3 +86,30 @@ thingstodoafterdeployment.txt
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# ID Card Reconciliation Raw Source Files
+KUCET_STUDENT_ID_CARD_RECONCILIATION_2026.xlsx
+KUCET_STUDENT_ID_CARD_RECONCILIATION_2026_HIGH_QUALITY_PHOTOS.xlsx
+*.xlsx.bak
+ADMISSION-2026 EAPCET.xlsx
+ADMISSION-2026 EAPCET.xlsx.csv
+20240802_120443.jpg
+
+# Photo Guidance Raw Source Files
+Pasted image*.png
+ChatGPT Image*.png
+
+# Private Institutional Signatures & Credentials (MUST NEVER BE COMMITTED)
+public/assets/principal-sign*.png
+*principal-sign*.png
+public/assets/*signature*
+!public/assets/guidance/student-signature*
+
+# Media and Training Video / Audio Artifacts
+*.mp4
+*.mp3
+artifacts/**/*.mp4
+artifacts/**/*.mp3
+artifacts/**/scene*.png
+
+

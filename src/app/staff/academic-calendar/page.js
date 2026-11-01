@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { Info, X } from 'lucide-react';
+import { Info, X, Sparkles } from 'lucide-react';
 import CalendarGrid from '@/components/staff/academic-calendar/CalendarGrid';
+import EditDayModal from '@/components/staff/academic-calendar/EditDayModal';
+import HolidayReviewDrawer from '@/components/staff/academic-calendar/HolidayReviewDrawer';
 import AcademicYearSelect, { getCurrentFrontendAcademicYear } from '@/components/ui/AcademicYearSelect';
 
 import { usePathname } from 'next/navigation';
@@ -55,6 +57,12 @@ export function AcademicCalendarView({ isEditor = false }) {
     const [bulkDayType, setBulkDayType] = useState('HOLIDAY');
     const [bulkHolidayName, setBulkHolidayName] = useState('');
     const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+
+    // State for Holiday Suggestion Review Drawer
+    const [isReviewDrawerOpen, setIsReviewDrawerOpen] = useState(false);
+    const [holidayCandidates, setHolidayCandidates] = useState([]);
+    const [isLoadingCandidates, setIsLoadingCandidates] = useState(false);
+    const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
 
     useEffect(() => {
         if (!isEditor && activeTab !== 'view') {
@@ -187,6 +195,21 @@ export function AcademicCalendarView({ isEditor = false }) {
         }
     };
 
+    const handleFetchHolidayCandidates = async () => {
+        setIsLoadingCandidates(true);
+        try {
+            const res = await fetch(`/api/staff/academic-calendar/holiday-candidates?academic_year=${encodeURIComponent(academicYear)}&semester=${encodeURIComponent(semester)}`);
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Failed to fetch holiday suggestions');
+            setHolidayCandidates(json.data.candidates || []);
+            setIsReviewDrawerOpen(true);
+        } catch (err) {
+            toast.error(err.message);
+        } finally {
+            setIsLoadingCandidates(false);
+        }
+    };
+
     const tabs = isEditor ? [
         { id: 'setup', label: 'Semester Setup' },
         { id: 'bulk', label: 'Bulk Update' },
@@ -288,17 +311,32 @@ export function AcademicCalendarView({ isEditor = false }) {
 
             {isMobileDevice && helpBottomSheet}
 
-            {/* Tabs */}
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-                {tabs.map((tab) => (
+            {/* Tabs & Action Toolbar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div className="flex flex-wrap items-center gap-2">
+                    {tabs.map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`px-3 py-2 rounded-md text-sm whitespace-nowrap transition-colors ${activeTab === tab.id ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+
+                {isEditor && (
                     <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`px-3 py-2 rounded-md text-sm whitespace-nowrap transition-colors ${activeTab === tab.id ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}
+                        type="button"
+                        onClick={handleFetchHolidayCandidates}
+                        disabled={isLoadingCandidates}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-md text-sm font-medium hover:from-amber-700 hover:to-amber-800 transition-all shadow-sm disabled:opacity-50"
+                        title="Discover and approve Telangana and National public holidays"
                     >
-                        {tab.label}
+                        <Sparkles size={16} />
+                        <span>{isLoadingCandidates ? 'Discovering...' : 'Suggest Public Holidays'}</span>
                     </button>
-                ))}
+                )}
             </div>
 
             {/* Context Selector Card */}
@@ -422,11 +460,20 @@ export function AcademicCalendarView({ isEditor = false }) {
                             isEditor={isEditor}
                             academicYear={academicYear}
                             semester={semester}
-                            key={`${academicYear}-${semester}`} 
+                            key={`${academicYear}-${semester}-${calendarRefreshKey}`} 
                         />
                     </section>
                 )}
             </div>
+
+            <HolidayReviewDrawer
+                isOpen={isReviewDrawerOpen}
+                onClose={() => setIsReviewDrawerOpen(false)}
+                academicYear={academicYear}
+                semester={semester}
+                candidates={holidayCandidates}
+                onApproved={() => setCalendarRefreshKey(k => k + 1)}
+            />
         </div>
     );
 }

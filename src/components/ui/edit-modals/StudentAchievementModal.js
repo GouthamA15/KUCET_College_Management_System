@@ -4,9 +4,10 @@ import { createPortal } from 'react-dom';
 import { X, Upload, Save, Loader2, Image as ImageIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AcademicYearSelect, { getCurrentFrontendAcademicYear } from '@/components/ui/AcademicYearSelect';
-import { getAssetUrl } from '@/lib/assets';
 import { compressImage } from '@/lib/image-compressor';
 import { ACHIEVEMENT_TYPES, ACHIEVEMENT_CONFIG } from '@/lib/achievement-config';
+import ImageWithLoading from '@/components/ui/ImageWithLoading';
+import { toMySQLDate } from '@/lib/date';
 
 export default function StudentAchievementModal({ onClose, onSaveSuccess, achievement = null }) {
   const [loading, setLoading] = useState(false);
@@ -19,18 +20,6 @@ export default function StudentAchievementModal({ onClose, onSaveSuccess, achiev
   const currentAcademicYear = getCurrentFrontendAcademicYear();
   const currentStartYear = parseInt(currentAcademicYear.split('-')[0], 10);
   const maxNumYears = currentStartYear - 2020 + 1;
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) return dateStr;
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return '';
-      return d.toISOString().split('T')[0];
-    } catch (_e) {
-      return '';
-    }
-  };
 
   const parseAdditional = (data) => {
     if (!data) return {};
@@ -46,9 +35,9 @@ export default function StudentAchievementModal({ onClose, onSaveSuccess, achiev
     program_name: achievement?.program_name || '',
     issuing_organization: achievement?.issuing_organization || '',
     academic_year: achievement?.academic_year || '',
-    achievement_date: formatDate(achievement?.achievement_date),
-    start_date: formatDate(achievement?.start_date),
-    end_date: formatDate(achievement?.end_date),
+    achievement_date: toMySQLDate(achievement?.achievement_date) || '',
+    start_date: toMySQLDate(achievement?.start_date) || '',
+    end_date: toMySQLDate(achievement?.end_date) || '',
     achievement_level: achievement?.achievement_level || '',
     recognition: achievement?.recognition || '',
     description: achievement?.description || '',
@@ -362,7 +351,18 @@ export default function StudentAchievementModal({ onClose, onSaveSuccess, achiev
                 
                 {isEditMode && !previewImage && existingImage ? (
                   <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 flex flex-col sm:flex-row items-center sm:items-start gap-4">
-                    <img src={getAssetUrl(existingImage)} alt="Current Certificate" className="w-24 h-24 object-cover rounded-md border border-gray-300 shadow-sm" />
+                    <div className="w-24 h-24 rounded-md border border-gray-300 shadow-sm overflow-hidden shrink-0">
+                      <ImageWithLoading
+                        src={existingImage}
+                        alt="Current Certificate"
+                        width={96}
+                        height={96}
+                        variant="document"
+                        className="w-full h-full object-cover"
+                        emptyText="No Cert"
+                        errorText="Unavailable"
+                      />
+                    </div>
                     <div className="flex-1 text-center sm:text-left">
                       <p className="text-sm font-semibold text-gray-700 flex items-center justify-center sm:justify-start gap-1">
                         <ImageIcon className="w-4 h-4" /> Current Certificate

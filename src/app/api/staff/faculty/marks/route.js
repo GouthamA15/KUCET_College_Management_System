@@ -1,15 +1,17 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { 
-  facultySubjectAssignments, 
-  students as studentsTable, 
-  studentMarks, 
-  branchConfig, 
-  collegeInfo as collegeInfoTable 
+import {
+  facultySubjectAssignments,
+  students as studentsTable,
+  studentMarks,
+  branchConfig,
+  collegeInfo as collegeInfoTable,
+  syllabusSubjects
 } from '@/db/schema';
 import { eq, and, asc, desc, or, like, inArray, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
-import { isSemesterActive } from '@/lib/academic-utils';
+import { isSemesterActive, resolveCanonicalSubjectType } from '@/lib/academic-utils';
+import { getTheoryPattern, validateTheoryMarks } from '@/lib/evaluation-utils';
 import { branchCodes } from '@/lib/rollNumber';
 import { FacultyService } from '@/services/FacultyService';
 import { _internalMarksSchema } from '@/lib/validations/staff';
@@ -29,7 +31,7 @@ export async function GET(request) {
       return apiError('Missing assignment_id', 400);
     }
 
-    // Fetch assignment details
+    // Fetch assignment details with canonical syllabus subject type
     const assignments = await db.select({
       id: facultySubjectAssignments.id,
       faculty_id: facultySubjectAssignments.staff_account_id,
@@ -38,9 +40,11 @@ export async function GET(request) {
       course_semester: facultySubjectAssignments.course_semester,
       academic_year: facultySubjectAssignments.academic_year,
       subject_name: facultySubjectAssignments.subject_name,
-      subject_code: facultySubjectAssignments.subject_code
+      subject_code: facultySubjectAssignments.subject_code,
+      canonical_subject_type: syllabusSubjects.subject_type
     })
     .from(facultySubjectAssignments)
+    .leftJoin(syllabusSubjects, eq(facultySubjectAssignments.subject_code, syllabusSubjects.subject_code))
     .where(eq(facultySubjectAssignments.id, assignment_id))
     .limit(1);
 
@@ -49,12 +53,48 @@ export async function GET(request) {
     }
 
     const assignment = assignments[0];
-    if (assignment.faculty_id !== user.id && !(user.is_hod && (user.branch === assignment.branch || !assignment.branch))) {
+    const authorizedBranches = (user.authorized_branches || (user.branch ? [user.branch] : [])).map(b => String(b).toUpperCase());
+    const assignmentBranch = String(assignment.branch || '').toUpperCase();
+
+    // --- READ AUTHORIZATION ---
+    // Primary Faculty, Substitute, HOD (authorized branches), Coordinator (Sem 1-2), Supervisor, Admin
+    const isAssignedFaculty = assignment.faculty_id === user.id;
+    const isGlobalAdminOrSupervisor = user.role === 'admin' || !!user.is_designated_supervisor;
+    const isHodForBranch = !!user.is_hod && (authorizedBranches.includes(assignmentBranch) || !assignment.branch);
+    const isFirstYearCoordForSem = !!user.is_first_year_coordinator && (assignment.course_semester === 1 || assignment.course_semester === 2);
+
+    let isAuthorized = isAssignedFaculty || isGlobalAdminOrSupervisor || isHodForBranch || isFirstYearCoordForSem;
+
+    if (!isAuthorized) {
+      const { facultySubstitutions } = await import('@/db/schema');
+      const substitute = await db.select({ id: facultySubstitutions.id })
+        .from(facultySubstitutions)
+        .where(and(
+          eq(facultySubstitutions.original_assignment_id, assignment_id),
+          eq(facultySubstitutions.substitute_faculty_id, user.id)
+        ))
+        .limit(1);
+      if (substitute.length > 0) isAuthorized = true;
+    }
+
+    if (!isAuthorized) {
       return apiError('Unauthorized for this assignment', 403);
     }
-    const { branch, course_semester, academic_year, subject_name, subject_code } = assignment;
-    const midMax = assignment.mid_max || 20;
-    const isLab = subject_name?.toLowerCase().includes('lab');
+    const { branch, course_semester, academic_year, subject_name, subject_code, canonical_subject_type } = assignment;
+
+    const classification = resolveCanonicalSubjectType({
+      subject_code,
+      subject_name,
+      canonical_subject_type
+    });
+
+    if (classification.status === 'UNRESOLVED') {
+      logger.warn({ assignmentId: assignment_id, subject_code, subject_name }, '[SUBJECT_TYPE_UNRESOLVED] Evaluation requested for subject without canonical syllabus type');
+    } else if (classification.status === 'CONTRADICTORY') {
+      logger.warn({ assignmentId: assignment_id, subject_code, subject_name, canonical_subject_type }, '[SUBJECT_TYPE_CONTRADICTORY] Apparent discrepancy between subject naming/code and canonical syllabus type');
+    }
+
+    const _isLab = classification.is_lab;
 
     // --- SHARED DATA LOGIC: Canonical ID ---
     const canonicalRows = await db.select({ id: facultySubjectAssignments.id })
@@ -67,7 +107,7 @@ export async function GET(request) {
       ))
       .orderBy(asc(facultySubjectAssignments.created_at))
       .limit(1);
-    
+
     const canonicalId = canonicalRows[0]?.id || assignment_id;
 
     // --- PRECISE SEMESTER-AWARE STUDENT FILTERING ---
@@ -84,10 +124,10 @@ export async function GET(request) {
       like(studentsTable.roll_no, `%567${branchCode}%L`)
     ];
 
-    const dynamicYearCondition = sql`CASE 
-        WHEN ${studentsTable.roll_no} LIKE '%T%' THEN 
+    const dynamicYearCondition = sql`CASE
+        WHEN ${studentsTable.roll_no} LIKE '%T%' THEN
           (${startYear} - CAST(CONCAT('20', SUBSTRING(${studentsTable.roll_no}, 1, 2)) AS SIGNED) + 1) - ${studentsTable.academic_offset_years}
-        WHEN ${studentsTable.roll_no} LIKE '%L' THEN 
+        WHEN ${studentsTable.roll_no} LIKE '%L' THEN
           (${startYear} - CAST(CONCAT('20', SUBSTRING(${studentsTable.roll_no}, 1, 2)) AS SIGNED) + 2) - ${studentsTable.academic_offset_years}
         ELSE 0
       END = ${studyingYear}`;
@@ -155,12 +195,20 @@ export async function GET(request) {
       .limit(1);
     const recommendedMidMax = configRows[0]?.mid_max || null;
 
-    return apiResponse({ 
-      data: cleanedStudents, 
-      mid_max: midMax, 
+    const rawMidMax = assignment.mid_max;
+    const resolvedPattern = !_isLab ? getTheoryPattern(rawMidMax) : null;
+    const midMax = resolvedPattern ? resolvedPattern.midMax : (rawMidMax || 20);
+
+    return apiResponse({
+      data: cleanedStudents,
+      mid_max: rawMidMax,
+      effective_mid_max: midMax,
+      pattern: resolvedPattern,
+      has_saved_pattern: Boolean(resolvedPattern),
       recommended_mid_max: recommendedMidMax,
-      subject_type: isLab ? 'lab' : 'theory',
-      canonical_id: canonicalId 
+      subject_type: classification.subject_type,
+      subject_type_status: classification.status,
+      canonical_id: canonicalId
     });
   } catch (error) {
     logger.error('Marks Fetch Error:', error);
@@ -202,7 +250,7 @@ export async function POST(request) {
     const validatedData = validationSchema.parse(json);
     const { assignment_id, marks_data, mid_max, publish: publishFlag } = validatedData;
 
-    // Fetch assignment details
+    // Fetch assignment details with canonical syllabus subject type
     const assignments = await db.select({
       id: facultySubjectAssignments.id,
       faculty_id: facultySubjectAssignments.staff_account_id,
@@ -210,9 +258,12 @@ export async function POST(request) {
       branch: facultySubjectAssignments.branch,
       course_semester: facultySubjectAssignments.course_semester,
       academic_year: facultySubjectAssignments.academic_year,
-      subject_name: facultySubjectAssignments.subject_name
+      subject_name: facultySubjectAssignments.subject_name,
+      mid_max: facultySubjectAssignments.mid_max,
+      canonical_subject_type: syllabusSubjects.subject_type
     })
     .from(facultySubjectAssignments)
+    .leftJoin(syllabusSubjects, eq(facultySubjectAssignments.subject_code, syllabusSubjects.subject_code))
     .where(eq(facultySubjectAssignments.id, assignment_id))
     .limit(1);
 
@@ -221,11 +272,50 @@ export async function POST(request) {
     }
 
     const assignment = assignments[0];
-    if (assignment.faculty_id !== user.id && !(user.is_hod && (user.branch === assignment.branch || !assignment.branch))) {
-      return apiError('Unauthorized for this assignment', 403);
+    const authorizedBranches = (user.authorized_branches || (user.branch ? [user.branch] : [])).map(b => String(b).toUpperCase());
+    const assignmentBranch = String(assignment.branch || '').toUpperCase();
+
+    // --- WRITE AUTHORIZATION (MUTATIONS) ---
+    // Strictly assigned faculty, substitute, HOD for branch, or Admin. Monitoring roles are read-only.
+    const isAssignedFaculty = assignment.faculty_id === user.id;
+    const isGlobalAdmin = user.role === 'admin';
+    const isHodForBranch = !!user.is_hod && (authorizedBranches.includes(assignmentBranch) || !assignment.branch);
+
+    let isWriteAuthorized = isAssignedFaculty || isGlobalAdmin || isHodForBranch;
+
+    if (!isWriteAuthorized) {
+      const { facultySubstitutions } = await import('@/db/schema');
+      const substitute = await db.select({ id: facultySubstitutions.id })
+        .from(facultySubstitutions)
+        .where(and(
+          eq(facultySubstitutions.original_assignment_id, assignment_id),
+          eq(facultySubstitutions.substitute_faculty_id, user.id)
+        ))
+        .limit(1);
+      if (substitute.length > 0) isWriteAuthorized = true;
     }
-    const { subject_code, branch, course_semester, academic_year, subject_name } = assignment;
-    const isLab = subject_name?.toLowerCase().includes('lab');
+
+    if (!isWriteAuthorized) {
+      return apiError('Forbidden: Monitoring access does not grant mark entry or editing authority for this assignment', 403);
+    }
+    const { subject_code, branch, course_semester, academic_year, subject_name, canonical_subject_type } = assignment;
+
+    const classification = resolveCanonicalSubjectType({
+      subject_code,
+      subject_name,
+      canonical_subject_type
+    });
+
+    if (classification.status === 'UNRESOLVED' || !classification.subject_type) {
+      logger.error({ assignmentId: assignment_id, subject_code, subject_name }, '[MARKS_SAVE_REJECTED] Unresolved subject type in syllabus catalogue');
+      return apiError('Cannot save marks: Subject classification is unresolved in syllabus catalogue. Please contact the administrator.', 422);
+    }
+
+    if (classification.status === 'CONTRADICTORY') {
+      logger.warn({ assignmentId: assignment_id, subject_code, subject_name, canonical_subject_type }, '[SUBJECT_TYPE_CONTRADICTORY] Apparent discrepancy between subject naming/code and canonical syllabus type during marks save');
+    }
+
+    const isLab = classification.is_lab;
 
     // --- SHARED DATA LOGIC: Target Canonical ID ---
     const canonicalRows = await db.select({ id: facultySubjectAssignments.id })
@@ -238,7 +328,7 @@ export async function POST(request) {
       ))
       .orderBy(asc(facultySubjectAssignments.created_at))
       .limit(1);
-    
+
     const targetAssignmentId = canonicalRows[0]?.id || assignment_id;
 
     const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1)).limit(1);
@@ -257,7 +347,7 @@ export async function POST(request) {
         eq(branchConfig.semester, course_semester)
       ))
       .limit(1);
-    
+
     if (branchConfigs.length > 0 && branchConfigs[0].is_locked) {
       return apiError('Marks for this branch and semester have been finalized and locked by the HOD.', 403);
     }
@@ -275,11 +365,36 @@ export async function POST(request) {
       return apiError('Marks already published and locked.', 403);
     }
 
+    // For theory subjects, resolve and validate assessment pattern
+    const effectivePattern = !isLab
+      ? getTheoryPattern(mid_max !== undefined ? mid_max : assignment.mid_max)
+      : null;
+
+    if (!isLab && !effectivePattern) {
+      return apiError('Theory assessment pattern must be selected before saving marks', 400);
+    }
+
+    if (!isLab && effectivePattern) {
+      for (const item of marks_data) {
+        const valRes = validateTheoryMarks(effectivePattern, {
+          mid1: item.mid1_marks,
+          mid2: item.mid2_marks,
+          assignment: item.assignment_marks
+        });
+        if (!valRes.valid) {
+          return apiError(`Validation error for student ID ${item.student_id}: ${valRes.error}`, 400);
+        }
+      }
+    }
+
     await db.transaction(async (tx) => {
-      if (mid_max !== undefined) {
+      if (effectivePattern) {
         await tx.update(facultySubjectAssignments)
-          .set({ mid_max: mid_max })
-          .where(eq(facultySubjectAssignments.id, targetAssignmentId));
+          .set({ mid_max: effectivePattern.midMax })
+          .where(or(
+            eq(facultySubjectAssignments.id, targetAssignmentId),
+            eq(facultySubjectAssignments.id, assignment_id)
+          ));
       }
 
       // Deduplicate payload by student_id (last write wins) to avoid accidental double updates.
@@ -330,7 +445,7 @@ export async function POST(request) {
           : {
               mid1_marks: item.mid1_marks ?? null,
               mid2_marks: item.mid2_marks ?? null,
-              assignment_marks: item.assignment_marks ?? null,
+              assignment_marks: (effectivePattern && !effectivePattern.hasAssignment) ? null : (item.assignment_marks ?? null),
               is_published: publishFlag,
             };
 
@@ -368,7 +483,19 @@ export async function POST(request) {
       targetType: 'assignment',
       payload_after: { record_count: marks_data.length, mid_max }
     });
-      
+
+    try {
+      const { EventBus, DOMAIN_EVENTS } = await import('@/lib/events/EventBus');
+      EventBus.publish(DOMAIN_EVENTS.MARKS_PUBLISHED, {
+        assignment_id: targetAssignmentId,
+        record_count: marks_data.length,
+        mid_max,
+        updated_by: user.id
+      });
+    } catch (ebErr) {
+      logger.warn({ err: ebErr }, '[EventBus] Marks published event dispatch failed');
+    }
+
     return apiResponse({ message: `Successfully updated ${marks_data.length} records` });
   } catch (error) {
     if (error instanceof z.ZodError) {

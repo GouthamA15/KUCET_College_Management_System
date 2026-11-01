@@ -12,6 +12,7 @@ import { eq } from 'drizzle-orm';
 import { wrapHandler, apiError } from '@/lib/api-utils';
 import crypto from 'crypto';
 import { sendInstitutionalEmail, getBaseUrl } from '@/lib/email';
+import { EMAIL_CATEGORIES } from '@/lib/email-categories';
 import logger from '@/lib/logger';
 
 export const POST = wrapHandler({
@@ -179,12 +180,12 @@ export const POST = wrapHandler({
 
       // 9. Create audit log
       await tx.insert(auditLogs).values({
-        user_id: adminId.toString(),
+        user_id: adminId,
         user_type: 'admin',
         action: 'STAFF_REGISTRATION_APPROVED',
-        entity_type: 'staff_registration_requests',
-        entity_id: requestId.toString(),
-        metadata: {
+        target_type: 'staff_registration_requests',
+        target_id: String(requestId),
+        payload_after: {
           new_staff_id: newAccountId,
           employee_id: employeeId,
           role: roleToAssign
@@ -193,12 +194,12 @@ export const POST = wrapHandler({
       });
       
       await tx.insert(auditLogs).values({
-        user_id: adminId.toString(),
+        user_id: adminId,
         user_type: 'admin',
         action: 'STAFF_ACCOUNT_CREATED',
-        entity_type: 'staff_accounts',
-        entity_id: newAccountId.toString(),
-        metadata: { employee_id: employeeId },
+        target_type: 'staff_accounts',
+        target_id: String(newAccountId),
+        payload_after: { employee_id: employeeId },
         ip_address: context?.ip || '127.0.0.1'
       });
 
@@ -272,7 +273,8 @@ export const POST = wrapHandler({
           url: activationLink,
           label: 'Activate Account',
           expiresIn: '48 hours'
-        }
+        },
+        category: EMAIL_CATEGORIES.STAFF_ONBOARDING,
       });
       logger.info({ email: result.email }, '[STAFF_APPROVAL] Activation email sent successfully');
     } catch (err) {

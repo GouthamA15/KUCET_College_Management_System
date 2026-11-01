@@ -60,6 +60,24 @@ The public admission portal allows prospective students to submit their demograp
 | `fee_reimbursement` | Enum | `YES`, `NO`, `GOV` |
 | `legal_consent` | Boolean | Must explicitly evaluate to `true` |
 
+### Student Photograph Upload Guidance & Physical ID Card Specifications
+
+To ensure high-quality printing of the student's physical KUCET college identity card and prevent application rejections, the admission form provides comprehensive pre-upload visual guidance:
+
+- **Static Reference Assets (`/assets/guidance/`)**:
+  - `student-photo-correct.png`: Accepted front-facing passport portrait with head and shoulders visible against a plain background.
+  - `student-photo-printed-image.png`: Unacceptable photograph of an existing printed photo or ID card.
+  - `student-photo-full-body.png`: Unacceptable distant full-body shot.
+  - `student-photo-casual-outdoor.png`: Unacceptable casual outdoor snapshot with distracting background.
+- **Pre-Upload Guidance Section**: Clearly displays the 4 reference examples in a responsive grid before the upload controls with accessible status indicators (both icons and labels).
+- **Physical ID Card Notice**: Prominent alert highlighting that the photograph will be printed on the student's physical college ID card.
+- **Interactive Guidance Modal**: Opened by clicking the empty upload area or the "View Photo Requirements" button; includes keyboard navigation (`Escape`, focus trap) and a direct "Choose Photo" action.
+- **Client & Server Validation**:
+  - Supported formats: JPEG, PNG, WebP (`image/jpeg`, `image/png`, `image/webp`).
+  - Size limit: 1MB (client-side compression to WebP via HTML5 canvas, max 1200x1200).
+  - Decoding validation: In-memory image decode check ensuring image is uncorrupted and meets minimum 100x100 resolution.
+  - Server-side validation: Refined regex check in `POST /api/public/admission` enforcing valid base64 image data URI.
+
 ---
 
 ## 3. Draft Management, Soft Rejection & Controlled Restoration
@@ -295,7 +313,75 @@ In `/staff/admission/requests` under the **Admission Intake** (`mode === 'DRAFT'
 
 ---
 
-## 10. Cross-References
+## 10. Canonical Gender Enum (`MALE` / `FEMALE`) & Excel Photo Export
+
+### Canonical Gender Enum Enforcement (Migration `0024`)
+To prevent data corruption and reporting anomalies across government compliance exports (such as TG EAPCET / TG ECET quotas):
+- Gender column in `students`, `student_admission_drafts`, and `archive_students` is strictly constrained to `'MALE' | 'FEMALE'`.
+- All legacy lowercase or whitespace-padded inputs are normalized before persistence via `canonicalGender()` validation.
+- All admission API endpoints and Zod schemas reject non-canonical gender inputs with explicit validation errors.
+
+### Excel Export with Embedded Student Photos
+The admission export engine (`/api/staff/admission/export`) supports high-fidelity spreadsheet generation:
+- Resolves student profile photos from the canonical StorageProvider.
+- Embeds compressed image thumbnails directly inside the Excel workbook cells alongside roll numbers, academic records, and reservation categories.
+- Handles blood group normalization and eliminates 500 error scenarios during sparse record exports.
+
+---
+
+## 11. Canonical Area Status (`Local` / `Non-Local`) & Finalization Reliability
+
+### Canonical Area Status Contract
+Admission rules enforce strict geographical classification for state quota compliance:
+- **Canonical Values**: `'Local'` and `'Non-Local'` (defined in `AREA_STATUSES` within `@/lib/college-config.js`).
+- **Database Schema**: `student_personal_details.area_status` is defined as `enum('Local', 'Non-Local')`.
+- **Normalization Invariant**: All input sources (public admission portal, staff draft updates, and Excel imports) route through `normalizeAreaStatus()`. Loose formats such as `"Non Local"`, `"non-local"`, `"NON-LOCAL"`, `"LOCAL"`, or padded whitespace are automatically canonicalized before hitting the database.
+- **Fail-Fast Validation**: Unknown or unrecognized strings are rejected with HTTP 400 (`INVALID_AREA_STATUS`) rather than causing runtime database truncation crashes (`WARN_DATA_TRUNCATED`, MySQL 1265).
+
+### MediaPromotionService Asset Path Normalization
+During finalization, staged candidate photographs and signatures are promoted from `admission_drafts/` to permanent student storage (`students/`):
+- URLs or keys containing internal routing prefixes (such as `/api/assets/view/kucet/...`) are automatically cleaned via `cleanKey()` before triggering storage operations.
+- This guarantees path compatibility across both local disk storage (`/var/www/kucet-storage`) and Cloudinary without throwing path resolution errors.
+
+### Timezone-Safe Date of Birth Invariant
+All student birth dates are formatted via `toMySQLDate(val)` from `@/lib/date` to avoid UTC-midnight timezone shifts that could alter student birth dates by -1 day in non-IST or negative timezone offsets.
+
+---
+
+## 12. Student Photograph and Signature Upload Guidance (On-Demand Popups)
+
+To ensure student submissions meet institutional standards for **physical KUCET identity card printing** and **examination identity verification**, the online admission form (`/admission`) integrates on-demand guidance modals.
+
+### Core Architectural Invariants & Main Page UX
+1. **Clean Main Page Invariant**: The main admission page does not permanently display large guidance galleries or permanent warning boxes. It renders only compact, symmetric cards for photograph and signature upload.
+2. **On-Demand Modal Interaction**:
+   - Clicking the photograph placeholder or "View Photo Requirements" opens `PhotoGuidanceModal`.
+   - Clicking the signature placeholder or "View Signature Requirements" opens `SignatureGuidanceModal`.
+   - Each modal operates independently with accessible focus trapping, keyboard navigation (`Escape` to close), and background scroll lock.
+   - Closing either modal preserves all current form state.
+3. **Physical ID Card Notice (Photograph)**:
+   - *“Your uploaded photograph will be printed directly onto your official physical KUCET student ID card. Please ensure your photograph is clear, recent, sharp, and passport-style before submitting.”*
+   - Displays 4 reference examples:
+     - `CORRECT — Passport-Style Portrait` (`/assets/guidance/student-photo-correct.png`)
+     - `INCORRECT — Printed Photo / ID Card` (`/assets/guidance/student-photo-printed-image.png`)
+     - `INCORRECT — Full-Body or Distant Photo` (`/assets/guidance/student-photo-full-body.png`)
+     - `INCORRECT — Casual Outdoor / Distracting Background` (`/assets/guidance/student-photo-casual-outdoor.png`)
+4. **Examination Verification Notice (Signature)**:
+   - *“Important: Your uploaded signature will be used to verify your identity during KUCET mid-semester and semester examinations. Please upload your own clear, complete and correctly oriented handwritten signature.”*
+   - Displays 4 reference examples:
+     - `✓ ACCEPTABLE — Clear signature` (`/assets/guidance/student-signature-acceptable-1.png`)
+     - `✓ ACCEPTABLE — Properly framed signature` (`/assets/guidance/student-signature-acceptable-2.png`)
+     - `✗ NOT ACCEPTABLE — Incorrect cropping` (`/assets/guidance/student-signature-incorrect-crop.png`)
+     - `✗ NOT ACCEPTABLE — Wrong orientation` (`/assets/guidance/student-signature-incorrect-orientation.png`)
+5. **Client-Side Safe Pre-Validation**:
+   - `validateStudentPhotoFile(file)` and `validateStudentSignatureFile(file)` enforce non-empty files, supported mime types (`image/jpeg`, `image/png`, `image/webp`), pre-compression size bounds (<15MB), decodability via `window.Image()`, and minimum dimensions (Photo: 100x100px; Signature: 80x30px).
+   - Signatures include non-destructive orientation heuristics alerting students if an image is vertically oriented (`height > width * 1.5`).
+6. **Direct File Selection Integration**:
+   - Selecting `Choose Photo` or `Choose Signature` from within the respective dialog triggers the underlying file picker seamlessly.
+
+---
+
+## 13. Cross-References
 
 - Database Schemas: [schema.md](../database/schema.md)
 - Storage Lifecycle & Media Promotion: [requests.md](./requests.md)

@@ -1,8 +1,10 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentRequests, students, studentRequestImages } from '@/db/schema';
-import { eq, and, inArray, sql, desc } from 'drizzle-orm';
+import { eq, and, inArray, sql, desc, or } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
+import { getBranchFromRoll } from '@/lib/rollNumber';
+import { parsePurpose, formatPurpose } from '@/lib/certificate-utils';
 
 export async function GET(request) {
   const staff = await getAuthUser('staff');
@@ -15,22 +17,21 @@ export async function GET(request) {
   const statusFilterRaw = searchParams.getAll('status');
   const certificateTypeFilterRaw = searchParams.getAll('certificateType') || searchParams.getAll('certificate_type');
 
-  if (!staffType) return apiError('Forbidden', 403);
-  
-  const isAuthorizedRole = staff.role === staffType || staff.role === 'admin';
-  const isAuthorizedHod = staffType === 'hod' && staff.role === 'faculty' && staff.is_hod;
-  
-  if (!isAuthorizedRole && !isAuthorizedHod) return apiError('Forbidden', 403);
+  const isHodUser = Boolean(staff.is_hod || staff.is_principal || staff.role === 'hod');
+  const isPermitted = (staffType === 'hod' && isHodUser) || 
+                      (staff.role === staffType) || 
+                      (staff.role === 'admin');
+  if (!staffType || !isPermitted) return apiError('Forbidden', 403);
   if (!staff.id) return apiError('Staff identity missing in token', 401);
 
   try {
     const roleToTypes = {
+      hod: ['No Objection Certificate', 'Bonafide Certificate', 'Internship Certificate'],
       admission: [
-        'Bonafide Certificate', 'No Objection Certificate', 'Course Completion Certificate',
+        'Bonafide Certificate', 'Course Completion Certificate',
         'Transfer Certificate (TC)', 'Migration Certificate', 'Study Conduct Certificate',
       ],
       scholarship: ['Income Tax (IT) Certificate', 'Custodian Certificate'],
-      hod: ['Internship Certificate', 'No Objection Certificate'],
     };
 
     const certTypes = roleToTypes[staffType];
@@ -65,7 +66,16 @@ export async function GET(request) {
 
     if (workspace === 'history') {
       const historyConditions = [...baseConditions, inArray(studentRequests.status, ['APPROVED', 'REJECTED'])];
-      if (scope === 'my') historyConditions.push(eq(studentRequests.action_by_staff_id, staff.id));
+      if (scope === 'my') {
+        if (staffType === 'hod') {
+          historyConditions.push(or(
+            eq(studentRequests.action_by_staff_id, staff.id),
+            eq(studentRequests.hod_staff_id, staff.id)
+          ));
+        } else {
+          historyConditions.push(eq(studentRequests.action_by_staff_id, staff.id));
+        }
+      }
       if (certificateTypeFilter.length > 0) historyConditions.push(inArray(studentRequests.certificate_type, certificateTypeFilter));
       if (statusFilter.length > 0) historyConditions.push(inArray(studentRequests.status, statusFilter));
 
@@ -75,6 +85,10 @@ export async function GET(request) {
         student_name: students.name,
         certificate_type: studentRequests.certificate_type,
         status: studentRequests.status,
+        hod_approval_status: studentRequests.hod_approval_status,
+        hod_staff_id: studentRequests.hod_staff_id,
+        hod_approved_at: studentRequests.hod_approved_at,
+        hod_rejection_reason: studentRequests.hod_rejection_reason,
         payment_amount: studentRequests.payment_amount,
         transaction_id: studentRequests.transaction_id,
         payment_screenshot: studentRequestImages.payment_screenshot,
@@ -96,21 +110,7 @@ export async function GET(request) {
       .where(and(...historyConditions))
       .orderBy(desc(studentRequests.completed_at), desc(studentRequests.updated_at));
 
-      // Counts
-      const countBase = (conds) => db.select({ count: sql`COUNT(*)` })
-        .from(studentRequests)
-        .innerJoin(students, eq(studentRequests.student_id, students.id))
-        .where(and(...conds));
-      
-      const baseHistoryConds = [...baseConditions, inArray(studentRequests.status, ['APPROVED', 'REJECTED'])];
-      if (certificateTypeFilter.length > 0) baseHistoryConds.push(inArray(studentRequests.certificate_type, certificateTypeFilter));
-      if (statusFilter.length > 0) baseHistoryConds.push(inArray(studentRequests.status, statusFilter));
-
-      const allCountRows = await countBase(baseHistoryConds);
-      const myCountRows = await countBase([...baseHistoryConds, eq(studentRequests.action_by_staff_id, staff.id)]);
-
-      const { parsePurpose, formatPurpose } = require('@/lib/certificate-utils');
-      const mappedRows = rows.map(r => {
+      let mappedRows = rows.map(r => {
         const parsed = parsePurpose(r.purpose);
         return {
           ...r,
@@ -120,18 +120,43 @@ export async function GET(request) {
         };
       });
 
+      // Scope HOD history to authorized branches
+      if (staffType === 'hod' && staff.role !== 'admin') {
+        const authorizedBranches = staff.authorized_branches || (staff.branch ? [staff.branch] : []);
+        if (authorizedBranches.length > 0) {
+          mappedRows = mappedRows.filter(r => authorizedBranches.includes(getBranchFromRoll(r.roll_number)));
+        } else {
+          mappedRows = [];
+        }
+      }
+
       return apiResponse({ 
         records: mappedRows, 
-        myHistoryCount: Number(myCountRows[0]?.count || 0), 
-        allHistoryCount: Number(allCountRows[0]?.count || 0) 
+        myHistoryCount: mappedRows.filter(r => r.action_by_staff_id === staff.id || r.hod_staff_id === staff.id).length, 
+        allHistoryCount: mappedRows.length 
       });
     } else {
       const activeConditions = [...baseConditions, eq(studentRequests.status, 'PENDING')];
       
-      // Admin staff should not see pending requests for NOC / Internship anymore (HOD handles them now)
+      // Workflow stage filtering
       if (staffType === 'admission') {
+        // Admission staff only sees Bonafide after HOD approves or if HOD approval is not required
         activeConditions.push(
-          sql`${studentRequests.certificate_type} NOT IN ('No Objection Certificate', 'Internship Certificate')`
+          or(
+            sql`${studentRequests.certificate_type} != 'Bonafide Certificate'`,
+            sql`${studentRequests.hod_approval_status} IN ('APPROVED', 'NOT_REQUIRED')`
+          )
+        );
+      } else if (staffType === 'hod') {
+        // HOD sees NOC (all pending) and Bonafide (where hod_approval_status is PENDING)
+        activeConditions.push(
+          or(
+            eq(studentRequests.certificate_type, 'No Objection Certificate'),
+            and(
+              eq(studentRequests.certificate_type, 'Bonafide Certificate'),
+              eq(studentRequests.hod_approval_status, 'PENDING')
+            )
+          )
         );
       }
 
@@ -144,6 +169,10 @@ export async function GET(request) {
         student_name: students.name,
         certificate_type: studentRequests.certificate_type,
         status: studentRequests.status,
+        hod_approval_status: studentRequests.hod_approval_status,
+        hod_staff_id: studentRequests.hod_staff_id,
+        hod_approved_at: studentRequests.hod_approved_at,
+        hod_rejection_reason: studentRequests.hod_rejection_reason,
         payment_amount: studentRequests.payment_amount,
         transaction_id: studentRequests.transaction_id,
         payment_screenshot: studentRequestImages.payment_screenshot,
@@ -160,8 +189,7 @@ export async function GET(request) {
       .where(and(...activeConditions))
       .orderBy(desc(studentRequests.created_at));
 
-      const { parsePurpose, formatPurpose } = require('@/lib/certificate-utils');
-      const mappedRows = rows.map(r => {
+      let mappedRows = rows.map(r => {
         const parsed = parsePurpose(r.purpose);
         return {
           ...r,
@@ -171,6 +199,16 @@ export async function GET(request) {
         };
       });
 
+      // Scope HOD queue to authorized branches
+      if (staffType === 'hod' && staff.role !== 'admin') {
+        const authorizedBranches = staff.authorized_branches || (staff.branch ? [staff.branch] : []);
+        if (authorizedBranches.length > 0) {
+          mappedRows = mappedRows.filter(r => authorizedBranches.includes(getBranchFromRoll(r.roll_number)));
+        } else {
+          mappedRows = [];
+        }
+      }
+
       return apiResponse({ records: mappedRows });
     }
   } catch (error) {
@@ -178,3 +216,4 @@ export async function GET(request) {
     return apiError('Failed to fetch requests', 500);
   }
 }
+

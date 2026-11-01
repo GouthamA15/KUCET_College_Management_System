@@ -17,6 +17,7 @@
 # =============================================================================
 set -eu
 set -o pipefail 2>/dev/null || true
+umask 002
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -92,7 +93,7 @@ if [[ -f "$ENV_FILE" ]]; then
   log "Loading environment from $ENV_FILE ..."
   set -a
   # shellcheck disable=SC1090
-  source <(tr -d '\r' < "$ENV_FILE")
+  source <(tr -d '\r' < "$ENV_FILE" | sed -E 's/^([A-Za-z0-9_]+)=([^"'\''].*[[:space:]].*)$/\1="\2"/')
   set +a
   log "Environment loaded."
 else
@@ -111,6 +112,7 @@ log "Previous commit (rollback target): $PREV_COMMIT"
 # ---------------------------------------------------------------------------
 log "Pulling latest code from origin/$BRANCH ..."
 git config core.fileMode false 2>/dev/null || true
+git config core.sharedRepository group 2>/dev/null || true
 git fetch origin "$BRANCH" 2>&1
 git reset --hard "origin/$BRANCH" 2>&1
 git clean -fd 2>&1

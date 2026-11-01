@@ -1,16 +1,15 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
-  semesters, 
   branchTimetable, 
   syllabusSubjects, 
   staffAccounts 
 } from '@/db/schema';
-import { eq, and, desc, like, or } from 'drizzle-orm';
+import { eq, and, like } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { Clock } from '@/lib/clock';
 import { getBranchFromRoll } from '@/lib/rollNumber';
-import { calculateYearAndSemesterAsync } from '@/lib/academic-utils';
+import { calculateYearAndSemesterAsync, getCollegeAcademicYear } from '@/lib/academic-utils';
 
 export async function GET(req) {
   try {
@@ -42,10 +41,7 @@ export async function GET(req) {
       return apiResponse({ active: false, message: 'Context resolution failed' });
     }
 
-    const semRow = await db.query.semesters.findFirst({
-      orderBy: [desc(semesters.id)]
-    });
-    const systemYear = semRow?.academic_year || '2025-26';
+    const systemYear = await getCollegeAcademicYear();
 
     const timetableRows = await db.select({
       room_no: branchTimetable.room_no,
@@ -61,10 +57,7 @@ export async function GET(req) {
       eq(branchTimetable.semester, semester),
       eq(branchTimetable.day_of_week, day),
       eq(branchTimetable.period_number, period),
-      or(
-        like(branchTimetable.academic_year, `%${systemYear.substring(0, 4)}%`),
-        eq(branchTimetable.academic_year, '2025-26')
-      )
+      like(branchTimetable.academic_year, `%${systemYear.substring(0, 4)}%`)
     ))
     .limit(1);
 

@@ -1,25 +1,59 @@
 import { wrapHandler, apiError } from '@/lib/api-utils';
 import { db } from '@/db';
 import { timetableInstances } from '@/db/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, or, inArray } from 'drizzle-orm';
 import { FacultyService } from '@/services/FacultyService';
+import { isAcademicScopeAllowed, getInstitutionalBranches } from '@/lib/academic-authorization';
 import { z } from 'zod';
 
 const createInstanceSchema = z.object({
   branch: z.string().trim().min(1, 'Branch is required').max(50),
-  semester: z.number().int().min(1).max(8),
-  academic_year: z.string().regex(/^\d{4}-\d{2}$/, 'Academic year must be in format YYYY-YY')
+  semester: z.preprocess((val) => (val !== undefined && val !== null ? Number(val) : undefined), z.number().int().min(1).max(8)),
+  academic_year: z.string().regex(/^(\d{4}-\d{2}|\d{4}-\d{4})$/, 'Academic year must be in format YYYY-YY or YYYY-YYYY')
 });
 
 export const GET = wrapHandler({
-  auth: 'hod',
+  auth: ['hod', 'faculty'],
   handler: async (req, { user }) => {
-    if (!user || !user.is_hod) return apiError('Unauthorized', 403);
+    const isAuthorized = (user.role === 'faculty' && (user.is_hod || user.is_first_year_coordinator)) || user.role === 'admin';
+    if (!isAuthorized) return apiError('Unauthorized', 403);
     
-    const hodBranches = await FacultyService.getHodBranches(user.id, user.role);
     const systemYear = await FacultyService.getCurrentAcademicYear();
-    
-    // Allow HOD to see instances for any of their branches
+
+    const isHod = !!user.is_hod;
+    const isCoordinator = !!user.is_first_year_coordinator;
+    const hodBranches = isHod ? await FacultyService.getHodBranches(user.id, user.role) : [];
+
+    if (user.role === 'admin' || user.is_principal) {
+      const instances = await db.select().from(timetableInstances);
+      return { data: instances, systemYear };
+    }
+
+    if (isCoordinator && isHod && hodBranches.length > 0) {
+      const allBranches = await getInstitutionalBranches();
+      const instances = await db.select()
+        .from(timetableInstances)
+        .where(or(
+          inArray(timetableInstances.branch, hodBranches),
+          and(
+            inArray(timetableInstances.branch, allBranches),
+            inArray(timetableInstances.semester, [1, 2])
+          )
+        ));
+      return { data: instances, systemYear };
+    }
+
+    if (isCoordinator) {
+      const allBranches = await getInstitutionalBranches();
+      const instances = await db.select()
+        .from(timetableInstances)
+        .where(and(
+          inArray(timetableInstances.branch, allBranches),
+          inArray(timetableInstances.semester, [1, 2])
+        ));
+      return { data: instances, systemYear };
+    }
+
     if (hodBranches.length === 0) {
       return { data: [], systemYear };
     }
@@ -33,19 +67,20 @@ export const GET = wrapHandler({
 });
 
 export const POST = wrapHandler({
-  auth: 'hod',
+  auth: ['hod', 'faculty'],
   handler: async (req, { user }) => {
-    if (!user || !user.is_hod) return apiError('Unauthorized', 403);
+    const isAuthorized = (user.role === 'faculty' && (user.is_hod || user.is_first_year_coordinator)) || user.role === 'admin';
+    if (!isAuthorized) return apiError('Unauthorized', 403);
     
     const json = await req.json();
+    if (json.semester === undefined && json.course_semester !== undefined) {
+      json.semester = json.course_semester;
+    }
     const parsed = createInstanceSchema.parse(json);
     const { branch, semester, academic_year } = parsed;
     
-    const hodBranches = await FacultyService.getHodBranches(user.id, user.role);
-    
-    // Verify the requested branch belongs to the HOD
-    if (!hodBranches.includes(branch)) {
-      return apiError('Unauthorized for this program', 403);
+    if (!isAcademicScopeAllowed(user, { branch, semester })) {
+      return apiError(`Forbidden - Not authorized for ${branch} Sem ${semester}`, 403);
     }
     
     const existing = await db.select().from(timetableInstances).where(

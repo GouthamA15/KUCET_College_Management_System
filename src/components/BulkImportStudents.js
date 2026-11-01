@@ -43,7 +43,7 @@ const HEADERS_MAP = {
 };
 
 const CATEGORIES = COLLEGE_CONFIG.categories;
-const GENDERS = [...COLLEGE_CONFIG.genders, 'Other'];
+const GENDERS = COLLEGE_CONFIG.genders;
 const AREA_STATUSES = ['Local', 'Non-Local'];
 
 // Mobile number regex: 10 digits only or +91 followed by 10 digits
@@ -73,22 +73,24 @@ const validateRow = (rowData, excelRowNumber) => {
   }
 
   // 2. Candidate Name
-  const candidateName = String(rowData['name'] || '').trim();
+  const candidateName = String(rowData['name'] || '').trim().toUpperCase();
   if (!candidateName) {
     rowErrors['name'] = 'Candidate Name is required.';
     validationErrors.push({ row: excelRowNumber, field: 'Candidate Name', message: 'Candidate Name is required.' });
+  } else {
+    rowData['name'] = candidateName;
   }
 
   // 3. Gender
-  let gender = String(rowData['gender'] || '').trim();
-  if (gender) {
-    const lowerGender = gender.toLowerCase();
-    if (lowerGender === 'm') gender = 'Male';
-    if (lowerGender === 'f') gender = 'Female';
-  }
-  if (!gender || !GENDERS.includes(gender)) {
-    rowErrors['gender'] = `Invalid Gender. Must be one of ${GENDERS.join(', ')}.`;
-    validationErrors.push({ row: excelRowNumber, field: 'Gender', message: `Invalid Gender: ${gender}` });
+  let rawGender = String(rowData['gender'] || '').trim().toUpperCase();
+  if (['M', 'MALE', 'BOY'].includes(rawGender)) rawGender = 'MALE';
+  else if (['F', 'FEMALE', 'GIRL'].includes(rawGender)) rawGender = 'FEMALE';
+
+  if (!rawGender || !GENDERS.includes(rawGender)) {
+    rowErrors['gender'] = `Invalid Gender. Must be MALE or FEMALE.`;
+    validationErrors.push({ row: excelRowNumber, field: 'Gender', message: `Invalid Gender: ${rowData['gender']}` });
+  } else {
+    rowData['gender'] = rawGender;
   }
 
   // 4. Date of Birth

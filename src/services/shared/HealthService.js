@@ -15,7 +15,18 @@ function withTimeout(promise, ms, operationName) {
   ]);
 }
 
+let healthRedisClient = null;
+let healthRedisUrl = null;
+
 export class HealthService {
+  static resetRedisClient() {
+    if (healthRedisClient) {
+      try { healthRedisClient.disconnect(); } catch { /* ignore */ }
+      healthRedisClient = null;
+      healthRedisUrl = null;
+    }
+  }
+
   static async checkDatabase() {
     try {
       const start = Date.now();
@@ -29,28 +40,53 @@ export class HealthService {
 
   static async checkRedis() {
     if (process.env.REDIS_URL) {
-      let client = null;
       try {
         const start = Date.now();
         const { default: IORedis } = await import('ioredis');
-        client = new IORedis(process.env.REDIS_URL, {
-          connectTimeout: 2000,
-          maxRetriesPerRequest: 1,
-          lazyConnect: true,
-          enableOfflineQueue: false,
-        });
-        await withTimeout(client.connect(), 2000, 'RedisConnect');
+
+        if (!healthRedisClient || healthRedisUrl !== process.env.REDIS_URL) {
+          if (healthRedisClient) {
+            try { healthRedisClient.disconnect(); } catch { /* ignore */ }
+          }
+          healthRedisUrl = process.env.REDIS_URL;
+          healthRedisClient = new IORedis(healthRedisUrl, {
+            connectTimeout: TIMEOUT_MS,
+            maxRetriesPerRequest: 1,
+            lazyConnect: true,
+            enableOfflineQueue: false,
+            retryStrategy(times) {
+              if (times > 3) return null;
+              return Math.min(times * 500, 2000);
+            },
+          });
+          healthRedisClient.on('error', (err) => {
+            logger.warn({ err: err.message }, '[HEALTH_CHECK] Redis client background warning');
+          });
+        }
+
+        const client = healthRedisClient;
+        if (client.status === 'wait' || client.status === 'close' || client.status === 'end') {
+          await withTimeout(client.connect(), TIMEOUT_MS, 'RedisConnect');
+        } else if (client.status === 'connecting' || client.status === 'reconnecting') {
+          await withTimeout(
+            new Promise((resolve, reject) => {
+              client.once('ready', resolve);
+              client.once('error', reject);
+            }),
+            TIMEOUT_MS,
+            'RedisConnect'
+          );
+        }
+
         const ping = await withTimeout(client.ping(), TIMEOUT_MS, 'RedisPing');
         const latencyMs = Date.now() - start;
         const status = ping === 'PONG' ? 'ok' : 'degraded';
         return { status, latencyMs, type: 'self-hosted', error: status === 'ok' ? null : 'Unexpected ping response' };
       } catch (error) {
         logger.error({ err: error }, '[HEALTH_CHECK] Redis (self-hosted) connection failed');
+        // Reset client on critical connection error so subsequent check attempts fresh recovery
+        HealthService.resetRedisClient();
         return { status: 'error', latencyMs: -1, error: error.message };
-      } finally {
-        if (client) {
-          try { client.disconnect(); } catch { /* ignore */ }
-        }
       }
     }
 
@@ -76,7 +112,28 @@ export class HealthService {
 
   static checkEmailConfig() {
     try {
-      if (process.env.BREVO_API_KEY && process.env.EMAIL_USER) {
+      const hasCategorizedKeys = !!(
+        process.env.BREVO_API_KEY_AUTH_OTP ||
+        process.env.BREVO_API_KEY_PASSWORD_RECOVERY ||
+        process.env.BREVO_API_KEY_SECURITY_ALERTS ||
+        process.env.BREVO_API_KEY_STAFF_ONBOARDING ||
+        process.env.BREVO_API_KEY_ADMISSIONS ||
+        process.env.BREVO_API_KEY_SCHOLARSHIP ||
+        process.env.BREVO_API_KEY_SYSTEM_OPERATIONS
+      );
+      const hasCategorizedSenders = !!(
+        process.env.BREVO_SENDER_EMAIL_AUTH_OTP ||
+        process.env.BREVO_SENDER_EMAIL_PASSWORD_RECOVERY ||
+        process.env.BREVO_SENDER_EMAIL_SECURITY_ALERTS ||
+        process.env.BREVO_SENDER_EMAIL_STAFF_ONBOARDING ||
+        process.env.BREVO_SENDER_EMAIL_ADMISSIONS ||
+        process.env.BREVO_SENDER_EMAIL_SCHOLARSHIP ||
+        process.env.BREVO_SENDER_EMAIL_SYSTEM_OPERATIONS
+      );
+      const hasSender = !!(process.env.EMAIL_USER || hasCategorizedSenders);
+      const hasKey = !!(process.env.BREVO_API_KEY || hasCategorizedKeys);
+
+      if (hasKey && hasSender) {
         return { status: 'configured', provider: 'Brevo/SMTP', error: null };
       }
       return { status: 'missing_credentials', provider: 'unconfigured', error: 'Email credentials not configured' };
@@ -94,7 +151,7 @@ export class HealthService {
       return {
         status: isAvailable ? 'ok' : 'error',
         latencyMs: Date.now() - start,
-        type: process.env.NEXT_PUBLIC_STORAGE_TYPE || 'cloudinary',
+        type: process.env.NEXT_PUBLIC_STORAGE_TYPE || 'local',
       };
     } catch (error) {
       logger.error({ err: error }, '[HEALTH_CHECK] Storage provider check failed');
@@ -116,34 +173,65 @@ export class HealthService {
   }
 
   /**
-   * Determine overall system status based on component statuses
-   * Uses severity ordering: unhealthy > degraded > ok
+   * Determine overall system status based on component statuses.
+   * Database is critical: if DB is down, overall status is 'unhealthy' (503).
+   * Secondary dependencies (Redis cache, Brevo email) degrade features but keep CMS alive ('degraded', 200).
    */
   static determineStatus(dbStatus, redisStatus, emailStatus) {
-    const severityMap = {
-      error: 3,
-      unhealthy: 3,
-      degraded: 2,
-      missing_credentials: 2,
-      ok: 1,
-      configured: 1,
-      not_configured: 1,
-    };
+    const knownStatuses = new Set([
+      'error', 'unhealthy', 'degraded', 'missing_credentials',
+      'ok', 'configured', 'not_configured'
+    ]);
 
-    const statuses = [dbStatus, redisStatus, emailStatus];
-    const maxSeverity = Math.max(
-      ...statuses.map((s) => {
-        const severity = severityMap[s];
-        if (severity === undefined) {
-          logger.warn({ status: s }, 'Unknown health status');
-        }
-        return severity || 0;
-      })
-    );
+    const statuses = [dbStatus, redisStatus, emailStatus].filter(Boolean);
+    for (const s of statuses) {
+      if (!knownStatuses.has(s)) {
+        logger.warn({ status: s }, 'Unknown health status');
+      }
+    }
 
-    if (maxSeverity >= 3) return 'unhealthy';
-    if (maxSeverity >= 2) return 'degraded';
+    if (dbStatus === 'error' || dbStatus === 'unhealthy') {
+      return 'unhealthy';
+    }
+
+    if (
+      redisStatus === 'error' ||
+      redisStatus === 'degraded' ||
+      emailStatus === 'error' ||
+      emailStatus === 'missing_credentials' ||
+      emailStatus === 'degraded'
+    ) {
+      return 'degraded';
+    }
+
     return 'healthy';
+  }
+
+  /**
+   * Fast, zero-dependency liveness check to confirm process is running
+   */
+  static getLiveness() {
+    return {
+      status: 'alive',
+      timestamp: new Date().toISOString(),
+      uptimeSeconds: Math.round(process.uptime()),
+    };
+  }
+
+  /**
+   * Readiness probe verifying that critical persistent storage / database is reachable
+   */
+  static async getReadiness() {
+    const dbRes = await this.checkDatabase();
+    const isReady = dbRes.status === 'ok';
+    return {
+      status: isReady ? 'ready' : 'unhealthy',
+      ready: isReady,
+      timestamp: new Date().toISOString(),
+      components: {
+        database: dbRes,
+      },
+    };
   }
 
   /**

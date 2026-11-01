@@ -22,7 +22,8 @@ export async function GET(req, context) {
     }
 
     let isAuthorized = false;
-    if (['admin', 'admission', 'scholarship', 'faculty'].includes(user.role)) {
+    const staffRoles = ['admin', 'admission', 'admission_clerk', 'scholarship', 'scholarship_clerk', 'faculty', 'hod', 'principal', 'staff'];
+    if (staffRoles.includes(user.role) || user.staffId || user.is_hod) {
       isAuthorized = true;
     }
 

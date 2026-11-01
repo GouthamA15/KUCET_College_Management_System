@@ -1,0 +1,151 @@
+1
+00:00:00,500 --> 00:00:08,000
+Welcome to the official payment verification and fraud prevention training for the KUCET College Management System.
+
+2
+00:00:08,500 --> 00:00:16,000
+Every semester, Kakatiya University College of Engineering and Technology processes thousands of admission and fee payments.
+
+3
+00:00:16,500 --> 00:00:25,000
+Verifying these payments with rigor is essential to protecting university funds and ensuring equity for genuine students.
+
+4
+00:00:25,500 --> 00:00:34,000
+Digital payment screenshots can be entered incorrectly, reused, or manipulated with image-editing software.
+
+5
+00:00:34,500 --> 00:00:44,000
+Our foundational institutional rule: A payment screenshot submitted by a student is evidence to review, never proof of money received.
+
+6
+00:00:45,000 --> 00:00:53,000
+The payment verification lifecycle operates through six well-defined operational phases.
+
+7
+00:00:53,500 --> 00:01:02,000
+First, the student uploads their receipt and enters the reference. Second, strict format validation checks UPI versus UTR syntax.
+
+8
+00:01:02,500 --> 00:01:11,000
+Third, cryptographic SHA-256 and perceptual difference hashing catch identical or cropped screenshot re-use.
+
+9
+00:01:11,500 --> 00:01:19,000
+Fourth, native optical character recognition extracts visible text and compares it against entered numbers and expected fees.
+
+10
+00:01:19,500 --> 00:01:29,000
+Fifth, authoritative bank settlement records confirm payment. Otherwise, the record enters the Staff Review Queue with explainable flags.
+
+11
+00:01:30,000 --> 00:01:38,000
+Here is a demonstration payment screenshot, prominently marked as synthetic evidence for training purposes.
+
+12
+00:01:38,500 --> 00:01:46,000
+Callout 1: Displayed payment status. A visual checkmark can be easily fabricated; never rely on visual status alone.
+
+13
+00:01:46,500 --> 00:01:54,000
+Callout 2: Displayed amount. Confirm that the amount matches the exact fee required for the applicant's category.
+
+14
+00:01:54,500 --> 00:02:03,000
+Callout 3: The 12-digit Bank Reference or UTR Number. In India, genuine UPI transactions generate a 12-digit numeric reference.
+
+15
+00:02:03,500 --> 00:02:13,000
+Callout 4: Beneficiary name. Ensure the money was transferred to Principal KU College of Engineering and Technology, not a personal account.
+
+16
+00:02:14,000 --> 00:02:22,000
+In a correct submission, the candidate scans the college QR code or transfers to the official college UPI ID.
+
+17
+00:02:22,500 --> 00:02:30,000
+The student uploads the genuine receipt and enters the 12-digit UTR into the transaction reference field.
+
+18
+00:02:30,500 --> 00:02:39,000
+The system assigns an initial status of SUBMITTED or NEEDS_REVIEW. It is never marked VERIFIED without official bank confirmation.
+
+19
+00:02:40,000 --> 00:02:48,000
+Scenario 1: Student A submits genuine payment evidence for five hundred rupees with UTR 428190123456.
+
+20
+00:02:48,500 --> 00:02:56,000
+The entered reference matches the screenshot, the image hash is unique, and external bank records confirm settlement.
+
+21
+00:02:56,500 --> 00:03:05,000
+Because authoritative external confirmation exists, the status transitions to VERIFIED with an official verification badge.
+
+22
+00:03:06,000 --> 00:03:15,000
+Scenario 2: Student B uploads Student A's screenshot and enters a 12-digit transaction ID into the UPI ID handle field.
+
+23
+00:03:15,500 --> 00:03:23,000
+The system flags an Identifier Type Mismatch and an Exact Image Duplicate hash conflict.
+
+24
+00:03:23,500 --> 00:03:32,000
+Privacy is protected: Student A's personal details are never exposed. The submission is held for staff review.
+
+25
+00:03:33,000 --> 00:03:41,000
+Scenario 3: Student C crops the headers off Student A's screenshot. The byte-for-byte SHA-256 hash changes completely.
+
+26
+00:03:41,500 --> 00:03:49,000
+However, our 64-bit Perceptual Difference Hash detects an eighty-eight percent visual similarity with prior evidence on file.
+
+27
+00:03:49,500 --> 00:03:58,000
+The system raises a Perceptual Image Match warning and holds the submission in NEEDS_REVIEW for staff inspection.
+
+28
+00:03:59,000 --> 00:04:07,000
+Scenario 4: Student D submits a cropped screenshot showing UTR 428190123456, but enters altered reference 428190123499.
+
+29
+00:04:07,500 --> 00:04:15,000
+Native OCR reads the visible receipt text and flags an OCR Discrepancy between entered and visible numbers.
+
+30
+00:04:15,500 --> 00:04:24,000
+With an elevated risk score and no bank settlement record, the submission is held for thorough staff review.
+
+31
+00:04:25,000 --> 00:04:33,000
+In the staff console, an authorized officer opens the transaction modal and reviews the amber risk alert banner.
+
+32
+00:04:33,500 --> 00:04:41,000
+Staff inspect the full screenshot, compare against the daily university bank statement, and select the appropriate decision.
+
+33
+00:04:41,500 --> 00:04:50,000
+Every decision records the verification method and reason in the immutable audit log with staff ID, timestamp, and IP address.
+
+34
+00:04:51,000 --> 00:04:58,000
+Common mistakes to avoid: Never approve solely because a receipt looks clean. Never assume an entered reference proves payment.
+
+35
+00:04:58,500 --> 00:05:06,000
+Do not treat duplicate warnings as immediate proof of fraud. Never share receipts across unencrypted channels.
+
+36
+00:05:07,000 --> 00:05:15,000
+Staff Operational Checklist: Confirm student record, fee amount, reference format, screenshot details, duplicate alerts, and bank match.
+
+37
+00:05:15,500 --> 00:05:24,000
+Always record the verification method and audit reason before finalizing any payment record.
+
+38
+00:05:25,000 --> 00:05:35,000
+In conclusion: A screenshot is evidence to review, not proof of money received. Thank you for protecting institutional integrity at KUCET.

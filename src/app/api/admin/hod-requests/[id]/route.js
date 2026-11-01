@@ -87,9 +87,9 @@ export async function PATCH(request, context) {
           user_id: adminId,
           user_type: 'admin',
           action: 'HOD_REQUEST_REJECTED',
-          entity_type: 'FACULTY_HOD_REQUEST',
-          entity_id: requestId,
-          details: JSON.stringify({ reason: rejection_reason }),
+          target_type: 'faculty_hod_requests',
+          target_id: String(requestId),
+          payload_after: { reason: rejection_reason },
           ip_address: request.headers.get('x-forwarded-for') || '127.0.0.1',
           user_agent: request.headers.get('user-agent') || 'system'
         });
@@ -139,9 +139,9 @@ export async function PATCH(request, context) {
             user_id: adminId,
             user_type: 'admin',
             action: 'HOD_ROLE_ASSIGNED',
-            entity_type: 'STAFF_ACCOUNT',
-            entity_id: reqRecord.staff_account_id,
-            details: JSON.stringify({ role: 'HOD' }),
+            target_type: 'staff_accounts',
+            target_id: String(reqRecord.staff_account_id),
+            payload_after: { role: 'HOD' },
             ip_address: request.headers.get('x-forwarded-for') || '127.0.0.1',
             user_agent: request.headers.get('user-agent') || 'system'
           });
@@ -162,9 +162,9 @@ export async function PATCH(request, context) {
           user_id: adminId,
           user_type: 'admin',
           action: 'HOD_ASSIGNMENT_CREATED',
-          entity_type: 'FACULTY_HOD_ASSIGNMENT',
-          entity_id: newAssignment.insertId,
-          details: JSON.stringify({ department: reqRecord.department_code, academic_year: reqRecord.academic_year }),
+          target_type: 'faculty_hod_assignments',
+          target_id: String(newAssignment.insertId),
+          payload_after: { department: reqRecord.department_code, academic_year: reqRecord.academic_year },
           ip_address: request.headers.get('x-forwarded-for') || '127.0.0.1',
           user_agent: request.headers.get('user-agent') || 'system'
         });
@@ -183,13 +183,13 @@ export async function PATCH(request, context) {
           user_id: adminId,
           user_type: 'admin',
           action: 'HOD_REQUEST_APPROVED',
-          entity_type: 'FACULTY_HOD_REQUEST',
-          entity_id: requestId,
-          details: JSON.stringify({ 
+          target_type: 'faculty_hod_requests',
+          target_id: String(requestId),
+          payload_after: { 
             staff_id: reqRecord.staff_account_id, 
             department: reqRecord.department_code,
             academic_year: reqRecord.academic_year 
-          }),
+          },
           ip_address: request.headers.get('x-forwarded-for') || '127.0.0.1',
           user_agent: request.headers.get('user-agent') || 'system'
         });

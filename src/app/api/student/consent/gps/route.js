@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { students } from '@/db/schema';
 import { getAuthUser } from '@/lib/api-utils';
+import { logger } from '@/lib/logger';
 
 export async function POST(_req) {
   try {
@@ -20,7 +21,7 @@ export async function POST(_req) {
 
     return NextResponse.json({ success: true, message: 'Consent granted' });
   } catch (error) {
-    console.error('GPS Consent Error:', error);
-    return NextResponse.json({ error: 'Failed to process consent' }, { status: 500 });
+    logger.error({ err: error.message }, 'GPS Consent Error');
+    return NextResponse.json({ error: 'Unable to process GPS consent. Please try again.' }, { status: 500 });
   }
 }

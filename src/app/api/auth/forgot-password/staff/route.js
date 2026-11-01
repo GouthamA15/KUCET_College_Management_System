@@ -2,7 +2,7 @@ import logger from '@/lib/logger';
 import { db } from '@/db';
 import { passwordResetTokens } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { getBaseUrl, sendInstitutionalEmail } from '@/lib/email';
+import { getBaseUrl, sendInstitutionalEmail, EMAIL_CATEGORIES } from '@/lib/email';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { NextResponse } from 'next/server';
@@ -101,7 +101,8 @@ If you did not initiate this request, please ignore this email or contact the ad
         url: resetLink,
         label: 'Reset Password',
         expiresIn: '60 minutes'
-      }
+      },
+      category: EMAIL_CATEGORIES.PASSWORD_RECOVERY,
     });
 
     return GENERIC_OK;

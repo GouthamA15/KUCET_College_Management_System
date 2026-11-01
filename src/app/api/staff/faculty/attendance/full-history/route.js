@@ -43,7 +43,9 @@ export async function GET(request) {
       name: students.name,
       date: sql`DATE_FORMAT(${studentAttendance.date}, '%Y-%m-%d')`,
       session: studentAttendance.session,
-      status: studentAttendance.status
+      status: studentAttendance.status,
+      submitted_at: studentAttendance.submitted_at,
+      created_at: studentAttendance.created_at
     })
     .from(studentAttendance)
     .innerJoin(students, eq(studentAttendance.student_id, students.id))
@@ -63,6 +65,7 @@ export async function GET(request) {
       return apiError('Assignment not found', 404);
     }
     const assignment = assignments[0];
+    const calendarTerm = ((Number(assignment.course_semester) - 1) % 2) + 1;
 
     // Get all generated dates for this semester from the Academic Calendar
     const { academicCalendar } = await import('@/db/schema');
@@ -84,13 +87,75 @@ export async function GET(request) {
     ))
     .where(and(
       eq(academicCalendar.academic_year, assignment.academic_year),
-      eq(academicCalendar.semester, assignment.course_semester)
+      eq(academicCalendar.semester, calendarTerm)
     ))
     .orderBy(asc(academicCalendar.date), asc(sql`COALESCE(${attendanceSessions.session_number}, 1)`));
+
+    // Authoritative Submitted Sessions: computed strictly from committed attendance records
+    // Group attendance records by (date, session)
+    const sessionMap = new Map();
+    for (const record of (attendance || [])) {
+      const key = `${record.date}__${record.session}`;
+      if (!sessionMap.has(key)) {
+        sessionMap.set(key, {
+          date: record.date,
+          session: record.session,
+          total_students: 0,
+          present_count: 0,
+          submitted_at: record.submitted_at || record.created_at || null,
+          has_verified_submitted_at: Boolean(record.submitted_at),
+        });
+      }
+      const entry = sessionMap.get(key);
+      entry.total_students += 1;
+      if (record.status === 'PRESENT') {
+        entry.present_count += 1;
+      }
+      if (record.submitted_at && !entry.has_verified_submitted_at) {
+        entry.submitted_at = record.submitted_at;
+        entry.has_verified_submitted_at = true;
+      }
+    }
+
+    // Fetch session metadata directly from attendanceSessions for authoritative topic & timestamp mapping
+    let directSessionRows = [];
+    try {
+      directSessionRows = await db.select({
+        date: sql`DATE_FORMAT(${attendanceSessions.attendance_date}, '%Y-%m-%d')`,
+        session: attendanceSessions.session_number,
+        topic_covered: attendanceSessions.topic_covered,
+        submitted_at: attendanceSessions.submitted_at
+      })
+      .from(attendanceSessions)
+      .where(eq(attendanceSessions.assignment_id, assignment_id));
+    } catch (_e) {
+      // Graceful fallback if attendanceSessions query fails
+    }
+
+    const submittedSessions = Array.from(sessionMap.values()).map(s => {
+      const directMatch = (directSessionRows || []).find(d => d.date === s.date && d.session === s.session);
+      const matchedCal = (uniqueDates || []).find(u => u.date === s.date && u.session === s.session);
+      const resolvedTopic = directMatch?.topic_covered || matchedCal?.topic_covered || null;
+      const resolvedSubmittedAt = s.submitted_at || directMatch?.submitted_at || null;
+
+      return {
+        date: s.date,
+        session: s.session,
+        topic_covered: resolvedTopic,
+        submitted_at: resolvedSubmittedAt,
+        is_historical: !s.has_verified_submitted_at && !directMatch?.submitted_at,
+        total_students: s.total_students,
+        present_count: s.present_count
+      };
+    }).sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date);
+      return b.session - a.session;
+    });
 
     return apiResponse({ 
       data: {
         attendance, 
+        submittedSessions,
         uniqueDates 
       }
     });

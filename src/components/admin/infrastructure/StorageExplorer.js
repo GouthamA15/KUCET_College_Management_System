@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import Image from 'next/image';
 import { formatDate } from '@/lib/date';
 import { getAssetUrl } from '@/lib/assets';
+import ImageWithLoading from '@/components/ui/ImageWithLoading';
 
 export default function StorageExplorer() {
   const [files, setFiles] = useState([]);
@@ -345,19 +346,17 @@ export default function StorageExplorer() {
                   <div key={f.name + i} className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex flex-col gap-3">
                     <div className="flex gap-3 items-center">
                       <div className="w-12 h-12 bg-slate-50 border border-slate-200 rounded-sm overflow-hidden flex items-center justify-center relative shadow-sm flex-shrink-0">
-                        {f.name ? (
-                          <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-                            src={getAssetUrl(f.name)} 
-                            alt="Asset" 
-                            width={48} 
-                            height={48} 
-                            unoptimized
-                            className="object-cover w-full h-full cursor-zoom-in"
-                            onClick={() => window.open(getAssetUrl(f.name), '_blank')}
-                          />
-                        ) : (
-                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">BIN</span>
-                        )}
+                        <ImageWithLoading
+                          src={f.name}
+                          alt="Asset"
+                          width={48}
+                          height={48}
+                          variant="thumbnail"
+                          className="object-cover w-full h-full cursor-zoom-in"
+                          onClick={() => window.open(getAssetUrl(f.name), '_blank')}
+                          emptyText="BIN"
+                          errorText="DOC"
+                        />
                       </div>
                       <div className="flex flex-col min-w-0 flex-1">
                         <span className="text-xs font-black text-slate-700 truncate block" title={f.name}>

@@ -28,10 +28,43 @@ vi.mock('@upstash/redis', () => {
   };
 });
 
+vi.mock('ioredis', () => {
+  return {
+    default: class MockIORedis {
+      constructor(url, options) {
+        this.url = url;
+        this.options = options;
+        this.status = 'wait';
+      }
+      on() {}
+      once() {}
+      async connect() {
+        if (process.env.MOCK_IOREDIS_CONNECT_FAIL === 'true') {
+          throw new Error('Connection refused');
+        }
+        this.status = 'ready';
+      }
+      async ping() {
+        if (process.env.MOCK_IOREDIS_PING_FAIL === 'true') {
+          throw new Error('Timeout ping');
+        }
+        return 'PONG';
+      }
+      disconnect() {
+        this.status = 'end';
+      }
+    }
+  };
+});
+
 describe('HealthService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    HealthService.resetRedisClient();
     // Set env vars for tests
+    delete process.env.REDIS_URL;
+    process.env.MOCK_IOREDIS_CONNECT_FAIL = 'false';
+    process.env.MOCK_IOREDIS_PING_FAIL = 'false';
     process.env.UPSTASH_REDIS_REST_URL = 'http://mock-redis';
     process.env.UPSTASH_REDIS_REST_TOKEN = 'mock-token';
     process.env.BREVO_API_KEY = 'mock-key';
@@ -55,22 +88,59 @@ describe('HealthService', () => {
   });
 
   describe('checkRedis', () => {
-    it('should return ok if ping returns PONG', async () => {
-      const result = await HealthService.checkRedis();
-      expect(result.status).toBe('ok');
+    describe('Self-Hosted Redis (IORedis)', () => {
+      it('should return ok for self-hosted redis when REDIS_URL is configured', async () => {
+        process.env.REDIS_URL = 'redis://localhost:6379';
+        const result = await HealthService.checkRedis();
+        expect(result.status).toBe('ok');
+        expect(result.type).toBe('self-hosted');
+        expect(result.latencyMs).toBeGreaterThanOrEqual(0);
+      });
+
+      it('should reuse persistent client on consecutive checks without reconnecting', async () => {
+        process.env.REDIS_URL = 'redis://localhost:6379';
+        const res1 = await HealthService.checkRedis();
+        expect(res1.status).toBe('ok');
+        const res2 = await HealthService.checkRedis();
+        expect(res2.status).toBe('ok');
+      });
+
+      it('should return error if self-hosted connect fails and reset client', async () => {
+        process.env.REDIS_URL = 'redis://localhost:6379';
+        process.env.MOCK_IOREDIS_CONNECT_FAIL = 'true';
+        const result = await HealthService.checkRedis();
+        expect(result.status).toBe('error');
+        expect(result.error).toBe('Connection refused');
+      });
+
+      it('should return error if self-hosted ping fails', async () => {
+        process.env.REDIS_URL = 'redis://localhost:6379';
+        process.env.MOCK_IOREDIS_PING_FAIL = 'true';
+        const result = await HealthService.checkRedis();
+        expect(result.status).toBe('error');
+        expect(result.error).toBe('Timeout ping');
+      });
     });
 
-    it('should return not_configured if env vars are missing', async () => {
-      delete process.env.UPSTASH_REDIS_REST_URL;
-      const result = await HealthService.checkRedis();
-      expect(result.status).toBe('not_configured');
-    });
+    describe('Upstash Redis fallback', () => {
+      it('should return ok if ping returns PONG', async () => {
+        const result = await HealthService.checkRedis();
+        expect(result.status).toBe('ok');
+        expect(result.type).toBe('upstash');
+      });
 
-    it('should return error if ping fails', async () => {
-      process.env.MOCK_REDIS_FAIL = 'true';
-      const result = await HealthService.checkRedis();
-      expect(result.status).toBe('error');
-      expect(result.error).toBe('Redis Error');
+      it('should return not_configured if env vars are missing', async () => {
+        delete process.env.UPSTASH_REDIS_REST_URL;
+        const result = await HealthService.checkRedis();
+        expect(result.status).toBe('not_configured');
+      });
+
+      it('should return error if ping fails', async () => {
+        process.env.MOCK_REDIS_FAIL = 'true';
+        const result = await HealthService.checkRedis();
+        expect(result.status).toBe('error');
+        expect(result.error).toBe('Redis Error');
+      });
     });
   });
 

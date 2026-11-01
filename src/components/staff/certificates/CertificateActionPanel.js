@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
+import React, { useState } from 'react';
 import { getStatusStyles } from "@/lib/ui-utils";
 import { formatCertificateName } from '@/lib/certificate-utils';
 import { formatDate } from '@/lib/date';
+import ImageWithLoading from '@/components/ui/ImageWithLoading';
+import ImagePreviewModal from '@/components/ImagePreviewModal';
 import { CheckCircle, XCircle } from 'lucide-react';
 
 export default function CertificateActionPanel({ 
@@ -12,7 +13,7 @@ export default function CertificateActionPanel({
   staffType = 'admission',
   onActionComplete = () => {}
 }) {
-  const [imageLoading, setImageLoading] = useState(true);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [rejectReasonOpen, setRejectReasonOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
@@ -147,6 +148,35 @@ export default function CertificateActionPanel({
                   </div>
                 </div>
               ) : null}
+              {/* HOD Endorsement Stage */}
+              {request?.hod_approval_status && request?.hod_approval_status !== 'NOT_REQUIRED' ? (
+                <div className="mt-2 pt-2 border-t border-gray-100 space-y-2">
+                  <div className="flex items-start gap-3">
+                    <div className="w-36 text-sm text-gray-500">HOD Status</div>
+                    <div>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${
+                        request.hod_approval_status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                        request.hod_approval_status === 'REJECTED' ? 'bg-rose-100 text-rose-800 border-rose-200' :
+                        'bg-amber-100 text-amber-800 border-amber-200'
+                      }`}>
+                        {request.hod_approval_status}
+                      </span>
+                    </div>
+                  </div>
+                  {request.hod_approved_at && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-36 text-sm text-gray-500">HOD Endorsed On</div>
+                      <div className="font-semibold text-gray-800">{toDmy(request.hod_approved_at)}</div>
+                    </div>
+                  )}
+                  {request.hod_rejection_reason && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-36 text-sm text-gray-500">HOD Reason</div>
+                      <div className="font-semibold text-rose-700">{request.hod_rejection_reason}</div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -180,44 +210,58 @@ export default function CertificateActionPanel({
           <div className="flex items-center justify-between mb-2">
             <h4 className="font-medium text-gray-800">Payment Screenshot</h4>
             {screenshotSrc && (
-              <a 
-                href={screenshotSrc} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
-              >
-                <span>View Full Image</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </a>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPreviewOpen(true)}
+                  className="text-xs font-semibold text-[#0b3578] hover:underline cursor-pointer inline-flex items-center gap-1"
+                >
+                  <span>🔍 Expand</span>
+                </button>
+                <a 
+                  href={screenshotSrc} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
+                >
+                  <span>Open in Tab ↗</span>
+                </a>
+              </div>
             )}
           </div>
-          <div className="flex-1 min-h-[180px] w-full rounded-md border bg-gray-50 grid place-items-center relative overflow-hidden">
-            {screenshotSrc ? (
-              <>
-                {imageLoading && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 z-10 space-y-1">
-                        <div className="animate-spin h-6 w-6 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
-                        <span className="text-xs text-gray-500 font-medium">Image is loading...</span>
-                    </div>
-                )}
-                <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-                    src={screenshotSrc} 
-                    alt="Payment Screenshot" 
-                    width={500} 
-                    height={500} 
-                    unoptimized
-                    className={`max-w-full max-h-[48vh] object-contain rounded-md transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
-                    onLoad={() => setImageLoading(false)}
-                />
-              </>
-            ) : (
-              <span className="text-sm text-gray-400">No screenshot provided.</span>
-            )}
+          <div 
+            className="flex-1 min-h-[260px] sm:min-h-[340px] max-h-[460px] w-full rounded-lg border border-gray-200 bg-slate-900/5 relative overflow-hidden flex items-center justify-center cursor-zoom-in group"
+            onClick={() => screenshotSrc && setPreviewOpen(true)}
+            title="Click to inspect full payment screenshot"
+          >
+            <ImageWithLoading
+              src={screenshotSrc}
+              alt="Payment Screenshot"
+              fill
+              sizes="(max-width: 768px) 100vw, 500px"
+              variant="document"
+              className="object-contain p-2"
+              imageClassName="object-contain"
+              emptyText="No screenshot provided."
+              errorText="Payment screenshot unavailable or could not be loaded"
+            />
           </div>
+          {screenshotSrc && (
+            <p className="mt-1 text-[11px] text-gray-400 text-center">
+              Click screenshot to expand to full size & inspect transaction details
+            </p>
+          )}
         </div>
       </div>
+
+      {screenshotSrc && (
+        <ImagePreviewModal
+          src={screenshotSrc}
+          alt={`Payment Screenshot - ${request?.roll_number || 'Verification'}`}
+          open={previewOpen}
+          onClose={() => setPreviewOpen(false)}
+        />
+      )}
 
       {/* Standalone Action Footer */}
       {request?.status === 'PENDING' && (
@@ -243,7 +287,7 @@ export default function CertificateActionPanel({
                 <button 
                   type="button" 
                   onClick={() => { setRejectReasonOpen(false); setActionError(null); }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer"
                   disabled={processing}
                 >
                   Cancel
@@ -251,7 +295,7 @@ export default function CertificateActionPanel({
                 <button 
                   type="button" 
                   onClick={() => handleAction('REJECTED')}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-rose-600 rounded-md hover:bg-rose-700 disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-rose-600 rounded-md hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
                   disabled={processing || !rejectReason.trim()}
                 >
                   {processing ? <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" /> : <XCircle className="w-4 h-4" />}
@@ -264,7 +308,7 @@ export default function CertificateActionPanel({
               <button 
                 type="button" 
                 onClick={() => { setRejectReasonOpen(true); setActionError(null); }}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white border border-rose-200 text-rose-600 font-bold hover:bg-rose-50 transition-colors shadow-sm"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white border border-rose-200 text-rose-600 font-bold hover:bg-rose-50 transition-colors shadow-sm cursor-pointer"
                 disabled={processing}
               >
                 <XCircle className="w-4 h-4" /> Reject Request
@@ -272,11 +316,17 @@ export default function CertificateActionPanel({
               <button 
                 type="button" 
                 onClick={() => handleAction('APPROVED')}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#0b3578] text-white font-bold hover:bg-blue-900 transition-colors shadow-sm"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#0b3578] text-white font-bold hover:bg-blue-900 transition-colors shadow-sm cursor-pointer"
                 disabled={processing}
               >
                 {processing ? <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                Authorize & Approve
+                {staffType === 'hod' && request?.certificate_type === 'Bonafide Certificate'
+                  ? 'Endorse Request (Stage 1)'
+                  : request?.certificate_type === 'No Objection Certificate'
+                    ? 'Authorize & Issue NOC'
+                    : request?.certificate_type === 'Bonafide Certificate'
+                      ? 'Final Approval & Issue (Stage 2)'
+                      : 'Authorize & Approve'}
               </button>
             </div>
           )}

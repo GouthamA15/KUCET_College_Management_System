@@ -67,9 +67,13 @@ export default class LocalStorageProvider extends StorageProvider {
       throw new Error('Unsupported file type for local upload');
     }
 
-    // 1MB Limit
-    if (buffer.length > 1 * 1024 * 1024) {
-      throw new Error(`File too large (${(buffer.length / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1MB.`);
+    // Check if this upload folder permits larger evidence documents (up to 5MB)
+    const isEvidenceUpload = typeof folder === 'string' && (folder.includes('attendance') || folder.includes('evidence') || folder.includes('dispute'));
+    const maxAllowedBytes = isEvidenceUpload ? (5 * 1024 * 1024) : (1 * 1024 * 1024);
+    const maxAllowedMB = isEvidenceUpload ? '5MB' : '1MB';
+
+    if (buffer.length > maxAllowedBytes) {
+      throw new Error(`File too large (${(buffer.length / 1024 / 1024).toFixed(2)}MB). Maximum allowed is ${maxAllowedMB}.`);
     }
 
     const STORAGE_PATH = getLocalStorageBasePath();

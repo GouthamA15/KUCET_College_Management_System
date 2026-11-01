@@ -13,9 +13,53 @@ const envSchema = z.object({
   DB_DATABASE: z.string().min(1, "DB_DATABASE is required"),
   DB_SSL: z.enum(['true', 'false']).default('false'),
 
-  // Email
-  EMAIL_USER: z.string().email("EMAIL_USER must be a valid email"),
-  BREVO_API_KEY: z.string().min(1, "BREVO_API_KEY is required"),
+  // Email (Categorized Brevo API Keys & Sender Identities)
+  EMAIL_USER: z.string().email("EMAIL_USER must be a valid email").optional(),
+  BREVO_API_KEY: z.string().optional(),
+
+  // Category A - Authentication OTP
+  BREVO_API_KEY_AUTH_OTP: z.string().optional(),
+  BREVO_SENDER_EMAIL_AUTH_OTP: z.string().email().optional(),
+  BREVO_SENDER_NAME_AUTH_OTP: z.string().optional(),
+  BREVO_REPLY_TO_EMAIL_AUTH_OTP: z.string().email().optional(),
+
+  // Category B - Password Recovery
+  BREVO_API_KEY_PASSWORD_RECOVERY: z.string().optional(),
+  BREVO_SENDER_EMAIL_PASSWORD_RECOVERY: z.string().email().optional(),
+  BREVO_SENDER_NAME_PASSWORD_RECOVERY: z.string().optional(),
+  BREVO_REPLY_TO_EMAIL_PASSWORD_RECOVERY: z.string().email().optional(),
+
+  // Category C - Security Alerts
+  BREVO_API_KEY_SECURITY_ALERTS: z.string().optional(),
+  BREVO_SENDER_EMAIL_SECURITY_ALERTS: z.string().email().optional(),
+  BREVO_SENDER_NAME_SECURITY_ALERTS: z.string().optional(),
+  BREVO_REPLY_TO_EMAIL_SECURITY_ALERTS: z.string().email().optional(),
+
+  // Category D - Staff Onboarding
+  BREVO_API_KEY_STAFF_ONBOARDING: z.string().optional(),
+  BREVO_SENDER_EMAIL_STAFF_ONBOARDING: z.string().email().optional(),
+  BREVO_SENDER_NAME_STAFF_ONBOARDING: z.string().optional(),
+  BREVO_REPLY_TO_EMAIL_STAFF_ONBOARDING: z.string().email().optional(),
+
+  // Category E - Admissions
+  BREVO_API_KEY_ADMISSIONS: z.string().optional(),
+  BREVO_SENDER_EMAIL_ADMISSIONS: z.string().email().optional(),
+  BREVO_SENDER_NAME_ADMISSIONS: z.string().optional(),
+  BREVO_REPLY_TO_EMAIL_ADMISSIONS: z.string().email().optional(),
+
+  // Category F - Scholarship
+  BREVO_API_KEY_SCHOLARSHIP: z.string().optional(),
+  BREVO_SENDER_EMAIL_SCHOLARSHIP: z.string().email().optional(),
+  BREVO_SENDER_NAME_SCHOLARSHIP: z.string().optional(),
+  BREVO_REPLY_TO_EMAIL_SCHOLARSHIP: z.string().email().optional(),
+
+  // Category G - System Operations
+  BREVO_API_KEY_SYSTEM_OPERATIONS: z.string().optional(),
+  BREVO_SENDER_EMAIL_SYSTEM_OPERATIONS: z.string().email().optional(),
+  BREVO_SENDER_NAME_SYSTEM_OPERATIONS: z.string().optional(),
+  BREVO_REPLY_TO_EMAIL_SYSTEM_OPERATIONS: z.string().email().optional(),
+
+  ENABLE_LEGACY_BREVO_KEY_FALLBACK: z.enum(['true', 'false']).default('false'),
 
   // Secrets for JWT and Certificate
   JWT_SECRET: z.string().min(32, "JWT_SECRET should be at least 32 characters for security"),
@@ -30,6 +74,11 @@ const envSchema = z.object({
   // Supabase (Real-time Messaging - Optional for VPS)
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+
+  // Real-time Provider Configuration (socketio | redis | supabase | hybrid)
+  REALTIME_PROVIDER: z.enum(['socketio', 'redis', 'supabase', 'hybrid']).default('socketio').optional(),
+  NEXT_PUBLIC_REALTIME_PROVIDER: z.enum(['socketio', 'redis', 'supabase', 'hybrid']).optional(),
 
   // VPS Real-time (Socket.io)
   NEXT_PUBLIC_SOCKET_URL: z.string().url().optional(),
@@ -39,7 +88,7 @@ const envSchema = z.object({
   STORAGE_PROVIDER: z.enum(['cloudinary', 'local', 's3', 'r2']).optional(),
   STORAGE_TYPE: z.enum(['cloudinary', 'local', 's3', 'r2']).optional(),
   NEXT_PUBLIC_STORAGE_PROVIDER: z.enum(['cloudinary', 'local', 's3', 'r2']).optional(),
-  NEXT_PUBLIC_STORAGE_TYPE: z.enum(['cloudinary', 'local', 's3', 'r2']).default('cloudinary'),
+  NEXT_PUBLIC_STORAGE_TYPE: z.enum(['cloudinary', 'local', 's3', 'r2']).default('local'),
   LOCAL_STORAGE_PATH: z.string().optional(),
 
   // Public URLs

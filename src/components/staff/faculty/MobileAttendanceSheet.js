@@ -1,14 +1,13 @@
 'use client';
-/* eslint-disable @next/next/no-img-element */
-import { useState, _useEffect } from 'react';
+import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
 import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
 import { canonicalizeRollNo } from '@/lib/rollNumber';
 import dynamic from 'next/dynamic';
 import LectureTopicModal from './LectureTopicModal';
-import { getAssetUrl } from '@/lib/assets';
 import { formatDate } from '@/lib/date';
+import ImageWithLoading from '@/components/ui/ImageWithLoading';
 
 const QRScannerPanel = dynamic(() => import('./QRScannerPanel'), {
   ssr: false,
@@ -303,8 +302,14 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
     verifiedStudentIds,
     setVerifiedStudentIds,
     topicModalSession,
-    setTopicModalSession
+    setTopicModalSession,
+    currentTopicCovered,
+    setCurrentTopicCovered,
+    isDraftDirty,
   } = useFacultyAttendance();
+
+  const lastScannedRollRef = useRef('');
+  const lastScannedTimeRef = useRef(0);
 
   const handleQRScan = (rollNo) => {
     if (!selectedDate || !dateValidation?.isValid) {
@@ -312,9 +317,21 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
       return;
     }
     const targetRoll = canonicalizeRollNo(rollNo);
+    const now = Date.now();
+    if (lastScannedRollRef.current === targetRoll && (now - lastScannedTimeRef.current) < 1500) {
+      return; // Debounce rapid repeat scan
+    }
+    lastScannedRollRef.current = targetRoll;
+    lastScannedTimeRef.current = now;
+
     const student = students.find(s => canonicalizeRollNo(s.roll_no) === targetRoll);
     if (student) {
-      setAttendanceStatus(student.id, 'PRESENT');
+      if (student.status === 'PRESENT') {
+        toast.success(`${rollNo} is already marked PRESENT`, { id: 'qr-success-mobile' });
+      } else {
+        setAttendanceStatus(student.id, 'PRESENT');
+        toast.success(`Marked ${rollNo} present!`, { id: 'qr-success-mobile' });
+      }
       if (setVerifiedStudentIds) {
         setVerifiedStudentIds(prev => {
           const next = new Set(prev);
@@ -322,7 +339,6 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
           return next;
         });
       }
-      toast.success(`Marked ${rollNo} present!`, { id: 'qr-success-mobile' });
     } else {
       toast.error(`Student with Roll No ${rollNo} not found in this class.`);
     }
@@ -496,40 +512,38 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
                     )}
                   </div>
                   {students.map(student => (
-                    <div key={student.id} className="bg-white border border-gray-200 rounded-xl p-3.5 shadow-sm">
-                      <div className="flex justify-between items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-500 flex-shrink-0">
-                          {student.pfp ? (
-                            <img src={getAssetUrl(student.pfp)} alt={student.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = student.name.charAt(0).toUpperCase(); }} />
-                          ) : (
-                            student.name.charAt(0).toUpperCase()
-                          )}
-                        </div>
-                        <div className="flex-1 pr-1">
-                          <div className="font-mono text-gray-800 text-[11px] font-black tracking-wide mb-1 flex items-center gap-2">
-                            {student.roll_no}
+                    <div key={student.id} className="bg-white border border-gray-200 rounded-xl p-3 sm:p-3.5 shadow-sm">
+                      <div className="flex justify-between items-center gap-2.5 sm:gap-3">
+                        <ImageWithLoading
+                          src={student.pfp}
+                          alt={student.name || 'Student'}
+                          width={40}
+                          height={40}
+                          variant="avatar"
+                          fallbackText={student.name?.charAt(0).toUpperCase()}
+                          className="w-10 h-10 rounded-full border border-slate-200 shrink-0"
+                          imageClassName="w-full h-full object-cover rounded-full"
+                        />
+                        <div className="flex-1 min-w-0 pr-1">
+                          <div className="font-mono text-gray-900 text-sm sm:text-base font-black tracking-tight leading-none mb-1 flex items-center flex-wrap gap-1.5">
+                            <span className="select-all break-all">{student.roll_no}</span>
                             {verifiedStudentIds.has(student.id) && (
-                              <span className="flex items-center gap-1 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
+                              <span className="inline-flex items-center gap-1 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
                                 <span className="flex h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></span>
                                 <span className="text-[9px] font-black text-green-700 uppercase tracking-widest">Verified</span>
                               </span>
                             )}
                           </div>
-                          <div className="text-gray-900 text-sm font-bold leading-tight">
+                          <div className="text-gray-500 text-xs font-medium leading-snug break-words uppercase">
                             {student.name}
                           </div>
                         </div>
                         <div className="flex-shrink-0">
-                          {statusLoading ? (
-                            <div className="w-[84px] h-[36px] bg-gray-100 rounded-lg flex items-center justify-center">
-                              <span className="inline-block h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => assignment.is_active && dateValidation.isValid && toggleAttendanceStatus(student.id)}
+                          <button
+                            type="button"
+                            onClick={() => assignment.is_active && dateValidation.isValid && toggleAttendanceStatus(student.id)}
                               disabled={!assignment.is_active || !dateValidation.isValid}
-                              className={`w-[84px] h-[36px] flex items-center justify-center text-xs font-black rounded-lg transition-colors border-2 uppercase tracking-wide ${
+                              className={`w-[80px] sm:w-[84px] h-[36px] flex items-center justify-center text-xs font-black rounded-lg transition-colors border-2 uppercase tracking-wide ${
                                 student.status === null 
                                   ? 'bg-gray-50 text-gray-600 border-gray-200' 
                                   : student.status === 'PRESENT' 
@@ -549,7 +563,6 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
                                student.status === 'NCC' ? 'NCC' :
                                student.status === 'MEDICAL' ? 'MEDICAL' : '?'}
                             </button>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -586,6 +599,11 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
             )}
             Save Session S{selectedSession}
+            {isDraftDirty && (
+              <span className="ml-1 text-[9px] bg-amber-400 text-amber-950 font-black px-1.5 py-0.5 rounded uppercase">
+                Draft
+              </span>
+            )}
           </button>
         </div>
       )}
@@ -596,8 +614,12 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
         assignmentId={topicModalSession?.assignmentId}
         date={topicModalSession?.date}
         session={topicModalSession?.session}
-        initialTopic={topicModalSession?.initialTopic || ''}
+        initialTopic={topicModalSession?.initialTopic || currentTopicCovered || ''}
         onClose={() => setTopicModalSession(null)}
+        onTopicSaved={(newTopic) => {
+          setCurrentTopicCovered(newTopic);
+          setTopicModalSession(null);
+        }}
       />
     </div>
   );

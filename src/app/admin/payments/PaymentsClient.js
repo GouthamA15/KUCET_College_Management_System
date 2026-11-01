@@ -239,7 +239,14 @@ export default function PaymentsClient() {
                         {tx.reference || 'N/A'}
                       </td>
                       <td className={`px-4 py-3 whitespace-nowrap text-[10px] uppercase tracking-wider ${getStatusColor(tx.status, tx.type)}`}>
-                        {tx.status}
+                        <div className="flex items-center gap-1.5">
+                          <span>{tx.status}</span>
+                          {tx.details?.is_flagged && (
+                            <span className="inline-flex items-center text-[9px] font-black text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300" title="Flagged: Duplicate evidence or reference inconsistency detected. Requires manual review.">
+                              ⚠️ REVIEW
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-center">
                          <button 
@@ -340,6 +347,36 @@ export default function PaymentsClient() {
                             <p className="text-lg font-black text-slate-900 uppercase">{selectedTx.type}</p>
                         </div>
                     </div>
+
+                    {selectedTx.details?.is_flagged && (
+                      <div className="bg-amber-50 border border-amber-300 rounded p-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                            <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                            Security & Integrity Risk Alert
+                          </span>
+                          <span className="bg-amber-200 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded uppercase">
+                            Manual Review Required
+                          </span>
+                        </div>
+                        <p className="text-xs text-amber-800">
+                          {selectedTx.details.flag_details?.type === 'UTR_CONFLICT_REQUEST' || selectedTx.details.flag_details?.type === 'UTR_CONFLICT_FEE' || selectedTx.details.flag_details?.type === 'UTR_ALREADY_USED' ? 'Transaction reference matches an earlier submission on record.' :
+                           selectedTx.details.flag_details?.type === 'HASH_CONFLICT' || selectedTx.details.flag_details?.type === 'EXACT_IMAGE_DUPLICATE' ? 'Uploaded payment screenshot is identical to an earlier submission.' :
+                           selectedTx.details.flag_details?.type === 'IDENTIFIER_TYPE_MISMATCH' ? 'Field format mismatch detected (e.g. Transaction ID entered in UPI VPA field).' :
+                           'Integrity check flagged inconsistencies. A screenshot alone cannot verify receipt of funds.'}
+                        </p>
+                        {selectedTx.details.flag_details?.explanations && selectedTx.details.flag_details.explanations.length > 0 && (
+                          <div className="pt-1 border-t border-amber-200">
+                            {selectedTx.details.flag_details.explanations.map((exp, idx) => (
+                              <p key={idx} className="text-[11px] text-amber-900 font-medium">• {exp}</p>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-amber-700 italic">
+                          Important: Verify transaction directly on bank portal/reconciliation sheet before approving.
+                        </p>
+                      </div>
+                    )}
 
                     <div className="space-y-3">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1">Additional Metadata</p>
