@@ -286,7 +286,9 @@ export default function CoordinatorWorkspaceClient() {
           { id: 'syllabus', label: 'Subjects & Syllabus', icon: BookOpen },
           { id: 'timetable', label: 'First-Year Timetables', icon: Calendar },
           { id: 'requests', label: `Faculty Requests ${pendingRequestsCount > 0 ? `(${pendingRequestsCount})` : ''}`, icon: Users },
-          { id: 'id-cards', label: 'Student ID Cards', icon: CreditCard },
+          { id: 'id-cards', label: 'ID Cards (Standard)', icon: CreditCard },
+          { id: 'roll-number-id-cards', label: 'Roll Number QR Cards', icon: CreditCard },
+          { id: 'public-id-cards', label: 'Public ID QR Cards', icon: CreditCard },
           { id: 'bulk-id-cards', label: 'Bulk ID Card Download', icon: Archive },
         ].map(tab => {
           const Icon = tab.icon;
@@ -944,18 +946,69 @@ export default function CoordinatorWorkspaceClient() {
         </div>
       )}
 
-      {/* ─── TAB 5: STUDENT ID CARDS ───────────────────────────────────────────── */}
+      {/* ─── TAB 5: STUDENT ID CARDS (STANDARD) ────────────────────────────────── */}
       {activeTab === 'id-cards' && (
         <div className="space-y-4">
           <div className="bg-sky-50/80 border border-sky-200 rounded-xl p-4 flex items-center justify-between text-xs text-sky-950">
             <div className="flex items-center gap-2.5">
               <CreditCard className="w-4 h-4 text-sky-700 shrink-0" />
               <span>
-                <strong>First-Year Coordinator ID Card Jurisdiction:</strong> Preview, generate single/bulk PDFs, export branch Excel reports with photos, and download ZIP archives for <strong>finalized first-year students</strong> across all branches.
+                <strong>First-Year Coordinator Jurisdiction:</strong> Preview and generate standard student ID cards with 14-line institutional verification QR codes for <strong>finalized first-year students</strong> across all branches.
               </span>
             </div>
           </div>
-          <IDCardManagementHub initialBranch="ALL" />
+          <IDCardManagementHub 
+            initialBranch="ALL" 
+            qrMode="standard"
+            hubTitle="First-Year Student ID Cards (Standard QR)"
+            hubDescription="Preview and generate physical student ID cards with standard 14-line institutional plain-text verification QR codes."
+            badgeText="First-Year Standard QR"
+            bulkHref="/staff/first-year/id-cards/bulk"
+          />
+        </div>
+      )}
+
+      {/* ─── TAB: ROLL NUMBER QR ID CARDS (MODULE A) ───────────────────────────── */}
+      {activeTab === 'roll-number-id-cards' && (
+        <div className="space-y-4">
+          <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-4 flex items-center justify-between text-xs text-emerald-950">
+            <div className="flex items-center gap-2.5">
+              <CreditCard className="w-4 h-4 text-emerald-700 shrink-0" />
+              <span>
+                <strong>Roll Number QR ID Card Generator (Module A):</strong> Generates first-year cards whose QR code encodes <strong>only the student&apos;s hall-ticket number</strong> for attendance scanning.
+              </span>
+            </div>
+          </div>
+          <IDCardManagementHub 
+            initialBranch="ALL" 
+            qrMode="roll_number"
+            hubTitle="First-Year Roll Number QR ID Card Generator"
+            hubDescription="Generates student ID cards with QR codes containing only the student's hall-ticket number. Suitable for ordinary QR scanners and KUCET attendance scanning."
+            badgeText="First-Year Roll Number QR"
+            bulkHref="/staff/first-year/id-cards/bulk?mode=roll_number"
+          />
+        </div>
+      )}
+
+      {/* ─── TAB: PUBLIC ID QR ID CARDS (MODULE B) ─────────────────────────────── */}
+      {activeTab === 'public-id-cards' && (
+        <div className="space-y-4">
+          <div className="bg-purple-50/80 border border-purple-200 rounded-xl p-4 flex items-center justify-between text-xs text-purple-950">
+            <div className="flex items-center gap-2.5">
+              <CreditCard className="w-4 h-4 text-purple-700 shrink-0" />
+              <span>
+                <strong>Public Student Identification QR Generator (Module B):</strong> Generates first-year cards whose QR code opens the <strong>official KUCET public student verification page</strong>.
+              </span>
+            </div>
+          </div>
+          <IDCardManagementHub 
+            initialBranch="ALL" 
+            qrMode="public_url"
+            hubTitle="First-Year Public Student Identification QR ID Card Generator"
+            hubDescription="Generates student ID cards with QR codes that open the official KUCET public student identification page."
+            badgeText="First-Year Public URL QR"
+            bulkHref="/staff/first-year/id-cards/bulk?mode=public_url"
+          />
         </div>
       )}
 

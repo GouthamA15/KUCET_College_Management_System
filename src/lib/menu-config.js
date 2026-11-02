@@ -40,7 +40,9 @@ export const NAV_MENU_CONFIG = {
         { label: 'Student Registry', route: '/staff/admission/student-management' },
         { label: 'Student Requests', route: '/staff/admission/requests' },
         { label: 'Finalize', route: '/staff/admission/finalize' },
-        { label: 'ID Cards', route: '/staff/admission/id-cards' },
+        { label: 'ID Cards (Standard QR)', route: '/staff/admission/id-cards' },
+        { label: 'Roll Number QR ID Cards', route: '/staff/admission/id-cards/roll-number' },
+        { label: 'Public ID QR ID Cards', route: '/staff/admission/id-cards/public-id' },
         { label: 'Bulk ID Card Download', route: '/staff/admission/id-cards/bulk' }
       ]
     },
@@ -69,7 +71,9 @@ export const NAV_MENU_CONFIG = {
         { label: 'Student Registry', route: '/staff/admission/student-management' },
         { label: 'Student Requests', route: '/staff/admission/requests' },
         { label: 'Finalize', route: '/staff/admission/finalize' },
-        { label: 'ID Cards', route: '/staff/admission/id-cards' },
+        { label: 'ID Cards (Standard QR)', route: '/staff/admission/id-cards' },
+        { label: 'Roll Number QR ID Cards', route: '/staff/admission/id-cards/roll-number' },
+        { label: 'Public ID QR ID Cards', route: '/staff/admission/id-cards/public-id' },
         { label: 'Bulk ID Card Download', route: '/staff/admission/id-cards/bulk' }
       ]
     },

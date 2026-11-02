@@ -15,8 +15,11 @@ export const GET = wrapHandler({
       return apiError('Roll number is required', 400);
     }
 
+    const { searchParams } = new URL(req.url, 'http://localhost');
+    const qrMode = searchParams.get('qrMode') || 'standard';
+
     // 2. Fetch Student Card Data
-    const student = await IDCardDataService.getStudentRecordByRollNo(rollno);
+    const student = await IDCardDataService.getStudentRecordByRollNo(rollno, { qrMode });
     if (!student) {
       return apiError(`Student with roll number ${rollno} not found`, 404);
     }
