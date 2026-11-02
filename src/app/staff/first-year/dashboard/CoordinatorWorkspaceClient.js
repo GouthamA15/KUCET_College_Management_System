@@ -286,7 +286,7 @@ export default function CoordinatorWorkspaceClient() {
           { id: 'syllabus', label: 'Subjects & Syllabus', icon: BookOpen },
           { id: 'timetable', label: 'First-Year Timetables', icon: Calendar },
           { id: 'requests', label: `Faculty Requests ${pendingRequestsCount > 0 ? `(${pendingRequestsCount})` : ''}`, icon: Users },
-          { id: 'id-cards', label: 'ID Cards (Standard)', icon: CreditCard },
+          { id: 'id-cards', label: 'Student ID Cards (Standard)', icon: CreditCard },
           { id: 'roll-number-id-cards', label: 'Roll Number QR Cards', icon: CreditCard },
           { id: 'public-id-cards', label: 'Public ID QR Cards', icon: CreditCard },
           { id: 'bulk-id-cards', label: 'Bulk ID Card Download', icon: Archive },

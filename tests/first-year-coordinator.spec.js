@@ -425,7 +425,7 @@ test.describe('First Year Coordinator Comprehensive E2E Suite', () => {
 
     await page.goto('/staff/first-year/dashboard');
     // Click on Student ID Cards tab
-    await page.click('button:has-text("Student ID Cards")');
+    await page.click('button:has-text("Student ID Cards"), button:has-text("ID Cards (Standard)")');
 
     await expect(page.locator('text=John Doe')).toBeVisible();
     await expect(page.locator('text=Jane Smith')).toBeVisible();
