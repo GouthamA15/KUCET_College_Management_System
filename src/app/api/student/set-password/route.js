@@ -23,15 +23,16 @@ export async function GET(req) {
     if (!rollno) return apiError('Roll number required', 400);
 
     const student = await db.query.students.findFirst({
-      columns: { password_hash: true },
+      columns: { password_hash: true, is_email_verified: true },
       where: eq(students.roll_no, rollno)
     });
 
     if (!student) return apiError('Student not found', 404);
 
     const isPasswordSet = !!student.password_hash;
+    const isEmailVerified = !!student.is_email_verified;
 
-    return apiResponse({ isPasswordSet });
+    return apiResponse({ isPasswordSet, isEmailVerified });
   } catch (err) {
     logger.error(err);
     return apiError('Server error', 500);
@@ -61,7 +62,7 @@ export async function POST(req) {
     // Check if student already has a password
     const student = await db.query.students.findFirst({
       where: eq(students.roll_no, rollno),
-      columns: { id: true, password_hash: true }
+      columns: { id: true, password_hash: true, is_email_verified: true }
     });
 
     if (!student) return apiError('Student not found', 404);
@@ -83,6 +84,15 @@ export async function POST(req) {
       }
       
       eventType = 'PASSWORD_CHANGED';
+    } else {
+      // First-time permanent password creation requires verified email
+      if (!student.is_email_verified) {
+        return apiError('Email verification is required before setting a permanent password.', 403, {
+          code: 'EMAIL_VERIFICATION_REQUIRED',
+          title: 'Email Verification Required',
+          message: 'You must verify your institutional email address before setting a permanent password.'
+        });
+      }
     }
 
     // ─── FIX #10: bcrypt cost raised from 10 → 12 ───
@@ -93,7 +103,6 @@ export async function POST(req) {
     await db.update(students)
       .set({ 
         password_hash: hashedPassword, 
-        is_email_verified: true,
         password_changed_at: now
       })
       .where(eq(students.roll_no, rollno));

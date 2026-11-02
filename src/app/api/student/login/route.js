@@ -6,24 +6,13 @@ import bcrypt from 'bcrypt';
 import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 import logger from '@/lib/logger';
 import { z } from 'zod';
-import crypto from 'crypto';
+import { validateStudentDob, isDobFormat } from '@/lib/dob';
 
 const loginSchema = z.object({
   rollno: z.string().trim().toUpperCase().min(10, 'Roll number must be at least 10 characters').max(12, 'Roll number must not exceed 12 characters'),
   dob: z.string().trim().min(1, 'Password or Date of Birth is required').max(255), // Can be DOB (8-10) or Password (up to 255)
   rememberMe: z.boolean().default(false)
 });
-
-// ─── FIX #7: Constant-time string comparison with 255-byte padded buffers ───
-// Eliminates the timing oracle that allowed inferring DOB format character-by-character.
-const COMPARE_PAD_LEN = 255;
-function timingSafeStringEqual(a, b) {
-  const aBuf = Buffer.alloc(COMPARE_PAD_LEN);
-  const bBuf = Buffer.alloc(COMPARE_PAD_LEN);
-  Buffer.from(String(a)).copy(aBuf, 0, 0, Math.min(String(a).length, COMPARE_PAD_LEN));
-  Buffer.from(String(b)).copy(bBuf, 0, 0, Math.min(String(b).length, COMPARE_PAD_LEN));
-  return crypto.timingSafeEqual(aBuf, bBuf);
-}
 
 export const POST = wrapHandler({
   schema: loginSchema,
@@ -50,6 +39,7 @@ export const POST = wrapHandler({
       roll_no: students.roll_no,
       name: students.name,
       is_email_verified: students.is_email_verified,
+      email: students.email,
       father_name: studentPersonalDetails.father_name,
       category: studentPersonalDetails.category,
       mobile: students.mobile,
@@ -187,7 +177,7 @@ export const POST = wrapHandler({
         isAuthenticated = true;
       } else {
         logger.warn({ rollno }, '[Student Login Failed] Password mismatch');
-        const isDatePattern = /^\d{4}-\d{2}-\d{2}$/.test(dob) || /^\d{1,2}-\d{1,2}-\d{4}$/.test(dob);
+        const isDatePattern = isDobFormat(dob);
         const message = isDatePattern
           ? 'The password you entered could not be verified. If you have already changed your password from the default date of birth, use your updated password, or use Forgot Password to reset it.'
           : 'The password you entered could not be verified. Check your password and try again. If you have forgotten it, use Forgot Password to reset it.';
@@ -199,8 +189,8 @@ export const POST = wrapHandler({
       }
     } else {
       // First-time login: student has not set a custom password, requires Date of Birth
-      const isDatePattern = /^\d{4}-\d{2}-\d{2}$/.test(dob) || /^\d{1,2}-\d{1,2}-\d{4}$/.test(dob);
-      if (!isDatePattern) {
+      const dobResult = validateStudentDob(dob, student.date_of_birth);
+      if (!dobResult.formatValid) {
         logger.warn({ rollno }, '[Student Login Failed] First-time login password format mismatch');
         return apiError('Invalid credentials', 401, {
           code: 'FIRST_TIME_DOB_FORMAT_REQUIRED',
@@ -209,19 +199,7 @@ export const POST = wrapHandler({
         });
       }
 
-      const dbDate = new Date(student.date_of_birth);
-      const dbDateString = dbDate.getFullYear() + '-' + String(dbDate.getMonth() + 1).padStart(2, '0') + '-' + String(dbDate.getDate()).padStart(2, '0');
-      
-      let inputDateString = dob;
-      if (dob.includes('-')) {
-        const parts = dob.split('-');
-        if (parts[0].length === 2 && parts[2].length === 4) {
-           inputDateString = `${parts[2]}-${parts[1]}-${parts[0]}`;
-        }
-      }
-
-      // ─── FIX #7: Use timingSafeStringEqual instead of plain === ───
-      if (timingSafeStringEqual(dbDateString, inputDateString)) {
+      if (dobResult.matches) {
         isAuthenticated = true;
       } else {
         logger.warn({ rollno }, '[Student Login Failed] DOB mismatch');
