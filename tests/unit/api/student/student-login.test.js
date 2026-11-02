@@ -400,6 +400,104 @@ describe('Student Login API (/api/student/login)', () => {
       expect(body.student.roll_no).toBe('24567T0904');
     });
 
+    it('authenticates successfully with DOB in DD/MM/YYYY slash format on first login', async () => {
+      mockDbSelectResult([{
+        id: 105,
+        roll_no: '24567T0905',
+        name: 'Charlie Brown',
+        password_hash: null,
+        date_of_birth: new Date('2005-02-22'),
+        student_status: 'ACTIVE',
+        academic_status: 'ACTIVE',
+      }]);
+
+      const req = makeMockRequest({
+        rollno: '24567T0905',
+        dob: '22/02/2005',
+        rememberMe: false,
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+
+      const body = await res.json();
+      expect(body.success).toBe(true);
+      expect(body.student.roll_no).toBe('24567T0905');
+    });
+
+    it('authenticates successfully with DOB in DDMMYYYY compact 8-digit format on first login', async () => {
+      mockDbSelectResult([{
+        id: 106,
+        roll_no: '24567T0906',
+        name: 'Diana Prince',
+        password_hash: null,
+        date_of_birth: new Date('2005-02-22'),
+        student_status: 'ACTIVE',
+        academic_status: 'ACTIVE',
+      }]);
+
+      const req = makeMockRequest({
+        rollno: '24567T0906',
+        dob: '22022005',
+        rememberMe: false,
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+
+      const body = await res.json();
+      expect(body.success).toBe(true);
+      expect(body.student.roll_no).toBe('24567T0906');
+    });
+
+    it('rejects 7-digit compact DOB format with FIRST_TIME_DOB_FORMAT_REQUIRED', async () => {
+      mockDbSelectResult([{
+        id: 107,
+        roll_no: '24567T0907',
+        name: 'Evan Wright',
+        password_hash: null,
+        date_of_birth: new Date('2005-02-22'),
+        student_status: 'ACTIVE',
+        academic_status: 'ACTIVE',
+      }]);
+
+      const req = makeMockRequest({
+        rollno: '24567T0907',
+        dob: '2202205', // 7 digits
+        rememberMe: false,
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(401);
+
+      const body = await res.json();
+      expect(body.code).toBe('FIRST_TIME_DOB_FORMAT_REQUIRED');
+    });
+
+    it('rejects 2-digit year format DD-MM-YY with FIRST_TIME_DOB_FORMAT_REQUIRED', async () => {
+      mockDbSelectResult([{
+        id: 108,
+        roll_no: '24567T0908',
+        name: 'Fiona Gallagher',
+        password_hash: null,
+        date_of_birth: new Date('2005-02-22'),
+        student_status: 'ACTIVE',
+        academic_status: 'ACTIVE',
+      }]);
+
+      const req = makeMockRequest({
+        rollno: '24567T0908',
+        dob: '22-02-05', // 2 digit year
+        rememberMe: false,
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(401);
+
+      const body = await res.json();
+      expect(body.code).toBe('FIRST_TIME_DOB_FORMAT_REQUIRED');
+    });
+
     it('permits login for students from non-finalized branches (e.g. CIVIL, EEE, ECE, CSD) when account exists', async () => {
       const branches = [
         { code: '00', name: 'CIVIL', roll: '24567T0012' },
