@@ -26,7 +26,7 @@ export async function GET(request) {
 
   try {
     const roleToTypes = {
-      hod: ['No Objection Certificate', 'Bonafide Certificate'],
+      hod: ['No Objection Certificate', 'Bonafide Certificate', 'Internship Certificate'],
       admission: [
         'Bonafide Certificate', 'Course Completion Certificate',
         'Transfer Certificate (TC)', 'Migration Certificate', 'Study Conduct Certificate',
@@ -49,6 +49,20 @@ export async function GET(request) {
     });
 
     const baseConditions = [inArray(studentRequests.certificate_type, certTypes)];
+
+    // PHASE 5: HOD Request Scoping
+    if (staffType === 'hod') {
+      const branchCodeMap = {
+        'CSE': '09', 'CSD': '30', 'ECE': '15', 'EEE': '12',
+        'CIVIL': '00', 'IT': '18', 'MECH': '03'
+      };
+      const code = branchCodeMap[staff.branch];
+      if (code) {
+        baseConditions.push(sql`${students.roll_no} LIKE ${'%567T' + code + '%'}`);
+      } else {
+        baseConditions.push(sql`1 = 0`); // Fail-safe if branch is invalid
+      }
+    }
 
     if (workspace === 'history') {
       const historyConditions = [...baseConditions, inArray(studentRequests.status, ['APPROVED', 'REJECTED'])];

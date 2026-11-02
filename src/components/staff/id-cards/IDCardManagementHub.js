@@ -31,7 +31,46 @@ const CANONICAL_BRANCH_INFO = [
   { code: '03', name: 'MECH', fullName: 'Mechanical Engineering' },
 ];
 
-export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
+export default function IDCardManagementHub({ 
+  initialBranch = 'ALL',
+  qrMode = 'standard',
+  hubTitle = null,
+  hubDescription = null,
+  badgeText = null,
+  bulkHref = null,
+}) {
+  const title = hubTitle || (
+    qrMode === 'roll_number' 
+      ? 'Roll Number QR ID Card Generator' 
+      : qrMode === 'public_url' 
+      ? 'Public Student Identification QR ID Card Generator' 
+      : 'Student ID Cards'
+  );
+
+  const description = hubDescription || (
+    qrMode === 'roll_number'
+      ? "Generates student ID cards with QR codes containing only the student's hall-ticket number. Suitable for ordinary QR scanners and KUCET attendance scanning."
+      : qrMode === 'public_url'
+      ? 'Generates student ID cards with QR codes that open the official KUCET public student identification page.'
+      : 'Generate print-ready identity cards and export official datasets for finalized students with persisted roll numbers.'
+  );
+
+  const currentBadge = badgeText || (
+    qrMode === 'roll_number'
+      ? 'Roll Number QR (Plain Text)'
+      : qrMode === 'public_url'
+      ? 'Public Identification URL QR'
+      : 'Standard 14-Line Plain-Text QR'
+  );
+
+  const effectiveBulkHref = bulkHref || (
+    qrMode === 'roll_number'
+      ? '/staff/admission/id-cards/bulk?mode=roll_number'
+      : qrMode === 'public_url'
+      ? '/staff/admission/id-cards/bulk?mode=public_url'
+      : '/staff/admission/id-cards/bulk'
+  );
+
   // Branch & Filters State
   const [selectedBranch, setSelectedBranch] = useState(initialBranch);
   const [exportFormat, setExportFormat] = useState('xlsx');
@@ -199,7 +238,7 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
     setIsSingleDownloading(true);
     const toastId = toast.loading(`Generating official ID card PDF for ${rollNo}...`);
     try {
-      const res = await fetch(`/api/staff/id-cards/${rollNo}/pdf`);
+      const res = await fetch(`/api/staff/id-cards/${rollNo}/pdf?qrMode=${encodeURIComponent(qrMode)}`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Failed to generate ID card PDF');
@@ -282,7 +321,7 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
   const handleOpenPreview = async (student) => {
     setPreviewStudent(student);
     try {
-      const res = await fetch(`/api/staff/id-cards/${student.rollNo}`);
+      const res = await fetch(`/api/staff/id-cards/${student.rollNo}?qrMode=${encodeURIComponent(qrMode)}`);
       if (res.ok) {
         const data = await res.json();
         if (data.student) setPreviewStudent(data.student);
@@ -297,16 +336,21 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
       {/* 1. Header & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-200 pb-5">
         <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-[#0b3578] border border-blue-200">
+              {currentBadge}
+            </span>
+          </div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-            Student ID Cards
+            {title}
           </h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1">
-            Generate print-ready identity cards and export official datasets for finalized students with persisted roll numbers.
+          <p className="text-xs sm:text-sm text-gray-500 mt-1 max-w-3xl leading-relaxed">
+            {description}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Link
-            href="/staff/admission/id-cards/bulk"
+            href={effectiveBulkHref}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#0b3578] hover:bg-[#08285a] rounded-md shadow-xs transition cursor-pointer"
             title="Bulk Student ID Card PDF Generation & ZIP Download"
           >
@@ -778,7 +822,12 @@ export default function IDCardManagementHub({ initialBranch = 'ALL' }) {
             {/* Modal Header */}
             <div className="px-5 py-3.5 border-b border-gray-200 flex items-center justify-between bg-gray-50">
               <div>
-                <h3 className="font-bold text-gray-900 text-sm">Student ID Card Preview</h3>
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <h3 className="font-bold text-gray-900 text-sm">Student ID Card Preview</h3>
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 bg-blue-100 text-[#0b3578] rounded">
+                    {currentBadge}
+                  </span>
+                </div>
                 <p className="text-xs text-gray-500 font-mono">{previewStudent.rollNo}</p>
               </div>
               <button

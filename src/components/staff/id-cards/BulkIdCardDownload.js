@@ -37,11 +37,12 @@ const GENERATION_PHASES = [
   { id: 8, label: 'Generation completed successfully' },
 ];
 
-export default function BulkIdCardDownload({ defaultBranch = 'ALL', isCoordinatorMode = false }) {
+export default function BulkIdCardDownload({ defaultBranch = 'ALL', isCoordinatorMode = false, defaultQrMode = 'standard' }) {
   // State
   const [selectedBranch, setSelectedBranch] = useState(defaultBranch);
   const [academicLevel, setAcademicLevel] = useState('FIRST_YEAR');
   const [academicYear, setAcademicYear] = useState('');
+  const [qrMode, setQrMode] = useState(defaultQrMode);
   const [isLoadingPreview, setIsLoadingPreview] = useState(true);
   const [previewData, setPreviewData] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -147,6 +148,7 @@ export default function BulkIdCardDownload({ defaultBranch = 'ALL', isCoordinato
           branch: selectedBranch,
           academicLevel: isCoordinator ? 'FIRST_YEAR' : academicLevel,
           academicYear,
+          qrMode,
         }),
       });
 
@@ -350,6 +352,71 @@ export default function BulkIdCardDownload({ defaultBranch = 'ALL', isCoordinato
             <p className="text-[11px] text-gray-500 mt-1">
               Select one branch or generate institution-wide First Year cards.
             </p>
+          </div>
+        </div>
+
+        {/* QR Code Format Selection */}
+        <div className="pt-3 border-t border-gray-100">
+          <label className="block text-xs font-semibold text-gray-700 mb-2">
+            QR Code Verification Format (Select Generator Module)
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <button
+              type="button"
+              onClick={() => setQrMode('standard')}
+              disabled={isGenerating}
+              className={`p-3 rounded-lg border text-left transition cursor-pointer ${
+                qrMode === 'standard'
+                  ? 'border-[#0b3578] bg-blue-50/40 ring-1 ring-[#0b3578]'
+                  : 'border-gray-200 bg-white hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-900">Standard QR</span>
+                <span className="text-[10px] font-mono font-bold text-[#0b3578] bg-blue-100 px-1.5 py-0.5 rounded">14 Fields</span>
+              </div>
+              <p className="text-[11px] text-gray-500 mt-1 leading-snug">
+                Generates original 14-line human-readable institutional verification payload.
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setQrMode('roll_number')}
+              disabled={isGenerating}
+              className={`p-3 rounded-lg border text-left transition cursor-pointer ${
+                qrMode === 'roll_number'
+                  ? 'border-[#0b3578] bg-blue-50/40 ring-1 ring-[#0b3578]'
+                  : 'border-gray-200 bg-white hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-900">Roll Number QR</span>
+                <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">Module A</span>
+              </div>
+              <p className="text-[11px] text-gray-500 mt-1 leading-snug">
+                QR contains strictly the plain student hall-ticket number. Suitable for attendance scanning.
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setQrMode('public_url')}
+              disabled={isGenerating}
+              className={`p-3 rounded-lg border text-left transition cursor-pointer ${
+                qrMode === 'public_url'
+                  ? 'border-[#0b3578] bg-blue-50/40 ring-1 ring-[#0b3578]'
+                  : 'border-gray-200 bg-white hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-900">Public Identification URL</span>
+                <span className="text-[10px] font-mono font-bold text-purple-800 bg-purple-100 px-1.5 py-0.5 rounded">Module B</span>
+              </div>
+              <p className="text-[11px] text-gray-500 mt-1 leading-snug">
+                QR contains the official KUCET public student verification link.
+              </p>
+            </button>
           </div>
         </div>
 

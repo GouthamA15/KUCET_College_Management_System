@@ -6,9 +6,19 @@ import { formatCertificateName } from '@/lib/certificate-utils';
 import { formatDate } from '@/lib/date';
 import ImageWithLoading from '@/components/ui/ImageWithLoading';
 import ImagePreviewModal from '@/components/ImagePreviewModal';
+import { CheckCircle, XCircle } from 'lucide-react';
 
-export default function CertificateActionPanel({ request }) {
+export default function CertificateActionPanel({ 
+  request, 
+  staffType = 'admission',
+  onActionComplete = () => {}
+}) {
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [rejectReasonOpen, setRejectReasonOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [actionError, setActionError] = useState(null);
+
   const toDmy = (val) => formatDate(val, '—');
 
   const currency = (amt) => {
@@ -23,9 +33,48 @@ export default function CertificateActionPanel({ request }) {
     ? `/api/student/requests/image/${request.request_id}?t=${request.updated_at ? new Date(request.updated_at).getTime() : (request.created_at ? new Date(request.created_at).getTime() : 0)}` 
     : null;
 
+  const handleAction = async (status) => {
+    if (!request?.request_id) return;
+    
+    if (status === 'REJECTED') {
+      const reason = String(rejectReason || '').trim();
+      if (!reason) {
+        setActionError("Please provide a rejection reason.");
+        return;
+      }
+    }
+
+    try {
+      setProcessing(true);
+      setActionError(null);
+      const res = await fetch(`/api/staff/requests/${encodeURIComponent(request.request_id)}${staffType ? `?staffType=${staffType}` : ''}`, {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          status, 
+          reject_reason: status === 'REJECTED' ? rejectReason.trim() : undefined 
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to ${status.toLowerCase()} request`);
+      }
+
+      setRejectReasonOpen(false);
+      setRejectReason("");
+      onActionComplete();
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   return (
-    <section className="bg-white">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <section className="bg-white flex flex-col h-full">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 flex-grow overflow-y-auto">
         <div className="text-sm">
           {/* Student Details */}
           <div className="mb-3">
@@ -78,10 +127,6 @@ export default function CertificateActionPanel({ request }) {
               <div className="flex items-start gap-3">
                 <div className="w-36 text-sm text-gray-500">Requested On</div>
                 <div className="font-semibold text-gray-800">{toDmy(request?.created_at)}</div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-36 text-sm text-gray-500">Completed On</div>
-                <div className="font-semibold text-gray-800">{toDmy(request?.completed_at)}</div>
               </div>
               <div className="flex items-start gap-3">
                 <div className="w-36 text-sm text-gray-500">Status</div>
@@ -216,6 +261,76 @@ export default function CertificateActionPanel({ request }) {
           open={previewOpen}
           onClose={() => setPreviewOpen(false)}
         />
+      )}
+
+      {/* Standalone Action Footer */}
+      {request?.status === 'PENDING' && (
+        <div className="border-t border-gray-200 bg-gray-50 p-4">
+          {actionError && (
+            <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-md">
+              {actionError}
+            </div>
+          )}
+
+          {rejectReasonOpen ? (
+            <div className="space-y-3 animate-fadeIn">
+              <label className="block text-sm font-medium text-gray-700">Reason for Rejection</label>
+              <textarea 
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Please provide a clear reason so the student can re-apply if needed..."
+                className="w-full p-3 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-rose-500 outline-none"
+                rows={3}
+                autoFocus
+              />
+              <div className="flex items-center justify-end gap-3">
+                <button 
+                  type="button" 
+                  onClick={() => { setRejectReasonOpen(false); setActionError(null); }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer"
+                  disabled={processing}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => handleAction('REJECTED')}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-rose-600 rounded-md hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
+                  disabled={processing || !rejectReason.trim()}
+                >
+                  {processing ? <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" /> : <XCircle className="w-4 h-4" />}
+                  Confirm Rejection
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <button 
+                type="button" 
+                onClick={() => { setRejectReasonOpen(true); setActionError(null); }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white border border-rose-200 text-rose-600 font-bold hover:bg-rose-50 transition-colors shadow-sm cursor-pointer"
+                disabled={processing}
+              >
+                <XCircle className="w-4 h-4" /> Reject Request
+              </button>
+              <button 
+                type="button" 
+                onClick={() => handleAction('APPROVED')}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#0b3578] text-white font-bold hover:bg-blue-900 transition-colors shadow-sm cursor-pointer"
+                disabled={processing}
+              >
+                {processing ? <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                {staffType === 'hod' && request?.certificate_type === 'Bonafide Certificate'
+                  ? 'Endorse Request (Stage 1)'
+                  : request?.certificate_type === 'No Objection Certificate'
+                    ? 'Authorize & Issue NOC'
+                    : request?.certificate_type === 'Bonafide Certificate'
+                      ? 'Final Approval & Issue (Stage 2)'
+                      : 'Authorize & Approve'}
+              </button>
+            </div>
+          )}
+        </div>
       )}
     </section>
   );

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import React from 'react';
 import { NextResponse } from 'next/server';
 import { apiError, wrapHandler } from '@/lib/api-utils';
 import { IDCardAuthorizationService } from '@/services/identity/IDCardAuthorizationService';
@@ -102,8 +103,11 @@ export const GET = wrapHandler({
       return apiError('Roll number is required', 400);
     }
 
+    const { searchParams } = new URL(req.url, 'http://localhost');
+    const qrMode = searchParams.get('qrMode') || 'standard';
+
     // 2. Fetch Student Data
-    const student = await IDCardDataService.getStudentRecordByRollNo(rollno);
+    const student = await IDCardDataService.getStudentRecordByRollNo(rollno, { qrMode });
     if (!student) {
       return apiError(`Student with roll number ${rollno} not found`, 404);
     }
@@ -151,21 +155,19 @@ export const GET = wrapHandler({
       const resolvedPhoto = await resolvePdfImageDataUrl(student.photoKey || student.photoUrl);
 
       // 6. Render PDF Stream
-      const pdfElement = (
-        <IDCardPDF
-          studentName={student.studentName}
-          fatherName={student.fatherName}
-          admissionNo={student.rollNo}
-          course={student.branch}
-          batch={student.batch}
-          address={student.studentAddress}
-          mobile={student.studentPhone}
-          pfpUrl={resolvedPhoto}
-          logoUrl={logoUrl}
-          signatureUrl={signatureUrl}
-          qrUrl={student.qrUrl}
-        />
-      );
+      const pdfElement = React.createElement(IDCardPDF, {
+        studentName: student.studentName,
+        fatherName: student.fatherName,
+        admissionNo: student.rollNo,
+        course: student.branch,
+        batch: student.batch,
+        address: student.studentAddress,
+        mobile: student.studentPhone,
+        pfpUrl: resolvedPhoto,
+        logoUrl: logoUrl,
+        signatureUrl: signatureUrl,
+        qrUrl: student.qrUrl,
+      });
 
       const pdfStream = await pdf(pdfElement).toBuffer();
 

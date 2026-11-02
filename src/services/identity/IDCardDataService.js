@@ -26,6 +26,7 @@ import {
 import { decrypt } from '@/lib/encryption';
 import { getPermanentAddressFromDetails } from '@/lib/address-utils';
 import { calculateStudentYearAndSemester, getCurrentCalendarSession } from '@/lib/academic-utils';
+import { getPublicStudentUrl } from '@/lib/public-url';
 
 export const CANONICAL_BRANCHES = [
   { code: '09', name: 'CSE', fullName: 'Computer Science & Engineering' },
@@ -57,7 +58,7 @@ function resolveOfficialSerialNo(student) {
  */
 function resolveHallTicketNo(student) {
   if (!student) return '';
-  const raw = student.rollNo ?? student.hallTicketNumber ?? student.roll ?? student.admissionNo;
+  const raw = student.rollNo ?? student.roll_no ?? student.hallTicketNumber ?? student.roll ?? student.admissionNo;
   if (!raw) return '';
   const str = String(raw).trim().toUpperCase();
   if (str === 'N/A' || str === 'NULL' || str === 'UNDEFINED') return '';
@@ -303,6 +304,28 @@ export function buildStudentIDCardQRPayload(student) {
   }
 
   return lines.join('\n');
+}
+
+/**
+ * Dedicated plain roll-number QR payload builder (Module A).
+ * Invariant: Returns strictly the clean student roll number string (e.g. 23567T0942).
+ * Excludes URLs, JSON, student names, DB IDs, and extraneous metadata.
+ */
+export function buildRollNumberQRPayload(student) {
+  if (!student) return null;
+  const roll = resolveHallTicketNo(student);
+  return roll || null;
+}
+
+/**
+ * Dedicated public student identification URL QR payload builder (Module B).
+ * Invariant: Returns the canonical public URL (e.g. https://kucet.ac.in/public/student/23567T0942).
+ */
+export function buildPublicIdQRPayload(student, explicitBaseUrl = null) {
+  if (!student) return null;
+  const roll = resolveHallTicketNo(student);
+  if (!roll) return null;
+  return getPublicStudentUrl(roll, explicitBaseUrl);
 }
 
 export class IDCardDataService {
@@ -692,6 +715,14 @@ export class IDCardDataService {
     return buildStudentIDCardQRPayload(student);
   }
 
+  static buildRollNumberQRPayload(student) {
+    return buildRollNumberQRPayload(student);
+  }
+
+  static buildPublicIdQRPayload(student, explicitBaseUrl = null) {
+    return buildPublicIdQRPayload(student, explicitBaseUrl);
+  }
+
   /**
    * Generates a high-contrast, scannable QR Code Data URL with standard quiet zone
    */
@@ -709,9 +740,56 @@ export class IDCardDataService {
   }
 
   /**
+   * Generates a high-contrast QR Code Data URL containing strictly the student's roll number (Module A)
+   */
+  static async generateRollNumberQRDataUrl(student) {
+    const payload = this.buildRollNumberQRPayload(student);
+    if (!payload) return null;
+
+    return QRCode.toDataURL(payload, {
+      errorCorrectionLevel: 'M',
+      margin: 2,
+      width: 320,
+      color: { dark: '#000000', light: '#ffffff' },
+    });
+  }
+
+  /**
+   * Generates a high-contrast QR Code Data URL containing the public student identification URL (Module B)
+   */
+  static async generatePublicIdQRDataUrl(student, explicitBaseUrl = null) {
+    const payload = this.buildPublicIdQRPayload(student, explicitBaseUrl);
+    if (!payload) return null;
+
+    return QRCode.toDataURL(payload, {
+      errorCorrectionLevel: 'M',
+      margin: 2,
+      width: 320,
+      color: { dark: '#000000', light: '#ffffff' },
+    });
+  }
+
+  /**
+   * Mode-aware QR Code generator supporting all 3 ID card generation workflows:
+   * - 'standard': Original 14-line plain text payload
+   * - 'roll_number': Module A plain roll number string
+   * - 'public_url': Module B public verification URL
+   */
+  static async generateQRDataUrlForMode(student, qrMode = 'standard', explicitBaseUrl = null) {
+    const mode = String(qrMode || '').toLowerCase();
+    if (mode === 'roll_number' || mode === 'rollnumber') {
+      return this.generateRollNumberQRDataUrl(student);
+    }
+    if (mode === 'public_url' || mode === 'public_id' || mode === 'public') {
+      return this.generatePublicIdQRDataUrl(student, explicitBaseUrl);
+    }
+    return this.generateStudentQRDataUrl(student);
+  }
+
+  /**
    * Retrieves single student details for ID card preview or generation
    */
-  static async getStudentRecordByRollNo(rollNo, { firstYearOnly = false } = {}) {
+  static async getStudentRecordByRollNo(rollNo, { firstYearOnly = false, qrMode = 'standard' } = {}) {
     if (!rollNo) return null;
     const cleanRoll = String(rollNo).toUpperCase().trim();
 
@@ -764,10 +842,10 @@ export class IDCardDataService {
     const student = this.mapAuthoritativeStudent(rows[0]);
     if (!student) return null;
 
-    // Generate Verification QR Code
+    // Generate Verification QR Code based on requested mode
     let qrUrl = null;
     try {
-      qrUrl = await this.generateStudentQRDataUrl(student);
+      qrUrl = await this.generateQRDataUrlForMode(student, qrMode);
     } catch (err) {
       logger.warn({ roll: student.rollNo, err: err.message }, 'Failed to generate QR code for ID card');
     }
@@ -775,6 +853,7 @@ export class IDCardDataService {
     return {
       ...student,
       qrUrl,
+      qrMode,
     };
   }
 

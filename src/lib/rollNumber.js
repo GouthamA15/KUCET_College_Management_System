@@ -1,4 +1,5 @@
 import { getNowSync } from './clock.js';
+import { parseRollFromPublicStudentUrl } from './public-url.js';
 
 const branchCodes = {
   '09': 'CSE',
@@ -136,10 +137,16 @@ function canonicalizeRollNo(rollNo) {
 function extractRollNumberFromQR(decodedText) {
   if (!decodedText || typeof decodedText !== 'string') return null;
 
+  const trimmed = decodedText.trim();
+
+  // 0. Public URL Check: If payload is a URL, strictly require approved KUCET origin & path
+  if (/^https?:\/\//i.test(trimmed)) {
+    return parseRollFromPublicStudentUrl(trimmed);
+  }
+
   let extractedRoll = null;
 
-  // 0. Structured JSON Parse (preferred for versioned ID Card QR payloads)
-  const trimmed = decodedText.trim();
+  // 1. Structured JSON Parse (preferred for versioned ID Card QR payloads)
   if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
     try {
       const parsed = JSON.parse(trimmed);

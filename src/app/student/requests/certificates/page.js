@@ -17,7 +17,8 @@ const UPI_VPA = 'kuengineeringcollege@sbi';
 
 const certificateOptions = [
   { value: 'Bonafide Certificate', label: 'Bonafide Certificate', fee: 100, staffType: 'admission' },
-  { value: 'No Objection Certificate', label: 'No Objection Certificate', fee: 0, staffType: 'admission' },
+  { value: 'Internship Certificate', label: 'Internship Certificate', fee: 0, staffType: 'hod' },
+  { value: 'No Objection Certificate', label: 'No Objection Certificate', fee: 0, staffType: 'hod' },
   { value: 'Course Completion Certificate', label: 'Course Completion Certificate', fee: 100, staffType: 'admission' },
   { value: 'Income Tax (IT) Certificate', label: 'Income Tax (IT) Certificate', fee: 0, staffType: 'scholarship' },
   { value: 'Custodian Certificate', label: 'Custodian Certificate', fee: 100, staffType: 'scholarship' },
@@ -177,18 +178,23 @@ export default function CertificateRequestsPage() {
     smoothScrollToId('certificate-type', { behavior: 'smooth', block: 'center' });
   };
 
-  const handleSubmit = async ({ transactionId, paymentScreenshot, purposeOption, customPurpose, fromDate, toDate }) => {
+  const handleSubmit = async ({ transactionId, paymentScreenshot, purposeOption, customPurpose, organizationName, fromDate, toDate }) => {
     setIsLoading(true);
     const formData = new FormData();
     formData.append('certificateType', selectedCertificate);
     formData.append('staffType', selectedOption.staffType);
     formData.append('paymentAmount', fee);
-    if (purposeOption) formData.append('purpose_type', purposeOption);
-    if (customPurpose) formData.append('purpose_custom', customPurpose);
-    
     // Fallback for older code/apis expecting 'purpose'
-    const finalPurpose = purposeOption === 'Other' ? customPurpose : purposeOption;
-    if (finalPurpose) formData.append('purpose', finalPurpose);
+    let finalPurpose = purposeOption === 'Other' ? customPurpose : purposeOption;
+    if (selectedCertificate === 'No Objection Certificate' && organizationName) {
+        finalPurpose = `${finalPurpose} at ${organizationName.trim()}`;
+    }
+    
+    if (finalPurpose) {
+        formData.append('purpose_type', finalPurpose);
+        formData.append('purpose', finalPurpose);
+    }
+    if (customPurpose) formData.append('purpose_custom', customPurpose);
 
     if (fromDate) formData.append('fromDate', fromDate);
     if (toDate) formData.append('toDate', toDate);

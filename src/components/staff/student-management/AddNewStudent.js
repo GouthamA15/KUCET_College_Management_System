@@ -131,7 +131,7 @@ export default function AddNewStudent() {
       console.error('Image compression failed:', err);
     }
 
-    // 1MB limit
+    // 1MB limit check
     if (processedFile.size > 1 * 1024 * 1024) {
       toast.error(`${type === 'pfp' ? 'Photo' : 'Signature'} file is too large. Max limit is 1MB.`);
       e.target.value = null;
@@ -144,6 +144,7 @@ export default function AddNewStudent() {
     };
     reader.readAsDataURL(processedFile);
   };
+
 
   const handleAddStudent = async (e) => {
     e.preventDefault();

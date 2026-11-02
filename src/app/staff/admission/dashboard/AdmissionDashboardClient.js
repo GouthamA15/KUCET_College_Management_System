@@ -132,11 +132,29 @@ export default function AdmissionDashboardClient() {
     },
     {
       key: 'id-cards',
-      label: 'Student ID Cards',
-      description: 'Audit, preview and generate student identity cards.',
+      label: 'ID Cards (Standard QR)',
+      description: 'Audit, preview and generate standard physical student ID cards.',
       icon: '🪪',
       tone: 'bg-amber-50 text-amber-800',
       path: '/staff/admission/id-cards',
+      badge: 0
+    },
+    {
+      key: 'roll-number-id-cards',
+      label: 'Roll Number QR Cards',
+      description: "Generates cards with QR codes containing only the student's hall-ticket number.",
+      icon: '🎯',
+      tone: 'bg-emerald-50 text-emerald-800',
+      path: '/staff/admission/id-cards/roll-number',
+      badge: 0
+    },
+    {
+      key: 'public-id-cards',
+      label: 'Public ID QR Cards',
+      description: 'Generates cards with QR codes opening the official KUCET verification page.',
+      icon: '🌐',
+      tone: 'bg-purple-50 text-purple-800',
+      path: '/staff/admission/id-cards/public-id',
       badge: 0
     },
     {

@@ -1,14 +1,14 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentRequests, students, staffAccounts, studentRequestImages } from '@/db/schema';
-import { eq, and, _sql } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
 import crypto from 'crypto';
 import { parsePurpose, formatPurpose } from '@/lib/certificate-utils';
 
 const roleToTypes = {
     hod: [
-        'Bonafide Certificate', 'No Objection Certificate'
+        'Bonafide Certificate', 'No Objection Certificate', 'Internship Certificate'
     ],
     admission: [
         'Bonafide Certificate', 'Course Completion Certificate',
@@ -18,7 +18,10 @@ const roleToTypes = {
 };
 
 export async function PUT(request, { params }) {
-    const staff = await getAuthUser('staff');
+    const url = new URL(request.url);
+    const staffType = url.searchParams.get('staffType') || 'staff';
+    const staff = await getAuthUser(staffType === 'hod' ? 'hod' : 'staff');
+    
     if (!staff) return apiError('Unauthorized', 401);
     if (!staff.id) return apiError('Staff identity missing. Approval blocked.', 500);
 
@@ -280,7 +283,10 @@ export async function PUT(request, { params }) {
 }
 
 export async function GET(request, { params }) {
-    const staff = await getAuthUser('staff');
+    const url = new URL(request.url);
+    const staffType = url.searchParams.get('staffType') || 'staff';
+    const staff = await getAuthUser(staffType === 'hod' ? 'hod' : 'staff');
+
     if (!staff) return apiError('Unauthorized', 401);
 
     const isHodUser = Boolean(staff.is_hod || staff.role === 'hod');

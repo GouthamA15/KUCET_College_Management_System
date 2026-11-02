@@ -325,11 +325,15 @@ export default function EditProfilePage() {
 
       let processedFile = file;
       if (file.type.startsWith('image/')) {
+        const toastId = toast.loading(type === 'proof' ? 'Processing document...' : 'Processing image...');
         try {
           const { compressImage } = await import('@/lib/image-compressor');
-          processedFile = await compressImage(file, 1200, 1200, 0.6);
+          processedFile = await compressImage(file, 1600, 1600, 0.7);
+          toast.success('Processed successfully', { id: toastId });
         } catch (err) {
-          console.error('Image compression failed:', err);
+          console.error('Image processing failed:', err);
+          toast.error(err.message || 'Image processing failed', { id: toastId });
+          return;
         }
       }
 
@@ -345,8 +349,14 @@ export default function EditProfilePage() {
         setProofDataUrl(reader.result);
       };
       reader.readAsDataURL(processedFile);
+      
+      // reset input value so selecting the same file again works
+      if (type === 'pfp' && fileInputRef.current) fileInputRef.current.value = '';
+      if (type === 'sig' && signatureInputRef.current) signatureInputRef.current.value = '';
+      if (type === 'proof' && proofInputRef.current) proofInputRef.current.value = '';
     }
   };
+
 
   const updateField = (section, field, value) => {
     setFormData(prev => ({
