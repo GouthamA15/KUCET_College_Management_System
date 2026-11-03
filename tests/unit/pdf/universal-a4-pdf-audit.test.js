@@ -31,7 +31,7 @@ describe('Universal A4 PDF Geometry & Grayscale Print Standard Audit', () => {
     expect(pageChild.props.size).toBe('A4');
     expect(pageChild.props.style.paddingHorizontal).toBe(22);
     expect(pageChild.props.style.paddingTop).toBe(18);
-    expect(pageChild.props.style.paddingBottom).toBe(22);
+    expect(pageChild.props.style.paddingBottom).toBe(32);
   });
 
   it('FullAttendanceExportPDF renders Document with portrait A4 Pages and chunked table headers', () => {

@@ -173,6 +173,71 @@ describe('Full Attendance Export PDF Template Rendering Pipeline', () => {
     expect(info.pageSize).toContain('595.28 x 841.89');
   }, 25000);
 
+  it('generates a clean report for full 75-student batch (regular + lateral entries) in A4 portrait', async () => {
+    const sessions = Array.from({ length: 10 }, (_, i) => ({
+      key: `2026-09-${String(i + 1).padStart(2, '0')}__1`,
+      date: `2026-09-${String(i + 1).padStart(2, '0')}`,
+      session: 1,
+      displayDate: `${String(i + 1).padStart(2, '0')}-09-2026`,
+      topic_covered: `Session ${i + 1}`,
+    }));
+
+    const regular = Array.from({ length: 65 }, (_, i) => ({
+      student_id: i + 1,
+      roll_no: `24567T09${String(i + 1).padStart(2, '0')}`,
+      name: `Regular Student ${i + 1}`,
+      totalPresent: 8,
+      totalAbsent: 2,
+      percentage: 80,
+      records: sessions.reduce((acc, s) => {
+        acc[s.key] = i % 5 === 0 ? 'ABSENT' : 'PRESENT';
+        return acc;
+      }, {}),
+    }));
+
+    const lateral = Array.from({ length: 10 }, (_, i) => ({
+      student_id: 65 + i + 1,
+      roll_no: `2556709${String(i + 1).padStart(2, '0')}L`,
+      name: `Lateral Student ${i + 1}`,
+      totalPresent: 9,
+      totalAbsent: 1,
+      percentage: 90,
+      records: sessions.reduce((acc, s) => {
+        acc[s.key] = 'PRESENT';
+        return acc;
+      }, {}),
+    }));
+
+    const all75 = [...regular, ...lateral];
+    const sessionStats = sessions.reduce((acc, s) => {
+      acc[s.key] = { presentCount: 65, totalCount: 75, percentage: 87 };
+      return acc;
+    }, {});
+
+    const doc = React.createElement(FullAttendanceExportPDF, {
+      branch: 'CSE',
+      semester: 3,
+      subjectCode: 'CS201',
+      subjectName: 'Data Structures',
+      academicYear: '2026-2027',
+      facultyName: 'Dr. Faculty',
+      generationTimestamp: '03-11-2026 • 08:00 AM',
+      reportPeriod: '01-09-2026 to 10-09-2026 (10 Sessions / 10 Teaching Days)',
+      totalConducted: 10,
+      overallPercentage: 81,
+      sessions,
+      students: all75,
+      sessionStats,
+    });
+
+    const buffer = await renderToBuffer(doc);
+    expect(buffer).toBeInstanceOf(Buffer);
+
+    const info = getPdfInfo(buffer);
+    expect(info.pages).toBe(2);
+    expect(info.pageSize).toContain('595.28 x 841.89');
+  }, 25000);
+
   it('handles horizontal chunking cleanly when sessions exceed 10 (e.g. 25 sessions)', async () => {
     const sessions = Array.from({ length: 25 }, (_, i) => ({
       key: `2026-09-${String(i + 1).padStart(2, '0')}__1`,
