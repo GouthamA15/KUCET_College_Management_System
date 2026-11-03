@@ -12,7 +12,7 @@ import { TableSkeleton } from '@/components/ui/DashboardSkeleton';
 export default function FacultyTimetableOverview() {
   const router = useRouter();
   const { staffData } = useStaff();
-  
+
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
@@ -20,7 +20,7 @@ export default function FacultyTimetableOverview() {
   const [instances, setInstances] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
-  
+
   // Create Modal State
   const [showCreate, setShowCreate] = useState(false);
   const [newProgram, setNewProgram] = useState('');
@@ -210,12 +210,20 @@ export default function FacultyTimetableOverview() {
           </div>
           <p className="text-sm text-gray-600 mt-1">Manage department schedules and publish class timetables.</p>
         </div>
-        <button 
-          onClick={openCreateModal}
-          className="bg-[#0b3578] text-white px-4 py-2 rounded-md font-medium text-sm hover:bg-blue-900 transition-colors shrink-0 cursor-pointer"
-        >
-          + Create Timetable
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => router.push('/staff/faculty/lab-allocations')}
+            className="bg-white text-[#0b3578] border border-[#0b3578] px-3.5 py-2 rounded-md font-medium text-sm hover:bg-blue-50 transition-colors cursor-pointer flex items-center gap-1.5"
+          >
+            <span>Lab Batches</span>
+          </button>
+          <button
+            onClick={openCreateModal}
+            className="bg-[#0b3578] text-white px-4 py-2 rounded-md font-medium text-sm hover:bg-blue-900 transition-colors shrink-0 cursor-pointer"
+          >
+            + Create Timetable
+          </button>
+        </div>
       </header>
 
       {isLoading ? (
@@ -230,7 +238,7 @@ export default function FacultyTimetableOverview() {
             const year = Math.ceil(inst.semester / 2);
             let circleColor = 'bg-slate-50/80 group-hover:bg-slate-100';
             let hoverBorder = 'hover:border-slate-300';
-            
+
             if (inst.status === 'PUBLISHED') {
               circleColor = 'bg-emerald-50/80 group-hover:bg-emerald-100';
               hoverBorder = 'hover:border-emerald-200';
@@ -240,9 +248,9 @@ export default function FacultyTimetableOverview() {
             }
 
             return (
-              <div 
-                key={inst.id} 
-                onClick={() => router.push(`/staff/faculty/time-table/${inst.id}`)} 
+              <div
+                key={inst.id}
+                onClick={() => router.push(`/staff/faculty/time-table/${inst.id}`)}
                 className={`bg-white rounded-md p-5 sm:p-6 border border-slate-200 shadow-sm relative overflow-hidden group transition-all cursor-pointer ${hoverBorder}`}
               >
                 <div className={`absolute top-0 right-0 w-20 h-20 sm:w-24 sm:h-24 ${circleColor} rounded-bl-full -mr-5 -mt-5 transition-all duration-300 group-hover:scale-110`}></div>

@@ -54,7 +54,10 @@ export async function PUT(request, { params }) {
       reviewer_comments: studentAttendanceDisputes.reviewer_comments,
       status: studentAttendanceDisputes.status,
       faculty_id: facultySubjectAssignments.staff_account_id,
-      branch: facultySubjectAssignments.branch
+      subject_code: facultySubjectAssignments.subject_code,
+      branch: facultySubjectAssignments.branch,
+      course_semester: facultySubjectAssignments.course_semester,
+      academic_year: facultySubjectAssignments.academic_year
     })
     .from(studentAttendanceDisputes)
     .innerJoin(facultySubjectAssignments, eq(studentAttendanceDisputes.assignment_id, facultySubjectAssignments.id))
@@ -81,6 +84,41 @@ export async function PUT(request, { params }) {
       }
     }
 
+    // Co-instructor and substitute authorization guards
+    if (!isAuthorized) {
+      const { timetableSlotFaculty, branchTimetable, facultySubstitutions } = await import('@/db/schema');
+      const coInstructor = await db.select({ id: timetableSlotFaculty.id })
+        .from(timetableSlotFaculty)
+        .innerJoin(branchTimetable, eq(timetableSlotFaculty.slot_id, branchTimetable.id))
+        .where(and(
+          eq(timetableSlotFaculty.faculty_id, user.id),
+          eq(branchTimetable.branch, dispute.branch),
+          eq(branchTimetable.semester, dispute.course_semester),
+          eq(branchTimetable.subject_code, dispute.subject_code),
+          eq(branchTimetable.academic_year, dispute.academic_year)
+        ))
+        .limit(1);
+
+      if (coInstructor.length > 0) {
+        isAuthorized = true;
+      }
+
+      if (!isAuthorized) {
+        const substitution = await db.select({ id: facultySubstitutions.id })
+          .from(facultySubstitutions)
+          .where(and(
+            eq(facultySubstitutions.original_assignment_id, dispute.assignment_id),
+            eq(facultySubstitutions.substitute_faculty_id, user.id),
+            eq(facultySubstitutions.substitution_date, dispute.attendance_date)
+          ))
+          .limit(1);
+
+        if (substitution.length > 0) {
+          isAuthorized = true;
+        }
+      }
+    }
+
     if (!isAuthorized) {
       return apiError('Unauthorized to review this dispute', 403);
     }
@@ -101,15 +139,37 @@ export async function PUT(request, { params }) {
         .where(eq(studentAttendanceDisputes.id, disputeId));
 
       if (status === 'APPROVED') {
-        // Correct the attendance record
-        await tx.update(studentAttendance)
-          .set({ status: dispute.requested_status })
-          .where(and(
-            eq(studentAttendance.student_id, dispute.student_id),
-            eq(studentAttendance.assignment_id, dispute.assignment_id),
-            eq(studentAttendance.date, dispute.attendance_date),
-            eq(studentAttendance.session, dispute.session)
-          ));
+        // Query the exact attendance record to obtain session_id
+        const [attRow] = await tx.select({
+          id: studentAttendance.id,
+          session_id: studentAttendance.session_id
+        })
+        .from(studentAttendance)
+        .where(and(
+          eq(studentAttendance.student_id, dispute.student_id),
+          eq(studentAttendance.assignment_id, dispute.assignment_id),
+          eq(studentAttendance.date, dispute.attendance_date),
+          eq(studentAttendance.session, dispute.session)
+        ))
+        .limit(1);
+
+        if (attRow) {
+          // Exact session_id + student_id predicate pinned by unique constraints
+          const updatePredicate = attRow.session_id
+            ? and(
+                eq(studentAttendance.id, attRow.id),
+                eq(studentAttendance.session_id, attRow.session_id),
+                eq(studentAttendance.student_id, dispute.student_id)
+              )
+            : and(
+                eq(studentAttendance.id, attRow.id),
+                eq(studentAttendance.student_id, dispute.student_id)
+              );
+
+          await tx.update(studentAttendance)
+            .set({ status: dispute.requested_status })
+            .where(updatePredicate);
+        }
 
         // Insert auditable log
         await tx.insert(attendanceAuditLogs).values({

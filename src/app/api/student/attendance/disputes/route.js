@@ -1,14 +1,14 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { 
-  studentAttendance, 
-  studentAttendanceDisputes, 
+import {
+  studentAttendance,
+  studentAttendanceDisputes,
   attendanceDisputeAttachments,
-  facultySubjectAssignments, 
+  facultySubjectAssignments,
   systemConfigs,
   staffAccounts
 } from '@/db/schema';
-import { eq, and, desc, inArray } from 'drizzle-orm';
+import { eq, and, desc, inArray, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { STORAGE_FOLDERS } from '@/lib/storage-config';
 import { storage } from '@/lib/providers';
@@ -33,6 +33,14 @@ export async function GET() {
       assignment_id: studentAttendanceDisputes.assignment_id,
       attendance_date: studentAttendanceDisputes.attendance_date,
       session: studentAttendanceDisputes.session,
+      session_batch_number: sql`(
+        SELECT s.batch_number
+        FROM attendance_sessions s
+        WHERE s.assignment_id = ${studentAttendanceDisputes.assignment_id}
+          AND s.attendance_date = ${studentAttendanceDisputes.attendance_date}
+          AND s.session_number = ${studentAttendanceDisputes.session}
+        LIMIT 1
+      )`,
       original_status: studentAttendanceDisputes.original_status,
       requested_status: studentAttendanceDisputes.requested_status,
       category: studentAttendanceDisputes.category,
@@ -245,7 +253,7 @@ export async function POST(request) {
         const rawExt = file.name ? file.name.split('.').pop()?.toLowerCase() : null;
         const ext = rawExt || (file.type === 'application/pdf' ? 'pdf' : (file.type === 'image/png' ? 'png' : 'jpg'));
         const safeFilename = `${crypto.randomUUID()}.${ext}`;
-        
+
         const uploadRes = await storage.upload(file, STORAGE_FOLDERS.ATTENDANCE_EVIDENCE, safeFilename);
         const fileKey = typeof uploadRes === 'string' ? uploadRes : uploadRes?.path;
 
@@ -262,8 +270,8 @@ export async function POST(request) {
       }
     } catch (uploadError) {
       for (const meta of uploadedMetadata) {
-        try { 
-          await storage.delete(meta.file_key); 
+        try {
+          await storage.delete(meta.file_key);
         } catch (_delErr) {
           // Best-effort cleanup of orphan storage files on upload failure
         }
@@ -332,8 +340,8 @@ export async function POST(request) {
     } catch (txError) {
       // Compensating storage cleanup if DB transaction fails
       for (const meta of uploadedMetadata) {
-        try { 
-          await storage.delete(meta.file_key); 
+        try {
+          await storage.delete(meta.file_key);
         } catch (_delErr) {
           // Best-effort cleanup of orphan storage files on transaction rollback
         }

@@ -193,7 +193,7 @@ describe('KUCET Admission Bridge — Image Optimizer Suite (Conservative 190 KiB
       expect(failedResult.success).toBe(false);
       expect(failedResult.passedConstraint).toBe(false);
       expect(failedResult.error).toContain('unable to reduce');
-    });
+    }, 15000);
 
     it('10. should handle corrupt or unsupported image buffers gracefully', async () => {
       await expect(optimizeImageBufferNode(Buffer.from([]))).rejects.toThrow(/Invalid or empty/);

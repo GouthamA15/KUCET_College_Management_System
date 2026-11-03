@@ -283,15 +283,6 @@ describe('Timetable Section-Free Endpoints and Workflows', () => {
         }),
       });
 
-      // Mock existing slot query (returns empty)
-      db.select.mockReturnValueOnce({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue([]),
-          }),
-        }),
-      });
-
       // Mock faculty legitimacy check
       db.select.mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
@@ -305,7 +296,16 @@ describe('Timetable Section-Free Endpoints and Workflows', () => {
         }),
       });
 
-      // Mock conflict check (returns empty)
+      // Mock existing slot query (returns empty)
+      db.select.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+      });
+
+      // Mock faculty conflict check (returns empty)
       db.select.mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
           leftJoin: vi.fn().mockReturnValue({
@@ -318,8 +318,19 @@ describe('Timetable Section-Free Endpoints and Workflows', () => {
         }),
       });
 
+      // Mock room conflict check (returns empty)
+      db.select.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([]),
+            }),
+          }),
+        }),
+      });
+
       const insertChain = {
-        values: vi.fn().mockResolvedValue({}),
+        values: vi.fn().mockResolvedValue([{ insertId: 1 }]),
       };
       db.insert.mockReturnValue(insertChain);
 

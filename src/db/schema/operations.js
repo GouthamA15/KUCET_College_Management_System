@@ -2,7 +2,7 @@ import {
   mysqlTable, varchar, int, boolean, text, decimal, json, timestamp, 
   mysqlEnum, tinyint, index, uniqueIndex, date, bigint
 } from 'drizzle-orm/mysql-core';
-import { principal } from './identity.js';
+import { principal, students, staffAccounts } from './identity.js';
 
 export const studentMarks = mysqlTable('student_marks', {
   id: int('id').autoincrement().primaryKey().notNull(),
@@ -59,6 +59,7 @@ export const branchTimetable = mysqlTable('branch_timetable', {
   semester: tinyint('semester').notNull(),
   day_of_week: mysqlEnum('day_of_week', ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']).notNull(),
   period_number: int('period_number').notNull(),
+  batch_number: tinyint('batch_number').default(0).notNull(),
   subject_code: varchar('subject_code', { length: 50 }),
   faculty_id: int('faculty_id'),
   academic_year: varchar('academic_year', { length: 9 }).notNull(),
@@ -71,7 +72,7 @@ export const branchTimetable = mysqlTable('branch_timetable', {
   dayPeriodIdx: index('idx_bt_day_period').on(table.day_of_week, table.period_number),
   facultyIdx: index('idx_bt_faculty').on(table.faculty_id),
   instanceIdIdx: index('idx_bt_instance').on(table.timetable_instance_id),
-  uqTimetableSlot: uniqueIndex('uq_timetable_slot').on(table.branch, table.semester, table.day_of_week, table.period_number, table.academic_year),
+  uqTimetableSlotBatch: uniqueIndex('uq_timetable_slot_batch').on(table.branch, table.semester, table.day_of_week, table.period_number, table.academic_year, table.batch_number),
 }));
 
 export const facultyHodAssignments = mysqlTable('faculty_hod_assignments', {
@@ -286,5 +287,64 @@ export const databaseBackupLogs = mysqlTable('database_backup_logs', {
   filenameIdx: index('idx_backup_filename').on(table.filename),
   statusIdx: index('idx_backup_status').on(table.status),
   createdAtIdx: index('idx_backup_created_at').on(table.created_at),
+}));
+
+export const labBatchAllocations = mysqlTable('lab_batch_allocations', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  academic_year: varchar('academic_year', { length: 9 }).notNull(),
+  branch: varchar('branch', { length: 50 }).notNull(),
+  semester: tinyint('semester').notNull(),
+  subject_code: varchar('subject_code', { length: 50 }).notNull(),
+  batch_1_name: varchar('batch_1_name', { length: 50 }).default('Batch 1').notNull(),
+  batch_2_name: varchar('batch_2_name', { length: 50 }).default('Batch 2').notNull(),
+  status: mysqlEnum('status', ['DRAFT', 'PUBLISHED', 'ARCHIVED']).default('DRAFT').notNull(),
+  version: int('version').default(1).notNull(),
+  created_by_staff_id: int('created_by_staff_id'),
+  published_at: timestamp('published_at'),
+  change_reason: text('change_reason'),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').onUpdateNow(),
+}, (table) => ({
+  uqLabAllocationVersion: uniqueIndex('uq_lab_allocation_version').on(table.academic_year, table.branch, table.semester, table.subject_code, table.version),
+  cohortIdx: index('idx_lba_cohort').on(table.branch, table.semester, table.academic_year),
+  activeIdx: index('idx_lba_active').on(table.academic_year, table.branch, table.semester, table.subject_code, table.status),
+}));
+
+export const labBatchStudents = mysqlTable('lab_batch_students', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  allocation_id: int('allocation_id').notNull().references(() => labBatchAllocations.id, { onDelete: 'cascade' }),
+  student_id: int('student_id').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  batch_number: tinyint('batch_number').notNull(), // 1 or 2
+  created_at: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  uqAllocationStudent: uniqueIndex('uq_allocation_student').on(table.allocation_id, table.student_id),
+  studentIdx: index('idx_lbs_student').on(table.student_id),
+  allocBatchIdx: index('idx_lbs_alloc_batch').on(table.allocation_id, table.batch_number),
+}));
+
+export const timetableSlotFaculty = mysqlTable('timetable_slot_faculty', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  slot_id: int('slot_id').notNull().references(() => branchTimetable.id, { onDelete: 'cascade' }),
+  faculty_id: int('faculty_id').notNull().references(() => staffAccounts.id, { onDelete: 'cascade' }),
+  is_primary: boolean('is_primary').default(false).notNull(),
+  role: varchar('role', { length: 50 }).default('INSTRUCTOR').notNull(),
+  created_at: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  uqSlotFaculty: uniqueIndex('uq_slot_faculty').on(table.slot_id, table.faculty_id),
+  facultyIdx: index('idx_tsf_faculty').on(table.faculty_id),
+}));
+
+export const labBatchAllocationAuditLogs = mysqlTable('lab_batch_allocation_audit_logs', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  allocation_id: int('allocation_id').notNull(),
+  version: int('version').notNull(),
+  action: mysqlEnum('action', ['CREATED', 'UPDATED', 'PUBLISHED', 'ARCHIVED']).notNull(),
+  performed_by_staff_id: int('performed_by_staff_id').notNull(),
+  reason: text('reason'),
+  metadata: json('metadata'),
+  created_at: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  allocIdx: index('idx_lba_log_alloc').on(table.allocation_id),
+  staffIdx: index('idx_lba_log_staff').on(table.performed_by_staff_id),
 }));
 

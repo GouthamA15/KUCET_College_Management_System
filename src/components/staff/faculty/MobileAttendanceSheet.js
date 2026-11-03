@@ -6,6 +6,8 @@ import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
 import { canonicalizeRollNo } from '@/lib/rollNumber';
 import dynamic from 'next/dynamic';
 import LectureTopicModal from './LectureTopicModal';
+import BulkAttendanceModal from './BulkAttendanceModal';
+import ReuseAttendanceModal from './ReuseAttendanceModal';
 import { formatDate } from '@/lib/date';
 import ImageWithLoading from '@/components/ui/ImageWithLoading';
 
@@ -288,8 +290,16 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
     selectedDate,
     selectedSession,
     setSelectedSession,
+    attendanceStatusMap,
     setAttendanceStatus,
     setBatchAttendanceStatus,
+    cycleStudentStatus,
+    confirmBulkAttendance,
+    applyReusedAttendance,
+    reusedSessionInfo,
+    clearReusedSessionInfo,
+    updatingStudentIds,
+    bulkSubmitting,
     submitting,
     dateValidation,
     dayInfo,
@@ -297,8 +307,6 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
     handleSaveAttendance,
     handleDeleteAttendance,
     handleCalendarSelect,
-    toggleAttendanceStatus,
-    setAllAttendanceStatus,
     verifiedStudentIds,
     setVerifiedStudentIds,
     topicModalSession,
@@ -307,6 +315,24 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
     setCurrentTopicCovered,
     isDraftDirty,
   } = useFacultyAttendance();
+
+  const [bulkModalStatus, setBulkModalStatus] = useState(null);
+  const [reuseModalOpen, setReuseModalOpen] = useState(false);
+
+  const handleOpenBulk = (status) => {
+    if (!assignment?.is_active || !dateValidation?.isValid || bulkSubmitting || submitting) return;
+    setBulkModalStatus(status);
+  };
+
+  const handleConfirmBulk = async () => {
+    if (!bulkModalStatus) return;
+    try {
+      await confirmBulkAttendance(bulkModalStatus);
+      setBulkModalStatus(null);
+    } catch (_err) {
+      // Toast notification is managed by context
+    }
+  };
 
   const lastScannedRollRef = useRef('');
   const lastScannedTimeRef = useRef(0);
@@ -457,6 +483,18 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
               </div>
             </div>
 
+            {/* Bulk Confirmation Modal */}
+            <BulkAttendanceModal
+              isOpen={Boolean(bulkModalStatus)}
+              targetStatus={bulkModalStatus}
+              studentCount={students?.length || 0}
+              sessionNumber={selectedSession}
+              date={selectedDate}
+              submitting={bulkSubmitting}
+              onConfirm={handleConfirmBulk}
+              onCancel={() => !bulkSubmitting && setBulkModalStatus(null)}
+            />
+
             {/* Action Buttons (Condensed) */}
             <div className="space-y-2 mb-6">
               {assignment.is_active && (
@@ -464,21 +502,34 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('PRESENT')}
-                      disabled={submitting || !students.length}
-                      className="bg-green-50 text-green-700 py-2.5 rounded-xl font-bold text-[10px] uppercase border-2 border-green-100 active:bg-green-100"
+                      onClick={() => handleOpenBulk('PRESENT')}
+                      disabled={submitting || bulkSubmitting || !students.length || !assignment.is_active || !dateValidation.isValid}
+                      className="bg-green-50 text-green-700 py-2.5 rounded-xl font-bold text-[10px] uppercase border-2 border-green-200 active:bg-green-100 disabled:opacity-50 cursor-pointer"
                     >
                       All Present
                     </button>
                     <button
                       type="button"
-                      onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('ABSENT')}
-                      disabled={submitting || !students.length}
-                      className="bg-red-50 text-red-700 py-2.5 rounded-xl font-bold text-[10px] uppercase border-2 border-red-100 active:bg-red-100"
+                      onClick={() => handleOpenBulk('ABSENT')}
+                      disabled={submitting || bulkSubmitting || !students.length || !assignment.is_active || !dateValidation.isValid}
+                      className="bg-red-50 text-red-700 py-2.5 rounded-xl font-bold text-[10px] uppercase border-2 border-red-200 active:bg-red-100 disabled:opacity-50 cursor-pointer"
                     >
                       All Absent
                     </button>
                   </div>
+
+                  {/* Reuse Previous Session Attendance (Mobile) */}
+                  <button
+                    type="button"
+                    onClick={() => setReuseModalOpen(true)}
+                    disabled={submitting || bulkSubmitting || !students.length || !assignment.is_active || !dateValidation.isValid}
+                    className="w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-2 border-indigo-200 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    <svg className="w-3.5 h-3.5 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                    </svg>
+                    <span>Reuse Previous Session Attendance</span>
+                  </button>
                   
                   {selectedSession > 1 && existingSessionsForSelectedDate.includes(selectedSession - 1) && (
                     <FollowPreviousMobileButton
@@ -492,6 +543,42 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
                 </>
               )}
             </div>
+
+            {/* Reused Session Alert Banner (Mobile) */}
+            {reusedSessionInfo && (
+              <div className="mb-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-indigo-200 rounded-xl p-3 shadow-xs flex items-start justify-between gap-2 animate-fadeIn">
+                <div className="flex items-start gap-2.5 text-xs">
+                  <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 mt-0.5">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded border border-indigo-200 block w-fit mb-0.5">
+                      Copied Attendance
+                    </span>
+                    <span className="font-bold text-indigo-950 block text-[11px]">
+                      {reusedSessionInfo.source_session.subject_name} • S{reusedSessionInfo.source_session.session_number} ({formatDate(reusedSessionInfo.source_session.attendance_date)})
+                    </span>
+                    <p className="text-[10px] text-slate-600 mt-0.5 leading-tight">
+                      Prefilled {reusedSessionInfo.matched_count} student statuses. Review and save below.
+                    </p>
+                    {reusedSessionInfo.missing_students?.length > 0 && (
+                      <p className="text-[9px] text-amber-800 font-semibold mt-1 bg-amber-50 p-1 rounded border border-amber-200">
+                        {reusedSessionInfo.missing_students.length} unrecorded student(s) defaulted to Absent.
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={clearReusedSessionInfo}
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+            )}
 
             {/* In-Line Lecture Topic Section (Mobile) */}
             <MobileLectureTopicInlinePanel />
@@ -541,28 +628,32 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
                         <div className="flex-shrink-0">
                           <button
                             type="button"
-                            onClick={() => assignment.is_active && dateValidation.isValid && toggleAttendanceStatus(student.id)}
-                              disabled={!assignment.is_active || !dateValidation.isValid}
-                              className={`w-[80px] sm:w-[84px] h-[36px] flex items-center justify-center text-xs font-black rounded-lg transition-colors border-2 uppercase tracking-wide ${
-                                student.status === null 
-                                  ? 'bg-gray-50 text-gray-600 border-gray-200' 
-                                  : student.status === 'PRESENT' 
-                                  ? 'bg-green-50 text-green-700 border-green-200' 
-                                  : student.status === 'ABSENT' 
-                                  ? 'bg-red-50 text-red-700 border-red-200'
-                                  : student.status === 'NCC'
-                                  ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                  : student.status === 'MEDICAL'
-                                  ? 'bg-purple-50 text-purple-700 border-purple-200'
-                                  : 'bg-gray-50 text-gray-600 border-gray-200'
-                              } ${(!assignment.is_active || !dateValidation.isValid) ? 'cursor-default opacity-50' : 'cursor-pointer active:scale-95'}`}
-                            >
-                              {student.status === null ? 'N/A' : 
-                               student.status === 'PRESENT' ? 'PRESENT' : 
-                               student.status === 'ABSENT' ? 'ABSENT' :
-                               student.status === 'NCC' ? 'NCC' :
-                               student.status === 'MEDICAL' ? 'MEDICAL' : '?'}
-                            </button>
+                            onClick={() => assignment.is_active && dateValidation.isValid && !updatingStudentIds?.has?.(student.id) && cycleStudentStatus(student.id)}
+                            disabled={!assignment.is_active || !dateValidation.isValid || updatingStudentIds?.has?.(student.id)}
+                            aria-label={`Status for ${student.roll_no}: ${student.status || 'Not Set'}. Tap to cycle: Present, Absent, NCC, Medical.`}
+                            title="Cycle status: Present → Absent → NCC → Medical → Present"
+                            className={`w-[80px] sm:w-[84px] h-[36px] flex items-center justify-center text-xs font-black rounded-lg transition-colors border-2 uppercase tracking-wide ${
+                              student.status === null 
+                                ? 'bg-gray-50 text-gray-600 border-gray-200' 
+                                : student.status === 'PRESENT' 
+                                ? 'bg-green-50 text-green-700 border-green-300' 
+                                : student.status === 'ABSENT' 
+                                ? 'bg-red-50 text-red-700 border-red-300'
+                                : student.status === 'NCC' 
+                                ? 'bg-blue-50 text-blue-700 border-blue-300'
+                                : student.status === 'MEDICAL' 
+                                ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                : 'bg-gray-50 text-gray-600 border-gray-200'
+                            } ${(!assignment.is_active || !dateValidation.isValid) ? 'cursor-default opacity-50' : 'cursor-pointer active:scale-95'}`}
+                          >
+                            {updatingStudentIds?.has?.(student.id) ? (
+                              <span className="inline-block h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            ) : student.status === null ? (
+                              'N/A'
+                            ) : (
+                              student.status
+                            )}
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -607,6 +698,17 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
           </button>
         </div>
       )}
+
+      {/* Reuse Previous Session Modal (Mobile) */}
+      <ReuseAttendanceModal
+        isOpen={reuseModalOpen}
+        onClose={() => setReuseModalOpen(false)}
+        assignment={assignment}
+        selectedDate={selectedDate}
+        selectedSession={selectedSession}
+        currentStatusMap={attendanceStatusMap}
+        onAttendanceReused={applyReusedAttendance}
+      />
 
       {/* Lecture Topic Modal after successful attendance save (Mobile) */}
       <LectureTopicModal

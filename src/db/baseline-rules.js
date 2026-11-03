@@ -308,6 +308,18 @@ const BASELINE_RULES = [
     },
     getReason: () => 'attendance_sessions and student_attendance architecture optimization verified',
   },
+  {
+    id: 31,
+    description: '0031_lab_batch_management',
+    getEntries: (entries) => entries.filter((e) => e.idx === 31),
+    isSatisfied: async (conn) => {
+      const [r] = await conn.query(
+        'SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = "lab_batch_allocations"'
+      );
+      return Number(r?.[0]?.count || 0) > 0;
+    },
+    getReason: () => 'lab_batch_allocations table already exists',
+  },
 ];
 
 module.exports = {

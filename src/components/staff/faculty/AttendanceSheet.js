@@ -6,6 +6,8 @@ import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
 import { canonicalizeRollNo } from '@/lib/rollNumber';
 import dynamic from 'next/dynamic';
 import LectureTopicModal from './LectureTopicModal';
+import BulkAttendanceModal from './BulkAttendanceModal';
+import ReuseAttendanceModal from './ReuseAttendanceModal';
 import { formatDate } from '@/lib/date';
 import ImageWithLoading from '@/components/ui/ImageWithLoading';
 
@@ -17,7 +19,7 @@ const QRScannerPanel = dynamic(() => import('./QRScannerPanel'), {
 const formatDisplayDate = (dateStr) => formatDate(dateStr, '—');
 
 const SubjectIdentityPanel = () => {
-  const { assignment } = useFacultyAttendance();
+  const { assignment, selectedBatch, setSelectedBatch, isLabSubject } = useFacultyAttendance();
   return (
   <div className="bg-white border-2 border-gray-200 p-4 rounded-lg mb-6">
     <div className="flex justify-between items-center border-b-2 border-gray-200 pb-2 mb-4">
@@ -42,6 +44,54 @@ const SubjectIdentityPanel = () => {
       <div className="font-semibold text-gray-500">Academic Year:</div>
       <div className="font-mono text-gray-900">{assignment.academic_year}</div>
     </div>
+
+    {isLabSubject && (
+      <div className="mt-4 pt-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Lab Batch:</span>
+          <div className="inline-flex rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setSelectedBatch(0)}
+              className={`px-3 py-1 text-xs font-bold transition-colors cursor-pointer ${
+                selectedBatch === 0
+                  ? 'bg-[#0b3578] text-white'
+                  : 'bg-white text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              Whole Class
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedBatch(1)}
+              className={`px-3 py-1 text-xs font-bold border-l border-r border-slate-200 transition-colors cursor-pointer ${
+                selectedBatch === 1
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              Batch 1
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedBatch(2)}
+              className={`px-3 py-1 text-xs font-bold transition-colors cursor-pointer ${
+                selectedBatch === 2
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-white text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              Batch 2
+            </button>
+          </div>
+        </div>
+        {selectedBatch > 0 && (
+          <span className="text-xs text-blue-800 font-semibold bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md">
+            Active Batch: <span className="font-bold underline">Batch {selectedBatch}</span>
+          </span>
+        )}
+      </div>
+    )}
   </div>
   );
 };
@@ -316,28 +366,142 @@ const FollowPreviousButton = () => {
   );
 };
 
+const ReuseAttendanceButton = ({ onOpenModal }) => {
+  const { assignment, selectedDate, dateValidation } = useFacultyAttendance();
+
+  if (!selectedDate || !dateValidation?.isValid || !assignment?.is_active) return null;
+
+  return (
+    <div className="flex items-center md:justify-center w-full md:w-auto">
+      <button
+        type="button"
+        onClick={onOpenModal}
+        className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-indigo-50 border border-indigo-200 text-xs font-bold text-indigo-700 rounded-md hover:bg-indigo-100 active:scale-95 transition-all shadow-xs cursor-pointer"
+        title="Reuse attendance previously recorded for this student cohort"
+      >
+        <svg className="w-4 h-4 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+        </svg>
+        <span>Reuse Previous Session Attendance</span>
+      </button>
+    </div>
+  );
+};
+
+const ReusedSessionBanner = () => {
+  const { reusedSessionInfo, clearReusedSessionInfo } = useFacultyAttendance();
+
+  if (!reusedSessionInfo) return null;
+
+  const { source_session, matched_count, missing_students = [] } = reusedSessionInfo;
+
+  return (
+    <div className="mb-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-indigo-200 rounded-xl p-4 shadow-sm flex items-start justify-between gap-3 animate-fadeIn">
+      <div className="flex items-start gap-3">
+        <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div>
+          <div className="flex items-center flex-wrap gap-2 mb-1">
+            <span className="text-[10px] font-black uppercase tracking-widest bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded border border-indigo-200">
+              Copied from Previous Session
+            </span>
+            <span className="text-xs font-bold text-indigo-950">
+              {source_session.subject_name} ({source_session.subject_code})
+            </span>
+            <span className="text-[10px] font-semibold text-slate-500">
+              • {source_session.faculty_name} • Session S{source_session.session_number} • {formatDate(source_session.attendance_date)}
+            </span>
+          </div>
+          <p className="text-xs text-slate-700 leading-relaxed">
+            Attendance prefilled with <span className="font-bold">{matched_count}</span> copied student records.
+          </p>
+          {missing_students.length > 0 && (
+            <p className="text-xs text-amber-800 font-medium mt-1 bg-amber-50 p-1.5 rounded border border-amber-200">
+              ⚠️ Note: {missing_students.length} student(s) (e.g. lateral entry) were not recorded in the source session and have been defaulted to Absent.
+            </p>
+          )}
+          <p className="text-[11px] text-slate-500 font-semibold mt-1">
+            👉 You can edit any student&apos;s status below. When ready, click <span className="font-bold text-slate-800">Save Attendance</span> to store your independent session record.
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={clearReusedSessionInfo}
+        className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-white/60 transition-colors shrink-0 cursor-pointer"
+        title="Dismiss notice"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+  );
+};
+
 const AttendanceGrid = () => {
-  const { students, assignment, dateValidation, toggleAttendanceStatus, setAllAttendanceStatus, statusLoading, verifiedStudentIds } = useFacultyAttendance();
+  const {
+    students,
+    assignment,
+    dateValidation,
+    selectedDate,
+    selectedSession,
+    cycleStudentStatus,
+    confirmBulkAttendance,
+    bulkSubmitting,
+    updatingStudentIds,
+    statusLoading,
+    verifiedStudentIds
+  } = useFacultyAttendance();
+
+  const [bulkModalStatus, setBulkModalStatus] = useState(null);
+
+  const handleOpenBulk = (status) => {
+    if (!assignment?.is_active || !dateValidation?.isValid || bulkSubmitting || statusLoading) return;
+    setBulkModalStatus(status);
+  };
+
+  const handleConfirmBulk = async () => {
+    if (!bulkModalStatus) return;
+    try {
+      await confirmBulkAttendance(bulkModalStatus);
+      setBulkModalStatus(null);
+    } catch (_err) {
+      // Toast notification is managed by context
+    }
+  };
 
   return (
     <div className="w-full">
+      <BulkAttendanceModal
+        isOpen={Boolean(bulkModalStatus)}
+        targetStatus={bulkModalStatus}
+        studentCount={students?.length || 0}
+        sessionNumber={selectedSession}
+        date={selectedDate}
+        submitting={bulkSubmitting}
+        onConfirm={handleConfirmBulk}
+        onCancel={() => !bulkSubmitting && setBulkModalStatus(null)}
+      />
+
       {/* Mobile Header Actions (Visible only on mobile) */}
       <div className="md:hidden flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200 mb-4">
         <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Bulk Actions</span>
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('PRESENT')}
-            disabled={!assignment.is_active || !dateValidation.isValid || statusLoading}
-            className="px-3 py-1.5 bg-green-600 text-white text-[10px] font-black rounded hover:bg-green-700 disabled:opacity-50 transition-colors uppercase"
+            onClick={() => handleOpenBulk('PRESENT')}
+            disabled={!assignment.is_active || !dateValidation.isValid || statusLoading || bulkSubmitting}
+            className="px-3 py-1.5 bg-green-600 text-white text-[10px] font-black rounded hover:bg-green-700 disabled:opacity-50 transition-colors uppercase cursor-pointer"
           >
             All P
           </button>
           <button
             type="button"
-            onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('ABSENT')}
-            disabled={!assignment.is_active || !dateValidation.isValid || statusLoading}
-            className="px-3 py-1.5 bg-red-600 text-white text-[10px] font-black rounded hover:bg-red-700 disabled:opacity-50 transition-colors uppercase"
+            onClick={() => handleOpenBulk('ABSENT')}
+            disabled={!assignment.is_active || !dateValidation.isValid || statusLoading || bulkSubmitting}
+            className="px-3 py-1.5 bg-red-600 text-white text-[10px] font-black rounded hover:bg-red-700 disabled:opacity-50 transition-colors uppercase cursor-pointer"
           >
             All A
           </button>
@@ -346,60 +510,73 @@ const AttendanceGrid = () => {
 
       {/* Mobile Card Layout */}
       <div className="md:hidden flex flex-col gap-3">
-        {students.map((student) => (
-          <div key={student.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col gap-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <ImageWithLoading
-                  src={student.pfp}
-                  alt={student.name || 'Student'}
-                  width={40}
-                  height={40}
-                  variant="avatar"
-                  fallbackText={student.name?.charAt(0).toUpperCase()}
-                  className="w-10 h-10 rounded-full border border-slate-200 shrink-0"
-                  imageClassName="w-full h-full object-cover rounded-full"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center flex-wrap gap-1.5 mb-1">
-                    <span className="text-sm sm:text-base font-mono font-black tracking-tight text-slate-900 break-all">{student.roll_no}</span>
-                    {verifiedStudentIds.has(student.id) && (
-                      <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" title="Self-Verified via QR/PIN"></span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-slate-500 uppercase tracking-wide break-words">{student.name}</span>
-                    {verifiedStudentIds.has(student.id) && (
-                      <span className="text-[8px] font-black text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100 uppercase">Verified</span>
-                    )}
+        {students.map((student) => {
+          const isUpdating = Boolean(updatingStudentIds?.has?.(student.id));
+          return (
+            <div key={student.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <ImageWithLoading
+                    src={student.pfp}
+                    alt={student.name || 'Student'}
+                    width={40}
+                    height={40}
+                    variant="avatar"
+                    fallbackText={student.name?.charAt(0).toUpperCase()}
+                    className="w-10 h-10 rounded-full border border-slate-200 shrink-0"
+                    imageClassName="w-full h-full object-cover rounded-full"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center flex-wrap gap-1.5 mb-1">
+                      <span className="text-sm sm:text-base font-mono font-black tracking-tight text-slate-900 break-all">{student.roll_no}</span>
+                      {verifiedStudentIds.has(student.id) && (
+                        <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" title="Self-Verified via QR/PIN"></span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide break-words">{student.name}</span>
+                      {verifiedStudentIds.has(student.id) && (
+                        <span className="text-[8px] font-black text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100 uppercase">Verified</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
+              
+              <div className="pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => assignment.is_active && dateValidation.isValid && !isUpdating && cycleStudentStatus(student.id)}
+                  disabled={!assignment.is_active || !dateValidation.isValid || isUpdating}
+                  aria-label={`Attendance for roll ${student.roll_no}. Current status: ${student.status || 'Not Set'}. Click to cycle: Present, Absent, NCC, Medical.`}
+                  title="Cycle status: Present → Absent → NCC → Medical → Present"
+                  className={`w-full py-2.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+                    student.status === null
+                      ? 'bg-slate-100 text-slate-500 border border-slate-200'
+                      : student.status === 'PRESENT'
+                      ? 'bg-green-600 text-white shadow-md shadow-green-600/20'
+                      : student.status === 'ABSENT'
+                      ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
+                      : student.status === 'NCC'
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                      : student.status === 'MEDICAL'
+                      ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
+                      : 'bg-slate-100 text-slate-500'
+                  } ${!assignment.is_active || !dateValidation.isValid ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98] cursor-pointer'}`}
+                >
+                  {isUpdating ? (
+                    <>
+                      <span className="inline-block h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      <span>Updating…</span>
+                    </>
+                  ) : (
+                    student.status === null ? 'NOT SET (TAP TO CHANGE)' : student.status
+                  )}
+                </button>
+              </div>
             </div>
-            
-            <div className="pt-3 border-t border-slate-100">
-              <button
-                onClick={() => assignment.is_active && toggleAttendanceStatus(student.id)}
-                disabled={!assignment.is_active || !dateValidation.isValid}
-                className={`w-full py-2.5 rounded-lg text-xs font-black uppercase tracking-widest transition-colors ${
-                  student.status === null
-                    ? 'bg-slate-100 text-slate-500 border border-slate-200'
-                    : student.status === 'PRESENT'
-                    ? 'bg-green-500 text-white shadow-md shadow-green-500/20'
-                    : student.status === 'ABSENT'
-                    ? 'bg-red-500 text-white shadow-md shadow-red-500/20'
-                    : student.status === 'NCC'
-                    ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20'
-                    : student.status === 'MEDICAL'
-                    ? 'bg-purple-500 text-white shadow-md shadow-purple-500/20'
-                    : 'bg-slate-100 text-slate-500'
-                } ${!assignment.is_active || !dateValidation.isValid ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98]'}`}
-              >
-                {student.status === null ? 'NOT SET (TAP TO CHANGE)' : student.status}
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Desktop Table Layout */}
@@ -414,27 +591,27 @@ const AttendanceGrid = () => {
                 <div className="flex flex-col items-center gap-2">
                   <div className="inline-flex items-center justify-center gap-2">
                     <span>Status</span>
-                    {statusLoading && (
+                    {(statusLoading || bulkSubmitting) && (
                       <span className="inline-block h-3 w-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
                     )}
                   </div>
-                  {/* Bulk Toggle Buttons */}
+                  {/* Bulk Confirmation Action Buttons */}
                   <div className="flex gap-1">
                     <button
                       type="button"
-                      onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('PRESENT')}
-                      disabled={!assignment.is_active || !dateValidation.isValid || statusLoading}
-                      className="px-2 py-1 bg-green-600 text-white text-[9px] font-black rounded hover:bg-green-700 disabled:opacity-50 transition-colors uppercase"
-                      title="Mark All Present"
+                      onClick={() => handleOpenBulk('PRESENT')}
+                      disabled={!assignment.is_active || !dateValidation.isValid || statusLoading || bulkSubmitting}
+                      className="px-2 py-1 bg-green-600 text-white text-[9px] font-black rounded hover:bg-green-700 disabled:opacity-50 transition-colors uppercase cursor-pointer"
+                      title="Present All (requires confirmation)"
                     >
                       All P
                     </button>
                     <button
                       type="button"
-                      onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('ABSENT')}
-                      disabled={!assignment.is_active || !dateValidation.isValid || statusLoading}
-                      className="px-2 py-1 bg-red-600 text-white text-[9px] font-black rounded hover:bg-red-700 disabled:opacity-50 transition-colors uppercase"
-                      title="Mark All Absent"
+                      onClick={() => handleOpenBulk('ABSENT')}
+                      disabled={!assignment.is_active || !dateValidation.isValid || statusLoading || bulkSubmitting}
+                      className="px-2 py-1 bg-red-600 text-white text-[9px] font-black rounded hover:bg-red-700 disabled:opacity-50 transition-colors uppercase cursor-pointer"
+                      title="Absent All (requires confirmation)"
                     >
                       All A
                     </button>
@@ -444,59 +621,72 @@ const AttendanceGrid = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {students.map((student) => (
-              <tr key={student.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <ImageWithLoading
-                    src={student.pfp}
-                    alt={student.name || 'Student'}
-                    width={32}
-                    height={32}
-                    variant="avatar"
-                    fallbackText={student.name?.charAt(0).toUpperCase()}
-                    className="w-8 h-8 rounded-full border border-slate-200"
-                    imageClassName="w-full h-full object-cover rounded-full"
-                  />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-base font-mono font-black tracking-tight text-gray-900">
-                  <div className="flex items-center gap-2">
-                    {student.roll_no}
-                    {verifiedStudentIds.has(student.id) && (
-                      <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" title="Self-Verified via QR/PIN"></span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-xs font-medium text-gray-500 max-w-xs break-words">
-                  <div className="flex items-center flex-wrap gap-2">
-                    <span className="break-words">{student.name}</span>
-                    {verifiedStudentIds.has(student.id) && (
-                      <span className="text-[9px] font-black text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100 uppercase">Verified</span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <button
-                    onClick={() => assignment.is_active && toggleAttendanceStatus(student.id)}
-                    disabled={!assignment.is_active || !dateValidation.isValid}
-                    className={`w-28 px-3 py-2 rounded text-sm font-bold uppercase transition-colors ${
-                      student.status === null
-                        ? 'bg-gray-100 text-gray-700'
-                        : student.status === 'PRESENT'
-                        ? 'bg-green-100 text-green-800'
-                        : student.status === 'ABSENT'
-                        ? 'bg-red-100 text-red-800'
-                        : student.status === 'NCC'
-                        ? 'bg-blue-100 text-blue-800'
-                        : student.status === 'MEDICAL'
-                        ? 'bg-purple-100 text-purple-800'
-                        : 'bg-gray-100 text-gray-700'
-                    } ${!assignment.is_active || !dateValidation.isValid ? 'cursor-default opacity-50' : 'cursor-pointer active:scale-95'}`}
-                  >
-                    {student.status === null ? 'NOT SET' : student.status}
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {students.map((student) => {
+              const isUpdating = Boolean(updatingStudentIds?.has?.(student.id));
+              return (
+                <tr key={student.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <ImageWithLoading
+                      src={student.pfp}
+                      alt={student.name || 'Student'}
+                      width={32}
+                      height={32}
+                      variant="avatar"
+                      fallbackText={student.name?.charAt(0).toUpperCase()}
+                      className="w-8 h-8 rounded-full border border-slate-200"
+                      imageClassName="w-full h-full object-cover rounded-full"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-base font-mono font-black tracking-tight text-gray-900">
+                    <div className="flex items-center gap-2">
+                      {student.roll_no}
+                      {verifiedStudentIds.has(student.id) && (
+                        <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" title="Self-Verified via QR/PIN"></span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-xs font-medium text-gray-500 max-w-xs break-words">
+                    <div className="flex items-center flex-wrap gap-2">
+                      <span className="break-words">{student.name}</span>
+                      {verifiedStudentIds.has(student.id) && (
+                        <span className="text-[9px] font-black text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100 uppercase">Verified</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <button
+                      type="button"
+                      onClick={() => assignment.is_active && dateValidation.isValid && !isUpdating && cycleStudentStatus(student.id)}
+                      disabled={!assignment.is_active || !dateValidation.isValid || isUpdating}
+                      aria-label={`Roll ${student.roll_no} status: ${student.status || 'Not Set'}. Click to cycle: Present, Absent, NCC, Medical.`}
+                      title="Cycle status: Present → Absent → NCC → Medical → Present"
+                      className={`w-28 px-3 py-2 rounded text-xs font-black uppercase transition-all inline-flex items-center justify-center gap-1.5 border ${
+                        student.status === null
+                          ? 'bg-gray-100 text-gray-700 border-gray-200'
+                          : student.status === 'PRESENT'
+                          ? 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200'
+                          : student.status === 'ABSENT'
+                          ? 'bg-red-100 text-red-800 border-red-300 hover:bg-red-200'
+                          : student.status === 'NCC'
+                          ? 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200'
+                          : student.status === 'MEDICAL'
+                          ? 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200'
+                          : 'bg-gray-100 text-gray-700 border-gray-200'
+                      } ${!assignment.is_active || !dateValidation.isValid ? 'cursor-default opacity-50' : 'cursor-pointer active:scale-95'}`}
+                    >
+                      {isUpdating ? (
+                        <>
+                          <span className="inline-block h-3 w-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          <span>…</span>
+                        </>
+                      ) : (
+                        student.status === null ? 'NOT SET' : student.status
+                      )}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -648,7 +838,27 @@ const LectureTopicInlinePanel = () => {
 };
 
 export default function AttendanceSheet({ onBack, mode }) {
-  const { assignment, loading, students, selectedDate, dayInfo, dateValidation, handleCalendarSelect, setAttendanceStatus, setBatchAttendanceStatus, verifiedStudentIds: _verifiedStudentIds, setVerifiedStudentIds, topicModalSession, setTopicModalSession, currentTopicCovered, setCurrentTopicCovered } = useFacultyAttendance();
+  const { 
+    assignment, 
+    loading, 
+    students, 
+    selectedDate, 
+    selectedSession,
+    attendanceStatusMap,
+    applyReusedAttendance,
+    dayInfo, 
+    dateValidation, 
+    handleCalendarSelect, 
+    setAttendanceStatus, 
+    setBatchAttendanceStatus, 
+    verifiedStudentIds: _verifiedStudentIds, 
+    setVerifiedStudentIds, 
+    topicModalSession, 
+    setTopicModalSession, 
+    currentTopicCovered, 
+    setCurrentTopicCovered 
+  } = useFacultyAttendance();
+  const [reuseModalOpen, setReuseModalOpen] = useState(false);
   const lastScannedRollRef = useRef('');
   const lastScannedTimeRef = useRef(0);
 
@@ -758,9 +968,15 @@ export default function AttendanceSheet({ onBack, mode }) {
           <>
             <div className="mb-4 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <SessionSelector />
-              <FollowPreviousButton />
+              <div className="flex flex-wrap items-center gap-2">
+                <ReuseAttendanceButton onOpenModal={() => setReuseModalOpen(true)} />
+                <FollowPreviousButton />
+              </div>
               <SaveControls />
             </div>
+
+            {/* Reused Session Banner */}
+            <ReusedSessionBanner />
 
             {/* In-Line Lecture Topic Section */}
             <LectureTopicInlinePanel />
@@ -769,6 +985,17 @@ export default function AttendanceSheet({ onBack, mode }) {
           </>
         )}
       </section>
+
+      {/* Reuse Previous Session Attendance Modal */}
+      <ReuseAttendanceModal
+        isOpen={reuseModalOpen}
+        onClose={() => setReuseModalOpen(false)}
+        assignment={assignment}
+        selectedDate={selectedDate}
+        selectedSession={selectedSession}
+        currentStatusMap={attendanceStatusMap}
+        onAttendanceReused={applyReusedAttendance}
+      />
 
       {/* Lecture Topic Modal after successful attendance save */}
       <LectureTopicModal

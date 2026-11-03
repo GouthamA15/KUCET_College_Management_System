@@ -23,6 +23,7 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const assignment_id = searchParams.get('assignment_id') ? parseInt(searchParams.get('assignment_id')) : null;
+    const batch_number = searchParams.get('batch') ? parseInt(searchParams.get('batch')) : 0;
 
     if (!assignment_id) {
       return apiError('Missing assignment_id', 400);
@@ -33,11 +34,13 @@ export async function GET(request) {
       session_token: attendanceSessions.session_token,
       expires_at: attendanceSessions.expires_at,
       session_number: attendanceSessions.session_number,
+      batch_number: attendanceSessions.batch_number,
       faculty_id: attendanceSessions.faculty_id
     })
     .from(attendanceSessions)
     .where(and(
       eq(attendanceSessions.assignment_id, assignment_id),
+      eq(attendanceSessions.batch_number, batch_number),
       eq(attendanceSessions.is_active, true),
       gt(attendanceSessions.expires_at, Clock.now(request))
     ))
@@ -67,7 +70,8 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { assignment_id, latitude, longitude, accuracy, attendance_date, session_number } = body;
+    const { assignment_id, latitude, longitude, accuracy, attendance_date, session_number, batch_number = 0, allocation_id = null } = body;
+    const finalBatchNumber = Number(batch_number) || 0;
 
     if (!assignment_id || !attendance_date) {
       return apiError('Missing assignment_id or attendance_date', 400);
@@ -120,10 +124,13 @@ export async function POST(request) {
       return apiError('You are not authorized to start a session for this assignment (Not primary, HOD, or substitute)', 403);
     }
 
-    // 3. Deactivate any existing sessions for this assignment
+    // 3. Deactivate any existing sessions for this assignment and batch
     await db.update(attendanceSessions)
       .set({ is_active: false })
-      .where(eq(attendanceSessions.assignment_id, assignment_id));
+      .where(and(
+        eq(attendanceSessions.assignment_id, assignment_id),
+        eq(attendanceSessions.batch_number, finalBatchNumber)
+      ));
 
     // 4. Generate PIN and Token
     const sessionPin = crypto.randomInt(1000, 9999).toString();
@@ -144,6 +151,8 @@ export async function POST(request) {
       accuracy: accuracy ? parseFloat(accuracy) : null,
       attendance_date: attendance_date,
       session_number: session_number || 1,
+      batch_number: finalBatchNumber,
+      allocation_id: allocation_id || null,
       expires_at: expiresAt,
       is_active: true
     });
@@ -193,6 +202,7 @@ export async function DELETE(request) {
 
     const { searchParams } = new URL(request.url);
     const assignment_id = searchParams.get('assignment_id') ? parseInt(searchParams.get('assignment_id')) : null;
+    const batch_number = searchParams.get('batch') ? parseInt(searchParams.get('batch')) : 0;
 
     if (!assignment_id) {
       return apiError('Missing assignment_id', 400);
@@ -222,6 +232,7 @@ export async function DELETE(request) {
     .from(attendanceSessions)
     .where(and(
       eq(attendanceSessions.assignment_id, assignment_id),
+      eq(attendanceSessions.batch_number, batch_number),
       eq(attendanceSessions.is_active, true)
     ))
     .limit(1);

@@ -2,14 +2,14 @@ import logger from '@/lib/logger';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { fetchWithSWR } from '@/lib/cache';
 import { db } from '@/db';
-import { 
+import {
   students as studentsTable,
-  syllabusStructure, 
-  syllabusSubjects, 
-  studentMarks, 
-  facultySubjectAssignments, 
-  staffAccounts, 
-  studentAttendance 
+  syllabusStructure,
+  syllabusSubjects,
+  studentMarks,
+  facultySubjectAssignments,
+  staffAccounts,
+  studentAttendance
 } from '@/db/schema';
 import { eq, and, min, sql, _countDistinct, _or } from 'drizzle-orm';
 import { calculateYearAndSemesterAsync, getCollegeAcademicYear } from '@/lib/academic-utils';
@@ -37,10 +37,10 @@ export async function GET(_request) {
     }
 
     const cacheKey = `academic_info:${studentId}:${branch}:${semester}:${academicYear}`;
-    
+
     const cachedResponse = await fetchWithSWR(cacheKey, async () => {
       // --- OPTIMIZED AGGREGATED DATA QUERY USING DRIZZLE ---
-      
+
       // 1. Define the CTE for Canonical Assignments
       const canonicalAssignments = db.$with('CanonicalAssignments').as(
         db.select({
@@ -65,7 +65,7 @@ export async function GET(_request) {
           assignment_id: canonicalAssignments.canonical_id,
           mid_max: sql`MAX(${facultySubjectAssignments.mid_max})`,
           faculty_name: sql`GROUP_CONCAT(DISTINCT ${staffAccounts.name} SEPARATOR ' & ')`,
-          
+
           // Marks
           mid1_marks: studentMarks.mid1_marks,
           mid2_marks: studentMarks.mid2_marks,
@@ -79,8 +79,33 @@ export async function GET(_request) {
           _marks_created_at: studentMarks.created_at,
           _marks_updated_at: studentMarks.updated_at,
 
-          // Attendance (Filtering by Admission Date to avoid Spot Admission penalty)
-          total_classes: sql`(SELECT COUNT(DISTINCT s.id) FROM attendance_sessions s WHERE s.assignment_id = ${canonicalAssignments.canonical_id} AND s.attendance_date >= COALESCE(${studentsTable.admission_date}, '1900-01-01'))`,
+          // Attendance (Filtering by Admission Date and Student's Lab Batch if applicable)
+          total_classes: sql`(
+            SELECT COUNT(DISTINCT s.id)
+            FROM attendance_sessions s
+            WHERE s.assignment_id = ${canonicalAssignments.canonical_id}
+              AND s.attendance_date >= COALESCE(${studentsTable.admission_date}, '1900-01-01')
+              AND (
+                s.batch_number = 0
+                OR s.batch_number IS NULL
+                OR s.batch_number = (
+                  SELECT lbs.batch_number
+                  FROM lab_batch_students lbs
+                  JOIN lab_batch_allocations lba ON lbs.allocation_id = lba.id
+                  WHERE lbs.student_id = ${studentId}
+                    AND lba.subject_code = ${syllabusStructure.subject_code}
+                    AND lba.academic_year = ${academicYear}
+                    AND lba.branch = ${branch}
+                    AND lba.semester = ${semester}
+                  LIMIT 1
+                )
+                OR EXISTS (
+                  SELECT 1 FROM student_attendance sa
+                  WHERE sa.session_id = s.id
+                    AND sa.student_id = ${studentId}
+                )
+              )
+          )`,
           attended_classes: sql`COUNT(DISTINCT CASE WHEN ${studentAttendance.status} IN ('PRESENT', 'NCC', 'MEDICAL') AND ${studentAttendance.date} >= COALESCE(${studentsTable.admission_date}, '1900-01-01') THEN ${studentAttendance.id} END)`
         })
         .from(syllabusStructure)
@@ -109,9 +134,9 @@ export async function GET(_request) {
           eq(syllabusStructure.is_group, false)
         ))
         .groupBy(
-          syllabusStructure.subject_code, 
-          syllabusSubjects.subject_name, 
-          syllabusSubjects.subject_type, 
+          syllabusStructure.subject_code,
+          syllabusSubjects.subject_name,
+          syllabusSubjects.subject_type,
           canonicalAssignments.canonical_id,
           studentMarks.id,
           studentsTable.admission_date // Add to group by
@@ -159,7 +184,7 @@ export async function GET(_request) {
         return { ...rest, mid_max: rest.mid_max || 20 };
       });
 
-      return { 
+      return {
         data: cleaned,
         semester,
         academicYear

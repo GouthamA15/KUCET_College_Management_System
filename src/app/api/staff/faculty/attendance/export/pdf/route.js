@@ -10,7 +10,7 @@ import {
   attendanceSessions, 
   students as studentsTable,
   staffAccounts,
-  facultySubstitutions 
+  facultySubstitutions
 } from '@/db/schema';
 import { eq, and, asc, sql, or, like } from 'drizzle-orm';
 import { branchCodes } from '@/lib/rollNumber';
@@ -82,6 +82,13 @@ export async function GET(request) {
 
     const assignment = assignments[0];
     const { subject_code, branch, course_semester, academic_year } = assignment;
+
+    // Resolve canonical subject category (Theory vs Practical / Laboratory)
+    const normType = assignment.canonical_subject_type ? String(assignment.canonical_subject_type).trim().toLowerCase() : null;
+    const sName = (assignment.subject_name || '').toLowerCase();
+    const sCode = (subject_code || '').toUpperCase();
+    const isLab = normType === 'lab' || (!normType && (sName.includes('lab') || sName.includes('practical') || sName.includes('laboratory') || sCode.endsWith('L')));
+    const subjectCategory = isLab ? 'Practical / Laboratory' : 'Theory';
 
     // 2. Authorization check
     let isAuthorized = false;
@@ -273,16 +280,23 @@ export async function GET(request) {
       sessionStats[s.key] = {
         presentCount: 0,
         absentCount: 0,
+        nccCount: 0,
+        medicalCount: 0,
         percentage: 0
       };
     }
 
     let grandTotalPresents = 0;
+    let grandTotalNcc = 0;
+    let grandTotalMedical = 0;
+    let _grandTotalAbsents = 0;
 
     const formattedStudents = students.map(st => {
       const records = {};
       let totalPresent = 0;
       let totalAbsent = 0;
+      let totalNcc = 0;
+      let totalMedical = 0;
 
       for (const s of sessions) {
         const cellKey = `${st.student_id}__${s.date}__${s.session}`;
@@ -291,34 +305,52 @@ export async function GET(request) {
 
         if (status === 'PRESENT') {
           totalPresent += 1;
-          sessionStats[s.key].presentCount += 1;
+          sessionStats[s.key].presentCount = (sessionStats[s.key].presentCount || 0) + 1;
           grandTotalPresents += 1;
+        } else if (status === 'NCC') {
+          totalNcc += 1;
+          sessionStats[s.key].nccCount = (sessionStats[s.key].nccCount || 0) + 1;
+          grandTotalNcc += 1;
+        } else if (status === 'MEDICAL') {
+          totalMedical += 1;
+          sessionStats[s.key].medicalCount = (sessionStats[s.key].medicalCount || 0) + 1;
+          grandTotalMedical += 1;
         } else {
           totalAbsent += 1;
-          sessionStats[s.key].absentCount += 1;
+          sessionStats[s.key].absentCount = (sessionStats[s.key].absentCount || 0) + 1;
+          _grandTotalAbsents += 1;
         }
       }
 
-      const percentage = totalConducted > 0 ? Math.round((totalPresent / totalConducted) * 100) : 0;
+      // Institutional Policy: Present, NCC, and Medical receive attendance credit
+      const totalAttended = totalPresent + totalNcc + totalMedical;
+      const percentage = totalConducted > 0 ? Math.round((totalAttended / totalConducted) * 100) : 0;
 
       return {
         ...st,
         records,
         totalPresent,
         totalAbsent,
+        totalNcc,
+        totalMedical,
+        totalAttended,
         percentage
       };
     });
 
     for (const s of sessions) {
       const totalInSession = students.length;
+      const sessionAttended = (sessionStats[s.key].presentCount || 0) + 
+                              (sessionStats[s.key].nccCount || 0) + 
+                              (sessionStats[s.key].medicalCount || 0);
       sessionStats[s.key].percentage = totalInSession > 0
-        ? Math.round((sessionStats[s.key].presentCount / totalInSession) * 100)
+        ? Math.round((sessionAttended / totalInSession) * 100)
         : 0;
     }
 
+    const grandTotalAttended = grandTotalPresents + grandTotalNcc + grandTotalMedical;
     const overallPercentage = (students.length > 0 && totalConducted > 0)
-      ? Math.round((grandTotalPresents / (students.length * totalConducted)) * 100)
+      ? Math.round((grandTotalAttended / (students.length * totalConducted)) * 100)
       : 0;
 
     const generationTimestamp = formatDateTime(Clock.now(request));
@@ -343,6 +375,8 @@ export async function GET(request) {
         totalConducted,
         distinctDatesCount,
         overallPercentage,
+        subjectCategory,
+        isLab,
         sessions,
         students: formattedStudents,
         sessionStats

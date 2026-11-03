@@ -15,12 +15,12 @@ export default function SubjectDetailPage({ params }) {
 
   const [disputes, setDisputes] = useState([]);
   const [selectedDisputeSession, setSelectedDisputeSession] = useState(null);
-  const [disputeForm, setDisputeForm] = useState({ 
-    category: 'INCORRECT_MARKING', 
-    requested_status: 'PRESENT', 
-    reason: '', 
-    declaration: false, 
-    files: [] 
+  const [disputeForm, setDisputeForm] = useState({
+    category: 'INCORRECT_MARKING',
+    requested_status: 'PRESENT',
+    reason: '',
+    declaration: false,
+    files: []
   });
   const [isSubmittingDispute, setIsSubmittingDispute] = useState(false);
 
@@ -53,7 +53,7 @@ export default function SubjectDetailPage({ params }) {
         ]);
         const subjectJson = await subjectRes.json();
         const disputesJson = await disputesRes.json();
-        
+
         if (!isMounted) return;
 
         if (!subjectRes.ok) {
@@ -74,7 +74,7 @@ export default function SubjectDetailPage({ params }) {
         }
       }
     }
-    
+
     loadData();
     return () => {
       isMounted = false;
@@ -83,12 +83,12 @@ export default function SubjectDetailPage({ params }) {
 
   const handleOpenDispute = (session) => {
     setSelectedDisputeSession(session);
-    setDisputeForm({ 
-      category: 'INCORRECT_MARKING', 
-      requested_status: 'PRESENT', 
-      reason: '', 
-      declaration: false, 
-      files: [] 
+    setDisputeForm({
+      category: 'INCORRECT_MARKING',
+      requested_status: 'PRESENT',
+      reason: '',
+      declaration: false,
+      files: []
     });
   };
 
@@ -236,7 +236,7 @@ export default function SubjectDetailPage({ params }) {
         </div>
         <h2 className="text-xl font-semibold text-gray-800 mb-2">Subject Not Found</h2>
         <p className="text-gray-500 mb-6">{error || 'Unable to load the requested subject information.'}</p>
-        <button 
+        <button
           onClick={() => router.back()}
           className="px-6 py-2 bg-[#0b3578] text-white rounded-md font-medium hover:bg-blue-900 transition-colors cursor-pointer"
         >
@@ -250,14 +250,14 @@ export default function SubjectDetailPage({ params }) {
     <div className="w-full max-w-6xl mx-auto space-y-6 text-sm pb-12">
       {/* Header Area aligned with KUCET style */}
       <header className="mb-4">
-        <button 
+        <button
           onClick={() => router.push('/student/academics')}
           className="mb-3 inline-flex items-center text-sm font-medium text-gray-500 hover:text-[#0b3578] transition-colors cursor-pointer"
         >
           <ArrowLeft size={16} className="mr-1.5" />
           Back to Academics
         </button>
-        
+
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold text-gray-800">{data.subject_name}</h1>
         </div>
@@ -277,7 +277,7 @@ export default function SubjectDetailPage({ params }) {
             <h2 className="text-base font-semibold text-gray-800">Attendance Overview</h2>
             <p className="text-xs text-gray-500 mt-0.5">Based on conducted sessions for this subject</p>
           </div>
-          
+
           <div className="flex items-center gap-3">
             <div className="text-left md:text-right">
               <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Overall Percentage</div>
@@ -287,7 +287,7 @@ export default function SubjectDetailPage({ params }) {
             </div>
           </div>
         </div>
-        
+
         <div className="grid grid-cols-4 divide-x divide-gray-200 border-t border-gray-100 bg-white">
           <div className="p-3 sm:p-4 text-center flex flex-col items-center justify-center">
             <div className="text-lg sm:text-2xl font-semibold text-gray-800">{data.attendance.classesHeld}</div>
@@ -334,7 +334,7 @@ export default function SubjectDetailPage({ params }) {
             <div className="divide-y divide-gray-100">
               {data.timeline.map((session, idx) => {
                 let statusBadge = "bg-gray-100 text-gray-600 border-gray-200";
-                
+
                 if (session.status === 'PRESENT') {
                   statusBadge = "bg-emerald-50 text-emerald-700 border-emerald-200";
                 } else if (session.status === 'ABSENT') {
@@ -342,7 +342,7 @@ export default function SubjectDetailPage({ params }) {
                 } else if (session.status === 'NCC') {
                   statusBadge = "bg-blue-50 text-blue-700 border-blue-200";
                 }
-                
+
                 const formattedDate = formatDate(session.date);
 
                 const sessionDateStr = session.date instanceof Date ? session.date.toISOString().split('T')[0] : session.date;
@@ -362,6 +362,11 @@ export default function SubjectDetailPage({ params }) {
                         <div className="text-[11px] sm:text-xs font-semibold text-gray-500 mb-1 flex items-center gap-1.5 flex-wrap">
                           <Calendar size={12} className="shrink-0" />
                           <span>{formattedDate}</span>
+                          {session.batchNumber > 0 && (
+                            <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.2 rounded">
+                              Batch {session.batchNumber}
+                            </span>
+                          )}
                           <span className="sm:hidden text-gray-300">•</span>
                           <span className="sm:hidden text-gray-500 font-medium">Session {session.sessionNumber}</span>
                         </div>
@@ -370,7 +375,7 @@ export default function SubjectDetailPage({ params }) {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-2 shrink-0">
                       <div className={`text-[10px] sm:text-xs font-bold px-2 sm:px-2.5 py-1 rounded border tracking-wide flex items-center justify-center whitespace-nowrap ${statusBadge}`}>
                         {session.status}
@@ -434,7 +439,7 @@ export default function SubjectDetailPage({ params }) {
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 border border-gray-200 animate-slideDown my-8">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <h3 className="text-base font-semibold text-gray-800">Request Attendance Correction</h3>
-              <button 
+              <button
                 onClick={() => setSelectedDisputeSession(null)}
                 className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
               >
@@ -586,7 +591,7 @@ export default function SubjectDetailPage({ params }) {
                   {respondingDispute.status === 'PENDING' ? 'Upload Supporting Evidence' : 'Provide Additional Information'}
                 </h3>
               </div>
-              <button 
+              <button
                 onClick={() => setRespondingDispute(null)}
                 className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
               >

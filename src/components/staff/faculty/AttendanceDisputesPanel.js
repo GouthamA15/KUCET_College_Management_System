@@ -279,7 +279,7 @@ export default function AttendanceDisputesPanel() {
                   </td>
                   <td className="p-3 whitespace-nowrap">
                     <div className="font-medium text-gray-700">{formatDate(d.attendance_date)}</div>
-                    <div className="text-gray-500 text-[11px]">Session {d.session}</div>
+                    <div className="text-gray-500 text-[11px]">Session {d.session}{d.session_batch_number ? ` • Batch ${d.session_batch_number}` : ''}</div>
                   </td>
                   <td className="p-3 whitespace-nowrap">
                     <div className="inline-block text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded mb-1">
@@ -293,7 +293,7 @@ export default function AttendanceDisputesPanel() {
                   </td>
                   <td className="p-3 max-w-sm">
                     <div className="text-gray-800 font-medium leading-relaxed">{d.reason}</div>
-                    
+
                     {d.additional_explanation && (
                       <div className="mt-1.5 bg-gray-50 border border-gray-200 p-2 rounded text-[11px] text-gray-700">
                         <strong className="text-gray-900 block text-[10px] uppercase tracking-wider mb-0.5">Student Update:</strong>

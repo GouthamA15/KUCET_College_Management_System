@@ -28,10 +28,17 @@ const FacultyAttendanceContext = createContext(null);
 export function FacultyAttendanceProvider({ assignment, children }) {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedSession, setSelectedSession] = useState(1);
+  const [selectedBatch, setSelectedBatch] = useState(0); // 0 = Whole Class, 1 = Batch 1, 2 = Batch 2
   const [baseStudents, setBaseStudents] = useState([]);
   const [attendanceStatusMap, setAttendanceStatusMap] = useState({});
   const [currentTopicCovered, setCurrentTopicCovered] = useState('');
   const [isDraftDirty, setIsDraftDirty] = useState(false);
+
+  const isLabSubject = useMemo(() => {
+    const code = String(assignment?.subject_code || '').toUpperCase();
+    const name = String(assignment?.subject_name || '').toLowerCase();
+    return code.endsWith('L') || code.endsWith('LAB') || name.includes('lab') || name.includes('practical');
+  }, [assignment]);
 
   const [existingSessionsForSelectedDate, setExistingSessionsForSelectedDate] = useState([]);
   const [dayInfo, setDayInfo] = useState(null);
@@ -42,11 +49,15 @@ export function FacultyAttendanceProvider({ assignment, children }) {
   const [loading, setLoading] = useState(true);
   const [statusLoading, setStatusLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  const [updatingStudentIds, setUpdatingStudentIds] = useState(new Set());
+  const updatingStudentsRef = useRef(new Set());
   const attendanceCacheRef = useRef({});
   const [activeSession, setActiveSession] = useState(null);
   const [verifiedStudentIds, setVerifiedStudentIds] = useState(new Set());
   const [pendingSyncs, setPendingSyncs] = useState([]);
   const [topicModalSession, setTopicModalSession] = useState(null);
+  const [reusedSessionInfo, setReusedSessionInfo] = useState(null);
   const autoSaveTimerRef = useRef(null);
 
   // --- ACTIONS (useCallback) ---
@@ -58,7 +69,8 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     }
     setLoading(true);
     try {
-      const url = `/api/staff/faculty/students?assignment_id=${assignment.id}&base=1`;
+      const batchParam = selectedBatch > 0 ? `&batch=${selectedBatch}` : '';
+      const url = `/api/staff/faculty/students?assignment_id=${assignment.id}&base=1${batchParam}`;
       const res = await fetch(url);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch students');
@@ -75,12 +87,13 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     } finally {
       setLoading(false);
     }
-  }, [assignment]);
+  }, [assignment, selectedBatch]);
 
   const fetchActiveSession = useCallback(async () => {
     if (!assignment?.id) return;
     try {
-      const res = await fetch(`/api/staff/faculty/attendance/session?assignment_id=${assignment.id}`);
+      const batchParam = selectedBatch > 0 ? `&batch=${selectedBatch}` : '';
+      const res = await fetch(`/api/staff/faculty/attendance/session?assignment_id=${assignment.id}${batchParam}`);
       const json = await res.json();
       if (res.ok && json.active) {
         setActiveSession(json.session);
@@ -90,7 +103,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     } catch (e) {
       console.error('Failed to fetch active session:', e);
     }
-  }, [assignment]);
+  }, [assignment, selectedBatch]);
 
   const fetchAttendanceStatus = useCallback(async (forcedDate, forcedSession, bypassCache = false) => {
     if (!assignment?.id) return;
@@ -283,7 +296,8 @@ export function FacultyAttendanceProvider({ assignment, children }) {
           latitude,
           longitude,
           attendance_date: selectedDate,
-          session_number: selectedSession
+          session_number: selectedSession,
+          batch_number: selectedBatch
         }),
       });
       
@@ -314,7 +328,8 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     if (!assignment?.id) return;
     try {
       setSubmitting(true);
-      const res = await fetch(`/api/staff/faculty/attendance/session?assignment_id=${assignment.id}`, {
+      const batchParam = selectedBatch > 0 ? `&batch=${selectedBatch}` : '';
+      const res = await fetch(`/api/staff/faculty/attendance/session?assignment_id=${assignment.id}${batchParam}`, {
         method: 'DELETE',
       });
       if (res.ok) {
@@ -326,7 +341,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     } finally {
       setSubmitting(false);
     }
-  }, [assignment]);
+  }, [assignment, selectedBatch]);
 
   const handleManualRefresh = useCallback(() => {
     fetchAttendanceStatus(null, null, true);
@@ -343,22 +358,171 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     });
   }, []);
 
-  const toggleAttendanceStatus = useCallback((studentId) => {
-    setAttendanceStatusMap((prev) => {
-      const current = prev[studentId] || null;
-      let nextStatus = 'PRESENT';
-      if (current === null) nextStatus = 'PRESENT';
-      else if (current === 'PRESENT') nextStatus = 'ABSENT';
-      else if (current === 'ABSENT') nextStatus = 'NCC';
-      else if (current === 'NCC') nextStatus = 'MEDICAL';
-      else if (current === 'MEDICAL') nextStatus = 'PRESENT';
-      
-      return {
-        ...prev,
-        [studentId]: nextStatus
+  const cycleStudentStatus = useCallback(async (studentId) => {
+    if (!assignment?.id || !assignment.is_active || !selectedDate || !dateValidation?.isValid) {
+      toast.error('Cannot mark attendance: Assignment is inactive or selected date is not a valid working day.');
+      return;
+    }
+    // Prevent conflicting rapid updates on the same student
+    if (updatingStudentsRef.current.has(studentId)) {
+      return;
+    }
+
+    const currentStatus = attendanceStatusMap[studentId] || null;
+    let nextStatus = 'PRESENT';
+    if (currentStatus === null || currentStatus === 'MEDICAL') nextStatus = 'PRESENT';
+    else if (currentStatus === 'PRESENT') nextStatus = 'ABSENT';
+    else if (currentStatus === 'ABSENT') nextStatus = 'NCC';
+    else if (currentStatus === 'NCC') nextStatus = 'MEDICAL';
+
+    // 1. Immediate optimistic UI update
+    setAttendanceStatusMap((prev) => ({
+      ...prev,
+      [studentId]: nextStatus
+    }));
+
+    updatingStudentsRef.current.add(studentId);
+    setUpdatingStudentIds(new Set(updatingStudentsRef.current));
+
+    // 2. Prepare payload: all students in session with this student updated
+    const attendanceData = baseStudents.map((s) => ({
+      student_id: s.id,
+      status: s.id === studentId ? nextStatus : (attendanceStatusMap[s.id] ?? 'ABSENT'),
+    }));
+
+    const cleanTopic = (typeof currentTopicCovered === 'string' && currentTopicCovered.trim().length >= 2)
+      ? currentTopicCovered.trim()
+      : null;
+
+    try {
+      const cacheKey = `${selectedDate}-${selectedSession}`;
+      delete attendanceCacheRef.current[cacheKey];
+
+      const res = await fetch('/api/staff/faculty/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignment_id: assignment.id,
+          date: selectedDate,
+          session: selectedSession,
+          topic_covered: cleanTopic,
+          attendance_data: attendanceData,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update attendance status');
+      }
+
+      // Update cached session
+      attendanceCacheRef.current[cacheKey] = {
+        statusMap: { ...attendanceStatusMap, [studentId]: nextStatus },
+        sessions: existingSessionsForSelectedDate.includes(selectedSession)
+          ? existingSessionsForSelectedDate
+          : [...existingSessionsForSelectedDate, selectedSession].sort((a, b) => a - b),
+        topicCovered: cleanTopic,
       };
+
+      if (!existingSessionsForSelectedDate.includes(selectedSession)) {
+        setExistingSessionsForSelectedDate((prev) => 
+          prev.includes(selectedSession) ? prev : [...prev, selectedSession].sort((a, b) => a - b)
+        );
+      }
+    } catch (err) {
+      console.error('[AttendanceCycleError]', err);
+      // Rollback to previous status on error
+      setAttendanceStatusMap((prev) => ({
+        ...prev,
+        [studentId]: currentStatus
+      }));
+      toast.error(err.message || 'Failed to persist status change. Rolled back.');
+    } finally {
+      updatingStudentsRef.current.delete(studentId);
+      setUpdatingStudentIds(new Set(updatingStudentsRef.current));
+    }
+  }, [assignment, selectedDate, selectedSession, dateValidation?.isValid, attendanceStatusMap, baseStudents, currentTopicCovered, existingSessionsForSelectedDate]);
+
+  const toggleAttendanceStatus = cycleStudentStatus;
+
+  const confirmBulkAttendance = useCallback(async (targetStatus) => {
+    if (!assignment?.id || !assignment.is_active || !selectedDate || !dateValidation?.isValid) {
+      toast.error('Cannot mark attendance: Assignment is inactive or selected date is not a valid working day.');
+      return;
+    }
+    if (bulkSubmitting || submitting) return;
+
+    if (!['PRESENT', 'ABSENT'].includes(targetStatus)) {
+      toast.error('Invalid bulk attendance status.');
+      return;
+    }
+
+    const previousStatusMap = { ...attendanceStatusMap };
+    setBulkSubmitting(true);
+
+    const nextStatusMap = {};
+    baseStudents.forEach((s) => {
+      nextStatusMap[s.id] = targetStatus;
     });
-  }, []);
+
+    // 1. Immediate optimistic UI update
+    setAttendanceStatusMap(nextStatusMap);
+
+    const attendanceData = baseStudents.map((s) => ({
+      student_id: s.id,
+      status: targetStatus,
+    }));
+
+    const cleanTopic = (typeof currentTopicCovered === 'string' && currentTopicCovered.trim().length >= 2)
+      ? currentTopicCovered.trim()
+      : null;
+
+    try {
+      const cacheKey = `${selectedDate}-${selectedSession}`;
+      delete attendanceCacheRef.current[cacheKey];
+
+      const res = await fetch('/api/staff/faculty/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignment_id: assignment.id,
+          date: selectedDate,
+          session: selectedSession,
+          topic_covered: cleanTopic,
+          attendance_data: attendanceData,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || `Failed to mark all students as ${targetStatus}`);
+      }
+
+      toast.success(`Marked all ${baseStudents.length} students as ${targetStatus === 'PRESENT' ? 'Present' : 'Absent'}.`);
+
+      attendanceCacheRef.current[cacheKey] = {
+        statusMap: nextStatusMap,
+        sessions: existingSessionsForSelectedDate.includes(selectedSession)
+          ? existingSessionsForSelectedDate
+          : [...existingSessionsForSelectedDate, selectedSession].sort((a, b) => a - b),
+        topicCovered: cleanTopic,
+      };
+
+      if (!existingSessionsForSelectedDate.includes(selectedSession)) {
+        setExistingSessionsForSelectedDate((prev) => 
+          prev.includes(selectedSession) ? prev : [...prev, selectedSession].sort((a, b) => a - b)
+        );
+      }
+    } catch (err) {
+      console.error('[BulkAttendanceError]', err);
+      // Rollback
+      setAttendanceStatusMap(previousStatusMap);
+      toast.error(err.message || 'Failed to perform bulk attendance update. Rolled back.');
+      throw err;
+    } finally {
+      setBulkSubmitting(false);
+    }
+  }, [assignment, selectedDate, selectedSession, dateValidation?.isValid, bulkSubmitting, submitting, attendanceStatusMap, baseStudents, currentTopicCovered, existingSessionsForSelectedDate]);
 
   const setAllAttendanceStatus = useCallback((status) => {
     setAttendanceStatusMap((prev) => {
@@ -369,6 +533,52 @@ export function FacultyAttendanceProvider({ assignment, children }) {
       return next;
     });
   }, [baseStudents]);
+
+  const clearReusedSessionInfo = useCallback(() => {
+    setReusedSessionInfo(null);
+  }, []);
+
+  const applyReusedAttendance = useCallback((reusedData) => {
+    if (!reusedData || !Array.isArray(reusedData.attendance_records)) return;
+
+    const { source_session, attendance_records, missing_students = [] } = reusedData;
+
+    setAttendanceStatusMap((prev) => {
+      const next = { ...prev };
+      attendance_records.forEach((rec) => {
+        next[rec.student_id] = rec.status;
+      });
+      // For any missing students in destination roster not recorded in source session,
+      // default safely to 'ABSENT' so no student remains unassigned
+      missing_students.forEach((ms) => {
+        if (!next[ms.id]) {
+          next[ms.id] = 'ABSENT';
+        }
+      });
+      return next;
+    });
+
+    setReusedSessionInfo({
+      source_session,
+      matched_count: attendance_records.length,
+      missing_students,
+      appliedAt: new Date().toISOString(),
+    });
+
+    setIsDraftDirty(true);
+
+    if (missing_students.length > 0) {
+      toast.success(
+        `Copied attendance from ${source_session.subject_name || 'source session'} (${attendance_records.length} matched, ${missing_students.length} unrecorded defaulted to Absent). Review before saving.`,
+        { duration: 6000 }
+      );
+    } else {
+      toast.success(
+        `Copied attendance from ${source_session.subject_name || 'source session'} (Session S${source_session.session_number}). Review before saving.`,
+        { duration: 5000 }
+      );
+    }
+  }, []);
 
   const handleSaveAttendance = useCallback(async (explicitTopic = undefined) => {
     if (!assignment?.id) return;
@@ -415,7 +625,9 @@ export function FacultyAttendanceProvider({ assignment, children }) {
           assignment_id: assignment.id,
           date: selectedDate,
           session: selectedSession,
+          batch_number: selectedBatch,
           topic_covered: cleanTopic,
+          copied_from_session_id: reusedSessionInfo?.source_session?.session_id || null,
           attendance_data: attendanceData,
         }),
       }).catch(async (err) => {
@@ -426,6 +638,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
             date: selectedDate,
             session: selectedSession,
             topic_covered: cleanTopic,
+            copied_from_session_id: reusedSessionInfo?.source_session?.session_id || null,
             attendance_data: attendanceData,
           };
           await savePendingAttendance(payload);
@@ -493,7 +706,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     } finally {
       setSubmitting(false);
     }
-  }, [assignment, baseStudents, attendanceStatusMap, dateValidation?.isValid, selectedDate, selectedSession, activeSession, endSession, refreshPendingSyncs, currentTopicCovered, fetchAttendanceStatus, submitting]);
+  }, [assignment, baseStudents, attendanceStatusMap, dateValidation?.isValid, selectedDate, selectedSession, activeSession, endSession, refreshPendingSyncs, currentTopicCovered, fetchAttendanceStatus, submitting, reusedSessionInfo]);
 
   const handleDeleteAttendance = useCallback(async () => {
     if (!assignment?.id) return;
@@ -748,6 +961,11 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     return () => clearInterval(interval);
   }, [activeSession, selectedDate, selectedSession, fetchAttendanceStatus]);
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setReusedSessionInfo(null);
+  }, [selectedDate, selectedSession]);
+
   // --- DERIVED STATE (useMemo) ---
 
   const students = useMemo(
@@ -761,11 +979,18 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     setSelectedDate,
     selectedSession,
     setSelectedSession,
+    selectedBatch,
+    setSelectedBatch,
+    isLabSubject,
     baseStudents,
     attendanceStatusMap,
     setAttendanceStatus,
     setBatchAttendanceStatus,
     toggleAttendanceStatus,
+    cycleStudentStatus,
+    confirmBulkAttendance,
+    updatingStudentIds,
+    bulkSubmitting,
     setAllAttendanceStatus,
     existingSessionsForSelectedDate,
     currentTopicCovered,
@@ -791,6 +1016,10 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     topicModalSession,
     setTopicModalSession,
     isDraftDirty,
+    reusedSessionInfo,
+    setReusedSessionInfo,
+    applyReusedAttendance,
+    clearReusedSessionInfo,
   };
 
   return (
