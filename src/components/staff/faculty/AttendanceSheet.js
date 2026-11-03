@@ -7,6 +7,7 @@ import { canonicalizeRollNo } from '@/lib/rollNumber';
 import dynamic from 'next/dynamic';
 import LectureTopicModal from './LectureTopicModal';
 import BulkAttendanceModal from './BulkAttendanceModal';
+import ReuseAttendanceModal from './ReuseAttendanceModal';
 import { formatDate } from '@/lib/date';
 import ImageWithLoading from '@/components/ui/ImageWithLoading';
 
@@ -312,6 +313,80 @@ const FollowPreviousButton = () => {
         title="Copy attendance from previous session"
       >
         {loadingCopy ? 'Copying…' : 'Follow previous session'}
+      </button>
+    </div>
+  );
+};
+
+const ReuseAttendanceButton = ({ onOpenModal }) => {
+  const { assignment, selectedDate, dateValidation } = useFacultyAttendance();
+
+  if (!selectedDate || !dateValidation?.isValid || !assignment?.is_active) return null;
+
+  return (
+    <div className="flex items-center md:justify-center w-full md:w-auto">
+      <button
+        type="button"
+        onClick={onOpenModal}
+        className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-indigo-50 border border-indigo-200 text-xs font-bold text-indigo-700 rounded-md hover:bg-indigo-100 active:scale-95 transition-all shadow-xs cursor-pointer"
+        title="Reuse attendance previously recorded for this student cohort"
+      >
+        <svg className="w-4 h-4 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+        </svg>
+        <span>Reuse Previous Session Attendance</span>
+      </button>
+    </div>
+  );
+};
+
+const ReusedSessionBanner = () => {
+  const { reusedSessionInfo, clearReusedSessionInfo } = useFacultyAttendance();
+
+  if (!reusedSessionInfo) return null;
+
+  const { source_session, matched_count, missing_students = [] } = reusedSessionInfo;
+
+  return (
+    <div className="mb-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-indigo-200 rounded-xl p-4 shadow-sm flex items-start justify-between gap-3 animate-fadeIn">
+      <div className="flex items-start gap-3">
+        <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div>
+          <div className="flex items-center flex-wrap gap-2 mb-1">
+            <span className="text-[10px] font-black uppercase tracking-widest bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded border border-indigo-200">
+              Copied from Previous Session
+            </span>
+            <span className="text-xs font-bold text-indigo-950">
+              {source_session.subject_name} ({source_session.subject_code})
+            </span>
+            <span className="text-[10px] font-semibold text-slate-500">
+              • {source_session.faculty_name} • Session S{source_session.session_number} • {formatDate(source_session.attendance_date)}
+            </span>
+          </div>
+          <p className="text-xs text-slate-700 leading-relaxed">
+            Attendance prefilled with <span className="font-bold">{matched_count}</span> copied student records.
+          </p>
+          {missing_students.length > 0 && (
+            <p className="text-xs text-amber-800 font-medium mt-1 bg-amber-50 p-1.5 rounded border border-amber-200">
+              ⚠️ Note: {missing_students.length} student(s) (e.g. lateral entry) were not recorded in the source session and have been defaulted to Absent.
+            </p>
+          )}
+          <p className="text-[11px] text-slate-500 font-semibold mt-1">
+            👉 You can edit any student&apos;s status below. When ready, click <span className="font-bold text-slate-800">Save Attendance</span> to store your independent session record.
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={clearReusedSessionInfo}
+        className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-white/60 transition-colors shrink-0 cursor-pointer"
+        title="Dismiss notice"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
       </button>
     </div>
   );
@@ -715,7 +790,27 @@ const LectureTopicInlinePanel = () => {
 };
 
 export default function AttendanceSheet({ onBack, mode }) {
-  const { assignment, loading, students, selectedDate, dayInfo, dateValidation, handleCalendarSelect, setAttendanceStatus, setBatchAttendanceStatus, verifiedStudentIds: _verifiedStudentIds, setVerifiedStudentIds, topicModalSession, setTopicModalSession, currentTopicCovered, setCurrentTopicCovered } = useFacultyAttendance();
+  const { 
+    assignment, 
+    loading, 
+    students, 
+    selectedDate, 
+    selectedSession,
+    attendanceStatusMap,
+    applyReusedAttendance,
+    dayInfo, 
+    dateValidation, 
+    handleCalendarSelect, 
+    setAttendanceStatus, 
+    setBatchAttendanceStatus, 
+    verifiedStudentIds: _verifiedStudentIds, 
+    setVerifiedStudentIds, 
+    topicModalSession, 
+    setTopicModalSession, 
+    currentTopicCovered, 
+    setCurrentTopicCovered 
+  } = useFacultyAttendance();
+  const [reuseModalOpen, setReuseModalOpen] = useState(false);
   const lastScannedRollRef = useRef('');
   const lastScannedTimeRef = useRef(0);
 
@@ -825,9 +920,15 @@ export default function AttendanceSheet({ onBack, mode }) {
           <>
             <div className="mb-4 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <SessionSelector />
-              <FollowPreviousButton />
+              <div className="flex flex-wrap items-center gap-2">
+                <ReuseAttendanceButton onOpenModal={() => setReuseModalOpen(true)} />
+                <FollowPreviousButton />
+              </div>
               <SaveControls />
             </div>
+
+            {/* Reused Session Banner */}
+            <ReusedSessionBanner />
 
             {/* In-Line Lecture Topic Section */}
             <LectureTopicInlinePanel />
@@ -836,6 +937,17 @@ export default function AttendanceSheet({ onBack, mode }) {
           </>
         )}
       </section>
+
+      {/* Reuse Previous Session Attendance Modal */}
+      <ReuseAttendanceModal
+        isOpen={reuseModalOpen}
+        onClose={() => setReuseModalOpen(false)}
+        assignment={assignment}
+        selectedDate={selectedDate}
+        selectedSession={selectedSession}
+        currentStatusMap={attendanceStatusMap}
+        onAttendanceReused={applyReusedAttendance}
+      />
 
       {/* Lecture Topic Modal after successful attendance save */}
       <LectureTopicModal

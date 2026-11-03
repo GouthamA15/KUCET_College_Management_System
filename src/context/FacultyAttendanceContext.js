@@ -50,6 +50,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
   const [verifiedStudentIds, setVerifiedStudentIds] = useState(new Set());
   const [pendingSyncs, setPendingSyncs] = useState([]);
   const [topicModalSession, setTopicModalSession] = useState(null);
+  const [reusedSessionInfo, setReusedSessionInfo] = useState(null);
   const autoSaveTimerRef = useRef(null);
 
   // --- ACTIONS (useCallback) ---
@@ -522,6 +523,52 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     });
   }, [baseStudents]);
 
+  const clearReusedSessionInfo = useCallback(() => {
+    setReusedSessionInfo(null);
+  }, []);
+
+  const applyReusedAttendance = useCallback((reusedData) => {
+    if (!reusedData || !Array.isArray(reusedData.attendance_records)) return;
+
+    const { source_session, attendance_records, missing_students = [] } = reusedData;
+
+    setAttendanceStatusMap((prev) => {
+      const next = { ...prev };
+      attendance_records.forEach((rec) => {
+        next[rec.student_id] = rec.status;
+      });
+      // For any missing students in destination roster not recorded in source session,
+      // default safely to 'ABSENT' so no student remains unassigned
+      missing_students.forEach((ms) => {
+        if (!next[ms.id]) {
+          next[ms.id] = 'ABSENT';
+        }
+      });
+      return next;
+    });
+
+    setReusedSessionInfo({
+      source_session,
+      matched_count: attendance_records.length,
+      missing_students,
+      appliedAt: new Date().toISOString(),
+    });
+
+    setIsDraftDirty(true);
+
+    if (missing_students.length > 0) {
+      toast.success(
+        `Copied attendance from ${source_session.subject_name || 'source session'} (${attendance_records.length} matched, ${missing_students.length} unrecorded defaulted to Absent). Review before saving.`,
+        { duration: 6000 }
+      );
+    } else {
+      toast.success(
+        `Copied attendance from ${source_session.subject_name || 'source session'} (Session S${source_session.session_number}). Review before saving.`,
+        { duration: 5000 }
+      );
+    }
+  }, []);
+
   const handleSaveAttendance = useCallback(async (explicitTopic = undefined) => {
     if (!assignment?.id) return;
     if (submitting) return; // Prevent duplicate rapid submission
@@ -568,6 +615,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
           date: selectedDate,
           session: selectedSession,
           topic_covered: cleanTopic,
+          copied_from_session_id: reusedSessionInfo?.source_session?.session_id || null,
           attendance_data: attendanceData,
         }),
       }).catch(async (err) => {
@@ -578,6 +626,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
             date: selectedDate,
             session: selectedSession,
             topic_covered: cleanTopic,
+            copied_from_session_id: reusedSessionInfo?.source_session?.session_id || null,
             attendance_data: attendanceData,
           };
           await savePendingAttendance(payload);
@@ -645,7 +694,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     } finally {
       setSubmitting(false);
     }
-  }, [assignment, baseStudents, attendanceStatusMap, dateValidation?.isValid, selectedDate, selectedSession, activeSession, endSession, refreshPendingSyncs, currentTopicCovered, fetchAttendanceStatus, submitting]);
+  }, [assignment, baseStudents, attendanceStatusMap, dateValidation?.isValid, selectedDate, selectedSession, activeSession, endSession, refreshPendingSyncs, currentTopicCovered, fetchAttendanceStatus, submitting, reusedSessionInfo]);
 
   const handleDeleteAttendance = useCallback(async () => {
     if (!assignment?.id) return;
@@ -900,6 +949,11 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     return () => clearInterval(interval);
   }, [activeSession, selectedDate, selectedSession, fetchAttendanceStatus]);
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setReusedSessionInfo(null);
+  }, [selectedDate, selectedSession]);
+
   // --- DERIVED STATE (useMemo) ---
 
   const students = useMemo(
@@ -947,6 +1001,10 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     topicModalSession,
     setTopicModalSession,
     isDraftDirty,
+    reusedSessionInfo,
+    setReusedSessionInfo,
+    applyReusedAttendance,
+    clearReusedSessionInfo,
   };
 
   return (

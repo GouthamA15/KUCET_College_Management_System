@@ -29,6 +29,7 @@ export async function POST(request) {
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       session: z.number().int().min(1).max(8),
       topic_covered: z.string().trim().max(500).optional().nullable(),
+      copied_from_session_id: z.preprocess(v => v ? Number(v) : null, z.number().int().positive().optional().nullable()),
       attendance_data: z.array(z.object({
         student_id: z.number().int().positive(),
         status: z.enum(['PRESENT', 'ABSENT', 'NCC', 'MEDICAL'])
@@ -36,7 +37,7 @@ export async function POST(request) {
     });
 
     const validatedData = attendanceSchema.parse(json);
-    const { assignment_id, date, session, topic_covered, attendance_data } = validatedData;
+    const { assignment_id, date, session, topic_covered, copied_from_session_id, attendance_data } = validatedData;
 
     // 1. Verify assignment existence and get details
     const assignments = await db.select({
@@ -135,6 +136,16 @@ export async function POST(request) {
     const presentCount = attendance_data.filter(i => i.status === 'PRESENT').length;
     const absentCount = attendance_data.filter(i => i.status === 'ABSENT').length;
     const cleanTopic = (topic_covered && topic_covered.trim().length >= 2) ? topic_covered.trim().slice(0, 500) : null;
+
+    if (copied_from_session_id) {
+      logger.info({
+        destination_assignment_id: assignment_id,
+        date,
+        session,
+        copied_from_session_id,
+        faculty_id: user.id
+      }, '[ReuseProvenance] Attendance saved with cross-session provenance');
+    }
 
     let targetSessionId = null;
     let savedTopic = cleanTopic;
