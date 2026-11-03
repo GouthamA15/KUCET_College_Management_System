@@ -385,7 +385,7 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                           </td>
                           <td className="px-4 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                             <a
-                              href={`/api/staff/faculty/attendance/session/pdf?assignment_id=${assignment.id}&date=${encodeURIComponent(session.date)}&session=${encodeURIComponent(session.session)}`}
+                              href={`/api/staff/faculty/attendance/session/pdf?assignment_id=${assignment.id}&date=${encodeURIComponent(session.date)}&session=${encodeURIComponent(session.session)}${session.batch_number ? `&batch=${session.batch_number}` : ''}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg shadow-2xs transition-all active:scale-95"
@@ -470,7 +470,7 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                         </div>
                         <div className="flex items-center gap-3">
                           <a
-                            href={`/api/staff/faculty/attendance/session/pdf?assignment_id=${assignment.id}&date=${encodeURIComponent(session.date)}&session=${encodeURIComponent(session.session)}`}
+                            href={`/api/staff/faculty/attendance/session/pdf?assignment_id=${assignment.id}&date=${encodeURIComponent(session.date)}&session=${encodeURIComponent(session.session)}${session.batch_number ? `&batch=${session.batch_number}` : ''}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}

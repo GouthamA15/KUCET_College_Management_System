@@ -1,12 +1,14 @@
 import logger from '@/lib/logger';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { db } from '@/db';
-import { 
-  attendanceSessions, 
-  attendanceSessionLogs, 
-  students, 
+import {
+  attendanceSessions,
+  attendanceSessionLogs,
+  students,
   studentAttendance,
-  facultySubjectAssignments
+  facultySubjectAssignments,
+  labBatchStudents,
+  labBatchAllocations
 } from '@/db/schema';
 import { eq, and, desc, asc, sql } from 'drizzle-orm';
 import { isWithinRange } from '@/lib/geo-utils';
@@ -94,6 +96,27 @@ export async function POST(request) {
       return apiError(`You are not eligible for this session (Semester mismatch: expected Semester ${assignment.course_semester}, you are in Semester ${academicSession.semester}).`, 403);
     }
 
+    // Batch Eligibility Guard (for Laboratory Batch sessions)
+    if (session.batch_number && session.batch_number > 0) {
+      const allocation = await db.select({
+        batch_number: labBatchStudents.batch_number
+      })
+      .from(labBatchStudents)
+      .innerJoin(labBatchAllocations, eq(labBatchStudents.allocation_id, labBatchAllocations.id))
+      .where(and(
+        eq(labBatchStudents.student_id, user.student_id),
+        eq(labBatchAllocations.subject_code, assignment.subject_code),
+        eq(labBatchAllocations.academic_year, assignment.academic_year),
+        eq(labBatchAllocations.branch, assignment.branch),
+        eq(labBatchAllocations.semester, assignment.course_semester)
+      ))
+      .limit(1);
+
+      if (allocation.length > 0 && allocation[0].batch_number !== session.batch_number) {
+        return apiError(`You are not eligible for this session (Batch mismatch: this session is for Batch ${session.batch_number}, but you belong to Batch ${allocation[0].batch_number}).`, 403);
+      }
+    }
+
     // 3. Duplicate Attendance Prevention
     const existingSuccessLogs = await db.select({ id: attendanceSessionLogs.id })
       .from(attendanceSessionLogs)
@@ -130,10 +153,10 @@ export async function POST(request) {
 
     if (session.latitude && session.longitude) {
       const isNearby = isWithinRange(
-        Number(session.latitude), 
-        Number(session.longitude), 
-        latitude, 
-        longitude, 
+        Number(session.latitude),
+        Number(session.longitude),
+        latitude,
+        longitude,
         50 // 50m radius
       );
 
@@ -152,17 +175,17 @@ export async function POST(request) {
       }
     }
     const userAgent = request.headers.get('user-agent') || '';
-    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0] || 
-                      request.headers.get('x-real-ip') || 
+    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0] ||
+                      request.headers.get('x-real-ip') ||
                       '127.0.0.1';
-    
+
     const uaHash = crypto.createHash('md5').update(userAgent).digest('hex');
     const finalDeviceId = device_id || crypto.createHash('sha256').update(userAgent + ipAddress).digest('hex');
 
     // --- PIN / TOKEN VALIDATION ---
     if (pin) {
       // 1. Check existing failures/lockout
-      const existingLogs = await db.select({ 
+      const existingLogs = await db.select({
         failed_count: sql`COUNT(CASE WHEN status = 'FAILED_PIN' THEN 1 END)`,
         is_locked: sql`COUNT(CASE WHEN status = 'LOCKED' THEN 1 END)`
       })
@@ -171,7 +194,7 @@ export async function POST(request) {
           eq(attendanceSessionLogs.session_id, session.id),
           eq(attendanceSessionLogs.student_id, user.student_id)
         ));
-      
+
       const { failed_count, is_locked } = existingLogs[0];
       if (Number(is_locked) > 0) {
         return apiError('You have been locked out of this session due to multiple failed PIN attempts. Please contact the faculty.', 403);
@@ -180,7 +203,7 @@ export async function POST(request) {
       if (String(pin) !== String(session.session_pin)) {
         const newFailedCount = Number(failed_count) + 1;
         const status = newFailedCount >= 3 ? 'LOCKED' : 'FAILED_PIN';
-        
+
         // Record failure
         await db.insert(attendanceSessionLogs)
           .values({
@@ -196,7 +219,7 @@ export async function POST(request) {
           // Notify Faculty
           try {
             const { broadcastUpdate } = await import('@/lib/sse');
-            broadcastUpdate('STUDENT_LOCKED', { 
+            broadcastUpdate('STUDENT_LOCKED', {
               assignment_id: session.assignment_id,
               session_number: sessionNum,
               roll_no: user.roll_no,
@@ -229,7 +252,7 @@ export async function POST(request) {
 
     if (idLogs.length > 0 && idLogs[0].student_id !== user.student_id) {
       const originalStudent = idLogs[0];
-      
+
       // PROXY DETECTED: Mark BOTH students as ABSENT
       await db.transaction(async (tx) => {
         // Original student
@@ -258,7 +281,7 @@ export async function POST(request) {
       // Notify Faculty
       try {
         const { broadcastUpdate } = await import('@/lib/sse');
-        broadcastUpdate('PROXY_ATTEMPTED', { 
+        broadcastUpdate('PROXY_ATTEMPTED', {
           assignment_id: session.assignment_id,
           session_number: sessionNum,
           attempting_roll_no: user.roll_no,
@@ -337,8 +360,8 @@ export async function POST(request) {
     // --- REAL-TIME: Notify Faculty ---
     try {
       const { broadcastUpdate } = await import('@/lib/sse');
-      broadcastUpdate('STUDENT_VERIFIED', { 
-        assignment_id: session.assignment_id, 
+      broadcastUpdate('STUDENT_VERIFIED', {
+        assignment_id: session.assignment_id,
         student_id: user.student_id,
         roll_no: user.roll_no
       });
@@ -346,9 +369,9 @@ export async function POST(request) {
       console.warn('[SSE] Broadcast failed:', sseErr);
     }
 
-    return apiResponse({ 
-      success: true, 
-      message: 'Attendance verified successfully. Marked as PRESENT.' 
+    return apiResponse({
+      success: true,
+      message: 'Attendance verified successfully. Marked as PRESENT.'
     });
 
   } catch (error) {

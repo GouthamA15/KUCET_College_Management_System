@@ -28,10 +28,17 @@ const FacultyAttendanceContext = createContext(null);
 export function FacultyAttendanceProvider({ assignment, children }) {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedSession, setSelectedSession] = useState(1);
+  const [selectedBatch, setSelectedBatch] = useState(0); // 0 = Whole Class, 1 = Batch 1, 2 = Batch 2
   const [baseStudents, setBaseStudents] = useState([]);
   const [attendanceStatusMap, setAttendanceStatusMap] = useState({});
   const [currentTopicCovered, setCurrentTopicCovered] = useState('');
   const [isDraftDirty, setIsDraftDirty] = useState(false);
+
+  const isLabSubject = useMemo(() => {
+    const code = String(assignment?.subject_code || '').toUpperCase();
+    const name = String(assignment?.subject_name || '').toLowerCase();
+    return code.endsWith('L') || code.endsWith('LAB') || name.includes('lab') || name.includes('practical');
+  }, [assignment]);
 
   const [existingSessionsForSelectedDate, setExistingSessionsForSelectedDate] = useState([]);
   const [dayInfo, setDayInfo] = useState(null);
@@ -62,7 +69,8 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     }
     setLoading(true);
     try {
-      const url = `/api/staff/faculty/students?assignment_id=${assignment.id}&base=1`;
+      const batchParam = selectedBatch > 0 ? `&batch=${selectedBatch}` : '';
+      const url = `/api/staff/faculty/students?assignment_id=${assignment.id}&base=1${batchParam}`;
       const res = await fetch(url);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch students');
@@ -79,12 +87,13 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     } finally {
       setLoading(false);
     }
-  }, [assignment]);
+  }, [assignment, selectedBatch]);
 
   const fetchActiveSession = useCallback(async () => {
     if (!assignment?.id) return;
     try {
-      const res = await fetch(`/api/staff/faculty/attendance/session?assignment_id=${assignment.id}`);
+      const batchParam = selectedBatch > 0 ? `&batch=${selectedBatch}` : '';
+      const res = await fetch(`/api/staff/faculty/attendance/session?assignment_id=${assignment.id}${batchParam}`);
       const json = await res.json();
       if (res.ok && json.active) {
         setActiveSession(json.session);
@@ -94,7 +103,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     } catch (e) {
       console.error('Failed to fetch active session:', e);
     }
-  }, [assignment]);
+  }, [assignment, selectedBatch]);
 
   const fetchAttendanceStatus = useCallback(async (forcedDate, forcedSession, bypassCache = false) => {
     if (!assignment?.id) return;
@@ -287,7 +296,8 @@ export function FacultyAttendanceProvider({ assignment, children }) {
           latitude,
           longitude,
           attendance_date: selectedDate,
-          session_number: selectedSession
+          session_number: selectedSession,
+          batch_number: selectedBatch
         }),
       });
       
@@ -318,7 +328,8 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     if (!assignment?.id) return;
     try {
       setSubmitting(true);
-      const res = await fetch(`/api/staff/faculty/attendance/session?assignment_id=${assignment.id}`, {
+      const batchParam = selectedBatch > 0 ? `&batch=${selectedBatch}` : '';
+      const res = await fetch(`/api/staff/faculty/attendance/session?assignment_id=${assignment.id}${batchParam}`, {
         method: 'DELETE',
       });
       if (res.ok) {
@@ -330,7 +341,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     } finally {
       setSubmitting(false);
     }
-  }, [assignment]);
+  }, [assignment, selectedBatch]);
 
   const handleManualRefresh = useCallback(() => {
     fetchAttendanceStatus(null, null, true);
@@ -614,6 +625,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
           assignment_id: assignment.id,
           date: selectedDate,
           session: selectedSession,
+          batch_number: selectedBatch,
           topic_covered: cleanTopic,
           copied_from_session_id: reusedSessionInfo?.source_session?.session_id || null,
           attendance_data: attendanceData,
@@ -967,6 +979,9 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     setSelectedDate,
     selectedSession,
     setSelectedSession,
+    selectedBatch,
+    setSelectedBatch,
+    isLabSubject,
     baseStudents,
     attendanceStatusMap,
     setAttendanceStatus,

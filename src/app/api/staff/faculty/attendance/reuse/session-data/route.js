@@ -1,12 +1,12 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { 
-  facultySubjectAssignments, 
-  attendanceSessions, 
-  studentAttendance, 
+import {
+  facultySubjectAssignments,
+  attendanceSessions,
+  studentAttendance,
   students as studentsTable,
-  staffAccounts, 
-  facultySubstitutions 
+  staffAccounts,
+  facultySubstitutions
 } from '@/db/schema';
 import { eq, and, asc, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
@@ -20,12 +20,15 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const destination_assignment_id = searchParams.get('destination_assignment_id') 
-      ? parseInt(searchParams.get('destination_assignment_id'), 10) 
+    const destination_assignment_id = searchParams.get('destination_assignment_id')
+      ? parseInt(searchParams.get('destination_assignment_id'), 10)
       : null;
-    const source_session_id = searchParams.get('source_session_id') 
-      ? parseInt(searchParams.get('source_session_id'), 10) 
+    const source_session_id = searchParams.get('source_session_id')
+      ? parseInt(searchParams.get('source_session_id'), 10)
       : null;
+    const destBatch = searchParams.get('destination_batch')
+      ? parseInt(searchParams.get('destination_batch'), 10)
+      : 0;
 
     if (!destination_assignment_id || isNaN(destination_assignment_id)) {
       return apiError('destination_assignment_id is required', 400);
@@ -90,13 +93,14 @@ export async function GET(request) {
       assignment_id: attendanceSessions.assignment_id,
       attendance_date: attendanceSessions.attendance_date,
       session_number: attendanceSessions.session_number,
+      batch_number: attendanceSessions.batch_number,
       faculty_id: attendanceSessions.faculty_id,
       topic_covered: attendanceSessions.topic_covered,
       submitted_at: attendanceSessions.submitted_at,
       total_students: attendanceSessions.total_students,
       present_count: attendanceSessions.present_count,
       absent_count: attendanceSessions.absent_count,
-      faculty_name: staffAccounts.full_name,
+      faculty_name: staffAccounts.name,
     })
     .from(attendanceSessions)
     .leftJoin(staffAccounts, eq(attendanceSessions.faculty_id, staffAccounts.id))
@@ -139,6 +143,13 @@ export async function GET(request) {
       );
     }
 
+    if (sourceSession.batch_number > 0 && destBatch > 0 && sourceSession.batch_number !== destBatch) {
+      return apiError(
+        `Batch mismatch: Source session belongs to Batch ${sourceSession.batch_number}, but target attendance is for Batch ${destBatch}. Attendance reuse between different batches is prohibited.`,
+        400
+      );
+    }
+
     // 5. Fetch destination active student roster
     const branchCode = Object.keys(branchCodes).find(k => branchCodes[k] === destAssignment.branch);
     const studyingYear = Math.ceil(destAssignment.course_semester / 2);
@@ -156,8 +167,8 @@ export async function GET(request) {
         sql`(${studentsTable.student_status} IS NULL OR ${studentsTable.student_status} != 'INACTIVE_ATTENDANCE')`,
         sql`(${studentsTable.academic_status} IS NULL OR ${studentsTable.academic_status} NOT IN ('DETAINED', 'DROPPED', 'GRADUATED'))`,
         sql`(
-          CASE 
-            WHEN SUBSTRING(${studentsTable.roll_no}, 9, 1) = 'L' 
+          CASE
+            WHEN SUBSTRING(${studentsTable.roll_no}, 9, 1) = 'L'
             THEN (YEAR(CURDATE()) - (2000 + CAST(SUBSTRING(${studentsTable.roll_no}, 1, 2) AS UNSIGNED)) + 2) - COALESCE(${studentsTable.academic_offset_years}, 0)
             ELSE (YEAR(CURDATE()) - (2000 + CAST(SUBSTRING(${studentsTable.roll_no}, 1, 2) AS UNSIGNED)) + 1) - COALESCE(${studentsTable.academic_offset_years}, 0)
           END

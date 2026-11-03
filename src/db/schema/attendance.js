@@ -1,6 +1,6 @@
 import { 
   mysqlTable, varchar, int, boolean, decimal, timestamp, 
-  mysqlEnum, float, index, uniqueIndex, date, text
+  mysqlEnum, float, index, uniqueIndex, date, text, tinyint
 } from 'drizzle-orm/mysql-core';
 
 export const studentAttendance = mysqlTable('student_attendance', {
@@ -36,6 +36,8 @@ export const attendanceSessions = mysqlTable('attendance_sessions', {
   expires_at: timestamp('expires_at').notNull(),
   created_at: timestamp('created_at').defaultNow(),
   session_number: int('session_number').default(1),
+  batch_number: tinyint('batch_number').default(0).notNull(),
+  allocation_id: int('allocation_id'),
   accuracy: float('accuracy'),
   topic_covered: varchar('topic_covered', { length: 500 }),
   submitted_at: timestamp('submitted_at'),
@@ -43,7 +45,8 @@ export const attendanceSessions = mysqlTable('attendance_sessions', {
   present_count: int('present_count').default(0),
   absent_count: int('absent_count').default(0),
 }, (table) => ({
-  uqAssignmentSlot: uniqueIndex('uq_assignment_session_slot').on(table.assignment_id, table.attendance_date, table.session_number),
+  uqAssignmentSlotBatch: uniqueIndex('uq_assignment_session_slot_batch').on(table.assignment_id, table.attendance_date, table.session_number, table.batch_number),
+  allocationIdx: index('idx_as_allocation').on(table.allocation_id),
   assignmentActiveIdx: index('idx_assignment_active').on(table.assignment_id, table.is_active),
   sessionsActiveIdx: index('idx_sessions_active').on(table.is_active, table.expires_at),
   tokenIdx: index('idx_session_token').on(table.session_token),

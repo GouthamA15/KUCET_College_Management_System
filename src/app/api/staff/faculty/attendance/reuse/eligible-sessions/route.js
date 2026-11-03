@@ -19,6 +19,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const assignment_id = searchParams.get('assignment_id') ? parseInt(searchParams.get('assignment_id'), 10) : null;
     const dateFilter = searchParams.get('date'); // Optional YYYY-MM-DD filter
+    const batchFilter = searchParams.get('batch') ? parseInt(searchParams.get('batch'), 10) : null;
 
     if (!assignment_id || isNaN(assignment_id)) {
       return apiError('assignment_id is required', 400);
@@ -88,15 +89,20 @@ export async function GET(request) {
       conditions.push(eq(attendanceSessions.attendance_date, dateFilter));
     }
 
+    if (batchFilter !== null && !isNaN(batchFilter)) {
+      conditions.push(eq(attendanceSessions.batch_number, batchFilter));
+    }
+
     const eligibleRows = await db.select({
       session_id: attendanceSessions.id,
       assignment_id: facultySubjectAssignments.id,
       subject_name: facultySubjectAssignments.subject_name,
       subject_code: facultySubjectAssignments.subject_code,
       faculty_id: facultySubjectAssignments.staff_account_id,
-      faculty_name: staffAccounts.full_name,
+      faculty_name: staffAccounts.name,
       attendance_date: attendanceSessions.attendance_date,
       session_number: attendanceSessions.session_number,
+      batch_number: attendanceSessions.batch_number,
       total_students: attendanceSessions.total_students,
       present_count: attendanceSessions.present_count,
       absent_count: attendanceSessions.absent_count,
@@ -128,6 +134,8 @@ export async function GET(request) {
         faculty_name: r.faculty_name || 'Faculty Member',
         attendance_date: r.attendance_date,
         session_number: r.session_number || 1,
+        batch_number: r.batch_number || 0,
+        batch_name: r.batch_number === 1 ? 'Batch 1' : r.batch_number === 2 ? 'Batch 2' : null,
         total_students: r.total_students || 0,
         present_count: r.present_count || 0,
         absent_count: r.absent_count || 0,

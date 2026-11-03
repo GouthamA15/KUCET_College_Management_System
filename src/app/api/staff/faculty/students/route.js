@@ -20,6 +20,7 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const assignment_id = searchParams.get('assignment_id') ? parseInt(searchParams.get('assignment_id')) : null;
+    const batch = searchParams.get('batch') ? parseInt(searchParams.get('batch')) : null;
 
     if (!assignment_id) return apiError('Assignment ID is required', 400);
 
@@ -124,7 +125,20 @@ export async function GET(request) {
           WHEN ${studentsTable.roll_no} LIKE '%L' THEN 
             (${startYear} - CAST(CONCAT('20', SUBSTRING(${studentsTable.roll_no}, 1, 2)) AS SIGNED) + 2) - ${studentsTable.academic_offset_years}
           ELSE 0
-        END = ${studyingYear}`
+        END = ${studyingYear}`,
+      batch && (batch === 1 || batch === 2)
+        ? sql`EXISTS (
+            SELECT 1 FROM lab_batch_students lbs
+            JOIN lab_batch_allocations lba ON lbs.allocation_id = lba.id
+            WHERE lbs.student_id = ${studentsTable.id}
+              AND lbs.batch_number = ${batch}
+              AND lba.academic_year = ${academic_year}
+              AND lba.branch = ${branch}
+              AND lba.semester = ${course_semester}
+              AND lba.subject_code = ${subject_code}
+              AND lba.status = 'PUBLISHED'
+          )`
+        : sql`1=1`
     ))
     .orderBy(asc(studentsTable.roll_no));
 

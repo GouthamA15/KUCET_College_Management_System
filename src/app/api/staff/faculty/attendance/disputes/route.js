@@ -1,11 +1,11 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { 
-  studentAttendanceDisputes, 
+import {
+  studentAttendanceDisputes,
   attendanceDisputeAttachments,
-  facultySubjectAssignments, 
+  facultySubjectAssignments,
   students,
-  staffAccounts 
+  staffAccounts
 } from '@/db/schema';
 import { eq, and, desc, inArray, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
@@ -53,6 +53,14 @@ export async function GET(request) {
       assignment_id: studentAttendanceDisputes.assignment_id,
       attendance_date: studentAttendanceDisputes.attendance_date,
       session: studentAttendanceDisputes.session,
+      session_batch_number: sql`(
+        SELECT s.batch_number
+        FROM attendance_sessions s
+        WHERE s.assignment_id = ${studentAttendanceDisputes.assignment_id}
+          AND s.attendance_date = ${studentAttendanceDisputes.attendance_date}
+          AND s.session_number = ${studentAttendanceDisputes.session}
+        LIMIT 1
+      )`,
       original_status: studentAttendanceDisputes.original_status,
       requested_status: studentAttendanceDisputes.requested_status,
       category: studentAttendanceDisputes.category,

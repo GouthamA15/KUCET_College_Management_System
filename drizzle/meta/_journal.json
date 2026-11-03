@@ -218,6 +218,13 @@
                         "when":  1790800000000,
                         "version":  "5",
                         "tag":  "0030_attendance_architecture_optimization"
+                    },
+                    {
+                        "idx":  31,
+                        "breakpoints":  true,
+                        "when":  1790900000000,
+                        "version":  "5",
+                        "tag":  "0031_lab_batch_management"
                     }
                 ]
 }

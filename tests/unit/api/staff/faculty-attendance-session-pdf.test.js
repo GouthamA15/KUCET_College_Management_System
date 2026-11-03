@@ -141,6 +141,14 @@ describe('Faculty Attendance Session PDF Route (/api/staff/faculty/attendance/se
           }),
         }),
       })
+      // Session metadata lookup
+      .mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () => Promise.resolve([{ id: 101, batch_number: 0 }]),
+          }),
+        }),
+      })
       // Student attendance query returns empty (session never submitted)
       .mockReturnValueOnce({
         from: () => ({
@@ -190,6 +198,19 @@ describe('Faculty Attendance Session PDF Route (/api/staff/faculty/attendance/se
           }),
         }),
       })
+      // Session metadata lookup
+      .mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            limit: () => Promise.resolve([{
+              id: 101,
+              batch_number: 0,
+              topic_covered: 'Deadlock Detection Algorithms',
+              submitted_at: new Date('2026-09-18T10:30:00Z'),
+            }]),
+          }),
+        }),
+      })
       // Student attendance query returns 2 students
       .mockReturnValueOnce({
         from: () => ({
@@ -200,17 +221,6 @@ describe('Faculty Attendance Session PDF Route (/api/staff/faculty/attendance/se
                 { student_id: 2, roll_no: '0122102', name: 'Jane Smith', status: 'ABSENT', submitted_at: new Date('2026-09-18T10:30:00Z') },
               ]),
             }),
-          }),
-        }),
-      })
-      // Session query
-      .mockReturnValueOnce({
-        from: () => ({
-          where: () => ({
-            limit: () => Promise.resolve([{
-              topic_covered: 'Deadlock Detection Algorithms',
-              submitted_at: new Date('2026-09-18T10:30:00Z'),
-            }]),
           }),
         }),
       });

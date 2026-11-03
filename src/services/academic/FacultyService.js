@@ -253,6 +253,7 @@ export class FacultyService {
         id: branchTimetable.id,
         day_of_week: branchTimetable.day_of_week,
         period_number: branchTimetable.period_number,
+        batch_number: branchTimetable.batch_number,
         subject_code: branchTimetable.subject_code,
         faculty_id: branchTimetable.faculty_id,
         academic_year: branchTimetable.academic_year,

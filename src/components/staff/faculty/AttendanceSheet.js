@@ -19,7 +19,7 @@ const QRScannerPanel = dynamic(() => import('./QRScannerPanel'), {
 const formatDisplayDate = (dateStr) => formatDate(dateStr, '—');
 
 const SubjectIdentityPanel = () => {
-  const { assignment } = useFacultyAttendance();
+  const { assignment, selectedBatch, setSelectedBatch, isLabSubject } = useFacultyAttendance();
   return (
   <div className="bg-white border-2 border-gray-200 p-4 rounded-lg mb-6">
     <div className="flex justify-between items-center border-b-2 border-gray-200 pb-2 mb-4">
@@ -44,6 +44,54 @@ const SubjectIdentityPanel = () => {
       <div className="font-semibold text-gray-500">Academic Year:</div>
       <div className="font-mono text-gray-900">{assignment.academic_year}</div>
     </div>
+
+    {isLabSubject && (
+      <div className="mt-4 pt-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Lab Batch:</span>
+          <div className="inline-flex rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setSelectedBatch(0)}
+              className={`px-3 py-1 text-xs font-bold transition-colors cursor-pointer ${
+                selectedBatch === 0
+                  ? 'bg-[#0b3578] text-white'
+                  : 'bg-white text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              Whole Class
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedBatch(1)}
+              className={`px-3 py-1 text-xs font-bold border-l border-r border-slate-200 transition-colors cursor-pointer ${
+                selectedBatch === 1
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              Batch 1
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedBatch(2)}
+              className={`px-3 py-1 text-xs font-bold transition-colors cursor-pointer ${
+                selectedBatch === 2
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-white text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              Batch 2
+            </button>
+          </div>
+        </div>
+        {selectedBatch > 0 && (
+          <span className="text-xs text-blue-800 font-semibold bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md">
+            Active Batch: <span className="font-bold underline">Batch {selectedBatch}</span>
+          </span>
+        )}
+      </div>
+    )}
   </div>
   );
 };

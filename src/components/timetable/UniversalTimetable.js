@@ -46,7 +46,7 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
 
-  const getSlot = (day, p) => data.find(s => s.day_of_week === day && Number(s.period_number) === Number(p));
+  const getSlots = (day, p) => data.filter(s => s.day_of_week === day && Number(s.period_number) === Number(p));
 
   const getDisplayName = (slot) => {
     const act = INSTITUTIONAL_ACTIVITIES.find(a => a.code === slot.subject_code);
@@ -98,29 +98,34 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
         <div className="hidden overflow-x-auto pb-5 md:block">
           <table className="w-full min-w-[900px] table-fixed border-collapse text-center">
             <thead>
-              <tr className="border-b border-[#dce8f8]">
-                {/* Day column header */}
-                <th className="sticky left-0 z-30 w-16 border-r border-[#dce8f8] bg-[#eaf2ff] px-3 py-4 text-center text-[10px] font-black uppercase tracking-[0.18em] text-[#0b3578] shadow-[2px_0_5px_-1px_rgba(11,53,120,0.08)]">
+              <tr className="border-b border-[#e3ebf6] bg-[#f8fbff] text-[10px] font-bold tracking-wider text-slate-500">
+                <th className="sticky left-0 z-30 w-[60px] border-r border-[#e3ebf6] bg-[#f8fbff] py-2 text-center text-[#0b3578] shadow-[2px_0_5px_-1px_rgba(11,53,120,0.06)]">
                   Day
                 </th>
-                  {PERIODS.map(p => (
-                    <Fragment key={p}>
-                      <th className="w-[120px] max-w-[140px] border-r border-[#dce8f8] bg-[#eaf2ff] px-2 py-4 text-center">
-                        <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#0b3578]">Period {p}</div>
-                        <div className="mt-1 text-[10px] font-medium tabular-nums text-slate-500">{PERIOD_TIMES[p]}</div>
+                {PERIODS.map(p => (
+                  <Fragment key={p}>
+                    <th className="border-r border-[#e3ebf6] px-1 py-1.5 text-center">
+                      <div className="font-extrabold uppercase text-[#0b3578]">Period {p}</div>
+                      <div className="mt-0.5 text-[9px] font-medium text-slate-600 tabular-nums leading-none">
+                        {PERIOD_TIMES[p]}
+                      </div>
+                    </th>
+                    {p === 2 && (
+                      <th className="w-[36px] border-r border-[#e8dfc9] bg-amber-50/70 p-1 text-center align-middle" title="Short Break">
+                        <span className="inline-block -rotate-90 select-none text-[8px] font-black uppercase tracking-wider text-amber-700 whitespace-nowrap">
+                          Break
+                        </span>
                       </th>
-                      {p === 2 && (
-                        <th className="w-[36px] min-w-[36px] select-none border-r border-[#dce8f8] bg-amber-50 px-1.5 py-3 text-center align-middle">
-                          <div className="whitespace-nowrap text-[9px] font-black tracking-widest text-amber-700" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>SHORT BREAK</div>
-                        </th>
-                      )}
-                      {p === 4 && (
-                        <th className="w-[36px] min-w-[36px] select-none border-r border-[#dce8f8] bg-emerald-50 px-1.5 py-3 text-center align-middle">
-                          <div className="whitespace-nowrap text-[9px] font-black tracking-widest text-emerald-700" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>LUNCH BREAK</div>
-                        </th>
-                      )}
-                    </Fragment>
-                  ))}
+                    )}
+                    {p === 4 && (
+                      <th className="w-[36px] border-r border-[#d7eadf] bg-emerald-50/70 p-1 text-center align-middle" title="Lunch Break">
+                        <span className="inline-block -rotate-90 select-none text-[8px] font-black uppercase tracking-wider text-emerald-700 whitespace-nowrap">
+                          Lunch
+                        </span>
+                      </th>
+                    )}
+                  </Fragment>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -130,27 +135,62 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
                     {day}
                   </td>
                   {PERIODS.map(p => {
-                    const slot = getSlot(day, p);
-                    const act = slot ? isActivity(slot) : false;
+                    const slots = getSlots(day, p);
+                    const hasSlots = slots.length > 0;
+                    const isMultiBatch = slots.length > 1 || (slots.length === 1 && slots[0].batch_number > 0);
                     const active = !isEditable && isSlotActiveNow(day, p);
 
                     return (
                       <Fragment key={`${day}-${p}`}>
                         <td
-                          onClick={() => isEditable && onEditSlot && onEditSlot(day, p, slot)}
+                          onClick={() => isEditable && onEditSlot && onEditSlot(day, p, slots[0] || null)}
                           className={[
-                            'relative h-[78px] border-r border-[#edf2f8] px-2 py-3 align-middle transition-colors',
+                            'relative h-[82px] border-r border-[#edf2f8] px-1 py-1.5 align-middle transition-colors',
                             isEditable ? 'group/cell cursor-pointer hover:bg-blue-50/60' : '',
                             active ? 'bg-blue-50/80 ring-1 ring-inset ring-blue-300/60' : '',
-                            !active && slot && act ? 'bg-amber-50/50' : '',
                           ].join(' ')}
                         >
-                          {slot ? (
-                            <div className="flex flex-col justify-center items-center h-full text-center">
-                              <p className={`max-w-[125px] break-words text-[12px] font-bold leading-[1.35] ${act ? 'text-amber-800' : 'text-slate-800'}`}>
-                                {getDisplayName(slot)}
-                              </p>
-                            </div>
+                          {hasSlots ? (
+                            isMultiBatch ? (
+                              <div className="flex flex-col justify-center gap-1 h-full text-center">
+                                {slots.map(s => {
+                                  const isB1 = s.batch_number === 1;
+                                  return (
+                                    <div
+                                      key={s.id || s.batch_number}
+                                      className={`px-1.5 py-1 rounded text-[10px] leading-tight flex items-center justify-between border ${
+                                        isB1
+                                          ? 'bg-blue-50/90 border-blue-200 text-blue-900'
+                                          : 'bg-emerald-50/90 border-emerald-200 text-emerald-900'
+                                      }`}
+                                    >
+                                      <span className="font-black text-[9px] uppercase tracking-wide mr-1 shrink-0">
+                                        {isB1 ? 'B1:' : s.batch_number === 2 ? 'B2:' : ''}
+                                      </span>
+                                      <span className="font-semibold truncate flex-1 text-center" title={getDisplayName(s)}>
+                                        {getDisplayName(s)}
+                                      </span>
+                                      {s.room_no && (
+                                        <span className="text-[8px] text-slate-500 font-normal ml-1 shrink-0">
+                                          [{s.room_no}]
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="flex flex-col justify-center items-center h-full text-center">
+                                <p className={`max-w-[125px] break-words text-[12px] font-bold leading-[1.35] ${isActivity(slots[0]) ? 'text-amber-800' : 'text-slate-800'}`}>
+                                  {getDisplayName(slots[0])}
+                                </p>
+                                {slots[0].room_no && (
+                                  <span className="text-[10px] text-slate-500 font-medium mt-0.5">
+                                    {slots[0].room_no}
+                                  </span>
+                                )}
+                              </div>
+                            )
                           ) : (
                             <div className={`h-full flex flex-col items-center justify-center ${isEditable ? 'opacity-0 group-hover/cell:opacity-100 transition-opacity' : ''}`}>
                               {isEditable ? (
@@ -215,16 +255,14 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEndHandler}
           >
-            {/* Short break notice between P2 and P3 */}
-            {/* Lunch break notice between P4 and P5 */}
             {PERIODS.map(p => {
-              const slot = getSlot(activeMobileDay, p);
-              const act = slot ? isActivity(slot) : false;
+              const slots = getSlots(activeMobileDay, p);
+              const hasSlots = slots.length > 0;
+              const isMultiBatch = slots.length > 1 || (slots.length === 1 && slots[0].batch_number > 0);
               const active = !isEditable && isSlotActiveNow(activeMobileDay, p);
 
               return (
                 <div key={p}>
-                  {/* Break dividers */}
                   {p === 3 && (
                     <div className="my-2 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-bold tracking-wide text-amber-700 shadow-sm">
                       <div className="flex items-center gap-1.5"><span className="text-[12px]">☕</span> Short Break</div>
@@ -239,17 +277,14 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
                   )}
 
                   <div
-                    onClick={() => isEditable && onEditSlot && onEditSlot(activeMobileDay, p, slot)}
+                    onClick={() => isEditable && onEditSlot && onEditSlot(activeMobileDay, p, slots[0] || null)}
                     className={[
                       'relative flex items-start gap-3 rounded-xl border px-3.5 py-3.5 transition-colors',
                       isEditable ? 'cursor-pointer active:scale-[0.99]' : '',
-                      active ? 'border-emerald-300 bg-emerald-50/70 shadow-[0_5px_14px_rgba(16,185,129,0.12)]' : slot ? 'border-slate-200 bg-white shadow-[0_3px_10px_rgba(11,53,120,0.04)]' : 'border-dashed border-slate-200 bg-slate-50',
+                      active ? 'border-emerald-300 bg-emerald-50/70 shadow-[0_5px_14px_rgba(16,185,129,0.12)]' : hasSlots ? 'border-slate-200 bg-white shadow-[0_3px_10px_rgba(11,53,120,0.04)]' : 'border-dashed border-slate-200 bg-slate-50',
                     ].join(' ')}
                   >
-                    {/* Period badge */}
-                    <div className={[
-                      'flex-shrink-0 w-12 text-center pt-0.5',
-                    ].join(' ')}>
+                    <div className="flex-shrink-0 w-12 text-center pt-0.5">
                       <div className={`text-[9px] font-bold uppercase tracking-wider ${active ? 'text-emerald-700' : 'text-slate-700'}`}>P{p}</div>
                       <div className={`text-[9px] font-medium tabular-nums leading-tight mt-0.5 ${active ? 'text-emerald-600' : 'text-slate-400'}`}>
                         {PERIOD_TIMES[p].split(' to ')[0]}
@@ -257,28 +292,52 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
                     </div>
 
                     <div className="flex min-w-0 flex-1 flex-col justify-center text-left">
-                      {slot ? (
-                        <>
-                          <div className="flex items-start justify-between gap-2">
-                            <p className={`break-words text-[13px] font-bold leading-[1.3] ${act ? 'text-amber-800' : 'text-slate-800'}`}>
-                              {getDisplayName(slot)}
-                            </p>
-                            {active && <span className="mt-0.5 flex shrink-0 items-center gap-1 text-[9px] font-bold uppercase tracking-wide text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Live</span>}
+                      {hasSlots ? (
+                        isMultiBatch ? (
+                          <div className="space-y-1.5">
+                            {slots.map(s => (
+                              <div
+                                key={s.id || s.batch_number}
+                                className={`p-2 rounded-lg border text-xs ${
+                                  s.batch_number === 1
+                                    ? 'bg-blue-50/80 border-blue-200 text-blue-900'
+                                    : 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-extrabold uppercase text-[10px]">
+                                    {s.batch_number === 1 ? 'Batch 1' : s.batch_number === 2 ? 'Batch 2' : 'Whole Class'}
+                                  </span>
+                                  {s.room_no && <span className="text-[10px] text-slate-500">Room {s.room_no}</span>}
+                                </div>
+                                <p className="font-bold text-[12px] mt-0.5">{getDisplayName(s)}</p>
+                                {s.faculty_name && <p className="text-[10px] text-slate-500 mt-0.5">{s.faculty_name}</p>}
+                              </div>
+                            ))}
                           </div>
-                          {(slot.room_no || slot.faculty_name) && (
-                            <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-slate-500">
-                              {slot.room_no && <span className="rounded-md bg-slate-100 px-2 py-1">Room {slot.room_no}</span>}
-                              {slot.faculty_name && <span className="max-w-full truncate rounded-md bg-slate-100 px-2 py-1" title={slot.faculty_name}>{slot.faculty_name}</span>}
+                        ) : (
+                          <>
+                            <div className="flex items-start justify-between gap-2">
+                              <p className={`break-words text-[13px] font-bold leading-[1.3] ${isActivity(slots[0]) ? 'text-amber-800' : 'text-slate-800'}`}>
+                                {getDisplayName(slots[0])}
+                              </p>
+                              {active && <span className="mt-0.5 flex shrink-0 items-center gap-1 text-[9px] font-bold uppercase tracking-wide text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Live</span>}
                             </div>
-                          )}
-                        </>
+                            {(slots[0].room_no || slots[0].faculty_name) && (
+                              <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-slate-500">
+                                {slots[0].room_no && <span className="rounded-md bg-slate-100 px-2 py-1">Room {slots[0].room_no}</span>}
+                                {slots[0].faculty_name && <span className="max-w-full truncate rounded-md bg-slate-100 px-2 py-1" title={slots[0].faculty_name}>{slots[0].faculty_name}</span>}
+                              </div>
+                            )}
+                          </>
+                        )
                       ) : isEditable ? (
                         <p className="text-[12px] text-[#0b3578] font-medium py-0.5 flex items-center justify-center gap-1.5 opacity-80">
                           <span className="text-[16px] leading-none">+</span> Add class
                         </p>
                       ) : (
                         <p className="py-0.5 text-left text-[12px] italic text-slate-400">
-                          Free period
+                          No lecture scheduled
                         </p>
                       )}
                     </div>
@@ -289,70 +348,6 @@ export default function UniversalTimetable({ data = [], onEditSlot = null, isEdi
           </div>
         </div>
       )}
-
-      {shouldShowGrid && data.length > 0 && (
-        <div className="mt-2 border-t border-[#e6eef9] bg-[#fbfdff] px-4 pb-5 pt-6 sm:px-5">
-          <div className="mb-4 flex items-end justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#0b3578]">Course directory</p>
-              <h4 className="mt-1 text-sm font-bold text-slate-800">Subject & faculty</h4>
-            </div>
-            <span className="hidden text-[11px] font-medium text-slate-400 sm:block">Assigned teaching staff</span>
-          </div>
-          <div className="hidden overflow-x-auto rounded-xl border border-[#dce8f8] md:block">
-            <table className="w-full text-left border-collapse text-sm">
-              <thead className="border-b border-[#dce8f8] bg-[#eaf2ff]">
-                <tr>
-                  <th className="w-1/2 border-r border-[#dce8f8] px-4 py-2.5 text-xs font-bold text-[#0b3578]">Subject</th>
-                  <th className="w-1/2 px-4 py-2.5 text-xs font-bold text-[#0b3578]">Faculty</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 bg-white">
-                {Object.values(data.reduce((acc, slot) => {
-                  const act = INSTITUTIONAL_ACTIVITIES.find(a => a.code === slot.subject_code);
-                  if (act) return acc;
-                  const key = slot.subject_code;
-                  if (!acc[key]) {
-                    acc[key] = { subjectName: slot.display_name || slot.subject_name || slot.subject_code, faculties: new Set() };
-                  }
-                  if (slot.faculty_name) {
-                    acc[key].faculties.add(slot.faculty_name);
-                  }
-                  return acc;
-                }, {})).filter(item => item.faculties.size > 0).map((item, idx) => (
-                  <tr key={idx} className="border-b border-slate-100 last:border-0 hover:bg-blue-50/30">
-                    <td className="break-words border-r border-slate-100 px-4 py-2.5 font-semibold text-slate-700">{item.subjectName}</td>
-                    <td className="break-words px-4 py-2.5 text-slate-500">{Array.from(item.faculties).join(', ')}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="space-y-2 md:hidden">
-            {Object.values(data.reduce((acc, slot) => {
-              const act = INSTITUTIONAL_ACTIVITIES.find(a => a.code === slot.subject_code);
-              if (act) return acc;
-              const key = slot.subject_code;
-              if (!acc[key]) {
-                acc[key] = { subjectName: slot.display_name || slot.subject_name || slot.subject_code, faculties: new Set() };
-              }
-              if (slot.faculty_name) acc[key].faculties.add(slot.faculty_name);
-              return acc;
-            }, {})).filter(item => item.faculties.size > 0).map((item, idx) => (
-              <div key={idx} className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-3 shadow-sm">
-                <span className="min-w-0 break-words text-xs font-bold leading-5 text-slate-700">{item.subjectName}</span>
-                <span className="max-w-[480 %] break-words text-right text-[11px] leading-5 text-slate-500">{Array.from(item.faculties).join(', ')}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <style jsx global>{`
-        .hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-      `}</style>
     </div>
   );
 }
-

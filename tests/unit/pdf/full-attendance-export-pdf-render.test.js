@@ -663,4 +663,210 @@ describe('Full Attendance Export PDF Template Rendering Pipeline', () => {
     expect(text).toContain('24567T0901');
     expect(text).toContain('24567T0965');
   }, 25000);
+
+  it('handles horizontal chunking for 11 sessions (border case: 10 + 1 session chunks) for 75 students', async () => {
+    const sessions = Array.from({ length: 11 }, (_, i) => ({
+      key: `2026-09-${String(i + 1).padStart(2, '0')}__1`,
+      date: `2026-09-${String(i + 1).padStart(2, '0')}`,
+      session: 1,
+      displayDate: `${String(i + 1).padStart(2, '0')}-09-2026`,
+      topic_covered: `Lecture ${i + 1}`,
+    }));
+
+    const all75 = [
+      ...Array.from({ length: 65 }, (_, i) => ({
+        student_id: i + 1,
+        roll_no: `24567T09${String(i + 1).padStart(2, '0')}`,
+        name: `Regular Student ${i + 1}`,
+        totalPresent: 11,
+        totalAbsent: 0,
+        percentage: 100,
+        records: sessions.reduce((acc, s) => { acc[s.key] = 'PRESENT'; return acc; }, {}),
+      })),
+      ...Array.from({ length: 10 }, (_, i) => ({
+        student_id: 66 + i,
+        roll_no: `2556709${String(i + 1).padStart(2, '0')}L`,
+        name: `Lateral Student ${i + 1}`,
+        totalPresent: 10,
+        totalAbsent: 1,
+        percentage: 91,
+        records: sessions.reduce((acc, s) => { acc[s.key] = 'PRESENT'; return acc; }, {}),
+      })),
+    ];
+
+    const sessionStats = sessions.reduce((acc, s) => {
+      acc[s.key] = { presentCount: 75, totalCount: 75, percentage: 100 };
+      return acc;
+    }, {});
+
+    const doc = React.createElement(FullAttendanceExportPDF, {
+      branch: 'EEE',
+      semester: 5,
+      subjectCode: 'EE501',
+      subjectName: 'Power Systems Analysis',
+      subjectCategory: 'Theory',
+      academicYear: '2026-2027',
+      facultyName: 'Dr. Electrical Faculty',
+      generationTimestamp: '03-11-2026 • 09:00 AM',
+      reportPeriod: '01-09-2026 to 11-09-2026 (11 Sessions)',
+      totalConducted: 11,
+      overallPercentage: 99,
+      sessions,
+      students: all75,
+      sessionStats,
+    });
+
+    const buffer = await renderToBuffer(doc);
+    expect(buffer).toBeInstanceOf(Buffer);
+
+    const info = getPdfInfo(buffer);
+    // 11 sessions partitioned into 2 chunks (10 sessions + 1 session), each chunk taking 2 pages = 4 pages
+    expect(info.pages).toBe(4);
+    expect(info.pageSize).toContain('595.28 x 841.89');
+
+    const text = getPdfText(buffer);
+    expect(text).toContain('Part 1 of 2: Sessions 1 to 10 of 11 Conducted Classes');
+    expect(text).toContain('Part 2 of 2: Sessions 11 to 11 of 11 Conducted Classes');
+    expect(text).toContain('24567T0901');
+    expect(text).toContain('255670910L');
+    expect(text).toContain('Power Systems Analysis');
+    expect(text).toContain('Head of Department');
+  }, 30000);
+
+  it('handles horizontal chunking for 20 sessions (exactly 2 chunks of 10) for 75 students', async () => {
+    const sessions = Array.from({ length: 20 }, (_, i) => ({
+      key: `2026-09-${String(i + 1).padStart(2, '0')}__1`,
+      date: `2026-09-${String(i + 1).padStart(2, '0')}`,
+      session: 1,
+      displayDate: `${String(i + 1).padStart(2, '0')}-09-2026`,
+      topic_covered: `Session ${i + 1}`,
+    }));
+
+    const all75 = Array.from({ length: 75 }, (_, i) => ({
+      student_id: i + 1,
+      roll_no: i < 65 ? `24567T09${String(i + 1).padStart(2, '0')}` : `2556709${String(i - 64).padStart(2, '0')}L`,
+      name: `Student ${i + 1}`,
+      totalPresent: 20,
+      totalAbsent: 0,
+      percentage: 100,
+      records: sessions.reduce((acc, s) => { acc[s.key] = 'PRESENT'; return acc; }, {}),
+    }));
+
+    const doc = React.createElement(FullAttendanceExportPDF, {
+      branch: 'MECH',
+      semester: 4,
+      subjectCode: 'ME401',
+      subjectName: 'Thermodynamics',
+      subjectCategory: 'Theory',
+      academicYear: '2026-2027',
+      facultyName: 'Prof. Mechanical',
+      totalConducted: 20,
+      overallPercentage: 100,
+      sessions,
+      students: all75,
+      sessionStats: {},
+    });
+
+    const buffer = await renderToBuffer(doc);
+    const info = getPdfInfo(buffer);
+    // 20 sessions partitioned into 2 chunks of 10, each chunk taking 2 pages = 4 pages
+    expect(info.pages).toBe(4);
+    expect(info.pageSize).toContain('595.28 x 841.89');
+
+    const text = getPdfText(buffer);
+    expect(text).toContain('Part 1 of 2: Sessions 1 to 10 of 20 Conducted Classes');
+    expect(text).toContain('Part 2 of 2: Sessions 11 to 20 of 20 Conducted Classes');
+  }, 30000);
+
+  it('handles horizontal chunking for 40 sessions (4 chunks of 10) cleanly for 75 students', async () => {
+    const sessions = Array.from({ length: 40 }, (_, i) => ({
+      key: `2026-10-${String(i + 1).padStart(2, '0')}__1`,
+      date: `2026-10-${String(i + 1).padStart(2, '0')}`,
+      session: 1,
+      displayDate: `${String(i + 1).padStart(2, '0')}-10-2026`,
+      topic_covered: `Class ${i + 1}`,
+    }));
+
+    const all75 = Array.from({ length: 75 }, (_, i) => ({
+      student_id: i + 1,
+      roll_no: i < 65 ? `24567T09${String(i + 1).padStart(2, '0')}` : `2556709${String(i - 64).padStart(2, '0')}L`,
+      name: `Student ${i + 1}`,
+      totalPresent: 38,
+      totalAbsent: 2,
+      percentage: 95,
+      records: sessions.reduce((acc, s) => { acc[s.key] = 'PRESENT'; return acc; }, {}),
+    }));
+
+    const doc = React.createElement(FullAttendanceExportPDF, {
+      branch: 'CSE',
+      semester: 6,
+      subjectCode: 'CS601',
+      subjectName: 'Artificial Intelligence',
+      subjectCategory: 'Theory',
+      academicYear: '2026-2027',
+      facultyName: 'Dr. AI Specialist',
+      totalConducted: 40,
+      overallPercentage: 95,
+      sessions,
+      students: all75,
+      sessionStats: {},
+    });
+
+    const buffer = await renderToBuffer(doc);
+    const info = getPdfInfo(buffer);
+    // 40 sessions partitioned into 4 chunks of 10, each chunk taking 2 pages = 8 pages
+    expect(info.pages).toBe(8);
+    expect(info.pageSize).toContain('595.28 x 841.89');
+
+    const text = getPdfText(buffer);
+    expect(text).toContain('Part 1 of 4: Sessions 1 to 10 of 40 Conducted Classes');
+    expect(text).toContain('Part 2 of 4: Sessions 11 to 20 of 40 Conducted Classes');
+    expect(text).toContain('Part 3 of 4: Sessions 21 to 30 of 40 Conducted Classes');
+    expect(text).toContain('Part 4 of 4: Sessions 31 to 40 of 40 Conducted Classes');
+    expect(text).toContain('24567T0901');
+    expect(text).toContain('255670910L');
+  }, 45000);
+
+  it('renders AttendanceSessionPDF for single session Theory export in portrait A4', async () => {
+    const students = Array.from({ length: 65 }, (_, i) => ({
+      id: i + 1,
+      roll_no: `24567T09${String(i + 1).padStart(2, '0')}`,
+      name: `Theory Student ${i + 1}`,
+      status: i % 10 === 0 ? 'ABSENT' : i % 25 === 0 ? 'NCC' : 'PRESENT',
+    }));
+
+    const doc = React.createElement(AttendanceSessionPDF, {
+      subjectName: 'Theory of Computation',
+      subjectCode: 'CS301',
+      subjectCategory: 'Theory',
+      branch: 'CSE',
+      semester: 5,
+      academicYear: '2026-2027',
+      facultyName: 'Dr. Automata Expert',
+      date: '03-11-2026',
+      session: 2,
+      topicCovered: 'Turing Machines and Decidability',
+      students,
+      totals: {
+        total: 65,
+        present: 57,
+        absent: 6,
+        ncc: 2,
+        medical: 0,
+        percentage: 91,
+      },
+    });
+
+    const buffer = await renderToBuffer(doc);
+    const info = getPdfInfo(buffer);
+    expect(info.pages).toBe(2);
+    expect(info.pageSize).toContain('595.28 x 841.89');
+
+    const text = getPdfText(buffer);
+    expect(text).toContain('Theory of Computation');
+    expect(text).toContain('(THEORY)');
+    expect(text).toContain('Turing Machines and Decidability');
+    expect(text).toContain('Session S2');
+    expect(text).toContain('Dr. Automata Expert');
+  }, 25000);
 });

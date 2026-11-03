@@ -40,7 +40,8 @@ function getCachedLogoDataUrl() {
 const querySchema = z.object({
   assignment_id: z.preprocess(v => Number(v), z.number().int().positive()),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  session: z.preprocess(v => Number(v), z.number().int().min(1).max(8))
+  session: z.preprocess(v => Number(v), z.number().int().min(1).max(8)),
+  batch: z.preprocess(v => v !== undefined && v !== null && v !== '' ? Number(v) : null, z.number().int().min(0).max(2).optional().nullable())
 });
 
 export async function GET(request) {
@@ -54,14 +55,15 @@ export async function GET(request) {
     const parseResult = querySchema.safeParse({
       assignment_id: searchParams.get('assignment_id'),
       date: searchParams.get('date'),
-      session: searchParams.get('session')
+      session: searchParams.get('session'),
+      batch: searchParams.get('batch')
     });
 
     if (!parseResult.success) {
       return apiError(parseResult.error.errors?.[0]?.message || 'Invalid parameters', 400);
     }
 
-    const { assignment_id, date, session } = parseResult.data;
+    const { assignment_id, date, session, batch } = parseResult.data;
 
     // 1. Verify assignment existence
     const assignments = await db.select({
@@ -133,7 +135,39 @@ export async function GET(request) {
 
     const targetAssignmentId = canonicalRows[0]?.id || assignment_id;
 
+    // 4. Fetch session topic and submission timestamp via indexed lookup
+    const sessionWhere = [
+      eq(attendanceSessions.assignment_id, targetAssignmentId),
+      eq(attendanceSessions.attendance_date, date),
+      eq(attendanceSessions.session_number, session)
+    ];
+    if (batch !== null && batch !== undefined) {
+      sessionWhere.push(eq(attendanceSessions.batch_number, batch));
+    }
+
+    const sessionRows = await db.select({
+      id: attendanceSessions.id,
+      batch_number: attendanceSessions.batch_number,
+      topic_covered: attendanceSessions.topic_covered,
+      submitted_at: attendanceSessions.submitted_at
+    })
+    .from(attendanceSessions)
+    .where(and(...sessionWhere))
+    .limit(1);
+
+    const sessionData = sessionRows[0] || null;
+
     // 3. Query student attendance records
+    const attendanceWhere = [
+      eq(studentAttendance.assignment_id, targetAssignmentId),
+      eq(studentAttendance.date, date),
+      eq(studentAttendance.session, session)
+    ];
+
+    if (sessionData?.id) {
+      attendanceWhere.push(eq(studentAttendance.session_id, sessionData.id));
+    }
+
     const attendanceRecords = await db.select({
       student_id: studentAttendance.student_id,
       roll_no: students.roll_no,
@@ -144,32 +178,12 @@ export async function GET(request) {
     })
     .from(studentAttendance)
     .innerJoin(students, eq(studentAttendance.student_id, students.id))
-    .where(and(
-      eq(studentAttendance.assignment_id, targetAssignmentId),
-      eq(studentAttendance.date, date),
-      eq(studentAttendance.session, session)
-    ))
+    .where(and(...attendanceWhere))
     .orderBy(asc(students.roll_no));
 
     if (attendanceRecords.length === 0) {
       return apiError('No submitted attendance records found for this session.', 404);
     }
-
-    // 4. Fetch session topic and submission timestamp via indexed lookup
-    const sessionRows = await db.select({
-      id: attendanceSessions.id,
-      topic_covered: attendanceSessions.topic_covered,
-      submitted_at: attendanceSessions.submitted_at
-    })
-    .from(attendanceSessions)
-    .where(and(
-      eq(attendanceSessions.assignment_id, targetAssignmentId),
-      eq(attendanceSessions.attendance_date, date),
-      eq(attendanceSessions.session_number, session)
-    ))
-    .limit(1);
-
-    const sessionData = sessionRows[0] || null;
 
     const rawSubTime = sessionData?.submitted_at || attendanceRecords[0]?.submitted_at || attendanceRecords[0]?.created_at;
     const isHistorical = !sessionData?.submitted_at && !attendanceRecords[0]?.submitted_at;
@@ -187,6 +201,8 @@ export async function GET(request) {
 
     // 5. Institutional Logo (In-Memory Cached Base64 data URI)
     const logoDataUrl = getCachedLogoDataUrl();
+    const effectiveBatch = batch !== null && batch !== undefined ? batch : (sessionData?.batch_number || 0);
+    const batchName = effectiveBatch === 1 ? 'Batch 1' : effectiveBatch === 2 ? 'Batch 2' : null;
 
     const pdfBuffer = await pdf(
       React.createElement(AttendanceSessionPDF, {
@@ -200,6 +216,8 @@ export async function GET(request) {
         academicYear: assignment.academic_year,
         date: formatDate(date),
         session,
+        batchNumber: effectiveBatch,
+        batchName,
         topicCovered: sessionData?.topic_covered || null,
         facultyName: assignment.faculty_name || user.full_name || user.email || 'Course Faculty',
         submissionTimestamp,

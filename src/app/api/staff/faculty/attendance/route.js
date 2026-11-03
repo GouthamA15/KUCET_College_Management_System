@@ -28,6 +28,7 @@ export async function POST(request) {
       assignment_id: z.preprocess(v => Number(v), z.number().int().positive()),
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       session: z.number().int().min(1).max(8),
+      batch_number: z.preprocess(v => v !== undefined && v !== null ? Number(v) : 0, z.number().int().min(0).max(2).default(0)),
       topic_covered: z.string().trim().max(500).optional().nullable(),
       copied_from_session_id: z.preprocess(v => v ? Number(v) : null, z.number().int().positive().optional().nullable()),
       attendance_data: z.array(z.object({
@@ -37,7 +38,7 @@ export async function POST(request) {
     });
 
     const validatedData = attendanceSchema.parse(json);
-    const { assignment_id, date, session, topic_covered, copied_from_session_id, attendance_data } = validatedData;
+    const { assignment_id, date, session, batch_number = 0, topic_covered, copied_from_session_id, attendance_data } = validatedData;
 
     // 1. Verify assignment existence and get details
     const assignments = await db.select({
@@ -160,7 +161,8 @@ export async function POST(request) {
       .where(and(
         eq(attendanceSessions.assignment_id, targetAssignmentId),
         eq(attendanceSessions.attendance_date, date),
-        eq(attendanceSessions.session_number, session)
+        eq(attendanceSessions.session_number, session),
+        eq(attendanceSessions.batch_number, batch_number || 0)
       ))
       .limit(1);
 
@@ -185,6 +187,7 @@ export async function POST(request) {
           assignment_id: targetAssignmentId,
           attendance_date: date,
           session_number: session,
+          batch_number: batch_number || 0,
           faculty_id: user.id,
           submitted_at: submissionTime,
           is_active: false,
