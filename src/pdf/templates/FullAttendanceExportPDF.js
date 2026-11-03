@@ -135,17 +135,20 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     textAlign: 'center',
   },
-  table: {
+  tableContainer: {
     width: '100%',
-    borderWidth: 0.75,
-    borderColor: '#cbd5e1',
-    borderRadius: 2,
   },
   tableHeaderRow: {
     flexDirection: 'row',
     backgroundColor: '#0b3578',
+    borderTopWidth: 0.75,
+    borderTopColor: '#0b3578',
     borderBottomWidth: 0.75,
     borderBottomColor: '#0b3578',
+    borderLeftWidth: 0.75,
+    borderLeftColor: '#0b3578',
+    borderRightWidth: 0.75,
+    borderRightColor: '#0b3578',
     minHeight: 22,
     alignItems: 'center',
   },
@@ -191,7 +194,11 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
     borderBottomWidth: 0.5,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: '#cbd5e1',
+    borderLeftWidth: 0.75,
+    borderLeftColor: '#cbd5e1',
+    borderRightWidth: 0.75,
+    borderRightColor: '#cbd5e1',
     minHeight: 14,
     alignItems: 'center',
   },
@@ -249,6 +256,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f5f9',
     borderTopWidth: 1,
     borderTopColor: '#94a3b8',
+    borderBottomWidth: 0.75,
+    borderBottomColor: '#cbd5e1',
+    borderLeftWidth: 0.75,
+    borderLeftColor: '#cbd5e1',
+    borderRightWidth: 0.75,
+    borderRightColor: '#cbd5e1',
     minHeight: 15,
     alignItems: 'center',
   },
@@ -256,7 +269,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    marginTop: 12,
+    marginTop: 10,
     paddingTop: 8,
     borderTopWidth: 0.75,
     borderTopColor: '#cbd5e1',
@@ -309,18 +322,56 @@ const styles = StyleSheet.create({
 const MAX_SESSIONS_PER_CHUNK = 10;
 const PRINTABLE_WIDTH = 551.28; // 595.28 (A4 portrait width) - 44 (22pt horizontal padding each side)
 
-// Helper to format short date string for table headers (DD/MM)
-function formatShortDate(dateStr) {
+// Helper to format short date string for table headers (DD/MM or DD/MM/YYYY for wide session columns)
+function formatShortDate(dateStr, colWidth) {
   if (!dateStr) return '—';
-  // If DD-MM-YYYY or DD/MM/YYYY
+  if (colWidth >= 75) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return `${dateStr.slice(8, 10)}/${dateStr.slice(5, 7)}/${dateStr.slice(0, 4)}`;
+    }
+  }
   if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(dateStr)) {
     return dateStr.slice(0, 5).replace('-', '/');
   }
-  // If YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     return `${dateStr.slice(8, 10)}/${dateStr.slice(5, 7)}`;
   }
   return dateStr.length > 5 ? dateStr.slice(0, 5) : dateStr;
+}
+
+// Adaptive column-width sizing based on session count
+function getAdaptiveColumnWidths(sessionCount) {
+  const N = Math.max(0, sessionCount);
+
+  if (N === 0) {
+    const colSNo = 22;
+    const colRoll = 84;
+    const colCond = 30;
+    const colPres = 30;
+    const colAbs = 30;
+    const colPct = 35.28;
+    const colName = PRINTABLE_WIDTH - (colSNo + colRoll + colCond + colPres + colAbs + colPct);
+    return { colSNo, colRoll, colName, sessionCol: 0, colCond, colPres, colAbs, colPct };
+  }
+
+  const t = Math.min(1, Math.max(0, (N - 1) / 9));
+
+  const colSNo = Math.round(22 - 4 * t);
+  const colRoll = Math.round(84 - 14 * t);
+  const colCond = Math.round(32 - 10 * t);
+  const colPres = Math.round(30 - 8 * t);
+  const colAbs = Math.round(30 - 8 * t);
+  const colPct = Math.round(34 - 9 * t);
+
+  const targetNameWidth = Math.round(210 - 88 * t);
+  const fixedExceptNameAndSessions = colSNo + colRoll + colCond + colPres + colAbs + colPct;
+  const availableForNameAndSessions = PRINTABLE_WIDTH - fixedExceptNameAndSessions;
+
+  const availableForSessions = availableForNameAndSessions - targetNameWidth;
+  const sessionCol = Math.floor((availableForSessions / N) * 100) / 100;
+  const colName = Math.round((availableForNameAndSessions - (sessionCol * N)) * 100) / 100;
+
+  return { colSNo, colRoll, colName, sessionCol, colCond, colPres, colAbs, colPct };
 }
 
 export default function FullAttendanceExportPDF({
@@ -352,16 +403,7 @@ export default function FullAttendanceExportPDF({
     }
   }
 
-  // 2. Fixed column widths in A4 portrait
-  const colSNoWidth = 18;
-  const colRollWidth = 68;
-  const colSumCondWidth = 24;
-  const colSumPresWidth = 22;
-  const colSumAbsWidth = 22;
-  const colSumPctWidth = 26;
-  const fixedExceptName = colSNoWidth + colRollWidth + colSumCondWidth + colSumPresWidth + colSumAbsWidth + colSumPctWidth; // 180pt
-
-  // 3. Analytics aggregations
+  // 2. Analytics aggregations
   const totalEnrolled = students.length;
   const grandTotalPresent = students.reduce((acc, st) => acc + (st.totalPresent || 0), 0);
   const grandTotalAbsent = students.reduce((acc, st) => acc + (st.totalAbsent || 0), 0);
@@ -382,21 +424,152 @@ export default function FullAttendanceExportPDF({
     }
   }
 
-  // 4. Render Pages for each session chunk
+  // 3. Render Pages for each session chunk
   const pages = sessionChunks.map((chunkSessions, chunkIdx) => {
     const isMultiChunk = sessionChunks.length > 1;
-
-    // Calculate dynamic session column and student name widths so the table occupies exactly 100% of printable width
-    const sessionColWidth = chunkSessions.length > 0
-      ? Math.min(36, Math.floor((PRINTABLE_WIDTH - fixedExceptName - 110) / chunkSessions.length))
-      : 0;
-    const colNameWidth = PRINTABLE_WIDTH - fixedExceptName - (sessionColWidth * chunkSessions.length);
+    const { colSNo, colRoll, colName, sessionCol, colCond, colPres, colAbs, colPct } = getAdaptiveColumnWidths(chunkSessions.length);
 
     const startSessionNum = chunkIdx * MAX_SESSIONS_PER_CHUNK + 1;
     const endSessionNum = chunkIdx * MAX_SESSIONS_PER_CHUNK + chunkSessions.length;
     const chunkNoticeText = isMultiChunk
       ? `Attendance Register • Part ${chunkIdx + 1} of ${sessionChunks.length}: Sessions ${startSessionNum} to ${endSessionNum} of ${sessions.length} Conducted Classes`
       : null;
+
+    // Helper to render individual student rows
+    const renderRow = (st, idx) => {
+      const isEven = idx % 2 === 1;
+      const rowStyle = [styles.tableRow, isEven ? styles.tableRowEven : null];
+      const pct = st.percentage ?? 0;
+      const pctColor = pct >= 75 ? '#15803d' : pct >= 65 ? '#b45309' : '#b91c1c';
+
+      return h(
+        View,
+        { key: st.student_id || st.roll_no || idx, style: rowStyle },
+        h(Text, { style: [styles.tdCell, { width: colSNo }] }, String(idx + 1)),
+        h(Text, { style: [styles.tdCell, styles.monoText, { width: colRoll }] }, st.roll_no || '—'),
+        h(
+          Text,
+          { style: [styles.tdCellLeft, { width: colName }], numberOfLines: 1 },
+          st.name || '—'
+        ),
+        ...chunkSessions.map((s, sIdx) => {
+          const status = st.records ? st.records[s.key] : null;
+          const isPresent = status === 'PRESENT';
+          const isAbsent = status === 'ABSENT';
+          const isOther = status && !isPresent && !isAbsent;
+
+          const cellStyle = isPresent
+            ? styles.statusPresent
+            : isAbsent
+            ? styles.statusAbsent
+            : isOther
+            ? styles.statusOther
+            : styles.statusEmpty;
+
+          const letter = isPresent
+            ? 'P'
+            : isAbsent
+            ? 'A'
+            : isOther
+            ? (status === 'NCC' ? 'OD' : status === 'MEDICAL' ? 'M' : 'OD')
+            : '-';
+
+          return h(
+            Text,
+            {
+              key: `cell-${st.student_id || idx}-${s.key || sIdx}`,
+              style: [styles.tdCell, cellStyle, { width: sessionCol }],
+            },
+            letter
+          );
+        }),
+        h(Text, { style: [styles.tdCell, { width: colCond, fontFamily: 'Helvetica-Bold' }] }, String(totalConducted)),
+        h(Text, { style: [styles.tdCell, { width: colPres, color: '#16a34a', fontFamily: 'Helvetica-Bold' }] }, String(st.totalPresent ?? 0)),
+        h(Text, { style: [styles.tdCell, { width: colAbs, color: '#dc2626', fontFamily: 'Helvetica-Bold' }] }, String(st.totalAbsent ?? 0)),
+        h(Text, { style: [styles.tdCellLast, { width: colPct, color: pctColor, fontFamily: 'Helvetica-Bold' }] }, `${pct}%`)
+      );
+    };
+
+    // Table Header Row (Repeats automatically on continuation pages)
+    const headerRow = h(
+      View,
+      { style: styles.tableHeaderRow, fixed: true },
+      h(Text, { style: [styles.thCell, { width: colSNo }] }, '#'),
+      h(Text, { style: [styles.thCell, { width: colRoll }] }, 'Roll Number'),
+      h(Text, { style: [styles.thCell, { width: colName, textAlign: 'left', paddingLeft: 4 }] }, 'Student Name'),
+      ...chunkSessions.map((s, sIdx) =>
+        h(
+          View,
+          { key: `th-s-${s.key || sIdx}`, style: [styles.thCellSession, { width: sessionCol }] },
+          h(Text, { style: styles.thDateText }, formatShortDate(s.displayDate || s.date, sessionCol)),
+          h(Text, { style: styles.thSessionText }, sessionCol >= 75 ? `Session S${s.session || 1}` : `S${s.session || 1}`)
+        )
+      ),
+      h(Text, { style: [styles.thCell, { width: colCond }] }, 'Cond'),
+      h(Text, { style: [styles.thCell, { width: colPres }] }, 'Pres'),
+      h(Text, { style: [styles.thCell, { width: colAbs }] }, 'Abs'),
+      h(Text, { style: [styles.thCellLast, { width: colPct }] }, '%')
+    );
+
+    // Summary Totals Row
+    const summaryTotalsRow = (students.length > 0 && chunkSessions.length > 0)
+      ? h(
+          View,
+          { style: styles.summaryTotalsRow },
+          h(Text, { style: [styles.tdCell, { width: colSNo, fontFamily: 'Helvetica-Bold' }] }, 'Σ'),
+          h(Text, { style: [styles.tdCell, { width: colRoll, fontFamily: 'Helvetica-Bold' }] }, 'TOTALS'),
+          h(Text, { style: [styles.tdCellLeft, { width: colName, fontFamily: 'Helvetica-Bold' }] }, 'Present / Enrolled'),
+          ...chunkSessions.map((s, sIdx) => {
+            const stat = sessionStats[s.key] || { presentCount: 0, totalCount: totalEnrolled };
+            return h(
+              Text,
+              {
+                key: `stat-${s.key || sIdx}`,
+                style: [styles.tdCell, { width: sessionCol, color: '#0b3578', fontFamily: 'Helvetica-Bold', fontSize: 6.2 }],
+              },
+              `${stat.presentCount}/${totalEnrolled}`
+            );
+          }),
+          h(Text, { style: [styles.tdCell, { width: colCond, fontFamily: 'Helvetica-Bold' }] }, '—'),
+          h(Text, { style: [styles.tdCell, { width: colPres, color: '#16a34a', fontFamily: 'Helvetica-Bold' }] }, String(grandTotalPresent)),
+          h(Text, { style: [styles.tdCell, { width: colAbs, color: '#dc2626', fontFamily: 'Helvetica-Bold' }] }, String(grandTotalAbsent)),
+          h(Text, { style: [styles.tdCellLast, { width: colPct, color: '#0b3578', fontFamily: 'Helvetica-Bold' }] }, `${overallPercentage}%`)
+        )
+      : null;
+
+    // Signatures Block
+    const signaturesBlock = h(
+      View,
+      { style: styles.signaturesBlock },
+      h(
+        View,
+        { style: styles.signatureCol },
+        h(View, { style: styles.signatureLine }),
+        h(Text, { style: styles.signatureLabel }, facultyName || 'Course Faculty'),
+        h(Text, { style: styles.signatureSub }, 'Faculty In-Charge')
+      ),
+      h(
+        View,
+        { style: styles.signatureCol },
+        h(View, { style: styles.signatureLine }),
+        h(Text, { style: styles.signatureLabel }, 'Head of Department'),
+        h(Text, { style: styles.signatureSub }, `Department of ${branch || 'Engineering'}`)
+      ),
+      h(
+        View,
+        { style: styles.signatureCol },
+        h(View, { style: styles.signatureLine }),
+        h(Text, { style: styles.signatureLabel }, 'Principal / Academic Dean'),
+        h(Text, { style: styles.signatureSub }, 'KU College of Engineering & Technology')
+      )
+    );
+
+    // Orphan Prevention Partition:
+    // When roster has more than 5 students, keep the trailing 3 rows + summaryTotalsRow + signaturesBlock
+    // atomically grouped inside wrap={false} within the single table container.
+    const K = students.length > 5 ? 3 : 0;
+    const mainStudents = students.slice(0, students.length - K);
+    const trailingStudents = students.slice(students.length - K);
 
     return h(
       Page,
@@ -530,34 +703,12 @@ export default function FullAttendanceExportPDF({
       // Section 4: Chunk Part Banner (if multi-chunk horizontal overflow)
       chunkNoticeText ? h(Text, { style: styles.chunkNotice }, chunkNoticeText) : null,
 
-      // Section 5: Attendance Matrix Table
+      // Section 5: Unified Table & Signature Container
       h(
         View,
-        { style: styles.table },
-
-        // Fixed Table Header (repeats automatically on continuation pages)
-        h(
-          View,
-          { style: styles.tableHeaderRow, fixed: true },
-          h(Text, { style: [styles.thCell, { width: colSNoWidth }] }, '#'),
-          h(Text, { style: [styles.thCell, { width: colRollWidth }] }, 'Roll Number'),
-          h(Text, { style: [styles.thCell, { width: colNameWidth, textAlign: 'left', paddingLeft: 4 }] }, 'Student Name'),
-          ...chunkSessions.map((s, sIdx) =>
-            h(
-              View,
-              { key: `th-s-${s.key || sIdx}`, style: [styles.thCellSession, { width: sessionColWidth }] },
-              h(Text, { style: styles.thDateText }, formatShortDate(s.displayDate || s.date)),
-              h(Text, { style: styles.thSessionText }, `S${s.session || 1}`)
-            )
-          ),
-          h(Text, { style: [styles.thCell, { width: colSumCondWidth }] }, 'Cond'),
-          h(Text, { style: [styles.thCell, { width: colSumPresWidth }] }, 'Pres'),
-          h(Text, { style: [styles.thCell, { width: colSumAbsWidth }] }, 'Abs'),
-          h(Text, { style: [styles.thCellLast, { width: colSumPctWidth }] }, '%')
-        ),
-
-        // Student Data Rows
-        students.length === 0
+        { style: styles.tableContainer },
+        headerRow,
+        mainStudents.length === 0 && trailingStudents.length === 0
           ? h(
               View,
               { style: styles.tableRow },
@@ -567,115 +718,19 @@ export default function FullAttendanceExportPDF({
                 'No student attendance records recorded for this subject assignment.'
               )
             )
-          : students.map((st, idx) => {
-              const isEven = idx % 2 === 1;
-              const rowStyle = [styles.tableRow, isEven ? styles.tableRowEven : null];
-              const pct = st.percentage ?? 0;
-              const pctColor = pct >= 75 ? '#15803d' : pct >= 65 ? '#b45309' : '#b91c1c';
-
-              return h(
-                View,
-                { key: st.student_id || st.roll_no || idx, style: rowStyle },
-                h(Text, { style: [styles.tdCell, { width: colSNoWidth }] }, String(idx + 1)),
-                h(Text, { style: [styles.tdCell, styles.monoText, { width: colRollWidth }] }, st.roll_no || '—'),
-                h(
-                  Text,
-                  { style: [styles.tdCellLeft, { width: colNameWidth }], numberOfLines: 1 },
-                  st.name || '—'
-                ),
-                ...chunkSessions.map((s, sIdx) => {
-                  const status = st.records ? st.records[s.key] : null;
-                  const isPresent = status === 'PRESENT';
-                  const isAbsent = status === 'ABSENT';
-                  const isOther = status && !isPresent && !isAbsent;
-
-                  const cellStyle = isPresent
-                    ? styles.statusPresent
-                    : isAbsent
-                    ? styles.statusAbsent
-                    : isOther
-                    ? styles.statusOther
-                    : styles.statusEmpty;
-
-                  const letter = isPresent
-                    ? 'P'
-                    : isAbsent
-                    ? 'A'
-                    : isOther
-                    ? (status === 'NCC' ? 'OD' : status === 'MEDICAL' ? 'M' : 'OD')
-                    : '-';
-
-                  return h(
-                    Text,
-                    {
-                      key: `cell-${st.student_id || idx}-${s.key || sIdx}`,
-                      style: [styles.tdCell, cellStyle, { width: sessionColWidth }],
-                    },
-                    letter
-                  );
-                }),
-                h(Text, { style: [styles.tdCell, { width: colSumCondWidth, fontFamily: 'Helvetica-Bold' }] }, String(totalConducted)),
-                h(Text, { style: [styles.tdCell, { width: colSumPresWidth, color: '#16a34a', fontFamily: 'Helvetica-Bold' }] }, String(st.totalPresent ?? 0)),
-                h(Text, { style: [styles.tdCell, { width: colSumAbsWidth, color: '#dc2626', fontFamily: 'Helvetica-Bold' }] }, String(st.totalAbsent ?? 0)),
-                h(Text, { style: [styles.tdCellLast, { width: colSumPctWidth, color: pctColor, fontFamily: 'Helvetica-Bold' }] }, `${pct}%`)
-              );
-            }),
-
-        // Summary Totals Row (atomic at bottom of student table)
-        students.length > 0 && chunkSessions.length > 0
+          : mainStudents.map((st, idx) => renderRow(st, idx)),
+        trailingStudents.length > 0
           ? h(
               View,
-              { style: styles.summaryTotalsRow, wrap: false },
-              h(Text, { style: [styles.tdCell, { width: colSNoWidth, fontFamily: 'Helvetica-Bold' }] }, 'Σ'),
-              h(Text, { style: [styles.tdCell, { width: colRollWidth, fontFamily: 'Helvetica-Bold' }] }, 'TOTALS'),
-              h(Text, { style: [styles.tdCellLeft, { width: colNameWidth, fontFamily: 'Helvetica-Bold' }] }, 'Present / Enrolled'),
-              ...chunkSessions.map((s, sIdx) => {
-                const stat = sessionStats[s.key] || { presentCount: 0, totalCount: totalEnrolled };
-                return h(
-                  Text,
-                  {
-                    key: `stat-${s.key || sIdx}`,
-                    style: [styles.tdCell, { width: sessionColWidth, color: '#0b3578', fontFamily: 'Helvetica-Bold', fontSize: 6.2 }],
-                  },
-                  `${stat.presentCount}/${totalEnrolled}`
-                );
-              }),
-              h(Text, { style: [styles.tdCell, { width: colSumCondWidth, fontFamily: 'Helvetica-Bold' }] }, '—'),
-              h(Text, { style: [styles.tdCell, { width: colSumPresWidth, color: '#16a34a', fontFamily: 'Helvetica-Bold' }] }, String(grandTotalPresent)),
-              h(Text, { style: [styles.tdCell, { width: colSumAbsWidth, color: '#dc2626', fontFamily: 'Helvetica-Bold' }] }, String(grandTotalAbsent)),
-              h(Text, { style: [styles.tdCellLast, { width: colSumPctWidth, color: '#0b3578', fontFamily: 'Helvetica-Bold' }] }, `${overallPercentage}%`)
+              { wrap: false },
+              trailingStudents.map((st, idx) => renderRow(st, mainStudents.length + idx)),
+              summaryTotalsRow,
+              signaturesBlock
             )
-          : null
+          : signaturesBlock
       ),
 
-      // Section 6: Signatures Block (wrap={false} keeps it atomic on one page)
-      h(
-        View,
-        { style: styles.signaturesBlock, wrap: false },
-        h(
-          View,
-          { style: styles.signatureCol },
-          h(View, { style: styles.signatureLine }),
-          h(Text, { style: styles.signatureLabel }, facultyName || 'Course Faculty'),
-          h(Text, { style: styles.signatureSub }, 'Faculty In-Charge')
-        ),
-        h(
-          View,
-          { style: styles.signatureCol },
-          h(View, { style: styles.signatureLine }),
-          h(Text, { style: styles.signatureLabel }, 'Head of Department'),
-          h(Text, { style: styles.signatureSub }, `Department of ${branch || 'Engineering'}`)
-        ),
-        h(
-          View,
-          { style: styles.signatureCol },
-          h(View, { style: styles.signatureLine }),
-          h(Text, { style: styles.signatureLabel }, 'Principal / Academic Dean'),
-          h(Text, { style: styles.signatureSub }, 'KU College of Engineering & Technology')
-        )
-      ),
-
-      // Section 7: Fixed Page Footer on all pages
+      // Section 6: Fixed Page Footer on all pages
       h(
         View,
         { style: styles.pageFooter, fixed: true },
