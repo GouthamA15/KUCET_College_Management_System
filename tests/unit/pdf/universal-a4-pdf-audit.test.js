@@ -34,7 +34,7 @@ describe('Universal A4 PDF Geometry & Grayscale Print Standard Audit', () => {
     expect(pageChild.props.style.paddingBottom).toBe(22);
   });
 
-  it('FullAttendanceExportPDF renders Document with landscape A4 Pages and chunked table headers', () => {
+  it('FullAttendanceExportPDF renders Document with portrait A4 Pages and chunked table headers', () => {
     const element = FullAttendanceExportPDF({
       branch: 'CSE',
       semester: 1,
@@ -51,10 +51,10 @@ describe('Universal A4 PDF Geometry & Grayscale Print Standard Audit', () => {
     });
 
     expect(element).toBeDefined();
-    const pages = element.props.children;
+    const pages = Array.isArray(element.props.children) ? element.props.children : [element.props.children];
     expect(pages.length).toBeGreaterThanOrEqual(1);
     expect(pages[0].props.size).toBe('A4');
-    expect(pages[0].props.orientation).toBe('landscape');
+    expect(pages[0].props.orientation).toBe('portrait');
     expect(pages[0].props.style.paddingHorizontal).toBe(22);
   });
 

@@ -178,7 +178,19 @@ export async function GET(request) {
     const totalConducted = sessions.length;
     const earliestSession = sessions[0];
     const latestSession = sessions[sessions.length - 1];
-    const reportPeriod = `${earliestSession.displayDate} to ${latestSession.displayDate}`;
+    const distinctDates = new Set(sessions.map(s => s.date));
+    const distinctDatesCount = distinctDates.size;
+
+    let reportPeriod = 'No Sessions Conducted';
+    if (totalConducted === 1) {
+      reportPeriod = `${earliestSession.displayDate} (Session S${earliestSession.session})`;
+    } else if (totalConducted > 1) {
+      if (distinctDatesCount === 1) {
+        reportPeriod = `${earliestSession.displayDate} (${totalConducted} Sessions Conducted)`;
+      } else {
+        reportPeriod = `${earliestSession.displayDate} to ${latestSession.displayDate} (${totalConducted} Sessions / ${distinctDatesCount} Teaching Days)`;
+      }
+    }
 
     // 7. Resolve canonical student roster
     // Cohort active students + any student who has attendance rows in this assignment
@@ -329,6 +341,7 @@ export async function GET(request) {
         generationTimestamp,
         reportPeriod,
         totalConducted,
+        distinctDatesCount,
         overallPercentage,
         sessions,
         students: formattedStudents,
