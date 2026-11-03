@@ -42,6 +42,9 @@ export function FacultyAttendanceProvider({ assignment, children }) {
   const [loading, setLoading] = useState(true);
   const [statusLoading, setStatusLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  const [updatingStudentIds, setUpdatingStudentIds] = useState(new Set());
+  const updatingStudentsRef = useRef(new Set());
   const attendanceCacheRef = useRef({});
   const [activeSession, setActiveSession] = useState(null);
   const [verifiedStudentIds, setVerifiedStudentIds] = useState(new Set());
@@ -343,22 +346,171 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     });
   }, []);
 
-  const toggleAttendanceStatus = useCallback((studentId) => {
-    setAttendanceStatusMap((prev) => {
-      const current = prev[studentId] || null;
-      let nextStatus = 'PRESENT';
-      if (current === null) nextStatus = 'PRESENT';
-      else if (current === 'PRESENT') nextStatus = 'ABSENT';
-      else if (current === 'ABSENT') nextStatus = 'NCC';
-      else if (current === 'NCC') nextStatus = 'MEDICAL';
-      else if (current === 'MEDICAL') nextStatus = 'PRESENT';
-      
-      return {
-        ...prev,
-        [studentId]: nextStatus
+  const cycleStudentStatus = useCallback(async (studentId) => {
+    if (!assignment?.id || !assignment.is_active || !selectedDate || !dateValidation?.isValid) {
+      toast.error('Cannot mark attendance: Assignment is inactive or selected date is not a valid working day.');
+      return;
+    }
+    // Prevent conflicting rapid updates on the same student
+    if (updatingStudentsRef.current.has(studentId)) {
+      return;
+    }
+
+    const currentStatus = attendanceStatusMap[studentId] || null;
+    let nextStatus = 'PRESENT';
+    if (currentStatus === null || currentStatus === 'MEDICAL') nextStatus = 'PRESENT';
+    else if (currentStatus === 'PRESENT') nextStatus = 'ABSENT';
+    else if (currentStatus === 'ABSENT') nextStatus = 'NCC';
+    else if (currentStatus === 'NCC') nextStatus = 'MEDICAL';
+
+    // 1. Immediate optimistic UI update
+    setAttendanceStatusMap((prev) => ({
+      ...prev,
+      [studentId]: nextStatus
+    }));
+
+    updatingStudentsRef.current.add(studentId);
+    setUpdatingStudentIds(new Set(updatingStudentsRef.current));
+
+    // 2. Prepare payload: all students in session with this student updated
+    const attendanceData = baseStudents.map((s) => ({
+      student_id: s.id,
+      status: s.id === studentId ? nextStatus : (attendanceStatusMap[s.id] ?? 'ABSENT'),
+    }));
+
+    const cleanTopic = (typeof currentTopicCovered === 'string' && currentTopicCovered.trim().length >= 2)
+      ? currentTopicCovered.trim()
+      : null;
+
+    try {
+      const cacheKey = `${selectedDate}-${selectedSession}`;
+      delete attendanceCacheRef.current[cacheKey];
+
+      const res = await fetch('/api/staff/faculty/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignment_id: assignment.id,
+          date: selectedDate,
+          session: selectedSession,
+          topic_covered: cleanTopic,
+          attendance_data: attendanceData,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update attendance status');
+      }
+
+      // Update cached session
+      attendanceCacheRef.current[cacheKey] = {
+        statusMap: { ...attendanceStatusMap, [studentId]: nextStatus },
+        sessions: existingSessionsForSelectedDate.includes(selectedSession)
+          ? existingSessionsForSelectedDate
+          : [...existingSessionsForSelectedDate, selectedSession].sort((a, b) => a - b),
+        topicCovered: cleanTopic,
       };
+
+      if (!existingSessionsForSelectedDate.includes(selectedSession)) {
+        setExistingSessionsForSelectedDate((prev) => 
+          prev.includes(selectedSession) ? prev : [...prev, selectedSession].sort((a, b) => a - b)
+        );
+      }
+    } catch (err) {
+      console.error('[AttendanceCycleError]', err);
+      // Rollback to previous status on error
+      setAttendanceStatusMap((prev) => ({
+        ...prev,
+        [studentId]: currentStatus
+      }));
+      toast.error(err.message || 'Failed to persist status change. Rolled back.');
+    } finally {
+      updatingStudentsRef.current.delete(studentId);
+      setUpdatingStudentIds(new Set(updatingStudentsRef.current));
+    }
+  }, [assignment, selectedDate, selectedSession, dateValidation?.isValid, attendanceStatusMap, baseStudents, currentTopicCovered, existingSessionsForSelectedDate]);
+
+  const toggleAttendanceStatus = cycleStudentStatus;
+
+  const confirmBulkAttendance = useCallback(async (targetStatus) => {
+    if (!assignment?.id || !assignment.is_active || !selectedDate || !dateValidation?.isValid) {
+      toast.error('Cannot mark attendance: Assignment is inactive or selected date is not a valid working day.');
+      return;
+    }
+    if (bulkSubmitting || submitting) return;
+
+    if (!['PRESENT', 'ABSENT'].includes(targetStatus)) {
+      toast.error('Invalid bulk attendance status.');
+      return;
+    }
+
+    const previousStatusMap = { ...attendanceStatusMap };
+    setBulkSubmitting(true);
+
+    const nextStatusMap = {};
+    baseStudents.forEach((s) => {
+      nextStatusMap[s.id] = targetStatus;
     });
-  }, []);
+
+    // 1. Immediate optimistic UI update
+    setAttendanceStatusMap(nextStatusMap);
+
+    const attendanceData = baseStudents.map((s) => ({
+      student_id: s.id,
+      status: targetStatus,
+    }));
+
+    const cleanTopic = (typeof currentTopicCovered === 'string' && currentTopicCovered.trim().length >= 2)
+      ? currentTopicCovered.trim()
+      : null;
+
+    try {
+      const cacheKey = `${selectedDate}-${selectedSession}`;
+      delete attendanceCacheRef.current[cacheKey];
+
+      const res = await fetch('/api/staff/faculty/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignment_id: assignment.id,
+          date: selectedDate,
+          session: selectedSession,
+          topic_covered: cleanTopic,
+          attendance_data: attendanceData,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || `Failed to mark all students as ${targetStatus}`);
+      }
+
+      toast.success(`Marked all ${baseStudents.length} students as ${targetStatus === 'PRESENT' ? 'Present' : 'Absent'}.`);
+
+      attendanceCacheRef.current[cacheKey] = {
+        statusMap: nextStatusMap,
+        sessions: existingSessionsForSelectedDate.includes(selectedSession)
+          ? existingSessionsForSelectedDate
+          : [...existingSessionsForSelectedDate, selectedSession].sort((a, b) => a - b),
+        topicCovered: cleanTopic,
+      };
+
+      if (!existingSessionsForSelectedDate.includes(selectedSession)) {
+        setExistingSessionsForSelectedDate((prev) => 
+          prev.includes(selectedSession) ? prev : [...prev, selectedSession].sort((a, b) => a - b)
+        );
+      }
+    } catch (err) {
+      console.error('[BulkAttendanceError]', err);
+      // Rollback
+      setAttendanceStatusMap(previousStatusMap);
+      toast.error(err.message || 'Failed to perform bulk attendance update. Rolled back.');
+      throw err;
+    } finally {
+      setBulkSubmitting(false);
+    }
+  }, [assignment, selectedDate, selectedSession, dateValidation?.isValid, bulkSubmitting, submitting, attendanceStatusMap, baseStudents, currentTopicCovered, existingSessionsForSelectedDate]);
 
   const setAllAttendanceStatus = useCallback((status) => {
     setAttendanceStatusMap((prev) => {
@@ -766,6 +918,10 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     setAttendanceStatus,
     setBatchAttendanceStatus,
     toggleAttendanceStatus,
+    cycleStudentStatus,
+    confirmBulkAttendance,
+    updatingStudentIds,
+    bulkSubmitting,
     setAllAttendanceStatus,
     existingSessionsForSelectedDate,
     currentTopicCovered,

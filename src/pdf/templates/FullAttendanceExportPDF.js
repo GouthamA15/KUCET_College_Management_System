@@ -242,6 +242,16 @@ const styles = StyleSheet.create({
     fontFamily: 'Helvetica-Bold',
     fontSize: 7,
   },
+  statusNcc: {
+    color: '#1d4ed8',
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 6.5,
+  },
+  statusMedical: {
+    color: '#b45309',
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 6.5,
+  },
   statusOther: {
     color: '#78350f',
     fontFamily: 'Helvetica-Bold',
@@ -325,7 +335,7 @@ const PRINTABLE_WIDTH = 551.28; // 595.28 (A4 portrait width) - 44 (22pt horizon
 // Helper to format short date string for table headers (DD/MM or DD/MM/YYYY for wide session columns)
 function formatShortDate(dateStr, colWidth) {
   if (!dateStr) return '—';
-  if (colWidth >= 75) {
+  if (colWidth >= 48) {
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
       return `${dateStr.slice(8, 10)}/${dateStr.slice(5, 7)}/${dateStr.slice(0, 4)}`;
     }
@@ -339,37 +349,38 @@ function formatShortDate(dateStr, colWidth) {
   return dateStr.length > 5 ? dateStr.slice(0, 5) : dateStr;
 }
 
-// Adaptive column-width sizing based on session count
-function getAdaptiveColumnWidths(sessionCount) {
+// Adaptive column-width sizing based on session count (N = 0 to 10)
+export function getAdaptiveColumnWidths(sessionCount) {
   const N = Math.max(0, sessionCount);
 
   if (N === 0) {
     const colSNo = 22;
-    const colRoll = 84;
-    const colCond = 30;
-    const colPres = 30;
-    const colAbs = 30;
-    const colPct = 35.28;
-    const colName = PRINTABLE_WIDTH - (colSNo + colRoll + colCond + colPres + colAbs + colPct);
+    const colRoll = 80;
+    const colCond = 55;
+    const colPres = 55;
+    const colAbs = 55;
+    const colPct = 64.28;
+    const colName = 220;
     return { colSNo, colRoll, colName, sessionCol: 0, colCond, colPres, colAbs, colPct };
   }
 
+  // Smooth interpolation parameter t between N=1 (t=0) and N=10 (t=1)
   const t = Math.min(1, Math.max(0, (N - 1) / 9));
 
   const colSNo = Math.round(22 - 4 * t);
-  const colRoll = Math.round(84 - 14 * t);
-  const colCond = Math.round(32 - 10 * t);
-  const colPres = Math.round(30 - 8 * t);
-  const colAbs = Math.round(30 - 8 * t);
-  const colPct = Math.round(34 - 9 * t);
+  const colRoll = Math.round(78 - 10 * t);
+  const colCond = Math.round(55 - 33 * t);
+  const colPres = Math.round(55 - 33 * t);
+  const colAbs = Math.round(55 - 33 * t);
+  const colPct = Math.round((61.28 - 37 * t) * 100) / 100;
 
-  const targetNameWidth = Math.round(210 - 88 * t);
-  const fixedExceptNameAndSessions = colSNo + colRoll + colCond + colPres + colAbs + colPct;
-  const availableForNameAndSessions = PRINTABLE_WIDTH - fixedExceptNameAndSessions;
+  const targetNameWidth = Math.round(160 - 35 * t);
+  const fixedExceptName = colSNo + colRoll + colCond + colPres + colAbs + colPct;
+  const remainingForNameAndSessions = PRINTABLE_WIDTH - fixedExceptName;
 
-  const availableForSessions = availableForNameAndSessions - targetNameWidth;
-  const sessionCol = Math.floor((availableForSessions / N) * 100) / 100;
-  const colName = Math.round((availableForNameAndSessions - (sessionCol * N)) * 100) / 100;
+  const rawSessionCol = (remainingForNameAndSessions - targetNameWidth) / N;
+  const sessionCol = Math.floor(rawSessionCol * 100) / 100;
+  const colName = Math.round((remainingForNameAndSessions - (sessionCol * N)) * 100) / 100;
 
   return { colSNo, colRoll, colName, sessionCol, colCond, colPres, colAbs, colPct };
 }
@@ -389,6 +400,7 @@ export default function FullAttendanceExportPDF({
   totalConducted = 0,
   overallPercentage = 0,
   distinctDatesCount,
+  subjectCategory,
   sessions = [],
   students = [],
   sessionStats = {},
@@ -407,6 +419,8 @@ export default function FullAttendanceExportPDF({
   const totalEnrolled = students.length;
   const grandTotalPresent = students.reduce((acc, st) => acc + (st.totalPresent || 0), 0);
   const grandTotalAbsent = students.reduce((acc, st) => acc + (st.totalAbsent || 0), 0);
+  const _grandTotalNcc = students.reduce((acc, st) => acc + (st.totalNcc || 0), 0);
+  const _grandTotalMedical = students.reduce((acc, st) => acc + (st.totalMedical || 0), 0);
   const atRiskStudents = students.filter(st => (st.percentage ?? 0) < 75).length;
   const onTrackStudents = totalEnrolled - atRiskStudents;
 
@@ -456,12 +470,18 @@ export default function FullAttendanceExportPDF({
           const status = st.records ? st.records[s.key] : null;
           const isPresent = status === 'PRESENT';
           const isAbsent = status === 'ABSENT';
-          const isOther = status && !isPresent && !isAbsent;
+          const isNcc = status === 'NCC';
+          const isMedical = status === 'MEDICAL';
+          const isOther = status && !isPresent && !isAbsent && !isNcc && !isMedical;
 
           const cellStyle = isPresent
             ? styles.statusPresent
             : isAbsent
             ? styles.statusAbsent
+            : isNcc
+            ? styles.statusNcc
+            : isMedical
+            ? styles.statusMedical
             : isOther
             ? styles.statusOther
             : styles.statusEmpty;
@@ -470,8 +490,12 @@ export default function FullAttendanceExportPDF({
             ? 'P'
             : isAbsent
             ? 'A'
+            : isNcc
+            ? (sessionCol >= 32 ? 'NCC' : 'OD')
+            : isMedical
+            ? (sessionCol >= 32 ? 'MED' : 'M')
             : isOther
-            ? (status === 'NCC' ? 'OD' : status === 'MEDICAL' ? 'M' : 'OD')
+            ? 'OD'
             : '-';
 
           return h(
@@ -502,13 +526,13 @@ export default function FullAttendanceExportPDF({
           View,
           { key: `th-s-${s.key || sIdx}`, style: [styles.thCellSession, { width: sessionCol }] },
           h(Text, { style: styles.thDateText }, formatShortDate(s.displayDate || s.date, sessionCol)),
-          h(Text, { style: styles.thSessionText }, sessionCol >= 75 ? `Session S${s.session || 1}` : `S${s.session || 1}`)
+          h(Text, { style: styles.thSessionText }, sessionCol >= 48 ? `Session S${s.session || 1}` : `S${s.session || 1}`)
         )
       ),
-      h(Text, { style: [styles.thCell, { width: colCond }] }, 'Cond'),
-      h(Text, { style: [styles.thCell, { width: colPres }] }, 'Pres'),
-      h(Text, { style: [styles.thCell, { width: colAbs }] }, 'Abs'),
-      h(Text, { style: [styles.thCellLast, { width: colPct }] }, '%')
+      h(Text, { style: [styles.thCell, { width: colCond }] }, colCond >= 45 ? 'Conducted' : 'Cond'),
+      h(Text, { style: [styles.thCell, { width: colPres }] }, colPres >= 45 ? 'Present' : 'Pres'),
+      h(Text, { style: [styles.thCell, { width: colAbs }] }, colAbs >= 45 ? 'Absent' : 'Abs'),
+      h(Text, { style: [styles.thCellLast, { width: colPct }] }, colPct >= 45 ? 'Att. %' : '%')
     );
 
     // Summary Totals Row
@@ -583,7 +607,7 @@ export default function FullAttendanceExportPDF({
       // Section 1: Institutional Header
       h(
         View,
-        { style: styles.header },
+        { style: styles.header, fixed: true },
         logoUrl ? h(Image, { src: logoUrl, style: styles.logo }) : null,
         h(
           View,
@@ -593,7 +617,7 @@ export default function FullAttendanceExportPDF({
           h(
             Text,
             { style: styles.reportTitle },
-            `Department of ${branch || 'Engineering'} — Official Semester Attendance Register`
+            `Department of ${branch || 'Engineering'} — Official Semester Attendance Register${subjectCategory ? ` (${subjectCategory})` : ''}`
           )
         )
       ),
@@ -605,8 +629,8 @@ export default function FullAttendanceExportPDF({
         h(
           View,
           { style: styles.metaColWide },
-          h(Text, { style: styles.metaLabel }, 'Subject'),
-          h(Text, { style: styles.metaValue }, `${subjectName || 'Subject'} (${subjectCode || 'CODE'})`)
+          h(Text, { style: styles.metaLabel }, 'Subject & Type'),
+          h(Text, { style: styles.metaValue }, `${subjectName || 'Subject'} (${subjectCode || 'CODE'})${subjectCategory ? ` • ${subjectCategory}` : ''}`)
         ),
         h(
           View,

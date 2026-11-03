@@ -150,16 +150,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   colSNo: {
-    width: '8%',
+    width: 30,
   },
   colRoll: {
-    width: '30%',
+    width: 105,
   },
   colName: {
-    width: '44%',
+    width: 316.28,
   },
   colStatus: {
-    width: '18%',
+    width: 100,
     alignItems: 'center',
   },
   tdCell: {
@@ -208,6 +208,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#fef2f2',
     color: '#991b1b',
     borderColor: '#b91c1c',
+  },
+  statusNcc: {
+    backgroundColor: '#eff6ff',
+    color: '#1e40af',
+    borderColor: '#2563eb',
+  },
+  statusMedical: {
+    backgroundColor: '#fffbeb',
+    color: '#b45309',
+    borderColor: '#d97706',
   },
   statusOther: {
     backgroundColor: '#fffbeb',
@@ -285,10 +295,68 @@ export default function AttendanceSessionPDF({
   facultyName,
   submissionTimestamp,
   generationTimestamp,
+  subjectCategory,
   isHistoricalFallback = false,
   students = [],
-  totals = { total: 0, present: 0, absent: 0, percentage: 0 },
+  totals = { total: 0, present: 0, absent: 0, ncc: 0, medical: 0, percentage: 0 },
 }) {
+  const K = students.length > 5 ? 3 : 0;
+  const mainStudents = students.slice(0, students.length - K);
+  const trailingStudents = students.slice(students.length - K);
+
+  const renderStudentRow = (st, index) => {
+    const isEven = index % 2 === 1;
+    const statusStyle =
+      st.status === 'PRESENT'
+        ? styles.statusPresent
+        : st.status === 'ABSENT'
+        ? styles.statusAbsent
+        : st.status === 'NCC'
+        ? styles.statusNcc
+        : st.status === 'MEDICAL'
+        ? styles.statusMedical
+        : styles.statusOther;
+
+    return h(
+      View,
+      { key: st.student_id || st.roll_no || index, style: [styles.tableRow, isEven ? styles.tableRowEven : null] },
+      h(Text, { style: [styles.tdCell, styles.colSNo] }, String(index + 1)),
+      h(Text, { style: [styles.tdCell, styles.cellMono, styles.colRoll] }, st.roll_no),
+      h(Text, { style: [styles.tdCellLeft, styles.colName], numberOfLines: 1 }, st.name || '—'),
+      h(
+        View,
+        { style: [styles.tdCellLast, styles.colStatus] },
+        h(Text, { style: [styles.statusBadge, statusStyle] }, st.status)
+      )
+    );
+  };
+
+  const signaturesBlock = h(
+    View,
+    { style: styles.signaturesBlock },
+    h(
+      View,
+      { style: styles.signatureCol },
+      h(View, { style: styles.signatureLine }),
+      h(Text, { style: styles.signatureLabel }, facultyName || 'Course Faculty'),
+      h(Text, { style: styles.signatureSub }, 'Faculty In-Charge')
+    ),
+    h(
+      View,
+      { style: styles.signatureCol },
+      h(View, { style: styles.signatureLine }),
+      h(Text, { style: styles.signatureLabel }, 'Head of Department'),
+      h(Text, { style: styles.signatureSub }, `Department of ${branch || 'Engineering'}`)
+    ),
+    h(
+      View,
+      { style: styles.signatureCol },
+      h(View, { style: styles.signatureLine }),
+      h(Text, { style: styles.signatureLabel }, 'Principal / Academic Dean'),
+      h(Text, { style: styles.signatureSub }, 'KU College of Engineering & Technology')
+    )
+  );
+
   return h(
     Document,
     { title: `Attendance_${subjectCode || 'SUB'}_${date || 'DATE'}_S${session || 1}` },
@@ -298,14 +366,14 @@ export default function AttendanceSessionPDF({
       // 1. Institutional Header
       h(
         View,
-        { style: styles.header },
+        { style: styles.header, fixed: true },
         logoUrl ? h(Image, { src: logoUrl, style: styles.logo }) : null,
         h(
           View,
           { style: styles.headerText },
           h(Text, { style: styles.collegeTitle }, collegeName),
           h(Text, { style: styles.universitySubtitle }, universityName),
-          h(Text, { style: styles.reportTitle }, `Official Attendance Record • Session S${session}`)
+          h(Text, { style: styles.reportTitle }, `Official Attendance Record • Session S${session}${subjectCategory ? ` (${subjectCategory})` : ''}`)
         )
       ),
 
@@ -316,8 +384,8 @@ export default function AttendanceSessionPDF({
         h(
           View,
           { style: styles.metaColWide },
-          h(Text, { style: styles.metaLabel }, 'Subject'),
-          h(Text, { style: styles.metaValue }, `${subjectName || 'Subject'} (${subjectCode || 'CODE'})`)
+          h(Text, { style: styles.metaLabel }, 'Subject & Type'),
+          h(Text, { style: styles.metaValue }, `${subjectName || 'Subject'} (${subjectCode || 'CODE'})${subjectCategory ? ` • ${subjectCategory}` : ''}`)
         ),
         h(
           View,
@@ -379,6 +447,14 @@ export default function AttendanceSessionPDF({
           h(Text, { style: styles.summaryLabel }, 'Present'),
           h(Text, { style: [styles.summaryValue, { color: '#16a34a' }] }, String(totals.present ?? 0))
         ),
+        (totals.ncc > 0 || totals.medical > 0)
+          ? h(
+              View,
+              { style: styles.summaryItem },
+              h(Text, { style: styles.summaryLabel }, 'Duty / Med'),
+              h(Text, { style: [styles.summaryValue, { color: '#2563eb' }] }, `${(totals.ncc || 0) + (totals.medical || 0)}`)
+            )
+          : null,
         h(
           View,
           { style: styles.summaryItem },
@@ -402,7 +478,7 @@ export default function AttendanceSessionPDF({
         )
       ),
 
-      // 4. Student Attendance Table
+      // 4. Student Attendance Table with Atomic Signatures Orphan Prevention
       h(
         View,
         { style: styles.table },
@@ -414,58 +490,18 @@ export default function AttendanceSessionPDF({
           h(Text, { style: [styles.tableHeaderCell, styles.colName, { textAlign: 'left', paddingLeft: 4 }] }, 'Student Name'),
           h(Text, { style: [styles.tableHeaderCellLast, styles.colStatus] }, 'Status')
         ),
-        students.map((st, index) => {
-          const isEven = index % 2 === 1;
-          const statusStyle =
-            st.status === 'PRESENT'
-              ? styles.statusPresent
-              : st.status === 'ABSENT'
-              ? styles.statusAbsent
-              : styles.statusOther;
-
-          return h(
-            View,
-            { key: st.student_id || st.roll_no || index, style: [styles.tableRow, isEven ? styles.tableRowEven : null] },
-            h(Text, { style: [styles.tdCell, styles.colSNo] }, String(index + 1)),
-            h(Text, { style: [styles.tdCell, styles.cellMono, styles.colRoll] }, st.roll_no),
-            h(Text, { style: [styles.tdCellLeft, styles.colName], numberOfLines: 1 }, st.name || '—'),
-            h(
+        mainStudents.map((st, index) => renderStudentRow(st, index)),
+        trailingStudents.length > 0
+          ? h(
               View,
-              { style: [styles.tdCellLast, styles.colStatus] },
-              h(Text, { style: [styles.statusBadge, statusStyle] }, st.status)
+              { wrap: false },
+              trailingStudents.map((st, index) => renderStudentRow(st, mainStudents.length + index)),
+              signaturesBlock
             )
-          );
-        })
+          : signaturesBlock
       ),
 
-      // 5. Signatures Block (wrap={false} keeps it atomic on one page)
-      h(
-        View,
-        { style: styles.signaturesBlock, wrap: false },
-        h(
-          View,
-          { style: styles.signatureCol },
-          h(View, { style: styles.signatureLine }),
-          h(Text, { style: styles.signatureLabel }, facultyName || 'Course Faculty'),
-          h(Text, { style: styles.signatureSub }, 'Faculty In-Charge')
-        ),
-        h(
-          View,
-          { style: styles.signatureCol },
-          h(View, { style: styles.signatureLine }),
-          h(Text, { style: styles.signatureLabel }, 'Head of Department'),
-          h(Text, { style: styles.signatureSub }, `Department of ${branch || 'Engineering'}`)
-        ),
-        h(
-          View,
-          { style: styles.signatureCol },
-          h(View, { style: styles.signatureLine }),
-          h(Text, { style: styles.signatureLabel }, 'Principal / Academic Dean'),
-          h(Text, { style: styles.signatureSub }, 'KU College of Engineering & Technology')
-        )
-      ),
-
-      // 6. Fixed Page Footer on all pages
+      // 5. Fixed Page Footer on all pages
       h(
         View,
         { style: styles.pageFooter, fixed: true },

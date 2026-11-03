@@ -10,7 +10,7 @@ import {
   attendanceSessions, 
   students,
   staffAccounts,
-  facultySubstitutions 
+  facultySubstitutions
 } from '@/db/schema';
 import { eq, and, asc } from 'drizzle-orm';
 import { formatDate, formatDateTime } from '@/lib/date';
@@ -84,6 +84,13 @@ export async function GET(request) {
     }
 
     const assignment = assignments[0];
+
+    // Resolve canonical subject category (Theory vs Practical / Laboratory)
+    const normType = assignment.canonical_subject_type ? String(assignment.canonical_subject_type).trim().toLowerCase() : null;
+    const sName = (assignment.subject_name || '').toLowerCase();
+    const sCode = (assignment.subject_code || '').toUpperCase();
+    const isLab = normType === 'lab' || (!normType && (sName.includes('lab') || sName.includes('practical') || sName.includes('laboratory') || sCode.endsWith('L')));
+    const subjectCategory = isLab ? 'Practical / Laboratory' : 'Theory';
 
     // 2. Authorization check
     let isAuthorized = false;
@@ -173,7 +180,10 @@ export async function GET(request) {
     const totalCount = attendanceRecords.length;
     const presentCount = attendanceRecords.filter(r => r.status === 'PRESENT').length;
     const absentCount = attendanceRecords.filter(r => r.status === 'ABSENT').length;
-    const percentage = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
+    const nccCount = attendanceRecords.filter(r => r.status === 'NCC').length;
+    const medicalCount = attendanceRecords.filter(r => r.status === 'MEDICAL').length;
+    const attendedCount = presentCount + nccCount + medicalCount;
+    const percentage = totalCount > 0 ? Math.round((attendedCount / totalCount) * 100) : 0;
 
     // 5. Institutional Logo (In-Memory Cached Base64 data URI)
     const logoDataUrl = getCachedLogoDataUrl();
@@ -194,12 +204,16 @@ export async function GET(request) {
         facultyName: assignment.faculty_name || user.full_name || user.email || 'Course Faculty',
         submissionTimestamp,
         generationTimestamp,
+        subjectCategory,
+        isLab,
         isHistoricalFallback: isHistorical,
         students: attendanceRecords,
         totals: {
           total: totalCount,
           present: presentCount,
           absent: absentCount,
+          ncc: nccCount,
+          medical: medicalCount,
           percentage
         }
       })

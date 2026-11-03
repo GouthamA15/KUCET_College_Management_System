@@ -6,6 +6,7 @@ import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
 import { canonicalizeRollNo } from '@/lib/rollNumber';
 import dynamic from 'next/dynamic';
 import LectureTopicModal from './LectureTopicModal';
+import BulkAttendanceModal from './BulkAttendanceModal';
 import { formatDate } from '@/lib/date';
 import ImageWithLoading from '@/components/ui/ImageWithLoading';
 
@@ -290,6 +291,10 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
     setSelectedSession,
     setAttendanceStatus,
     setBatchAttendanceStatus,
+    cycleStudentStatus,
+    confirmBulkAttendance,
+    updatingStudentIds,
+    bulkSubmitting,
     submitting,
     dateValidation,
     dayInfo,
@@ -297,8 +302,6 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
     handleSaveAttendance,
     handleDeleteAttendance,
     handleCalendarSelect,
-    toggleAttendanceStatus,
-    setAllAttendanceStatus,
     verifiedStudentIds,
     setVerifiedStudentIds,
     topicModalSession,
@@ -307,6 +310,23 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
     setCurrentTopicCovered,
     isDraftDirty,
   } = useFacultyAttendance();
+
+  const [bulkModalStatus, setBulkModalStatus] = useState(null);
+
+  const handleOpenBulk = (status) => {
+    if (!assignment?.is_active || !dateValidation?.isValid || bulkSubmitting || submitting) return;
+    setBulkModalStatus(status);
+  };
+
+  const handleConfirmBulk = async () => {
+    if (!bulkModalStatus) return;
+    try {
+      await confirmBulkAttendance(bulkModalStatus);
+      setBulkModalStatus(null);
+    } catch (_err) {
+      // Toast notification is managed by context
+    }
+  };
 
   const lastScannedRollRef = useRef('');
   const lastScannedTimeRef = useRef(0);
@@ -457,6 +477,18 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
               </div>
             </div>
 
+            {/* Bulk Confirmation Modal */}
+            <BulkAttendanceModal
+              isOpen={Boolean(bulkModalStatus)}
+              targetStatus={bulkModalStatus}
+              studentCount={students?.length || 0}
+              sessionNumber={selectedSession}
+              date={selectedDate}
+              submitting={bulkSubmitting}
+              onConfirm={handleConfirmBulk}
+              onCancel={() => !bulkSubmitting && setBulkModalStatus(null)}
+            />
+
             {/* Action Buttons (Condensed) */}
             <div className="space-y-2 mb-6">
               {assignment.is_active && (
@@ -464,17 +496,17 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('PRESENT')}
-                      disabled={submitting || !students.length}
-                      className="bg-green-50 text-green-700 py-2.5 rounded-xl font-bold text-[10px] uppercase border-2 border-green-100 active:bg-green-100"
+                      onClick={() => handleOpenBulk('PRESENT')}
+                      disabled={submitting || bulkSubmitting || !students.length || !assignment.is_active || !dateValidation.isValid}
+                      className="bg-green-50 text-green-700 py-2.5 rounded-xl font-bold text-[10px] uppercase border-2 border-green-200 active:bg-green-100 disabled:opacity-50 cursor-pointer"
                     >
                       All Present
                     </button>
                     <button
                       type="button"
-                      onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('ABSENT')}
-                      disabled={submitting || !students.length}
-                      className="bg-red-50 text-red-700 py-2.5 rounded-xl font-bold text-[10px] uppercase border-2 border-red-100 active:bg-red-100"
+                      onClick={() => handleOpenBulk('ABSENT')}
+                      disabled={submitting || bulkSubmitting || !students.length || !assignment.is_active || !dateValidation.isValid}
+                      className="bg-red-50 text-red-700 py-2.5 rounded-xl font-bold text-[10px] uppercase border-2 border-red-200 active:bg-red-100 disabled:opacity-50 cursor-pointer"
                     >
                       All Absent
                     </button>
@@ -541,28 +573,32 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
                         <div className="flex-shrink-0">
                           <button
                             type="button"
-                            onClick={() => assignment.is_active && dateValidation.isValid && toggleAttendanceStatus(student.id)}
-                              disabled={!assignment.is_active || !dateValidation.isValid}
-                              className={`w-[80px] sm:w-[84px] h-[36px] flex items-center justify-center text-xs font-black rounded-lg transition-colors border-2 uppercase tracking-wide ${
-                                student.status === null 
-                                  ? 'bg-gray-50 text-gray-600 border-gray-200' 
-                                  : student.status === 'PRESENT' 
-                                  ? 'bg-green-50 text-green-700 border-green-200' 
-                                  : student.status === 'ABSENT' 
-                                  ? 'bg-red-50 text-red-700 border-red-200'
-                                  : student.status === 'NCC'
-                                  ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                  : student.status === 'MEDICAL'
-                                  ? 'bg-purple-50 text-purple-700 border-purple-200'
-                                  : 'bg-gray-50 text-gray-600 border-gray-200'
-                              } ${(!assignment.is_active || !dateValidation.isValid) ? 'cursor-default opacity-50' : 'cursor-pointer active:scale-95'}`}
-                            >
-                              {student.status === null ? 'N/A' : 
-                               student.status === 'PRESENT' ? 'PRESENT' : 
-                               student.status === 'ABSENT' ? 'ABSENT' :
-                               student.status === 'NCC' ? 'NCC' :
-                               student.status === 'MEDICAL' ? 'MEDICAL' : '?'}
-                            </button>
+                            onClick={() => assignment.is_active && dateValidation.isValid && !updatingStudentIds?.has?.(student.id) && cycleStudentStatus(student.id)}
+                            disabled={!assignment.is_active || !dateValidation.isValid || updatingStudentIds?.has?.(student.id)}
+                            aria-label={`Status for ${student.roll_no}: ${student.status || 'Not Set'}. Tap to cycle: Present, Absent, NCC, Medical.`}
+                            title="Cycle status: Present → Absent → NCC → Medical → Present"
+                            className={`w-[80px] sm:w-[84px] h-[36px] flex items-center justify-center text-xs font-black rounded-lg transition-colors border-2 uppercase tracking-wide ${
+                              student.status === null 
+                                ? 'bg-gray-50 text-gray-600 border-gray-200' 
+                                : student.status === 'PRESENT' 
+                                ? 'bg-green-50 text-green-700 border-green-300' 
+                                : student.status === 'ABSENT' 
+                                ? 'bg-red-50 text-red-700 border-red-300'
+                                : student.status === 'NCC' 
+                                ? 'bg-blue-50 text-blue-700 border-blue-300'
+                                : student.status === 'MEDICAL' 
+                                ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                : 'bg-gray-50 text-gray-600 border-gray-200'
+                            } ${(!assignment.is_active || !dateValidation.isValid) ? 'cursor-default opacity-50' : 'cursor-pointer active:scale-95'}`}
+                          >
+                            {updatingStudentIds?.has?.(student.id) ? (
+                              <span className="inline-block h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            ) : student.status === null ? (
+                              'N/A'
+                            ) : (
+                              student.status
+                            )}
+                          </button>
                         </div>
                       </div>
                     </div>

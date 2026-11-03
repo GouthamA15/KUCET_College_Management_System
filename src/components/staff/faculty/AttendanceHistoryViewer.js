@@ -169,7 +169,7 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                   ? 'text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 cursor-pointer'
                   : 'text-gray-400 bg-gray-100 cursor-not-allowed opacity-60'
               }`}
-              title="Download Full Semester Attendance Register (A4 Landscape PDF)"
+              title="Download Full Semester Attendance Register (A4 Portrait PDF)"
             >
               <Download className="w-4 h-4" />
               <span>Download Full Attendance</span>

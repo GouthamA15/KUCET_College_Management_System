@@ -240,6 +240,8 @@ export async function GET(request) {
     students.forEach((st, idx) => {
       let totalPresent = 0;
       let totalAbsent = 0;
+      let totalNcc = 0;
+      let totalMedical = 0;
       const row = [String(idx + 1), st.roll_no || '', st.name || ''];
 
       for (const s of sessions) {
@@ -250,6 +252,14 @@ export async function GET(request) {
           totalPresent += 1;
           sessionPresentCounts[s.key] += 1;
           row.push('P');
+        } else if (status === 'NCC') {
+          totalNcc += 1;
+          sessionPresentCounts[s.key] += 1;
+          row.push('NCC');
+        } else if (status === 'MEDICAL') {
+          totalMedical += 1;
+          sessionPresentCounts[s.key] += 1;
+          row.push('MED');
         } else if (status === 'ABSENT') {
           totalAbsent += 1;
           row.push('A');
@@ -258,7 +268,9 @@ export async function GET(request) {
         }
       }
 
-      const pct = totalConducted > 0 ? Math.round((totalPresent / totalConducted) * 100) : 0;
+      // Institutional Policy: Present + NCC + Medical count towards attendance
+      const totalAttended = totalPresent + totalNcc + totalMedical;
+      const pct = totalConducted > 0 ? Math.round((totalAttended / totalConducted) * 100) : 0;
       row.push(String(totalConducted), String(totalPresent), String(totalAbsent), `${pct}%`);
       csvRows.push(row.map(escapeCSV).join(','));
     });
