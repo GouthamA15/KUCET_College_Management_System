@@ -222,6 +222,72 @@ describe('Task 3: Student APAAR ID Lifecycle & Security Audit Suite', () => {
       expect(db.insert).not.toHaveBeenCalled();
     });
 
+    it('REJECTS SUBMISSION: prevents submitting Aadhaar number matching registered aadhaar_hash', async () => {
+      setupStudentAuth();
+      process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+
+      const { hashForIndex } = await import('@/lib/encryption');
+      const testAadhaar = '987654321098';
+      const targetHash = hashForIndex(testAadhaar);
+
+      db.select.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([
+                { id: 101, apaar_id: null, personalDetailsId: 55, aadhaar_hash: targetHash },
+              ]),
+            }),
+          }),
+        }),
+      });
+
+      const req = new Request('http://localhost:3000/api/student/apaar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apaar_id: testAadhaar }),
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error).toMatch(/matches your registered Aadhaar number|APAAR ID is NOT your Aadhaar number/i);
+      expect(db.update).not.toHaveBeenCalled();
+    });
+
+    it('REJECTS SUBMISSION: prevents submitting Aadhaar number matching encrypted aadhaar_no', async () => {
+      setupStudentAuth();
+      process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+
+      const { encrypt } = await import('@/lib/encryption');
+      const testAadhaar = '987654321098';
+      const encryptedAadhaar = encrypt(testAadhaar);
+
+      db.select.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([
+                { id: 101, apaar_id: null, personalDetailsId: 55, aadhaar_no: encryptedAadhaar },
+              ]),
+            }),
+          }),
+        }),
+      });
+
+      const req = new Request('http://localhost:3000/api/student/apaar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apaar_id: testAadhaar }),
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error).toMatch(/matches your registered Aadhaar number|APAAR ID is NOT your Aadhaar number/i);
+      expect(db.update).not.toHaveBeenCalled();
+    });
+
     it('ISOLATION: student cannot access or modify another student\'s APAAR ID', async () => {
       setupStudentAuth({ student_id: 101, roll_no: '22567T0901', role: 'student' });
 
@@ -323,6 +389,40 @@ describe('Task 3: Student APAAR ID Lifecycle & Security Audit Suite', () => {
       const validRes = validateSubmission('1234 5678 9012', '123456789012');
       expect(validRes.valid).toBe(true);
       expect(validRes.clean).toBe('123456789012');
+    });
+
+    it('validates Aadhaar mismatch guard and mandatory confirmation before submission', () => {
+      const validateSubmissionWithAadhaarGuard = (apaar, confirm, studentAadhaar, isConfirmed) => {
+        const clean = (apaar || '').replace(/\s+/g, '');
+        const cleanConfirm = (confirm || '').replace(/\s+/g, '');
+        const cleanAadhaar = (studentAadhaar || '').replace(/\D/g, '');
+
+        if (!/^\d{12}$/.test(clean)) return { valid: false, error: 'APAAR ID must be exactly 12 numeric digits.' };
+        if (!/^\d{12}$/.test(cleanConfirm)) return { valid: false, error: 'Confirmation APAAR ID must be exactly 12 numeric digits.' };
+        if (clean !== cleanConfirm) return { valid: false, error: 'APAAR IDs do not match. Please verify both fields.' };
+        if (cleanAadhaar && cleanAadhaar.length === 12 && clean === cleanAadhaar) {
+          return { valid: false, error: 'You have entered your 12-digit Aadhaar number! APAAR ID is NOT your Aadhaar number.' };
+        }
+        if (!isConfirmed) {
+          return { valid: false, error: 'Please confirm that this is your APAAR ID and NOT your Aadhaar number.' };
+        }
+        return { valid: true, clean };
+      };
+
+      // Fails when student enters Aadhaar number
+      const aadhaarAttempt = validateSubmissionWithAadhaarGuard('987654321098', '987654321098', '987654321098', true);
+      expect(aadhaarAttempt.valid).toBe(false);
+      expect(aadhaarAttempt.error).toMatch(/Aadhaar number/i);
+
+      // Fails when confirmation checkbox is unchecked
+      const unconfirmedAttempt = validateSubmissionWithAadhaarGuard('123456789012', '123456789012', '987654321098', false);
+      expect(unconfirmedAttempt.valid).toBe(false);
+      expect(unconfirmedAttempt.error).toMatch(/confirm that this is your APAAR ID/i);
+
+      // Succeeds when valid APAAR ID (different from Aadhaar) and confirmed
+      const validAttempt = validateSubmissionWithAadhaarGuard('123456789012', '123456789012', '987654321098', true);
+      expect(validAttempt.valid).toBe(true);
+      expect(validAttempt.clean).toBe('123456789012');
     });
 
     it('sanitizes formula-leading characters (=, +, -, @) to prevent CSV/Excel injection', () => {

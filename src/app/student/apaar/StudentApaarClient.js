@@ -39,6 +39,7 @@ export default function StudentApaarClient() {
   const [copied, setCopied] = useState(false);
   const [localApaarId, setLocalApaarId] = useState(null);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isAadhaarConfirmed, setIsAadhaarConfirmed] = useState(false);
   
   const modalCloseRef = useRef(null);
   const previouslyFocusedElement = useRef(null);
@@ -46,6 +47,25 @@ export default function StudentApaarClient() {
   // Authoritative APAAR ID from context or local submission state
   const effectiveApaarId = student?.apaar_id || student?.personal_details?.apaar_id || localApaarId || null;
   const isSubmitted = !!effectiveApaarId;
+
+  // Registered Aadhaar for warning & validation detection
+  const registeredAadhaar = student?.personal_details?.aadhaar_no || student?.aadhaar_no || null;
+  const cleanRegisteredAadhaar = registeredAadhaar ? String(registeredAadhaar).replace(/\D/g, '') : null;
+
+  const cleanInput = apaarInput.replace(/\s+/g, '');
+  const cleanConfirm = confirmApaarInput.replace(/\s+/g, '');
+
+  const isInputAadhaarMatch = Boolean(
+    cleanRegisteredAadhaar && 
+    cleanRegisteredAadhaar.length === 12 && 
+    cleanInput === cleanRegisteredAadhaar
+  );
+
+  const isConfirmAadhaarMatch = Boolean(
+    cleanRegisteredAadhaar && 
+    cleanRegisteredAadhaar.length === 12 && 
+    cleanConfirm === cleanRegisteredAadhaar
+  );
 
   // Manage modal scroll lock and focus restoration
   useEffect(() => {
@@ -122,11 +142,22 @@ export default function StudentApaarClient() {
       return;
     }
 
+    if (cleanRegisteredAadhaar && cleanRegisteredAadhaar.length === 12 && clean === cleanRegisteredAadhaar) {
+      setFormError('You have entered your 12-digit Aadhaar number! APAAR ID is NOT your Aadhaar number. Please enter your 12-digit APAAR ID obtained from DigiLocker or the ABC portal.');
+      toast.error('Aadhaar number detected! Do not enter your Aadhaar number.');
+      return;
+    }
+
+    setIsAadhaarConfirmed(false);
     setIsConfirmModalOpen(true);
   };
 
   const handleConfirmedSubmit = async () => {
     const clean = apaarInput.replace(/\s+/g, '');
+    if (!isAadhaarConfirmed) {
+      toast.error('Please confirm that this is your APAAR ID and NOT your Aadhaar number');
+      return;
+    }
     setSubmitting(true);
     const toastId = toast.loading('Registering and locking APAAR ID...');
 
@@ -287,6 +318,49 @@ export default function StudentApaarClient() {
             </div>
           </div>
 
+          {/* High-Visibility Caution & Reminder Banner: APAAR ID vs. Aadhaar Card */}
+          <div className="p-4 rounded-lg bg-amber-50/90 border-2 border-amber-300 text-amber-950 space-y-3">
+            <div className="flex items-center gap-2 text-amber-900 font-bold text-sm">
+              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+              <span>CRITICAL CAUTION: DO NOT ENTER YOUR AADHAAR NUMBER</span>
+            </div>
+            <p className="text-xs text-amber-900/90 leading-relaxed">
+              Many students mistakenly enter their 12-digit <strong>Aadhaar Card number</strong> here instead of their APAAR ID. 
+              <strong> APAAR ID is NOT your Aadhaar number.</strong> Although both numbers consist of 12 digits, they serve entirely different functions:
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+              <div className="p-3 rounded-md bg-white border border-red-200 text-red-900 flex items-start gap-2.5 shadow-2xs">
+                <div className="w-5 h-5 rounded-full bg-red-100 text-red-700 flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs">✕</div>
+                <div className="space-y-0.5">
+                  <strong className="block text-red-700 font-bold">DO NOT ENTER: Aadhaar Number</strong>
+                  <span className="text-[11px] text-red-800 leading-normal block">
+                    Issued by UIDAI for national citizen identity. Entering Aadhaar here will cause your scholarship verification and university credit transfers to fail.
+                  </span>
+                </div>
+              </div>
+              <div className="p-3 rounded-md bg-white border border-emerald-200 text-emerald-900 flex items-start gap-2.5 shadow-2xs">
+                <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs">✓</div>
+                <div className="space-y-0.5">
+                  <strong className="block text-emerald-700 font-bold">ENTER ONLY: DigiLocker APAAR ID</strong>
+                  <span className="text-[11px] text-emerald-800 leading-normal block">
+                    Issued by the Ministry of Education on your virtual <em>&quot;APAAR / ABC ID Card&quot;</em> in DigiLocker for your academic records.
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 pt-0.5 text-[11px] text-amber-800 font-medium">
+              <span className="flex items-center gap-1.5">
+                <Lock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                <span>Permanent Lock: Once submitted, your APAAR ID cannot be edited or updated by students.</span>
+              </span>
+              <span className="hidden sm:inline text-amber-400">•</span>
+              <span className="flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                <span>Check your DigiLocker app &gt; Issued Documents &gt; APAAR / ABC Card.</span>
+              </span>
+            </div>
+          </div>
+
           {/* Privacy Clarification Notice */}
           <div className="p-3 rounded-md bg-slate-50 border border-slate-200 text-xs text-slate-600 flex items-start gap-2.5">
             <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
@@ -298,10 +372,16 @@ export default function StudentApaarClient() {
           <form onSubmit={handlePreSubmit} className="pt-2 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
               {/* Field 1: APAAR ID */}
-              <div className="space-y-1">
-                <label htmlFor="apaar-input" className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  APAAR ID <span className="text-red-500">*</span>
-                </label>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="apaar-input" className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    APAAR ID <span className="text-red-500">*</span>
+                  </label>
+                  <span className="text-[11px] font-semibold text-amber-700 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 text-amber-600" />
+                    <span>DigiLocker APAAR only (NOT Aadhaar)</span>
+                  </span>
+                </div>
                 <div className="relative">
                   <input
                     id="apaar-input"
@@ -312,20 +392,43 @@ export default function StudentApaarClient() {
                     placeholder="1234 5678 9012"
                     value={apaarInput}
                     onChange={handleInputChange}
-                    className="w-full font-mono text-sm sm:text-base font-bold tracking-widest px-3.5 py-2.5 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578] text-slate-800 placeholder:text-slate-300 placeholder:font-normal"
+                    className={`w-full font-mono text-sm sm:text-base font-bold tracking-widest px-3.5 py-2.5 rounded-md border text-slate-800 placeholder:text-slate-300 placeholder:font-normal focus:outline-none focus:ring-1 ${
+                      isInputAadhaarMatch
+                        ? 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50/30'
+                        : 'border-slate-300 focus:ring-[#0b3578] focus:border-[#0b3578]'
+                    }`}
                     disabled={submitting}
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono font-medium text-slate-400">
                     {apaarInput.replace(/\s+/g, '').length}/12
                   </div>
                 </div>
+
+                {/* Real-time entering warning & reminder */}
+                {isInputAadhaarMatch ? (
+                  <div className="p-2 rounded-md bg-red-50 border border-red-300 text-red-700 text-xs font-semibold flex items-center gap-2 animate-pulse">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                    <span>Aadhaar Number Detected! You are entering your Aadhaar number. Do NOT enter your Aadhaar number here.</span>
+                  </div>
+                ) : apaarInput.replace(/\s+/g, '').length > 0 ? (
+                  <div className="flex items-center gap-1.5 text-[11px] text-amber-700">
+                    <Info className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span>Double-check: This must be your DigiLocker APAAR ID, <strong>NOT</strong> your Aadhaar card number.</span>
+                  </div>
+                ) : null}
               </div>
 
               {/* Field 2: Confirm APAAR ID */}
-              <div className="space-y-1">
-                <label htmlFor="confirm-apaar-input" className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  Confirm APAAR ID <span className="text-red-500">*</span>
-                </label>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="confirm-apaar-input" className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Confirm APAAR ID <span className="text-red-500">*</span>
+                  </label>
+                  <span className="text-[11px] font-semibold text-amber-700 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 text-amber-600" />
+                    <span>Confirm APAAR ID (NOT Aadhaar)</span>
+                  </span>
+                </div>
                 <div className="relative">
                   <input
                     id="confirm-apaar-input"
@@ -336,13 +439,30 @@ export default function StudentApaarClient() {
                     placeholder="1234 5678 9012"
                     value={confirmApaarInput}
                     onChange={handleConfirmChange}
-                    className="w-full font-mono text-sm sm:text-base font-bold tracking-widest px-3.5 py-2.5 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578] text-slate-800 placeholder:text-slate-300 placeholder:font-normal"
+                    className={`w-full font-mono text-sm sm:text-base font-bold tracking-widest px-3.5 py-2.5 rounded-md border text-slate-800 placeholder:text-slate-300 placeholder:font-normal focus:outline-none focus:ring-1 ${
+                      isConfirmAadhaarMatch
+                        ? 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50/30'
+                        : 'border-slate-300 focus:ring-[#0b3578] focus:border-[#0b3578]'
+                    }`}
                     disabled={submitting}
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono font-medium text-slate-400">
                     {confirmApaarInput.replace(/\s+/g, '').length}/12
                   </div>
                 </div>
+
+                {/* Real-time entering warning & reminder for confirmation */}
+                {isConfirmAadhaarMatch ? (
+                  <div className="p-2 rounded-md bg-red-50 border border-red-300 text-red-700 text-xs font-semibold flex items-center gap-2 animate-pulse">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                    <span>Aadhaar Number Detected in confirmation! Please enter your 12-digit APAAR ID from DigiLocker.</span>
+                  </div>
+                ) : confirmApaarInput.replace(/\s+/g, '').length > 0 ? (
+                  <div className="flex items-center gap-1.5 text-[11px] text-amber-700">
+                    <Info className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span>Re-enter the same 12-digit DigiLocker APAAR ID to confirm accuracy.</span>
+                  </div>
+                ) : null}
               </div>
             </div>
 
@@ -359,7 +479,9 @@ export default function StudentApaarClient() {
                 disabled={
                   submitting || 
                   apaarInput.replace(/\s+/g, '').length !== 12 || 
-                  confirmApaarInput.replace(/\s+/g, '').length !== 12
+                  confirmApaarInput.replace(/\s+/g, '').length !== 12 ||
+                  isInputAadhaarMatch ||
+                  isConfirmAadhaarMatch
                 }
                 className="px-5 py-2.5 text-xs font-bold uppercase tracking-wider rounded-md text-white bg-[#0b3578] hover:bg-[#082654] disabled:bg-slate-100 disabled:text-slate-400 disabled:border disabled:border-slate-200 disabled:cursor-not-allowed shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
               >
@@ -391,7 +513,7 @@ export default function StudentApaarClient() {
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-md bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden p-5 sm:p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150"
+            className="relative w-full max-w-lg bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden p-5 sm:p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150"
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
@@ -402,7 +524,7 @@ export default function StudentApaarClient() {
                   <h3 id="confirm-apaar-title" className="text-base sm:text-lg font-bold text-slate-900">
                     Confirm APAAR ID Submission
                   </h3>
-                  <span className="text-xs text-slate-500 font-medium">Permanent Record Registration</span>
+                  <span className="text-xs text-slate-500 font-medium">Final Verification Before Permanent Lock</span>
                 </div>
               </div>
               <button
@@ -417,16 +539,49 @@ export default function StudentApaarClient() {
               </button>
             </div>
 
+            {/* Critical Caution Box inside Confirmation Modal */}
+            <div className="p-3.5 rounded-lg bg-red-50 border-2 border-red-300 space-y-2 text-xs">
+              <div className="flex items-center gap-2 font-bold text-red-800 text-sm">
+                <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                <span>CRITICAL FINAL CHECK: IS THIS YOUR APAAR ID?</span>
+              </div>
+              <p className="text-red-900 leading-relaxed font-medium">
+                Do <strong>NOT</strong> submit your Aadhaar number! Many students mistakenly enter their 12-digit Aadhaar number because both have 12 digits.
+                Submitting your Aadhaar number here will cause immediate failure during state scholarship audits and university degree verification.
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
+                <div className="bg-white p-2 rounded border border-red-200 text-red-700 font-semibold text-center">
+                  ❌ NOT Aadhaar Card Number
+                </div>
+                <div className="bg-white p-2 rounded border border-emerald-200 text-emerald-700 font-semibold text-center">
+                  ✅ DigiLocker APAAR ID
+                </div>
+              </div>
+            </div>
+
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 text-center space-y-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Entered APAAR ID</span>
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Entered 12-Digit APAAR ID</span>
               <div className="font-mono text-xl sm:text-2xl font-bold text-[#0b3578] tracking-widest">
                 {apaarInput}
               </div>
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed">
-              Please confirm that you have entered your correct 12-digit APAAR ID. KUCET will use this information for scholarship processing and other authorized academic and administrative purposes. Once submitted, you will not be able to edit it yourself. If you submit an incorrect ID, contact the admission or scholarship office for correction.
+              KUCET will transmit this 12-digit ID to the National Academic Bank of Credits (ABC) and state scholarship portals. Once submitted, your APAAR ID is <strong>permanently locked</strong> and cannot be modified by students. Any future corrections will require visiting the KUCET Admission or Scholarship Office in person with official documentation.
             </p>
+
+            {/* Mandatory Checkbox to ensure student consciously confirms */}
+            <label className="flex items-start gap-2.5 p-3 rounded-lg border-2 border-amber-300 bg-amber-50/70 cursor-pointer text-xs text-amber-950 font-medium hover:bg-amber-50 transition select-none">
+              <input
+                type="checkbox"
+                checked={isAadhaarConfirmed}
+                onChange={(e) => setIsAadhaarConfirmed(e.target.checked)}
+                className="mt-0.5 rounded border-amber-400 text-[#0b3578] focus:ring-[#0b3578] h-4 w-4 shrink-0 cursor-pointer"
+              />
+              <span>
+                I confirm that <strong className="font-mono text-slate-900 font-bold">{apaarInput}</strong> is my <strong>official 12-digit APAAR ID</strong> generated from DigiLocker / ABC, and is <strong>NOT my Aadhaar Card number</strong>.
+              </span>
+            </label>
 
             <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
               <button
@@ -440,8 +595,8 @@ export default function StudentApaarClient() {
               <button
                 type="button"
                 onClick={handleConfirmedSubmit}
-                disabled={submitting}
-                className="px-5 py-2 text-xs font-bold uppercase tracking-wider text-white bg-[#0b3578] hover:bg-[#082654] disabled:opacity-50 rounded-lg shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
+                disabled={submitting || !isAadhaarConfirmed}
+                className="px-5 py-2 text-xs font-bold uppercase tracking-wider text-white bg-[#0b3578] hover:bg-[#082654] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 {submitting ? (
                   <>
@@ -456,6 +611,11 @@ export default function StudentApaarClient() {
                 )}
               </button>
             </div>
+            {!isAadhaarConfirmed && (
+              <p className="text-[11px] text-amber-800 text-right font-medium">
+                Please check the confirmation box above to enable submission.
+              </p>
+            )}
           </div>
         </div>
       )}

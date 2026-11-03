@@ -4,6 +4,7 @@ import { students as studentsTable, studentPersonalDetails } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { apiError, wrapHandler } from '@/lib/api-utils';
 import { z } from 'zod';
+import { decrypt, hashForIndex } from '@/lib/encryption';
 
 const apaarSchema = z.object({
   apaar_id: z.string()
@@ -56,7 +57,9 @@ export const POST = wrapHandler({
     const [studentRecord] = await db.select({
       id: studentsTable.id,
       apaar_id: studentPersonalDetails.apaar_id,
-      personalDetailsId: studentPersonalDetails.id
+      personalDetailsId: studentPersonalDetails.id,
+      aadhaar_no: studentPersonalDetails.aadhaar_no,
+      aadhaar_hash: studentPersonalDetails.aadhaar_hash
     })
     .from(studentsTable)
     .leftJoin(studentPersonalDetails, eq(studentsTable.id, studentPersonalDetails.student_id))
@@ -71,6 +74,29 @@ export const POST = wrapHandler({
     }
 
     const cleanApaar = data.apaar_id;
+
+    // INVARIANT: Reject if student mistakenly submits their Aadhaar number instead of APAAR ID
+    if (studentRecord.aadhaar_hash) {
+      try {
+        const testHash = hashForIndex(cleanApaar);
+        if (testHash && testHash === studentRecord.aadhaar_hash) {
+          return apiError('You entered your 12-digit Aadhaar number. APAAR ID is NOT your Aadhaar number. Please enter your 12-digit APAAR ID obtained from DigiLocker or ABC.', 400);
+        }
+      } catch (_e) {
+        // Proceed safely if key is not configured in environment
+      }
+    }
+
+    if (studentRecord.aadhaar_no) {
+      try {
+        const decryptedAadhaar = decrypt(studentRecord.aadhaar_no);
+        if (decryptedAadhaar && decryptedAadhaar.replace(/\D/g, '') === cleanApaar) {
+          return apiError('You entered your 12-digit Aadhaar number. APAAR ID is NOT your Aadhaar number. Please enter your 12-digit APAAR ID obtained from DigiLocker or ABC.', 400);
+        }
+      } catch (_e) {
+        // Proceed safely if decryption fails
+      }
+    }
 
     if (studentRecord.personalDetailsId) {
       await db.update(studentPersonalDetails)
