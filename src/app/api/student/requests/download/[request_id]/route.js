@@ -22,6 +22,7 @@ import { formatPurpose, formatCertificateName } from '@/lib/certificate-utils';
 
 // React-PDF templates
 import BonafideCertificatePDF from '@/pdf/templates/BonafideCertificatePDF';
+import OrdinaryBonafidePDF from '@/pdf/templates/OrdinaryBonafidePDF';
 import CustodianCertificatePDF from '@/pdf/templates/CustodianCertificatePDF';
 import StudyConductCertificatePDF from '@/pdf/templates/StudyConductCertificatePDF';
 import MigrationCertificatePDF from '@/pdf/templates/MigrationCertificatePDF';
@@ -71,7 +72,7 @@ export async function GET(request, context) {
             return apiError('Request not found or not authorized', 404);
         }
 
-        const Template = certificateComponents[certRequest.certificate_type];
+        let Template = certificateComponents[certRequest.certificate_type];
         if (!Template || certRequest.status !== 'APPROVED' || certRequest.hod_approval_status === 'REJECTED' || (certRequest.certificate_type === 'Bonafide Certificate' && certRequest.hod_approval_status === 'PENDING')) {
             return apiError('Certificate not available for download', 403);
         }
@@ -227,10 +228,25 @@ export async function GET(request, context) {
         let data = { ...commonData };
         switch (certRequest.certificate_type) {
             case 'Bonafide Certificate': {
-                data.year = yearWords[yearOfStudy - 1] || 'N/A';
-                data.semester = semesterWords[currentSemester - 1] || 'N/A';
-                data.attendancePercentage = attendanceValue || '';
-                data.purpose = formatPurpose(certRequest.purpose) || 'General';
+                const isLegacy = !certRequest.certificate_format || !certRequest.study_year;
+                if (isLegacy) {
+                    Template = BonafideCertificatePDF;
+                    data.year = yearWords[yearOfStudy - 1] || 'N/A';
+                    data.semester = semesterWords[currentSemester - 1] || 'N/A';
+                    data.attendancePercentage = attendanceValue || '';
+                    data.purpose = formatPurpose(certRequest.purpose) || 'General';
+                } else if (certRequest.certificate_format === 'ORDINARY') {
+                    Template = OrdinaryBonafidePDF;
+                    data.year = yearWords[certRequest.study_year - 1] || 'N/A';
+                    data.semester = semesterWords[certRequest.study_semester - 1] || 'N/A';
+                    data.purpose = formatPurpose(certRequest.purpose) || 'General';
+                } else {
+                    Template = BonafideCertificatePDF;
+                    data.year = yearWords[certRequest.study_year - 1] || 'N/A';
+                    data.semester = semesterWords[certRequest.study_semester - 1] || 'N/A';
+                    data.attendancePercentage = certRequest.generated_attendance || 'N/A';
+                    data.purpose = formatPurpose(certRequest.purpose) || 'General';
+                }
                 break;
             }
             case 'Course Completion Certificate':

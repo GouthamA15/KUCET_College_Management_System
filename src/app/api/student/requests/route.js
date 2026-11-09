@@ -1,20 +1,22 @@
 import logger from '@/lib/logger';
 import { db } from "@/db";
+import { getDb } from "@/lib/db";
+import { drizzle } from 'drizzle-orm/mysql2';
+import * as schema from "@/db/schema";
 import { 
   students, 
   studentRequests, 
   studentRequestImages
 } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
-import { getAdmissionTypeFromRoll } from "@/lib/rollNumber";
-import { getCollegeAcademicYear } from "@/lib/academic-utils";
+import { getCollegeAcademicYear, calculateYearAndSemesterAsync } from "@/lib/academic-utils";
 import { apiError, apiResponse, getAuthUser } from "@/lib/api-utils";
 import { storage } from '@/lib/providers';
 import IdempotencyService from '@/services/IdempotencyService';
 import { FinanceService } from '@/services/FinanceService';
+import { resolveAcademicClassification, evaluateBonafideFeeEntitlement } from '@/lib/academicClassification';
+import { parsePurpose, formatPurpose, generatePaymentLockName } from '@/lib/certificate-utils';
 import crypto from 'crypto';
-
-import { parsePurpose, formatPurpose } from '@/lib/certificate-utils';
 
 export async function GET() {
   const user = await getAuthUser("student");
@@ -50,7 +52,6 @@ export async function POST(request) {
   const idempotencyKey = request.headers.get('idempotency-key');
   let idempotencyStarted = false;
 
-  let requestId;
   try {
     if (idempotencyKey) {
       const { isDuplicate, response, code } = await IdempotencyService.start(idempotencyKey);
@@ -89,43 +90,18 @@ export async function POST(request) {
       return apiError("Missing required fields", 400);
     }
 
-    const paymentAmountNum = Number(paymentAmount) || 0;
     const academicYear = await getCollegeAcademicYear();
-
     const isBonafide = certificateType === 'Bonafide Certificate';
     const isTC = certificateType === 'Transfer Certificate (TC)';
     const isNOC = certificateType === 'No Objection Certificate';
 
-    // --- PHASE 4: MODULAR CERTIFICATE ELIGIBILITY VALIDATION ---
-    if (isBonafide || isTC || isNOC) {
+    // Preliminary validation for TC and NOC
+    if (isTC || isNOC) {
       const { StudentService } = await import('@/services/StudentService');
       const eligibilityMap = await StudentService.getCertificateEligibility(user.student_id, user.roll_no);
-      
-      let eligibility = null;
-      if (isBonafide) eligibility = eligibilityMap.bonafide;
-      else if (isTC) eligibility = eligibilityMap.tc;
-      else if (isNOC) eligibility = eligibilityMap.noc;
-
+      const eligibility = isTC ? eligibilityMap.tc : eligibilityMap.noc;
       if (eligibility && !eligibility.isEligible) {
         return apiError(eligibility.reason || `You are not eligible for a ${certificateType} at this time.`, 403);
-      }
-
-      if (isBonafide) {
-        const approvedBonafides = await db.query.studentRequests.findMany({
-          where: and(
-            eq(studentRequests.student_id, user.student_id),
-            eq(studentRequests.certificate_type, 'Bonafide Certificate'),
-            eq(studentRequests.status, 'APPROVED'),
-            eq(studentRequests.academic_year, academicYear)
-          )
-        });
-        const alreadyHasApprovedPurpose = approvedBonafides.some(r => {
-          const parsed = parsePurpose(r.purpose);
-          return parsed.purpose_type === purposeType;
-        });
-        if (alreadyHasApprovedPurpose) {
-          return apiError(`A Bonafide Certificate has already been approved for: ${purposeType} in the current academic year.`, 403);
-        }
       }
     }
 
@@ -133,164 +109,335 @@ export async function POST(request) {
       ? JSON.stringify({ purpose_type: purposeType || null, purpose_custom: purposeCustom || null })
       : (purposeType || null);
 
-    // Check existing per-purpose for Bonafide
-    let existing = null;
-    if (isBonafide) {
-      const existingAll = await db.query.studentRequests.findMany({
-        where: and(
-          eq(studentRequests.student_id, user.student_id),
-          eq(studentRequests.certificate_type, certificateType),
-          eq(studentRequests.academic_year, academicYear)
-        ),
-        orderBy: [desc(studentRequests.created_at)]
-      });
-      existing = existingAll.find(r => {
-        const parsed = parsePurpose(r.purpose);
-        return parsed.purpose_type === purposeType;
-      }) || null;
-    } else {
-      existing = await db.query.studentRequests.findFirst({
-        where: and(
-          eq(studentRequests.student_id, user.student_id),
-          eq(studentRequests.certificate_type, certificateType),
-          eq(studentRequests.academic_year, academicYear)
-        ),
-        orderBy: [desc(studentRequests.created_at)]
-      });
-    }
+    let createdRequestId = null;
+    let routingResult = null;
 
-    requestId = existing?.request_id;
+    // --- TRANSACTION BOUNDARY ON DEDICATED PHYSICAL CONNECTION ---
+    // Guarantees deterministic advisory lock acquisition, transaction atomicity,
+    // and lock release strictly AFTER database commit has completed.
+    const pool = getDb();
+    const conn = await pool.getConnection();
+    const tx = drizzle(conn, { schema, mode: 'default' });
 
-    // --- BONAFIDE LIMITS & FREE LOGIC ---
-    let finalPaymentAmount = paymentAmountNum;
-    if (certificateType === 'Bonafide Certificate') {
-      const approvedRequests = await db.query.studentRequests.findMany({
-        where: and(
-          eq(studentRequests.student_id, user.student_id),
-          eq(studentRequests.certificate_type, 'Bonafide Certificate'),
-          eq(studentRequests.status, 'APPROVED')
-        )
-      });
+    let acquiredLocks = [];
+    let txResult = null;
 
-      // Total Limit Check (4 for Regular, 3 for Lateral) - Backup check
-      const admissionType = getAdmissionTypeFromRoll(user.roll_no);
-      const maxAllowed = admissionType === 'Lateral' ? 3 : 4;
+    try {
+      // 1. Acquire parent-row lock on students
+      await conn.beginTransaction();
 
-      if (approvedRequests.length >= maxAllowed) {
-        return apiError(`You have reached the maximum limit of ${maxAllowed} Bonafide Certificates for your course duration.`, 403);
+      const lockedStudents = await tx.select({
+        id: students.id,
+        academic_offset_years: students.academic_offset_years
+      })
+      .from(students)
+      .where(eq(students.id, user.student_id))
+      .for('update');
+
+      if (!lockedStudents || lockedStudents.length === 0) {
+        throw new Error('STUDENT_NOT_FOUND');
       }
 
-      // Free for subsequent requests logic (only free if already paid once in a previous year)
-      const hasPreviousPaidBonafide = approvedRequests.some(req => req.academic_year !== academicYear && req.payment_amount > 0);
-      if (hasPreviousPaidBonafide && approvedRequests.length > 0) {
-        finalPaymentAmount = 0;
-      }
-    }
+      const academicOffsetYears = Number(lockedStudents[0].academic_offset_years || 0);
 
-    const isFileValid = paymentScreenshotFile && typeof paymentScreenshotFile === 'object' && paymentScreenshotFile.size > 0;
-
-    // --- INTEGRITY GUARD: Multi-Vector Conflict Check ---
-    let isFlagged = false;
-    let flagDetails = null;
-    let paymentHash = null;
-
-    if (finalPaymentAmount > 0) {
-      if (isFileValid) {
-        const buffer = Buffer.from(await paymentScreenshotFile.arrayBuffer());
-        paymentHash = crypto.createHash('sha256').update(buffer).digest('hex');
-      }
-
-      const integrity = await FinanceService.verifyTransactionIntegrity({
-        transactionId: transactionId,
-        paymentHash,
-        studentId: user.student_id,
-        requestId
-      });
-
-      isFlagged = integrity.isFlagged;
-      flagDetails = integrity.flagDetails;
-    }
-
-    // If an active (PENDING) request already exists for this purpose/academic year, block new one.
-    if (existing && existing.status === "PENDING") {
-      return apiError("An active request already exists for this purpose. Please wait for it to be processed.", 409);
-    }
-
-    if (existing && existing.status === "REJECTED") {
-      // Re-check yearly limit for the purpose before allowing re-submission
-      if (certificateType === 'Bonafide Certificate') {
-        const approvedBonafides = await db.query.studentRequests.findMany({
-          where: and(
-            eq(studentRequests.student_id, user.student_id),
-            eq(studentRequests.certificate_type, 'Bonafide Certificate'),
-            eq(studentRequests.status, 'APPROVED'),
-            eq(studentRequests.academic_year, academicYear)
-          )
-        });
-        const hasApprovedPurpose = approvedBonafides.some(r => {
-          const parsed = parsePurpose(r.purpose);
-          return parsed.purpose_type === purposeType;
-        });
-        if (hasApprovedPurpose) {
-          return apiError(`You have already received a Bonafide Certificate for ${purposeType} in the current academic year (${academicYear}). Cannot re-submit rejected request.`, 403);
+      if (isBonafide) {
+        // 2. Authoritative Semester Resolution (Zero fabricated fallback)
+        const semResult = await calculateYearAndSemesterAsync(user.roll_no, academicOffsetYears);
+        if (!semResult?.semester || typeof semResult.semester !== 'number') {
+          await conn.rollback();
+          txResult = { error: 'Active study semester cannot be resolved from the academic calendar. Please contact academic administration.', status: 400 };
+          return;
         }
-      }
-      // Determine approval workflow routing
-      const { StudentCertificateService } = await import('@/services/StudentService');
-      const routing = await StudentCertificateService.determineCertificateRouting(certificateType, user.roll_no);
+        const studySemester = semResult.semester;
 
-      // Update the rejected one to PENDING again (original behavior)
-      requestId = existing.request_id;
-      await db.update(studentRequests)
-        .set({
+        // 3. Resolve Academic Classification (academic_offset_years completely excluded from years_at_kucet)
+        const classification = resolveAcademicClassification({
+          rollNo: user.roll_no,
+          academicYear,
+          studySemester
+        });
+
+        if (!classification.isValid) {
+          await conn.rollback();
+          txResult = { error: classification.error || 'Invalid student classification or academic year.', status: 400 };
+          return;
+        }
+
+        // 4. Locking read of all lifetime Bonafide requests for this student
+        const allBonafides = await tx.select().from(studentRequests)
+          .where(and(
+            eq(studentRequests.student_id, user.student_id),
+            eq(studentRequests.certificate_type, 'Bonafide Certificate')
+          ))
+          .for('update');
+
+        // 5. In-Memory Fee Entitlement, Conflict & Duplicate Purpose Evaluation
+        const feeEntitlement = evaluateBonafideFeeEntitlement({
+          allBonafideRows: allBonafides,
+          isFirstYearAtKucet: classification.isFirstYearAtKucet,
+          currentAcademicYear: academicYear,
+          requestedPurposeType: purposeType,
+          requestedPurposeCustom: purposeCustom
+        });
+
+        if (feeEntitlement.conflictDetected) {
+          await conn.rollback();
+          txResult = { error: feeEntitlement.feeReason, status: 409 };
+          return;
+        }
+
+        if (feeEntitlement.isPendingLocked) {
+          await conn.rollback();
+          txResult = { error: feeEntitlement.feeReason, status: 409 };
+          return;
+        }
+
+        if (!feeEntitlement.canSubmit) {
+          await conn.rollback();
+          txResult = { error: feeEntitlement.feeReason, status: 409 };
+          return;
+        }
+
+        // 6. Server-Authoritative Fee Validation
+        const requiredFee = feeEntitlement.requiredFee; // 100 or 0
+        const clientAmount = Number(paymentAmount) || 0;
+
+        if (clientAmount !== requiredFee) {
+          await conn.rollback();
+          txResult = { error: `Invalid payment amount submitted. Server-calculated required fee is ₹${requiredFee}.`, status: 400 };
+          return;
+        }
+
+        let finalPaymentAmount = 0;
+        let finalTransactionId = null;
+        let finalPaymentHash = null;
+        let isFlagged = false;
+        let flagDetails = null;
+
+        if (requiredFee === 100) {
+          if (!transactionId || transactionId.length === 0) {
+            await conn.rollback();
+            txResult = { error: 'Transaction Reference ID (UTR) is required for paid Bonafide requests.', status: 400 };
+            return;
+          }
+          const isFileValid = paymentScreenshotFile && typeof paymentScreenshotFile === 'object' && paymentScreenshotFile.size > 0;
+          if (!isFileValid) {
+            await conn.rollback();
+            txResult = { error: 'Payment receipt screenshot is required for paid Bonafide requests.', status: 400 };
+            return;
+          }
+
+          finalPaymentAmount = 100;
+          finalTransactionId = transactionId.trim();
+
+          const buffer = Buffer.from(await paymentScreenshotFile.arrayBuffer());
+          finalPaymentHash = crypto.createHash('sha256').update(buffer).digest('hex');
+
+          // Deterministic Lexicographical Lock Ordering (Prevents Deadlocks)
+          // Lock names are bounded (<= 64 chars) and namespace-isolated
+          const utrLockName = generatePaymentLockName('utr', finalTransactionId);
+          const hashLockName = generatePaymentLockName('hash', finalPaymentHash);
+          const lockNames = [utrLockName, hashLockName].filter(Boolean).sort();
+
+          for (const lockName of lockNames) {
+            const [lockRes] = await conn.execute(`SELECT GET_LOCK(?, 10) as l`, [lockName]);
+            if (lockRes[0]?.l !== 1) {
+              await conn.rollback();
+              txResult = { error: 'Payment verification lock timed out. Another request is currently being processed.', status: 408 };
+              return;
+            }
+            acquiredLocks.push(lockName);
+          }
+
+          // Verify duplicate payment proof under active serialization
+          const integrity = await FinanceService.verifyTransactionIntegrity({
+            transactionId: finalTransactionId,
+            paymentHash: finalPaymentHash,
+            studentId: user.student_id,
+            dbClient: tx
+          });
+
+          if (integrity.isFlagged) {
+            await conn.rollback();
+            txResult = {
+              error: `Duplicate payment detected: This payment proof is already associated with an active request (${integrity.flagDetails?.type || 'CONFLICT'}).`,
+              status: 409
+            };
+            return;
+          }
+          isFlagged = integrity.isFlagged;
+          flagDetails = integrity.flagDetails;
+        } else {
+          // Free Request: Normalize payment fields to 0 / null, discarding any extraneous proof
+          finalPaymentAmount = 0;
+          finalTransactionId = null;
+          finalPaymentHash = null;
+          isFlagged = false;
+          flagDetails = null;
+        }
+
+        // 7. Workflow Routing
+        const { StudentCertificateService } = await import('@/services/StudentService');
+        const routing = await StudentCertificateService.determineCertificateRouting(certificateType, user.roll_no);
+        routingResult = routing;
+
+        // 8. Always INSERT a new request row (preserves rejected requests in history)
+        const insertValues = {
+          student_id: user.student_id,
+          certificate_type: certificateType,
+          academic_year: academicYear,
           payment_amount: finalPaymentAmount,
+          transaction_id: finalTransactionId,
+          purpose: finalStoredPurpose,
+          from_date: fromDateStr ? new Date(fromDateStr) : null,
+          to_date: toDateStr ? new Date(toDateStr) : null,
+          status: 'PENDING',
+          hod_approval_status: routing.hodApprovalStatus,
+          hod_staff_id: routing.hodStaffId || null,
+          is_flagged: isFlagged,
+          flag_details: flagDetails,
+          payment_hash: finalPaymentHash,
+          certificate_format: classification.certificateFormat,
+          study_year: classification.studyYear,
+          study_semester: studySemester,
+          admission_type: classification.admissionType,
+          years_at_kucet: classification.yearsAtKucet,
+          created_at: new Date(),
+          updated_at: new Date()
+        };
+
+        const [insertRes] = await tx.insert(studentRequests).values(insertValues);
+        createdRequestId = insertRes.insertId;
+
+        // COMMIT transaction explicitly before releasing locks
+        await conn.commit();
+        txResult = { success: true, requestId: createdRequestId, is_flagged: isFlagged };
+
+      } else {
+        // Non-Bonafide certificate handling
+        const existingActive = await tx.select().from(studentRequests)
+          .where(and(
+            eq(studentRequests.student_id, user.student_id),
+            eq(studentRequests.certificate_type, certificateType),
+            eq(studentRequests.academic_year, academicYear),
+            eq(studentRequests.status, 'PENDING')
+          ))
+          .for('update');
+
+        if (existingActive.length > 0) {
+          await conn.rollback();
+          txResult = { error: 'An active request already exists for this certificate type. Please wait for it to be processed.', status: 409 };
+          return;
+        }
+
+        const { StudentCertificateService } = await import('@/services/StudentService');
+        const routing = await StudentCertificateService.determineCertificateRouting(certificateType, user.roll_no);
+        routingResult = routing;
+
+        const [insertRes] = await tx.insert(studentRequests).values({
+          student_id: user.student_id,
+          certificate_type: certificateType,
+          academic_year: academicYear,
+          payment_amount: Number(paymentAmount) || 0,
           transaction_id: transactionId || null,
           purpose: finalStoredPurpose,
           from_date: fromDateStr ? new Date(fromDateStr) : null,
           to_date: toDateStr ? new Date(toDateStr) : null,
           status: 'PENDING',
           hod_approval_status: routing.hodApprovalStatus,
-          hod_staff_id: null,
-          hod_approved_at: null,
-          hod_rejection_reason: null,
-          reject_reason: null,
-          updated_at: new Date(),
-          completed_at: null,
-          is_flagged: isFlagged,
-          flag_details: flagDetails,
-          payment_hash: paymentHash
-        })
-        .where(eq(studentRequests.request_id, requestId));
-    } else {
-      // Determine approval workflow routing
-      const { StudentCertificateService } = await import('@/services/StudentService');
-      const routing = await StudentCertificateService.determineCertificateRouting(certificateType, user.roll_no);
+          hod_staff_id: routing.hodStaffId || null,
+          is_flagged: false,
+          flag_details: null,
+          payment_hash: null,
+          created_at: new Date(),
+          updated_at: new Date()
+        });
 
-      // Insert new request
-      const result = await db.insert(studentRequests).values({
-        student_id: user.student_id,
-        certificate_type: certificateType,
-        academic_year: academicYear,
-        payment_amount: finalPaymentAmount,
-        transaction_id: transactionId || null,
-        purpose: finalStoredPurpose,
-        from_date: fromDateStr ? new Date(fromDateStr) : null,
-        to_date: toDateStr ? new Date(toDateStr) : null,
-        status: 'PENDING',
-        hod_approval_status: routing.hodApprovalStatus,
-        is_flagged: isFlagged,
-        flag_details: flagDetails,
-        payment_hash: paymentHash,
-        created_at: new Date(),
-        updated_at: new Date()
-      });
-      requestId = result[0].insertId;
+        createdRequestId = insertRes.insertId;
+        await conn.commit();
+        txResult = { success: true, requestId: createdRequestId, is_flagged: false };
+      }
 
-      // REAL-TIME: Broadcast to staff
+    } catch (err) {
+      let rollbackSucceeded = false;
+      try { 
+        await conn.rollback(); 
+        rollbackSucceeded = true;
+      } catch (rbErr) { 
+        logger.warn({ err: rbErr?.message }, '[CONN_ROLLBACK_WARN]'); 
+      }
+      logger.error('Error during request creation transaction:', err);
+      if (idempotencyStarted) await IdempotencyService.fail(idempotencyKey);
+      
+      const errorMessage = rollbackSucceeded
+        ? (err.message || 'Transaction failed')
+        : 'Transaction state ambiguous due to connection error during commit. Please verify existing requests before retrying.';
+      return apiError(errorMessage, 500);
+    } finally {
+      // 9. Release locks strictly AFTER commit (or rollback) and verify cleanup
+      let cleanupSuccessful = true;
+      for (const lockName of acquiredLocks) {
+        try {
+          const [relRes] = await conn.execute(`SELECT RELEASE_LOCK(?) as r`, [lockName]);
+          if (relRes[0]?.r !== 1) {
+            cleanupSuccessful = false;
+            logger.error({ lockPrefix: lockName.slice(0, 16) + '...', result: relRes[0]?.r }, '[ADVISORY_LOCK_RELEASE_UNSUCCESSFUL]');
+          }
+        } catch (lockErr) {
+          cleanupSuccessful = false;
+          logger.error({ lockPrefix: lockName.slice(0, 16) + '...', err: lockErr?.message }, '[ADVISORY_LOCK_RELEASE_EXCEPTION]');
+        }
+      }
+
+      if (!cleanupSuccessful) {
+        try {
+          conn.destroy();
+          logger.error('[CONNECTION_DESTROYED_DUE_TO_UNCERTAIN_LOCK_STATE]');
+        } catch (destErr) {
+          logger.error({ err: destErr?.message }, '[CONNECTION_DESTROY_EXCEPTION]');
+        }
+      } else {
+        conn.release();
+      }
+    }
+
+    if (txResult && txResult.error) {
+      if (idempotencyStarted) await IdempotencyService.fail(idempotencyKey);
+      return apiError(txResult.error, txResult.status || 400);
+    }
+
+    const newRequestId = txResult.requestId;
+    const isFlagged = txResult.is_flagged;
+
+    // 9. Coordinate screenshot upload post-commit if payment was required
+    const isFileValid = paymentScreenshotFile && typeof paymentScreenshotFile === 'object' && paymentScreenshotFile.size > 0;
+    if (isFileValid && isBonafide && Number(paymentAmount) === 100) {
+      if (!paymentScreenshotFile.type.startsWith('image/')) {
+        logger.warn({ requestId: newRequestId }, 'Invalid screenshot image format uploaded');
+      } else {
+        const MAX_SIZE = 1 * 1024 * 1024;
+        if (paymentScreenshotFile.size <= MAX_SIZE) {
+          const { STORAGE_FOLDERS } = await import('@/lib/storage-config');
+          const res = await storage.upload(paymentScreenshotFile, STORAGE_FOLDERS.CERTIFICATES_PAYMENTS);
+          const screenshotUrl = typeof res === 'string' ? res : res?.path;
+          if (screenshotUrl) {
+            await db.insert(studentRequestImages)
+              .values({
+                request_id: newRequestId,
+                payment_screenshot: screenshotUrl
+              })
+              .onDuplicateKeyUpdate({ set: { payment_screenshot: screenshotUrl } });
+          }
+        }
+      }
+    }
+
+    // 10. REAL-TIME: SSE Broadcast to staff
+    if (routingResult) {
       try {
         const { broadcastUpdate } = await import('@/lib/sse');
         broadcastUpdate('REQUEST_CREATED', {
-          staffType: routing.staffType,
+          staffType: routingResult.staffType,
           certificateType,
           student_id: user.student_id,
           roll_no: user.roll_no,
@@ -301,36 +448,13 @@ export async function POST(request) {
       }
     }
 
-    if (isFileValid) {
-      if (!paymentScreenshotFile.type.startsWith('image/')) {
-        return apiError('Only image files are allowed for payment screenshots.', 400);
-      }
-      
-      const MAX_SIZE = 1 * 1024 * 1024;
-      if (paymentScreenshotFile.size > MAX_SIZE) {
-        return apiError(`File too large (${(paymentScreenshotFile.size / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1MB.`, 400);
-      }
-
-      const { STORAGE_FOLDERS } = await import('@/lib/storage-config');
-      const res = await storage.upload(paymentScreenshotFile, STORAGE_FOLDERS.CERTIFICATES_PAYMENTS);
-      const screenshotUrl = typeof res === 'string' ? res : res?.path;
-      
-      if (screenshotUrl) {
-        await db.insert(studentRequestImages)
-          .values({
-            request_id: requestId,
-            payment_screenshot: screenshotUrl
-          })
-          .onDuplicateKeyUpdate({ set: { payment_screenshot: screenshotUrl } });
-      }
-    }
-
-    const responseData = { success: true, requestId, is_flagged: isFlagged };
+    const responseData = { success: true, requestId: newRequestId, is_flagged: isFlagged };
     if (idempotencyStarted) {
       await IdempotencyService.complete(idempotencyKey, 200, responseData);
     }
 
     return apiResponse(responseData);
+
   } catch (error) {
     if (idempotencyStarted) await IdempotencyService.fail(idempotencyKey);
     logger.error('Error processing certificate request:', error);

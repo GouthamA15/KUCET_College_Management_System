@@ -50,7 +50,11 @@ export async function PUT(request, { params }) {
             student_id: studentRequests.student_id,
             roll_no: students.roll_no,
             status: studentRequests.status,
-            hod_approval_status: studentRequests.hod_approval_status
+            hod_approval_status: studentRequests.hod_approval_status,
+            certificate_format: studentRequests.certificate_format,
+            study_year: studentRequests.study_year,
+            study_semester: studentRequests.study_semester,
+            academic_year: studentRequests.academic_year
         })
         .from(studentRequests)
         .innerJoin(students, eq(studentRequests.student_id, students.id))
@@ -220,6 +224,32 @@ export async function PUT(request, { params }) {
             updateData.action_by_staff_id = staff.id;
             updateData.action_by_role = effectiveRole;
             updateData.generated_certificate_id = generatedCertId;
+
+            if (requestToUpdate.certificate_type === 'Bonafide Certificate') {
+                if (requestToUpdate.certificate_format === 'PERCENTAGE') {
+                    const { getBranchFromRoll } = await import('@/lib/rollNumber');
+                    const branch = getBranchFromRoll(requestToUpdate.roll_no);
+                    const { AttendanceCalculationService } = await import('@/services/academic/AttendanceCalculationService');
+                    const attendanceResult = await AttendanceCalculationService.calculateCohortAttendance({
+                        studentId: requestToUpdate.student_id,
+                        branch,
+                        semester: requestToUpdate.study_semester || 1,
+                        academicYear: requestToUpdate.academic_year
+                    });
+
+                    if (!attendanceResult.success) {
+                        return apiError(attendanceResult.blockReason || 'Failed to calculate attendance for this certificate.', 500);
+                    }
+
+                    if (!attendanceResult.canApprove) {
+                        return apiError(attendanceResult.blockReason || 'Zero attendance sessions recorded in the portal for this cohort. Approval is blocked pending institutional policy confirmation.', 422);
+                    }
+
+                    updateData.generated_attendance = attendanceResult.generatedAttendance;
+                } else if (requestToUpdate.certificate_format === 'ORDINARY') {
+                    updateData.generated_attendance = 'N/A';
+                }
+            }
             if (requestToUpdate.certificate_type === 'No Objection Certificate') {
                 updateData.hod_approval_status = 'APPROVED';
                 updateData.hod_staff_id = staff.id;

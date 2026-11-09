@@ -116,7 +116,9 @@ export async function GET(request) {
           ...r,
           purpose_type: parsed.purpose_type,
           purpose_custom: parsed.purpose_custom,
-          purpose: formatPurpose(r.purpose) || r.purpose
+          purpose: (parsed.purpose_type === 'Other' && parsed.purpose_custom)
+            ? `Other — ${parsed.purpose_custom}`
+            : (formatPurpose(r.purpose) || r.purpose)
         };
       });
 
@@ -195,7 +197,9 @@ export async function GET(request) {
           ...r,
           purpose_type: parsed.purpose_type,
           purpose_custom: parsed.purpose_custom,
-          purpose: formatPurpose(r.purpose) || r.purpose
+          purpose: (parsed.purpose_type === 'Other' && parsed.purpose_custom)
+            ? `Other — ${parsed.purpose_custom}`
+            : (formatPurpose(r.purpose) || r.purpose)
         };
       });
 

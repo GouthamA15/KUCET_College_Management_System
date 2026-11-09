@@ -1,6 +1,6 @@
 // KUCET CMS - Production Service Worker
-// Version: v8 (Redirected Navigation Follow & Supervisor Role Trapping Resolution)
-const CACHE_VERSION = 'v8';
+// Version: v9 (Native Navigation Fetch & Loop Prevention)
+const CACHE_VERSION = 'v9';
 const CACHE_NAME = `kucet-cms-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline';
 
@@ -89,43 +89,20 @@ self.addEventListener('fetch', (event) => {
   }
 
   // 3. Navigation requests (HTML page loads) MUST always prioritize network.
-  // Auth middleware returns different responses (redirects vs. 200) based on dynamic cookie state.
+  // Native fetch preserves headers, Set-Cookie updates, and HTTP 3xx redirects without throwing.
   if (request.mode === 'navigate') {
-    // CRITICAL: Do not intercept the root path '/' or auth routes. 
-    // They return 303 Redirects with Set-Cookie headers. Fetching them via SW with redirect: 'follow' 
-    // strips the Set-Cookie headers, causing an infinite auth loop.
     if (url.pathname === '/' || url.pathname.startsWith('/api/')) {
       return;
     }
 
     event.respondWith(
-      (async () => {
-        try {
-          // Explicitly construct Request with redirect: 'follow'.
-          // When request.mode === 'navigate', the browser specifies redirect: 'manual'.
-          // Passing that directly into fetch() causes an opaqueredirect on HTTP 3xx responses
-          // (such as unauthenticated 303 redirects or role-based dashboard redirects).
-          // Returning an opaqueredirect to respondWith() throws a TypeError in Chromium/WebKit,
-          // which mistakenly triggers the catch block and traps the user in the offline fallback page.
-          const fetchRequest = new Request(request.url, {
-            method: 'GET',
-            headers: request.headers,
-            credentials: request.credentials,
-            cache: 'no-cache',
-            redirect: 'follow',
-          });
-          const response = await fetch(fetchRequest);
-          if (response.redirected) {
-            return Response.redirect(response.url, 303);
-          }
-          return response;
-        } catch (_error) {
-          // Network request failed — try serving cached offline page
-          const offlineResponse = await caches.match(OFFLINE_URL);
-          if (offlineResponse) return offlineResponse;
+      fetch(request).catch(async () => {
+        // Network request failed (offline) — try serving cached offline page
+        const offlineResponse = await caches.match(OFFLINE_URL);
+        if (offlineResponse) return offlineResponse;
 
-          // Auto-reconnecting HTML fallback with background health polling
-          const fallbackHtml = `<!DOCTYPE html>
+        // Auto-reconnecting HTML fallback with background health polling
+        const fallbackHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -168,10 +145,8 @@ self.addEventListener('fetch', (event) => {
         const res = await fetch('/api/health', { cache: 'no-store' });
         if (res.ok) {
           doRestore();
-          return;
         }
       } catch (e) {}
-      window.location.replace('/');
     }
     setInterval(async () => {
       try {
@@ -180,17 +155,16 @@ self.addEventListener('fetch', (event) => {
           doRestore();
         }
       } catch (e) {}
-    }, 3000);
+    }, 5000);
   </script>
 </body>
 </html>`;
 
-          return new Response(fallbackHtml, {
-            status: 200,
-            headers: { 'Content-Type': 'text/html; charset=utf-8' },
-          });
-        }
-      })()
+        return new Response(fallbackHtml, {
+          status: 200,
+          headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        });
+      })
     );
     return;
   }

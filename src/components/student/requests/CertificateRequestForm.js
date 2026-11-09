@@ -60,8 +60,15 @@ export default function CertificateRequestForm({
   const isNoObjection = selectedCertificate === 'No Objection Certificate';
   const isBonafide = selectedCertificate === 'Bonafide Certificate';
   const isTC = selectedCertificate === 'Transfer Certificate (TC)';
-  const requiresPayment = fee > 0;
-  const requiresTransactionId = fee > 0 || isIncomeTax;
+
+  const bonafideEntitlement = eligibilityMap?.bonafide?.feeEntitlement;
+  const bonafideClassification = eligibilityMap?.bonafide?.classification;
+  const effectiveFee = isBonafide && bonafideEntitlement !== undefined
+    ? bonafideEntitlement.requiredFee
+    : fee;
+
+  const requiresPayment = effectiveFee > 0;
+  const requiresTransactionId = effectiveFee > 0 || isIncomeTax;
 
   const nocPurposes = [
     'Higher Education',
@@ -223,6 +230,7 @@ export default function CertificateRequestForm({
       // If it's NOC, we proceed directly
       if (isNoObjection) {
         await onSubmit({ 
+          paymentAmount: effectiveFee,
           transactionId: '', 
           paymentScreenshot: null, 
           purposeOption: formState.purposeOption,
@@ -249,6 +257,7 @@ export default function CertificateRequestForm({
     }
 
     await onSubmit({ 
+      paymentAmount: effectiveFee,
       transactionId: formState.transactionId, 
       paymentScreenshot: formState.paymentScreenshot, 
       purposeOption: requiresPurpose ? formState.purposeOption : '',
@@ -365,6 +374,24 @@ export default function CertificateRequestForm({
                 </div>
               )}
 
+              {!isLoadingEligibility && isBonafide && bonafideClassification && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-xs text-blue-900 mb-3 flex items-center justify-between">
+                  <div>
+                    <span className="font-bold">Format:</span> {bonafideClassification.certificateFormat} ({bonafideClassification.yearsAtKucet === 1 ? 'First Year at KUCET' : `Year ${bonafideClassification.yearsAtKucet} at KUCET`})
+                  </div>
+                  <div className="font-semibold px-2 py-0.5 rounded bg-blue-100 text-blue-800">
+                    Fee: {effectiveFee === 0 ? 'Free' : `₹${effectiveFee}`}
+                  </div>
+                </div>
+              )}
+
+              {!isLoadingEligibility && isBonafide && bonafideEntitlement && !bonafideEntitlement.canSubmit && (
+                <div className="p-3 bg-rose-50 border-l-4 border-rose-500 rounded-md text-xs text-rose-800 mb-3">
+                  <p className="font-bold text-sm">Submission Blocked</p>
+                  <p className="mt-1">{bonafideEntitlement.feeReason}</p>
+                </div>
+              )}
+
               {!isLoadingEligibility && (
                 (isBonafide && isDuplicatePurpose) || 
                 (isTC && !eligibilityMap?.tc?.isEligible)
@@ -403,21 +430,38 @@ export default function CertificateRequestForm({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Payment Section (Left Column) */}
               <div className="space-y-6">
-                <div>
-                  <h3 className="text-base font-semibold text-gray-800 mb-3 font-medium">Payment Details</h3>
-                  <PaymentSection fee={fee} selectedCertificate={selectedCertificate} upiVPA={upiVPA} />
-                </div>
-                
-                <div className="mt-4">
-                  {fee > 0 ? (
-                    <p className="text-sm text-gray-700">Payment Fee: <span className="font-semibold text-[#0b3578]">₹{fee}</span></p>
-                  ) : (
-                    <div className="space-y-1">
-                      <p className="text-sm text-gray-750 font-semibold text-emerald-600">No additional payment required.</p>
-                      {isBonafide && <p className="text-xs text-gray-500 italic">Fee waived: One-time payment for Bonafide valid for entire course.</p>}
+                {(requiresPayment || isIncomeTax) ? (
+                  <>
+                    <div>
+                      <h3 className="text-base font-semibold text-gray-800 mb-3 font-medium">Payment Details</h3>
+                      <PaymentSection fee={effectiveFee} selectedCertificate={selectedCertificate} upiVPA={upiVPA} />
                     </div>
-                  )}
-                </div>
+                    
+                    <div className="mt-4">
+                      {effectiveFee > 0 ? (
+                        <p className="text-sm text-gray-700">Payment Fee: <span className="font-semibold text-[#0b3578]">₹{effectiveFee}</span></p>
+                      ) : (
+                        <div className="space-y-1">
+                          <p className="text-sm text-gray-750 font-semibold text-emerald-600">No additional payment required.</p>
+                          {isBonafide && <p className="text-xs text-gray-500 italic">Fee waived: One-time payment for Bonafide valid for entire course.</p>}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-md">
+                    <div className="flex items-center gap-2">
+                      <span className="text-emerald-700 font-bold text-sm">No Payment Required</span>
+                    </div>
+                    <p className="text-xs text-emerald-800 mt-1">
+                      {isBonafide
+                        ? (bonafideClassification?.isFirstYearAtKucet === false
+                            ? 'This certificate is free under Senior Year Bonafide Entitlement (Year 2+ at KUCET).'
+                            : 'No additional payment required. One-time first-year payment verified.')
+                        : 'This certificate request is free of charge.'}
+                    </p>
+                  </div>
+                )}
 
                 {requiresTransactionId && (
                   <div className="mt-4">
@@ -643,6 +687,7 @@ export default function CertificateRequestForm({
                     const bonafideInvalid = isBonafide && (
                       formState.purposeOption === 'Select' ||
                       isDuplicatePurpose ||
+                      (bonafideEntitlement && !bonafideEntitlement.canSubmit) ||
                       (formState.purposeOption === 'Other' && !!validateNocPurpose(formState.customPurpose))
                     );
                     const tcInvalid = isTC && eligibilityMap?.tc && !eligibilityMap.tc.isEligible;

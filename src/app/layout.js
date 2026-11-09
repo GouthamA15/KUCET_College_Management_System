@@ -15,7 +15,7 @@ const inter = Inter({
 export const metadata = {
   title: "KUCET Management System",
   description: "KU College of Engineering and Technology - Comprehensive Academic & Management Portal",
-  manifest: "/manifest.json",
+  manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

@@ -136,6 +136,27 @@ export default function CertificateActionPanel({
                   </span>
                 </div>
               </div>
+              {request?.certificate_format && (
+                <div className="flex items-start gap-3">
+                  <div className="w-36 text-sm text-gray-500">Format</div>
+                  <div className="font-semibold text-gray-800 flex items-center gap-2">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                      {request.certificate_format}
+                    </span>
+                    {request.study_year && (
+                      <span className="text-xs text-gray-500">
+                        (Year {request.study_year}, Sem {request.study_semester || '—'})
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+              {request?.generated_attendance && (
+                <div className="flex items-start gap-3">
+                  <div className="w-36 text-sm text-gray-500">Attendance</div>
+                  <div className="font-semibold text-gray-800">{request.generated_attendance}</div>
+                </div>
+              )}
               {request?.status && request?.status !== 'PENDING' ? (
                 <div className="mt-2 space-y-2">
                   <div className="flex items-start gap-3">
@@ -194,7 +215,11 @@ export default function CertificateActionPanel({
               </div>
               <div className="flex items-start gap-3">
                 <div className="w-36 text-sm text-gray-500">Purpose</div>
-                <div className="font-semibold text-gray-800">{request?.purpose ?? '—'}</div>
+                <div className="font-semibold text-gray-800">
+                  {request?.purpose_type === 'Other' && request?.purpose_custom
+                    ? `Other — ${request.purpose_custom}`
+                    : (request?.purpose ?? '—')}
+                </div>
               </div>
               {request?.reject_reason ? (
                 <div className="flex items-start gap-3">

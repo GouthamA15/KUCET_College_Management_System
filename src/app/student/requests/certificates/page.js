@@ -44,10 +44,15 @@ export default function CertificateRequestsPage() {
   // Calculate dynamic fee for Bonafide Certificate
   let fee = selectedOption.fee;
   if (selectedCertificate === 'Bonafide Certificate') {
+    const rollNo = studentData?.student?.roll_no;
+    const admissionYearShort = rollNo ? parseInt(rollNo.substring(0, 2), 10) : null;
+    const currentYearShort = new Date().getFullYear() % 100;
+    const isFirstYear = admissionYearShort !== null && !isNaN(admissionYearShort) && admissionYearShort === currentYearShort;
+
     const hasApprovedBonafide = (certificateRequests || []).some(
       req => req.certificate_type === 'Bonafide Certificate' && req.status === 'APPROVED'
     );
-    if (hasApprovedBonafide) {
+    if (hasApprovedBonafide || !isFirstYear) {
       fee = 0;
     }
   }
@@ -178,12 +183,12 @@ export default function CertificateRequestsPage() {
     smoothScrollToId('certificate-type', { behavior: 'smooth', block: 'center' });
   };
 
-  const handleSubmit = async ({ transactionId, paymentScreenshot, purposeOption, customPurpose, organizationName, fromDate, toDate }) => {
+  const handleSubmit = async ({ paymentAmount, transactionId, paymentScreenshot, purposeOption, customPurpose, organizationName, fromDate, toDate }) => {
     setIsLoading(true);
     const formData = new FormData();
     formData.append('certificateType', selectedCertificate);
     formData.append('staffType', selectedOption.staffType);
-    formData.append('paymentAmount', fee);
+    formData.append('paymentAmount', paymentAmount !== undefined ? paymentAmount : fee);
     // Fallback for older code/apis expecting 'purpose'
     let finalPurpose = purposeOption === 'Other' ? customPurpose : purposeOption;
     if (selectedCertificate === 'No Objection Certificate' && organizationName) {
@@ -191,7 +196,7 @@ export default function CertificateRequestsPage() {
     }
     
     if (finalPurpose) {
-        formData.append('purpose_type', finalPurpose);
+        formData.append('purpose_type', purposeOption || finalPurpose);
         formData.append('purpose', finalPurpose);
     }
     if (customPurpose) formData.append('purpose_custom', customPurpose);
