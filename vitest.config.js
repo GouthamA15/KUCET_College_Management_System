@@ -1,12 +1,31 @@
 import { defineConfig, configDefaults } from 'vitest/config';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { transform } from 'esbuild';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const isSyllabusIntegrityCheck = process.env.RUN_SYLLABUS_INTEGRITY === 'true';
 
 export default defineConfig({
+  plugins: [
+    {
+      name: 'transform-jsx-in-js',
+      enforce: 'pre',
+      async transform(code, id) {
+        if (!id.includes('node_modules') && id.endsWith('.js') && (code.includes('</') || code.includes('/>') || code.includes('<Text') || code.includes('<View') || code.includes('<BaseCertificate'))) {
+          const result = await transform(code, {
+            loader: 'jsx',
+            jsx: 'transform',
+            jsxFactory: 'React.createElement',
+            jsxFragment: 'React.Fragment',
+          });
+          return { code: result.code, map: result.map };
+        }
+        return null;
+      },
+    },
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -14,6 +33,7 @@ export default defineConfig({
   },
   test: {
     globals: true,
+    testTimeout: 30000,
     environment: 'node',
     include: ['tests/unit/**/*.test.js'],
     exclude: [

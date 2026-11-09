@@ -410,7 +410,7 @@ describe.skipIf(!hasLiveDb)('Bonafide Enhancement — Live TiDB Payment Concurre
   });
 
   it('guarantees that two concurrent submissions with full-length SHA-256 screenshot hash produce exactly one success in TiDB', async () => {
-    const fullSha256Hash = '724641d8f8e96c845fe935ead09405b5631079775be1f723ca3b3646564b3c1c';
+    const fullSha256Hash = crypto.createHash('sha256').update(`FULL_HASH_${Date.now()}_${Math.random()}`).digest('hex');
     const testUtr1 = `FULL_UTR_A_${Date.now()}`;
     const testUtr2 = `FULL_UTR_B_${Date.now()}`;
 

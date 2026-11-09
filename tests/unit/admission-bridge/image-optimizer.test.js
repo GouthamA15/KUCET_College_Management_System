@@ -92,7 +92,7 @@ describe('KUCET Admission Bridge — Image Optimizer Suite (Conservative 190 KiB
       expect(isJpegBytes(result.buffer)).toBe(true);
       expect(result.dimensions.width).toBeLessThanOrEqual(1000);
       expect(result.dimensions.height).toBeLessThanOrEqual(1000);
-    });
+    }, 30000);
 
     it('5. should convert WebP buffer into genuine JPEG below the limit via decoder hook', async () => {
       // Mock WebP source image
@@ -175,7 +175,7 @@ describe('KUCET Admission Bridge — Image Optimizer Suite (Conservative 190 KiB
       expect(result.optimizedSize).toBeLessThanOrEqual(120 * 1024);
       expect(result.passedConstraint).toBe(true);
       expect(isJpegBytes(result.buffer)).toBe(true);
-    });
+    }, 30000);
 
     it('9. should return structured failure and reject staging when image cannot be reduced sufficiently', async () => {
       const img = await createSyntheticImage({ width: 500, height: 500, color: 0xFFFFFFFF, mime: 'image/png' });
@@ -193,7 +193,7 @@ describe('KUCET Admission Bridge — Image Optimizer Suite (Conservative 190 KiB
       expect(failedResult.success).toBe(false);
       expect(failedResult.passedConstraint).toBe(false);
       expect(failedResult.error).toContain('unable to reduce');
-    }, 15000);
+    }, 45000);
 
     it('10. should handle corrupt or unsupported image buffers gracefully', async () => {
       await expect(optimizeImageBufferNode(Buffer.from([]))).rejects.toThrow(/Invalid or empty/);

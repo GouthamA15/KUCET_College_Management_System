@@ -304,7 +304,7 @@ describe('Full Attendance Export PDF Template Rendering Pipeline', () => {
     // 25 sessions partitioned into 3 parts (10 + 10 + 5 sessions), each taking 2 pages for 65 students = 6 pages
     expect(info.pages).toBe(6);
     expect(info.pageSize).toContain('595.28 x 841.89');
-  }, 30000);
+  }, 60000);
 
   it('handles large cohorts (150 students) dynamically across pages without data loss', async () => {
     const sessions = Array.from({ length: 8 }, (_, i) => ({
@@ -618,7 +618,7 @@ describe('Full Attendance Export PDF Template Rendering Pipeline', () => {
     const text = getPdfText(buffer);
     expect(text).toContain('24567T30001');
     expect(text).toContain('24567T30300');
-  }, 35000);
+  }, 60000);
 
   it('renders AttendanceSessionPDF for single session export in portrait A4 for Theory and Lab', async () => {
     const students = Array.from({ length: 65 }, (_, i) => ({

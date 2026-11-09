@@ -277,11 +277,14 @@ export class StudentCertificateService {
     const branch = getBranchFromRoll(rollNo);
     
     if (certificateType === 'No Objection Certificate') {
+      const activeHod = await this.getActiveHodForBranch(branch);
       return {
         staffType: 'hod',
         hodApprovalStatus: 'PENDING',
         branch,
         requiresHod: true,
+        hodStaffId: activeHod?.staff_account_id || null,
+        unresolvedHod: !activeHod,
       };
     }
     

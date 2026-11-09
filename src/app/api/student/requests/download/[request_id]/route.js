@@ -73,7 +73,13 @@ export async function GET(request, context) {
         }
 
         let Template = certificateComponents[certRequest.certificate_type];
-        if (!Template || certRequest.status !== 'APPROVED' || certRequest.hod_approval_status === 'REJECTED' || (certRequest.certificate_type === 'Bonafide Certificate' && certRequest.hod_approval_status === 'PENDING')) {
+        if (
+            !Template || 
+            certRequest.status !== 'APPROVED' || 
+            certRequest.hod_approval_status === 'REJECTED' || 
+            (certRequest.certificate_type === 'Bonafide Certificate' && certRequest.hod_approval_status === 'PENDING') ||
+            (certRequest.certificate_type === 'No Objection Certificate' && certRequest.hod_approval_status !== 'APPROVED')
+        ) {
             return apiError('Certificate not available for download', 403);
         }
 

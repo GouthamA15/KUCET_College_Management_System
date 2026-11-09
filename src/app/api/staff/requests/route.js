@@ -51,14 +51,18 @@ export async function GET(request) {
     const baseConditions = [inArray(studentRequests.certificate_type, certTypes)];
 
     // PHASE 5: HOD Request Scoping
-    if (staffType === 'hod') {
+    if (staffType === 'hod' && staff.role !== 'admin') {
       const branchCodeMap = {
         'CSE': '09', 'CSD': '30', 'ECE': '15', 'EEE': '12',
         'CIVIL': '00', 'IT': '18', 'MECH': '03'
       };
-      const code = branchCodeMap[staff.branch];
-      if (code) {
-        baseConditions.push(sql`${students.roll_no} LIKE ${'%567T' + code + '%'}`);
+      const authorizedBranches = staff.authorized_branches || (staff.branch ? [staff.branch] : []);
+      const codes = authorizedBranches.map(b => branchCodeMap[b]).filter(Boolean);
+      if (codes.length > 0) {
+        const branchClauses = codes.map(code =>
+          sql`(${students.roll_no} LIKE ${'%567T' + code + '%'} OR ${students.roll_no} LIKE ${'%567' + code + '%L'})`
+        );
+        baseConditions.push(sql`(${sql.join(branchClauses, sql` OR `)})`);
       } else {
         baseConditions.push(sql`1 = 0`); // Fail-safe if branch is invalid
       }

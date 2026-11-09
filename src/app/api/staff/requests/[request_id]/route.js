@@ -99,6 +99,11 @@ export async function PUT(request, { params }) {
                     return apiError('This request was already rejected during HOD review.', 400);
                 }
             } else if (effectiveRole === 'hod') {
+                // Ensure HOD review hasn't already been performed
+                if (requestToUpdate.hod_approval_status !== 'PENDING') {
+                    return apiError('HOD review for this request has already been completed', 409);
+                }
+
                 // HOD Stage 1 Review
                 if (status === 'APPROVED') {
                     const [stageResult] = await db.update(studentRequests)
@@ -110,7 +115,8 @@ export async function PUT(request, { params }) {
                         })
                         .where(and(
                             eq(studentRequests.request_id, requestIdNum),
-                            eq(studentRequests.status, 'PENDING')
+                            eq(studentRequests.status, 'PENDING'),
+                            eq(studentRequests.hod_approval_status, 'PENDING')
                         ));
 
                     if (stageResult.affectedRows === 1) {
@@ -162,7 +168,8 @@ export async function PUT(request, { params }) {
                         })
                         .where(and(
                             eq(studentRequests.request_id, requestIdNum),
-                            eq(studentRequests.status, 'PENDING')
+                            eq(studentRequests.status, 'PENDING'),
+                            eq(studentRequests.hod_approval_status, 'PENDING')
                         ));
 
                     if (rejectResult.affectedRows === 1) {
