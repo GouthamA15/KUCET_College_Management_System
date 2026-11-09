@@ -58,6 +58,7 @@ const eslintConfig = defineConfig([
     "node_modules/**",
     "dist/**",
     "coverage/**",
+    "scratch/**",
   ]),
 ]);
 

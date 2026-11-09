@@ -44,7 +44,7 @@ export default function CertificateRequestsPage() {
   // Calculate dynamic fee for Bonafide Certificate
   let fee = selectedOption.fee;
   if (selectedCertificate === 'Bonafide Certificate') {
-    const rollNo = studentData?.student?.roll_no;
+    const rollNo = studentData?.student?.roll_no || studentData?.roll_no;
     const admissionYearShort = rollNo ? parseInt(rollNo.substring(0, 2), 10) : null;
     const currentYearShort = new Date().getFullYear() % 100;
     const isFirstYear = admissionYearShort !== null && !isNaN(admissionYearShort) && admissionYearShort === currentYearShort;

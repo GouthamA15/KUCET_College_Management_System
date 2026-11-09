@@ -30,10 +30,14 @@ vi.mock('@/lib/providers/storage/factory', () => ({
   })
 }));
 
-vi.mock('@/lib/rollNumber', () => ({
-  getResolvedCurrentAcademicYear: vi.fn(() => '2025-26'),
-  getBranchFromRoll: vi.fn(() => '09')
-}));
+vi.mock('@/lib/rollNumber', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    getResolvedCurrentAcademicYear: vi.fn(() => '2025-26'),
+    getBranchFromRoll: vi.fn(() => '09')
+  };
+});
 vi.mock('@/lib/academic-utils', () => ({
   calculateYearAndSemesterAsync: vi.fn().mockResolvedValue({ year: 4, semester: 8 }),
   getCollegeAcademicYear: vi.fn().mockResolvedValue('2025-26')
@@ -232,7 +236,7 @@ describe('StudentService', () => {
     it('should fetch all eligibilities', async () => {
         db.select.mockReturnValue({ from: vi.fn().mockReturnThis(), innerJoin: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue([{ id: 1 }]) });
         db.query.students = { findFirst: vi.fn().mockResolvedValue({}) };
-        db.query.studentRequests = { findMany: vi.fn().mockResolvedValue([{ certificate_type: 'Bonafide Certificate', academic_year: '2025-26', purpose: 'Scholarship' }]) };
+        db.query.studentRequests = { findMany: vi.fn().mockResolvedValue([{ certificate_type: 'Bonafide Certificate', academic_year: '2025-26', status: 'APPROVED', purpose: 'Scholarship' }]) };
         const res = await StudentService.getCertificateEligibility(1, '22567T0901');
         expect(res.bonafide.isEligible).toBe(true); // Now true because page is not blocked by single approved request
         expect(res.bonafide.approvedPurposes).toContain('Scholarship');

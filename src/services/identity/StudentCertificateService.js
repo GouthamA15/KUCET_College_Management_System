@@ -100,28 +100,37 @@ export class StudentCertificateService {
       };
     } catch (err) {
       logger.warn({ err: err.message, studentId, rollNo }, '[BONAFIDE_ELIGIBILITY_FALLBACK]');
+      const { validateRollNo: parseRoll } = await import('@/lib/rollNumber').catch(() => ({ validateRollNo: () => ({ isValid: false }) }));
+      const parsed = rollNo ? parseRoll(rollNo) : null;
+      const entryYr = parsed?.entryYear ? parseInt(parsed.entryYear, 10) : null;
+      const currentYr = new Date().getFullYear();
+      const yearsAtKucet = entryYr ? Math.max(1, currentYr - entryYr + 1) : 1;
+      const isFirstYear = yearsAtKucet === 1;
+
       return {
         attendance: { total: 0, attended: 0, percentage: null, isEligible: true, thresholdReached: true },
         feeReimbursement: studentData?.fee_reimbursement || 'NO',
-        academicYear: '2025-2026',
+        academicYear: '2026-27',
         approvedPurposes: [],
         alreadyHasApproved: false,
         isEligible: true,
         reason: null,
         classification: {
           isValid: true,
-          admissionType: 'Regular',
-          yearsAtKucet: 1,
-          studyYear: 1,
-          certificateFormat: 'ORDINARY',
-          isFirstYearAtKucet: true
+          admissionType: parsed?.admissionType || 'Regular',
+          yearsAtKucet,
+          studyYear: Math.min(4, yearsAtKucet),
+          certificateFormat: isFirstYear ? 'ORDINARY' : 'PERCENTAGE',
+          isFirstYearAtKucet: isFirstYear
         },
         feeEntitlement: {
           canSubmit: true,
           isPendingLocked: false,
           conflictDetected: false,
-          requiredFee: 100,
-          feeReason: 'First-Year Bonafide Processing Fee (₹100 payable once in Year 1 at KUCET)'
+          requiredFee: isFirstYear ? 100 : 0,
+          feeReason: isFirstYear
+            ? 'First-Year Bonafide Processing Fee (₹100 payable once in Year 1 at KUCET)'
+            : 'Free under Senior Year Bonafide Entitlement (Year 2+ at KUCET)'
         }
       };
     }

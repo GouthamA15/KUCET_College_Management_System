@@ -116,7 +116,8 @@ describe('Security: Private Principal Signature & Institutional Asset Isolation'
     it('InstitutionAssetService.getAssetBuffer checks private storage paths without public fallbacks', async () => {
       // Mock fs.existsSync & fs.promises.readFile to simulate private VPS storage hit
       const existsSpy = vi.spyOn(fs, 'existsSync').mockImplementation((p) => {
-        return typeof p === 'string' && p.includes('institution/private') && p.includes('principal-sign.png');
+        const normalized = typeof p === 'string' ? p.replace(/\\/g, '/') : '';
+        return normalized.includes('institution/private') && normalized.includes('principal-sign.png');
       });
       const statSpy = vi.spyOn(fs, 'statSync').mockReturnValue({ isFile: () => true, size: 1024 });
       const readSpy = vi.spyOn(fs.promises, 'readFile').mockResolvedValue(Buffer.from('fake-signature-png-bytes'));
