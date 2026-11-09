@@ -266,5 +266,73 @@ describe('Navigation, Proxy Guards & Silent Auth Refresh Suite', () => {
       }
     });
   });
+
+  describe('Student Unverified Route Guards', () => {
+    it('should redirect unverified student accessing /student/finances to /student/settings/security', async () => {
+      const unverifiedToken = await new SignJWT({
+        id: 10,
+        roll_no: '23567T0942',
+        role: 'student',
+        is_email_verified: false,
+        has_password_set: false,
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setExpirationTime('15m')
+        .sign(secretKey);
+
+      const req = createMockRequest({
+        pathname: '/student/finances',
+        cookies: { student_auth: unverifiedToken },
+      });
+
+      const res = await proxy(req);
+      expect(res.status).toBe(303);
+      expect(res.headers.get('location')).toBe('http://localhost:3000/student/settings/security');
+    });
+
+    it('should allow unverified student to access /student/apaar without redirection', async () => {
+      const unverifiedToken = await new SignJWT({
+        id: 10,
+        roll_no: '23567T0942',
+        role: 'student',
+        is_email_verified: false,
+        has_password_set: false,
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setExpirationTime('15m')
+        .sign(secretKey);
+
+      const req = createMockRequest({
+        pathname: '/student/apaar',
+        cookies: { student_auth: unverifiedToken },
+      });
+
+      const res = await proxy(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('location')).toBeNull();
+    });
+
+    it('should allow unverified student to access /student/settings without redirection', async () => {
+      const unverifiedToken = await new SignJWT({
+        id: 10,
+        roll_no: '23567T0942',
+        role: 'student',
+        is_email_verified: false,
+        has_password_set: false,
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setExpirationTime('15m')
+        .sign(secretKey);
+
+      const req = createMockRequest({
+        pathname: '/student/settings',
+        cookies: { student_auth: unverifiedToken },
+      });
+
+      const res = await proxy(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('location')).toBeNull();
+    });
+  });
 });
 

@@ -147,7 +147,10 @@ function buildMenuItems({ effectiveRole, studentData, staffData, hasActiveEvents
         { label: 'PROFILE', route: '/student/profile' },
         {
           label: 'MENU',
-          children: [{ label: 'Security & Privacy', route: '/student/settings/security' }],
+          children: [
+            { label: 'Security & Privacy', route: '/student/settings/security' },
+            { label: 'APAAR ID Guidance', route: '/student/apaar' }
+          ],
         },
       ];
     }

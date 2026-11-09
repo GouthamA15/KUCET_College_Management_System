@@ -281,7 +281,7 @@ cleanup_docker_dangling_images() {
   fi
 }
 
-# Category C: Stopped Disposable Docker Containers
+# Category C: Stopped Disposable Docker Containers (Excluding Minecraft Platform)
 cleanup_docker_stopped_containers() {
   log "--- [CATEGORY C: STOPPED DOCKER CONTAINERS] ---"
   local filter_str="until=${DOCKER_CONTAINER_UNTIL}"
@@ -293,16 +293,56 @@ cleanup_docker_stopped_containers() {
     return
   fi
 
-  local count
-  count=$(echo "$stopped_ids" | wc -l)
+  local to_remove=()
+  local skipped_minecraft=0
+
+  for cid in $stopped_ids; do
+    [[ -z "$cid" ]] && continue
+
+    # Check for Minecraft platform protection label
+    local platform_label
+    platform_label=$(docker inspect --format '{{index .Config.Labels "com.kucet.platform"}}' "$cid" 2>/dev/null || echo "")
+    local cname
+    cname=$(docker inspect --format '{{.Name}}' "$cid" 2>/dev/null || echo "$cid")
+    cname="${cname#/}"
+
+    if [[ "$platform_label" == "minecraft" ]]; then
+      log "PRESERVED: Skipping Minecraft platform container '$cname' ($cid) to ensure on-demand availability."
+      ((skipped_minecraft++)) || true
+      continue
+    fi
+
+    # Extra safety check: Ensure container is truly stopped/exited/dead
+    local cstatus
+    cstatus=$(docker inspect --format '{{.State.Status}}' "$cid" 2>/dev/null || echo "unknown")
+    if [[ "$cstatus" != "exited" && "$cstatus" != "dead" ]]; then
+      log "PRESERVED: Container '$cname' ($cid) status is '$cstatus' (not stopped). Skipping."
+      continue
+    fi
+
+    to_remove+=("$cid")
+  done
+
+  local remove_count=${#to_remove[@]}
+  if [[ "$remove_count" -eq 0 ]]; then
+    log "No disposable stopped containers eligible for removal (skipped $skipped_minecraft Minecraft container(s))."
+    return
+  fi
 
   if $DRY_RUN; then
-    log_dry "$count stopped containers" "Exited/dead containers older than $DOCKER_CONTAINER_UNTIL" "PRUNE (docker container prune --filter $filter_str)"
+    log_dry "$remove_count stopped container(s)" "Exited/dead containers older than $DOCKER_CONTAINER_UNTIL (excluding Minecraft)" "REMOVE (${to_remove[*]})"
   else
-    log "Pruning $count stopped containers older than $DOCKER_CONTAINER_UNTIL ..."
-    local prune_out
-    prune_out=$(docker container prune -f --filter "$filter_str" 2>&1 || true)
-    log "Docker container prune result: $(echo "$prune_out" | tail -n 2 | tr '\n' ' ')"
+    log "Removing $remove_count disposable stopped container(s) older than $DOCKER_CONTAINER_UNTIL (skipped $skipped_minecraft Minecraft container(s)) ..."
+    for cid in "${to_remove[@]}"; do
+      local rm_cname
+      rm_cname=$(docker inspect --format '{{.Name}}' "$cid" 2>/dev/null || echo "$cid")
+      rm_cname="${rm_cname#/}"
+      if docker rm "$cid" >/dev/null 2>&1; then
+        log "Removed stopped container '$rm_cname' ($cid)."
+      else
+        log "WARNING: Failed to remove stopped container '$rm_cname' ($cid)."
+      fi
+    done
   fi
 }
 

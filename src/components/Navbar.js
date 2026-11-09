@@ -97,7 +97,8 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
         { label: 'HOME', route: '/student' },
         { label: 'PROFILE', route: '/student/profile' },
         { label: 'MENU', children: [
-            { label: 'Security & Privacy', route: '/student/settings/security' }
+            { label: 'Security & Privacy', route: '/student/settings/security' },
+            { label: 'APAAR ID Guidance', route: '/student/apaar' }
           ]
         }
       ]
