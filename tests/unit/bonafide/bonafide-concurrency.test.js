@@ -7,6 +7,8 @@ import { studentRequests } from '@/db/schema';
 import { FinanceService } from '@/services/FinanceService';
 import { generatePaymentLockName } from '@/lib/certificate-utils';
 
+const hasLiveDb = Boolean(process.env.DB_HOST && !process.env.CI && process.env.SKIP_ENV_VALIDATION !== 'true');
+
 describe('Bonafide Enhancement — Lock Name Normalization & Bounds Suite (Stage A1)', () => {
   const validSha256Hash = '724641d8f8e96c845fe935ead09405b5631079775be1f723ca3b3646564b3c1c';
 
@@ -113,9 +115,21 @@ describe('Bonafide Enhancement — Lock Name Normalization & Bounds Suite (Stage
     expect(lockNames1[0]).toBe(hashLock);
     expect(lockNames1[1]).toBe(utrLock);
   });
+  it('verifies ambiguous commit handling does not report definite rollback without evidence', () => {
+    // Unit verification of the error message contract in route.js
+    let rollbackSucceeded = false;
+    const commitErr = new Error('PROTOCOL_CONNECTION_LOST');
+
+    const errorMessage = rollbackSucceeded
+      ? (commitErr.message || 'Transaction failed')
+      : 'Transaction state ambiguous due to connection error during commit. Please verify existing requests before retrying.';
+
+    expect(errorMessage).toContain('Transaction state ambiguous');
+    expect(errorMessage).not.toContain('Transaction was rolled back');
+  });
 });
 
-describe('Bonafide Enhancement — Connection Cleanup & Failure Hardening Suite (Stage A2 & A3)', () => {
+describe.skipIf(!hasLiveDb)('Bonafide Enhancement — Connection Cleanup & Failure Hardening Suite (Stage A2 & A3)', () => {
   const pool = getDb();
 
   it('returns connection to pool when RELEASE_LOCK returns 1 (outcome 1)', async () => {
@@ -290,22 +304,9 @@ describe('Bonafide Enhancement — Connection Cleanup & Failure Hardening Suite 
       conn1.release();
     }
   });
-
-  it('verifies ambiguous commit handling does not report definite rollback without evidence', () => {
-    // Unit verification of the error message contract in route.js
-    let rollbackSucceeded = false;
-    const commitErr = new Error('PROTOCOL_CONNECTION_LOST');
-
-    const errorMessage = rollbackSucceeded
-      ? (commitErr.message || 'Transaction failed')
-      : 'Transaction state ambiguous due to connection error during commit. Please verify existing requests before retrying.';
-
-    expect(errorMessage).toContain('Transaction state ambiguous');
-    expect(errorMessage).not.toContain('Transaction was rolled back');
-  });
 });
 
-describe('Bonafide Enhancement — Live TiDB Payment Concurrency Suite', () => {
+describe.skipIf(!hasLiveDb)('Bonafide Enhancement — Live TiDB Payment Concurrency Suite', () => {
   const pool = getDb();
 
   it('guarantees that two concurrent submissions with same UTR using bounded lock names produce exactly one success in TiDB', async () => {
