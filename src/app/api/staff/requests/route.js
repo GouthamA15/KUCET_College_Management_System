@@ -3,7 +3,7 @@ import { db } from '@/db';
 import { studentRequests, students, studentRequestImages } from '@/db/schema';
 import { eq, and, inArray, sql, desc, or } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { getBranchFromRoll } from '@/lib/rollNumber';
+import { getBranchFromRoll, validateRollNo } from '@/lib/rollNumber';
 import { parsePurpose, formatPurpose } from '@/lib/certificate-utils';
 
 export async function GET(request) {
@@ -28,7 +28,7 @@ export async function GET(request) {
     const roleToTypes = {
       hod: ['No Objection Certificate', 'Bonafide Certificate', 'Internship Certificate'],
       admission: [
-        'Bonafide Certificate', 'Course Completion Certificate',
+        'Bonafide Certificate', 'No Objection Certificate', 'Course Completion Certificate',
         'Transfer Certificate (TC)', 'Migration Certificate', 'Study Conduct Certificate',
       ],
       scholarship: ['Income Tax (IT) Certificate', 'Custodian Certificate'],
@@ -106,7 +106,13 @@ export async function GET(request) {
         action_by_role: studentRequests.action_by_role,
         is_flagged: studentRequests.is_flagged,
         flag_details: studentRequests.flag_details,
-        payment_hash: studentRequests.payment_hash
+        payment_hash: studentRequests.payment_hash,
+        admission_type: studentRequests.admission_type,
+        study_year: studentRequests.study_year,
+        study_semester: studentRequests.study_semester,
+        years_at_kucet: studentRequests.years_at_kucet,
+        certificate_format: studentRequests.certificate_format,
+        generated_attendance: studentRequests.generated_attendance
       })
       .from(studentRequests)
       .innerJoin(students, eq(studentRequests.student_id, students.id))
@@ -116,8 +122,16 @@ export async function GET(request) {
 
       let mappedRows = rows.map(r => {
         const parsed = parsePurpose(r.purpose);
+        const branch = getBranchFromRoll(r.roll_number);
+        const rollValidation = validateRollNo(r.roll_number);
+        const admissionType = r.admission_type || rollValidation?.admissionType || 'Regular';
         return {
           ...r,
+          branch,
+          admission_type: admissionType,
+          study_year: r.study_year || (admissionType === 'Lateral' ? 2 : 1),
+          study_semester: r.study_semester || (admissionType === 'Lateral' ? 3 : 1),
+          years_at_kucet: r.years_at_kucet || 1,
           purpose_type: parsed.purpose_type,
           purpose_custom: parsed.purpose_custom,
           purpose: (parsed.purpose_type === 'Other' && parsed.purpose_custom)
@@ -146,22 +160,19 @@ export async function GET(request) {
       
       // Workflow stage filtering
       if (staffType === 'admission') {
-        // Admission staff only sees Bonafide after HOD approves or if HOD approval is not required
+        // Admission staff only sees Bonafide and NOC after HOD approves or if HOD approval is not required / unavailable
         activeConditions.push(
           or(
-            sql`${studentRequests.certificate_type} != 'Bonafide Certificate'`,
+            sql`${studentRequests.certificate_type} NOT IN ('Bonafide Certificate', 'No Objection Certificate')`,
             sql`${studentRequests.hod_approval_status} IN ('APPROVED', 'NOT_REQUIRED')`
           )
         );
       } else if (staffType === 'hod') {
-        // HOD sees NOC (all pending) and Bonafide (where hod_approval_status is PENDING)
+        // HOD sees NOC and Bonafide where hod_approval_status is PENDING
         activeConditions.push(
-          or(
-            eq(studentRequests.certificate_type, 'No Objection Certificate'),
-            and(
-              eq(studentRequests.certificate_type, 'Bonafide Certificate'),
-              eq(studentRequests.hod_approval_status, 'PENDING')
-            )
+          and(
+            inArray(studentRequests.certificate_type, ['Bonafide Certificate', 'No Objection Certificate', 'Internship Certificate']),
+            eq(studentRequests.hod_approval_status, 'PENDING')
           )
         );
       }
@@ -187,7 +198,13 @@ export async function GET(request) {
         created_at: studentRequests.created_at,
         is_flagged: studentRequests.is_flagged,
         flag_details: studentRequests.flag_details,
-        payment_hash: studentRequests.payment_hash
+        payment_hash: studentRequests.payment_hash,
+        admission_type: studentRequests.admission_type,
+        study_year: studentRequests.study_year,
+        study_semester: studentRequests.study_semester,
+        years_at_kucet: studentRequests.years_at_kucet,
+        certificate_format: studentRequests.certificate_format,
+        generated_attendance: studentRequests.generated_attendance
       })
       .from(studentRequests)
       .innerJoin(students, eq(studentRequests.student_id, students.id))
@@ -197,8 +214,16 @@ export async function GET(request) {
 
       let mappedRows = rows.map(r => {
         const parsed = parsePurpose(r.purpose);
+        const branch = getBranchFromRoll(r.roll_number);
+        const rollValidation = validateRollNo(r.roll_number);
+        const admissionType = r.admission_type || rollValidation?.admissionType || 'Regular';
         return {
           ...r,
+          branch,
+          admission_type: admissionType,
+          study_year: r.study_year || (admissionType === 'Lateral' ? 2 : 1),
+          study_semester: r.study_semester || (admissionType === 'Lateral' ? 3 : 1),
+          years_at_kucet: r.years_at_kucet || 1,
           purpose_type: parsed.purpose_type,
           purpose_custom: parsed.purpose_custom,
           purpose: (parsed.purpose_type === 'Other' && parsed.purpose_custom)

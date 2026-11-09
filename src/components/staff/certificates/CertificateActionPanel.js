@@ -92,11 +92,46 @@ export default function CertificateActionPanel({
                 <div className="w-36 text-sm text-gray-500">Academic Year</div>
                 <div className="font-semibold text-gray-800">{request?.academic_year ?? '—'}</div>
               </div>
+              <div className="flex items-start gap-3">
+                <div className="w-36 text-sm text-gray-500">Admission Category</div>
+                <div className="font-semibold text-gray-800 flex items-center gap-2">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${
+                    request?.admission_type === 'Lateral'
+                      ? 'bg-purple-100 text-purple-800 border-purple-200'
+                      : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                  }`}>
+                    {request?.admission_type || 'Regular'}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    ({request?.years_at_kucet || 1}st Year at KUCET)
+                  </span>
+                </div>
+              </div>
+              {request?.study_year && (
+                <div className="flex items-start gap-3">
+                  <div className="w-36 text-sm text-gray-500">Curricular Standing</div>
+                  <div className="font-semibold text-gray-800">
+                    Year {request.study_year} / Sem {request.study_semester || '—'}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
+          {/* HOD UNAVAILABLE NOTICE */}
+          {request?.flag_details?.hod_unavailable && (
+            <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-sm">
+              <div className="flex items-center gap-2 text-purple-900 font-bold text-xs uppercase tracking-wider mb-1">
+                <span>Institutional Forwarding: Department HOD Assignment Unavailable</span>
+              </div>
+              <p className="text-[11px] text-purple-800 font-medium leading-relaxed">
+                {request.flag_details.reason || 'No active HOD was assigned for this student\'s branch. Per KUCET institutional policy, this request has been forwarded directly to Admission Staff for verification and clearance.'}
+              </p>
+            </div>
+          )}
+
           {/* INTEGRITY GUARD WARNING */}
-          {request?.is_flagged && (
+          {request?.is_flagged && !request?.flag_details?.hod_unavailable && (
             <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-sm animate-pulse">
               <div className="flex items-center gap-2 text-rose-800 font-bold text-xs uppercase tracking-wider mb-2">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -347,11 +382,13 @@ export default function CertificateActionPanel({
                 {processing ? <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                 {staffType === 'hod' && request?.certificate_type === 'Bonafide Certificate'
                   ? 'Endorse Request (Stage 1)'
-                  : request?.certificate_type === 'No Objection Certificate'
-                    ? 'Authorize & Issue NOC'
-                    : request?.certificate_type === 'Bonafide Certificate'
-                      ? 'Final Approval & Issue (Stage 2)'
-                      : 'Authorize & Approve'}
+                  : staffType === 'hod' && request?.certificate_type === 'No Objection Certificate'
+                    ? 'Endorse NOC (Stage 1)'
+                    : request?.certificate_type === 'No Objection Certificate'
+                      ? 'Final Approval & Issue NOC (Stage 2)'
+                      : request?.certificate_type === 'Bonafide Certificate'
+                        ? 'Final Approval & Issue (Stage 2)'
+                        : 'Authorize & Approve'}
               </button>
             </div>
           )}

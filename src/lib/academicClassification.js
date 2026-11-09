@@ -72,26 +72,6 @@ export function resolveAcademicClassification({ rollNo, academicYear, studySemes
     };
   }
 
-  // Institutional years at KUCET: calendar academic years since institutional admission.
-  // Calculated exclusively from currentStartYear and entryYearNum.
-  // academic_offset_years is completely excluded.
-  const yearsAtKucet = currentStartYear - entryYearNum + 1;
-  const isFirstYearAtKucet = yearsAtKucet === 1;
-
-  // Format Selection Rule:
-  // First year at KUCET (Regular Year 1 or Lateral Year 2) -> ORDINARY
-  // Second year onward at KUCET -> PERCENTAGE
-  const certificateFormat = isFirstYearAtKucet ? 'ORDINARY' : 'PERCENTAGE';
-
-  // Curricular B.Tech Study Year:
-  // Regular entry starts at B.Tech Year 1.
-  // Lateral entry enters into B.Tech Year 2.
-  const baseCurricularYear = admissionType === 'Lateral'
-    ? yearsAtKucet + 1
-    : yearsAtKucet;
-
-  const studyYear = Math.max(1, Math.min(4, baseCurricularYear));
-
   // Authoritative study semester: must be an integer between 1 and 8 if provided
   let validSemester = null;
   if (studySemester !== null && studySemester !== undefined) {
@@ -100,6 +80,46 @@ export function resolveAcademicClassification({ rollNo, academicYear, studySemes
       validSemester = semNum;
     }
   }
+
+  // Institutional progression and study year calculation:
+  // When an authoritative studySemester is provided, institutional progression is determined
+  // strictly by the semester rather than raw calendar year differences. This preserves
+  // eligibility for students whose academic calendar was delayed.
+  let yearsAtKucet;
+  let studyYear;
+
+  if (validSemester !== null) {
+    if (admissionType === 'Lateral') {
+      // Lateral-entry joins directly in Curricular Year II (Sem III/IV).
+      // Sem III & IV: First Institutional Year at KUCET (Curricular Year II)
+      // Sem V & VI:   Second Institutional Year at KUCET (Curricular Year III)
+      // Sem VII & VIII: Third Institutional Year at KUCET (Curricular Year IV)
+      studyYear = Math.ceil(validSemester / 2);
+      yearsAtKucet = Math.max(1, studyYear - 1);
+    } else {
+      // Regular-entry joins in Curricular Year I (Sem I/II).
+      // Sem I & II: First Institutional Year at KUCET (Curricular Year I)
+      // Sem III & IV: Second Institutional Year at KUCET (Curricular Year II)
+      // Sem V & VI:   Third Institutional Year at KUCET (Curricular Year III)
+      // Sem VII & VIII: Fourth Institutional Year at KUCET (Curricular Year IV)
+      studyYear = Math.ceil(validSemester / 2);
+      yearsAtKucet = studyYear;
+    }
+  } else {
+    // Fallback when semester is unconfigured: calculate from academic year start
+    yearsAtKucet = Math.max(1, currentStartYear - entryYearNum + 1);
+    const baseCurricularYear = admissionType === 'Lateral'
+      ? yearsAtKucet + 1
+      : yearsAtKucet;
+    studyYear = Math.max(1, Math.min(4, baseCurricularYear));
+  }
+
+  const isFirstYearAtKucet = yearsAtKucet === 1;
+
+  // Format Selection Rule:
+  // First year at KUCET (Regular Year 1 or Lateral Year 2) -> ORDINARY
+  // Second year onward at KUCET -> PERCENTAGE
+  const certificateFormat = isFirstYearAtKucet ? 'ORDINARY' : 'PERCENTAGE';
 
   return {
     isValid: true,

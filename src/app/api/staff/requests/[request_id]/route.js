@@ -11,7 +11,7 @@ const roleToTypes = {
         'Bonafide Certificate', 'No Objection Certificate', 'Internship Certificate'
     ],
     admission: [
-        'Bonafide Certificate', 'Course Completion Certificate',
+        'Bonafide Certificate', 'No Objection Certificate', 'Course Completion Certificate',
         'Transfer Certificate (TC)', 'Migration Certificate', 'Study Conduct Certificate',
     ],
     scholarship: ['Income Tax (IT) Certificate', 'Custodian Certificate'],
@@ -72,28 +72,27 @@ export async function PUT(request, { params }) {
             : (roleToTypes[effectiveRole] || []);
         if (!allowedTypes.includes(requestToUpdate.certificate_type)) return apiError('Forbidden', 403);
 
-        // Branch isolation for HOD / Principal
+        // Branch isolation for HOD / Principal:
+        // Institutional rule: Only the respective branch HOD can review Stage 1.
+        // Administrators and Super Admins cannot substitute for the branch HOD.
         if (effectiveRole === 'hod') {
             const { getBranchFromRoll } = await import('@/lib/rollNumber');
             const studentBranch = getBranchFromRoll(requestToUpdate.roll_no);
             const authorizedBranches = staff.authorized_branches || (staff.branch ? [staff.branch] : []);
-            if (staff.role !== 'admin' && (authorizedBranches.length === 0 || !authorizedBranches.includes(studentBranch))) {
+            if (authorizedBranches.length === 0 || !authorizedBranches.includes(studentBranch)) {
                 return apiError(`Forbidden. You can only review requests for ${authorizedBranches.join(', ') || 'your assigned'} department.`, 403);
             }
         }
 
-        // Prohibit Admission Staff from reviewing NOC
-        if (effectiveRole === 'admission' && requestToUpdate.certificate_type === 'No Objection Certificate') {
-            return apiError('Forbidden. No Objection Certificates must be approved by the Department HOD.', 403);
-        }
-
         const now = new Date();
 
-        // 2-Stage Bonafide Approval Workflow
-        if (requestToUpdate.certificate_type === 'Bonafide Certificate') {
+        // 2-Stage Workflow for Bonafide and No Objection Certificates (NOC)
+        const isTwoStageWorkflow = ['Bonafide Certificate', 'No Objection Certificate'].includes(requestToUpdate.certificate_type);
+
+        if (isTwoStageWorkflow) {
             if (effectiveRole === 'admission') {
                 if (requestToUpdate.hod_approval_status === 'PENDING') {
-                    return apiError('HOD approval is required before Admission Staff can review this certificate.', 400);
+                    return apiError(`HOD endorsement is required before Admission Staff can review this ${requestToUpdate.certificate_type}.`, 400);
                 }
                 if (requestToUpdate.hod_approval_status === 'REJECTED') {
                     return apiError('This request was already rejected during HOD review.', 400);
@@ -146,7 +145,7 @@ export async function PUT(request, { params }) {
 
                         return apiResponse({ 
                             success: true, 
-                            message: 'Bonafide Certificate endorsed by HOD. Forwarded to Admission Staff for final clearance.' 
+                            message: `${requestToUpdate.certificate_type} endorsed by HOD. Forwarded to Admission Staff for final clearance.` 
                         });
                     }
                     return apiError('This request has already been processed', 409);
@@ -220,11 +219,6 @@ export async function PUT(request, { params }) {
             updateData.completed_at = now;
             updateData.action_by_staff_id = staff.id;
             updateData.action_by_role = effectiveRole;
-            if (requestToUpdate.certificate_type === 'No Objection Certificate') {
-                updateData.hod_approval_status = 'REJECTED';
-                updateData.hod_staff_id = staff.id;
-                updateData.hod_rejection_reason = String(reject_reason).trim();
-            }
         } else if (status === 'APPROVED') {
             updateData.reject_reason = null;
             updateData.completed_at = now;
@@ -256,11 +250,6 @@ export async function PUT(request, { params }) {
                 } else if (requestToUpdate.certificate_format === 'ORDINARY') {
                     updateData.generated_attendance = 'N/A';
                 }
-            }
-            if (requestToUpdate.certificate_type === 'No Objection Certificate') {
-                updateData.hod_approval_status = 'APPROVED';
-                updateData.hod_staff_id = staff.id;
-                updateData.hod_approved_at = now;
             }
         }
 

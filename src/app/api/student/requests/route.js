@@ -281,6 +281,17 @@ export async function POST(request) {
         const routing = await StudentCertificateService.determineCertificateRouting(certificateType, user.roll_no);
         routingResult = routing;
 
+        let finalFlagDetails = flagDetails || null;
+        if (routing.hodUnavailable) {
+          finalFlagDetails = {
+            ...(finalFlagDetails || {}),
+            hod_unavailable: true,
+            reason: routing.reason,
+            forwarded_at: new Date().toISOString(),
+            forwarded_to: 'admission'
+          };
+        }
+
         // 8. Always INSERT a new request row (preserves rejected requests in history)
         const insertValues = {
           student_id: user.student_id,
@@ -294,8 +305,8 @@ export async function POST(request) {
           status: 'PENDING',
           hod_approval_status: routing.hodApprovalStatus,
           hod_staff_id: routing.hodStaffId || null,
-          is_flagged: isFlagged,
-          flag_details: flagDetails,
+          is_flagged: isFlagged || Boolean(routing.hodUnavailable),
+          flag_details: finalFlagDetails,
           payment_hash: finalPaymentHash,
           certificate_format: classification.certificateFormat,
           study_year: classification.studyYear,
@@ -334,6 +345,23 @@ export async function POST(request) {
         const routing = await StudentCertificateService.determineCertificateRouting(certificateType, user.roll_no);
         routingResult = routing;
 
+        const semResult = await calculateYearAndSemesterAsync(user.roll_no, academicOffsetYears);
+        const classification = resolveAcademicClassification({
+          rollNo: user.roll_no,
+          academicYear,
+          studySemester: semResult?.semester || null
+        });
+
+        let nonBonafideFlagDetails = null;
+        if (routing.hodUnavailable) {
+          nonBonafideFlagDetails = {
+            hod_unavailable: true,
+            reason: routing.reason,
+            forwarded_at: new Date().toISOString(),
+            forwarded_to: 'admission'
+          };
+        }
+
         const [insertRes] = await tx.insert(studentRequests).values({
           student_id: user.student_id,
           certificate_type: certificateType,
@@ -346,9 +374,14 @@ export async function POST(request) {
           status: 'PENDING',
           hod_approval_status: routing.hodApprovalStatus,
           hod_staff_id: routing.hodStaffId || null,
-          is_flagged: false,
-          flag_details: null,
+          is_flagged: Boolean(nonBonafideFlagDetails),
+          flag_details: nonBonafideFlagDetails,
           payment_hash: null,
+          certificate_format: isNOC ? 'NOC' : null,
+          study_year: classification.isValid ? classification.studyYear : (semResult?.yearOfStudy || null),
+          study_semester: semResult?.semester || null,
+          admission_type: classification.isValid ? classification.admissionType : null,
+          years_at_kucet: classification.isValid ? classification.yearsAtKucet : null,
           created_at: new Date(),
           updated_at: new Date()
         });

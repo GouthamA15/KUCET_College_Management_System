@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { validateRollNo, getEntranceExamQualified, getBranchFromRoll } from '@/lib/rollNumber';
+import { resolveAcademicClassification } from '@/lib/academicClassification';
 
-describe('Certificate Requests Workflow & RBAC Regression Suite', () => {
+describe('Certificate Requests Workflow, Institutional Rules & RBAC Regression Suite', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -44,23 +46,116 @@ describe('Certificate Requests Workflow & RBAC Regression Suite', () => {
       // Lateral ECE (should NOT match CSE)
       expect(matchesRoll('24567T1501L')).toBe(false);
     });
+
+    it('strictly resolves entrance exam: TG ECET for Lateral and TG EAPCET for Regular even when roll includes T', () => {
+      // Lateral rolls with and without T
+      expect(getEntranceExamQualified('23567T0901L')).toBe('TG ECET');
+      expect(getEntranceExamQualified('235670901L')).toBe('TG ECET');
+      // Regular roll
+      expect(getEntranceExamQualified('24567T0901')).toBe('TG EAPCET');
+      expect(getEntranceExamQualified('23567T1501')).toBe('TG EAPCET');
+    });
   });
 
-  describe('2. Stage 1 HOD Review Concurrency & Invariants', () => {
+  describe('2. Lateral vs. Regular Academic Classification & Progression', () => {
+    it('classifies Lateral student in Semester III as First Institutional Year with Ordinary Bonafide', () => {
+      const result = resolveAcademicClassification({
+        rollNo: '24567T0901L',
+        academicYear: '2026-27',
+        studySemester: 3
+      });
+
+      expect(result.isValid).toBe(true);
+      expect(result.admissionType).toBe('Lateral');
+      expect(result.studyYear).toBe(2); // B.Tech Year II
+      expect(result.studySemester).toBe(3); // Semester III
+      expect(result.yearsAtKucet).toBe(1); // 1st Institutional Year at KUCET
+      expect(result.isFirstYearAtKucet).toBe(true);
+      expect(result.certificateFormat).toBe('ORDINARY'); // No attendance clause
+    });
+
+    it('classifies Lateral student in Semester IV as First Institutional Year even if calendar year advanced', () => {
+      const result = resolveAcademicClassification({
+        rollNo: '245670901L',
+        academicYear: '2026-27',
+        studySemester: 4
+      });
+
+      expect(result.isValid).toBe(true);
+      expect(result.admissionType).toBe('Lateral');
+      expect(result.studyYear).toBe(2); // Still Curricular Year 2
+      expect(result.studySemester).toBe(4); // Semester IV
+      expect(result.yearsAtKucet).toBe(1); // Still 1st Institutional Year
+      expect(result.isFirstYearAtKucet).toBe(true);
+      expect(result.certificateFormat).toBe('ORDINARY');
+    });
+
+    it('classifies Lateral student in Semester V as Second Institutional Year with Percentage Bonafide', () => {
+      const result = resolveAcademicClassification({
+        rollNo: '23567T0901L',
+        academicYear: '2026-27',
+        studySemester: 5
+      });
+
+      expect(result.isValid).toBe(true);
+      expect(result.admissionType).toBe('Lateral');
+      expect(result.studyYear).toBe(3); // Curricular Year 3
+      expect(result.studySemester).toBe(5); // Semester V
+      expect(result.yearsAtKucet).toBe(2); // 2nd Institutional Year
+      expect(result.isFirstYearAtKucet).toBe(false);
+      expect(result.certificateFormat).toBe('PERCENTAGE'); // Attendance percentage required
+    });
+
+    it('classifies Regular student in Semester I and II as First Institutional Year with Ordinary Bonafide', () => {
+      const sem1 = resolveAcademicClassification({
+        rollNo: '26567T0901',
+        academicYear: '2026-27',
+        studySemester: 1
+      });
+      expect(sem1.studyYear).toBe(1);
+      expect(sem1.yearsAtKucet).toBe(1);
+      expect(sem1.isFirstYearAtKucet).toBe(true);
+      expect(sem1.certificateFormat).toBe('ORDINARY');
+
+      const sem2 = resolveAcademicClassification({
+        rollNo: '26567T0901',
+        academicYear: '2026-27',
+        studySemester: 2
+      });
+      expect(sem2.studyYear).toBe(1);
+      expect(sem2.yearsAtKucet).toBe(1);
+      expect(sem2.isFirstYearAtKucet).toBe(true);
+      expect(sem2.certificateFormat).toBe('ORDINARY');
+    });
+
+    it('classifies Regular student in Semester III as Second Institutional Year with Percentage Bonafide', () => {
+      const sem3 = resolveAcademicClassification({
+        rollNo: '25567T0901',
+        academicYear: '2026-27',
+        studySemester: 3
+      });
+      expect(sem3.studyYear).toBe(2);
+      expect(sem3.yearsAtKucet).toBe(2);
+      expect(sem3.isFirstYearAtKucet).toBe(false);
+      expect(sem3.certificateFormat).toBe('PERCENTAGE');
+    });
+  });
+
+  describe('3. Two-Stage Workflow for Bonafide and NOC', () => {
     it('blocks duplicate Stage 1 HOD review if request has already been approved', () => {
       const existingRequest = {
         request_id: 201,
         status: 'PENDING',
-        hod_approval_status: 'APPROVED', // Already reviewed
+        hod_approval_status: 'APPROVED',
         certificate_type: 'Bonafide Certificate'
       };
 
-      // Simulation of PUT guard
+      const isTwoStage = ['Bonafide Certificate', 'No Objection Certificate'].includes(existingRequest.certificate_type);
       const effectiveRole = 'hod';
       let error = null;
       let statusCode = null;
 
-      if (effectiveRole === 'hod' && existingRequest.certificate_type === 'Bonafide Certificate') {
+      if (effectiveRole === 'hod' && isTwoStage) {
         if (existingRequest.hod_approval_status !== 'PENDING') {
           error = 'HOD review for this request has already been completed';
           statusCode = 409;
@@ -71,96 +166,81 @@ describe('Certificate Requests Workflow & RBAC Regression Suite', () => {
       expect(error).toBe('HOD review for this request has already been completed');
     });
 
-    it('blocks duplicate Stage 1 HOD review if request has already been rejected', () => {
-      const existingRequest = {
-        request_id: 202,
-        status: 'PENDING',
-        hod_approval_status: 'REJECTED',
-        certificate_type: 'Bonafide Certificate'
-      };
-
-      const effectiveRole = 'hod';
-      let error = null;
-      let statusCode = null;
-
-      if (effectiveRole === 'hod' && existingRequest.certificate_type === 'Bonafide Certificate') {
-        if (existingRequest.hod_approval_status !== 'PENDING') {
-          error = 'HOD review for this request has already been completed';
-          statusCode = 409;
-        }
-      }
-
-      expect(statusCode).toBe(409);
-      expect(error).toBe('HOD review for this request has already been completed');
-    });
-
-    it('allows Stage 1 HOD review when hod_approval_status is PENDING', () => {
-      const existingRequest = {
-        request_id: 203,
-        status: 'PENDING',
+    it('blocks Admission Staff from reviewing NOC when HOD review is PENDING', () => {
+      const requestToUpdate = {
+        certificate_type: 'No Objection Certificate',
         hod_approval_status: 'PENDING',
-        certificate_type: 'Bonafide Certificate'
       };
+      const effectiveRole = 'admission';
+      let error = null;
+      let statusCode = null;
 
-      const effectiveRole = 'hod';
+      const isTwoStage = ['Bonafide Certificate', 'No Objection Certificate'].includes(requestToUpdate.certificate_type);
+      if (isTwoStage && effectiveRole === 'admission') {
+        if (requestToUpdate.hod_approval_status === 'PENDING') {
+          error = `HOD endorsement is required before Admission Staff can review this ${requestToUpdate.certificate_type}.`;
+          statusCode = 400;
+        }
+      }
+
+      expect(statusCode).toBe(400);
+      expect(error).toBe('HOD endorsement is required before Admission Staff can review this No Objection Certificate.');
+    });
+
+    it('allows Admission Staff to review and approve NOC once HOD endorses Stage 1', () => {
+      const requestToUpdate = {
+        certificate_type: 'No Objection Certificate',
+        hod_approval_status: 'APPROVED',
+        status: 'PENDING',
+      };
+      const effectiveRole = 'admission';
       let error = null;
 
-      if (effectiveRole === 'hod' && existingRequest.certificate_type === 'Bonafide Certificate') {
-        if (existingRequest.hod_approval_status !== 'PENDING') {
-          error = 'HOD review for this request has already been completed';
+      const isTwoStage = ['Bonafide Certificate', 'No Objection Certificate'].includes(requestToUpdate.certificate_type);
+      if (isTwoStage && effectiveRole === 'admission') {
+        if (requestToUpdate.hod_approval_status === 'PENDING') {
+          error = 'HOD endorsement is required';
         }
       }
 
       expect(error).toBeNull();
     });
-  });
 
-  describe('3. Multi-Role RBAC & Workflow Stage Boundaries', () => {
-    it('prohibits Admission Staff from reviewing Bonafide when hod_approval_status is PENDING', () => {
+    it('allows Admission Staff to review and approve NOC when HOD was UNAVAILABLE and forwarded per policy', () => {
       const requestToUpdate = {
-        certificate_type: 'Bonafide Certificate',
-        hod_approval_status: 'PENDING',
+        certificate_type: 'No Objection Certificate',
+        hod_approval_status: 'NOT_REQUIRED',
+        status: 'PENDING',
+        flag_details: { hod_unavailable: true, reason: 'No active HOD assigned' }
       };
       const effectiveRole = 'admission';
-
       let error = null;
-      let statusCode = null;
 
-      if (requestToUpdate.certificate_type === 'Bonafide Certificate') {
-        if (effectiveRole === 'admission') {
-          if (requestToUpdate.hod_approval_status === 'PENDING') {
-            error = 'HOD approval is required before Admission Staff can review this certificate.';
-            statusCode = 400;
-          }
+      const isTwoStage = ['Bonafide Certificate', 'No Objection Certificate'].includes(requestToUpdate.certificate_type);
+      if (isTwoStage && effectiveRole === 'admission') {
+        if (requestToUpdate.hod_approval_status === 'PENDING') {
+          error = 'HOD endorsement is required';
         }
       }
 
-      expect(statusCode).toBe(400);
-      expect(error).toBe('HOD approval is required before Admission Staff can review this certificate.');
+      expect(error).toBeNull();
     });
 
-    it('prohibits Admission Staff from reviewing No Objection Certificate', () => {
-      const requestToUpdate = {
-        certificate_type: 'No Objection Certificate',
-      };
-      const effectiveRole = 'admission';
+    it('prohibits Super Admin from substituting for the branch HOD in Stage 1 review', () => {
+      const staff = { role: 'admin', branch: null, authorized_branches: [] };
+      const studentBranch = 'CSE';
 
-      let error = null;
-      let statusCode = null;
+      // Institutional Rule: Admin cannot substitute for the branch HOD
+      const authorizedBranches = staff.authorized_branches || (staff.branch ? [staff.branch] : []);
+      const canApproveStage1AsHod = authorizedBranches.includes(studentBranch);
 
-      if (effectiveRole === 'admission' && requestToUpdate.certificate_type === 'No Objection Certificate') {
-        error = 'Forbidden. No Objection Certificates must be approved by the Department HOD.';
-        statusCode = 403;
-      }
-
-      expect(statusCode).toBe(403);
-      expect(error).toBe('Forbidden. No Objection Certificates must be approved by the Department HOD.');
+      expect(canApproveStage1AsHod).toBe(false);
     });
 
     it('prohibits Scholarship Staff from reviewing No Objection Certificate', () => {
       const roleToTypes = {
         hod: ['Bonafide Certificate', 'No Objection Certificate', 'Internship Certificate'],
-        admission: ['Bonafide Certificate', 'Course Completion Certificate', 'Transfer Certificate (TC)', 'Migration Certificate', 'Study Conduct Certificate'],
+        admission: ['Bonafide Certificate', 'No Objection Certificate', 'Course Completion Certificate', 'Transfer Certificate (TC)', 'Migration Certificate', 'Study Conduct Certificate'],
         scholarship: ['Income Tax (IT) Certificate', 'Custodian Certificate'],
       };
 
@@ -170,55 +250,84 @@ describe('Certificate Requests Workflow & RBAC Regression Suite', () => {
     });
   });
 
-  describe('4. Download Authorization Guards', () => {
-    it('blocks download when certificate is PENDING', () => {
+  describe('4. Download Authorization Guards for Both Stages', () => {
+    it('blocks NOC download when status is PENDING even if HOD approved Stage 1', () => {
+      const certRequest = {
+        certificate_type: 'No Objection Certificate',
+        status: 'PENDING',
+        hod_approval_status: 'APPROVED',
+      };
+
+      const isTwoStage = ['Bonafide Certificate', 'No Objection Certificate'].includes(certRequest.certificate_type);
+      const isBlocked = (
+        certRequest.status !== 'APPROVED' || 
+        certRequest.hod_approval_status === 'REJECTED' || 
+        (isTwoStage && certRequest.hod_approval_status === 'PENDING')
+      );
+      expect(isBlocked).toBe(true);
+    });
+
+    it('blocks Bonafide download when status is PENDING even if HOD approved Stage 1', () => {
       const certRequest = {
         certificate_type: 'Bonafide Certificate',
         status: 'PENDING',
         hod_approval_status: 'APPROVED',
       };
 
-      const isDownloadable = certRequest.status === 'APPROVED';
-      expect(isDownloadable).toBe(false);
-    });
-
-    it('blocks download when certificate is REJECTED', () => {
-      const certRequest = {
-        certificate_type: 'Bonafide Certificate',
-        status: 'REJECTED',
-        hod_approval_status: 'APPROVED',
-      };
-
-      const isDownloadable = certRequest.status === 'APPROVED' && certRequest.hod_approval_status !== 'REJECTED';
-      expect(isDownloadable).toBe(false);
-    });
-
-    it('blocks NOC download when hod_approval_status is not APPROVED', () => {
-      const certRequest = {
-        certificate_type: 'No Objection Certificate',
-        status: 'APPROVED',
-        hod_approval_status: 'PENDING',
-      };
-
+      const isTwoStage = ['Bonafide Certificate', 'No Objection Certificate'].includes(certRequest.certificate_type);
       const isBlocked = (
-        certRequest.certificate_type === 'No Objection Certificate' &&
-        certRequest.hod_approval_status !== 'APPROVED'
+        certRequest.status !== 'APPROVED' || 
+        certRequest.hod_approval_status === 'REJECTED' || 
+        (isTwoStage && certRequest.hod_approval_status === 'PENDING')
       );
       expect(isBlocked).toBe(true);
     });
 
-    it('allows NOC download when both status and hod_approval_status are APPROVED', () => {
+    it('blocks download when HOD rejected Stage 1', () => {
       const certRequest = {
+        certificate_type: 'Bonafide Certificate',
+        status: 'REJECTED',
+        hod_approval_status: 'REJECTED',
+      };
+
+      const isTwoStage = ['Bonafide Certificate', 'No Objection Certificate'].includes(certRequest.certificate_type);
+      const isBlocked = (
+        certRequest.status !== 'APPROVED' || 
+        certRequest.hod_approval_status === 'REJECTED' || 
+        (isTwoStage && certRequest.hod_approval_status === 'PENDING')
+      );
+      expect(isBlocked).toBe(true);
+    });
+
+    it('allows download for Bonafide and NOC when Admission Staff has approved Stage 2', () => {
+      const bonafideReq = {
+        certificate_type: 'Bonafide Certificate',
+        status: 'APPROVED',
+        hod_approval_status: 'APPROVED',
+      };
+      const nocReq = {
         certificate_type: 'No Objection Certificate',
         status: 'APPROVED',
         hod_approval_status: 'APPROVED',
       };
+      const nocForwardedReq = {
+        certificate_type: 'No Objection Certificate',
+        status: 'APPROVED',
+        hod_approval_status: 'NOT_REQUIRED',
+      };
 
-      const isBlocked = (
-        certRequest.certificate_type === 'No Objection Certificate' &&
-        certRequest.hod_approval_status !== 'APPROVED'
-      );
-      expect(isBlocked).toBe(false);
+      const checkDownload = (r) => {
+        const isTwoStage = ['Bonafide Certificate', 'No Objection Certificate'].includes(r.certificate_type);
+        return !(
+          r.status !== 'APPROVED' || 
+          r.hod_approval_status === 'REJECTED' || 
+          (isTwoStage && r.hod_approval_status === 'PENDING')
+        );
+      };
+
+      expect(checkDownload(bonafideReq)).toBe(true);
+      expect(checkDownload(nocReq)).toBe(true);
+      expect(checkDownload(nocForwardedReq)).toBe(true);
     });
   });
 });

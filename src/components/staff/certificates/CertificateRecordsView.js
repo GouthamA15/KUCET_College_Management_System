@@ -18,6 +18,13 @@ export default function CertificateRecordsView({ records = [], onViewDetails, lo
       return <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">REJECTED</span>;
     }
     if (s === 'PENDING') {
+      if (r.flag_details?.hod_unavailable) {
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200" title="Department HOD assignment unavailable. Forwarded directly to Admission Staff per institutional policy.">
+            HOD FORWARDED
+          </span>
+        );
+      }
       if (hod === 'APPROVED') {
         return (
           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-[#0b3578] border border-blue-200" title="Endorsed by HOD, awaiting final Admission Staff clearance">
@@ -66,6 +73,8 @@ export default function CertificateRecordsView({ records = [], onViewDetails, lo
             <tr className="bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-600 uppercase tracking-wider">
               <th className="px-6 py-4 whitespace-nowrap">Roll Number</th>
               <th className="px-6 py-4 whitespace-nowrap">Student Name</th>
+              <th className="px-6 py-4 whitespace-nowrap">Category / Branch</th>
+              <th className="px-6 py-4 whitespace-nowrap">Academic Standing</th>
               <th className="px-6 py-4 whitespace-nowrap">Certificate Type</th>
               <th className="px-6 py-4 whitespace-nowrap">
                 <div className="flex items-center gap-1 cursor-pointer hover:text-gray-900">
@@ -82,7 +91,7 @@ export default function CertificateRecordsView({ records = [], onViewDetails, lo
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold font-mono text-gray-800">{r.roll_number ?? r.roll}</span>
-                    {r.is_flagged && (
+                    {r.is_flagged && !r.flag_details?.hod_unavailable && (
                       <span className="text-rose-500 animate-pulse" title="Flagged: Duplicate Proof Detected">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -93,6 +102,28 @@ export default function CertificateRecordsView({ records = [], onViewDetails, lo
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-700">{r.student_name || 'N/A'}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${
+                      r.admission_type === 'Lateral'
+                        ? 'bg-purple-100 text-purple-800 border-purple-200'
+                        : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                    }`}>
+                      {r.admission_type || 'Regular'}
+                    </span>
+                    <span className="text-xs font-semibold text-gray-600">
+                      {r.branch || '—'}
+                    </span>
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-xs text-gray-700">
+                    <span className="font-semibold">Yr {r.study_year || '—'}</span> / Sem {r.study_semester || '—'}
+                    <span className="text-[10px] text-gray-500 block">
+                      (Inst. Yr {r.years_at_kucet || 1})
+                    </span>
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-700">{formatCertificateName(r.certificate_type ?? r.type, r.purpose)}</div>
