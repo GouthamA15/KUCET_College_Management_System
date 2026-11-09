@@ -278,29 +278,14 @@ export class StudentCertificateService {
     
     if (certificateType === 'No Objection Certificate') {
       const activeHod = await this.getActiveHodForBranch(branch);
-      if (activeHod) {
-        return {
-          staffType: 'hod',
-          hodApprovalStatus: 'PENDING',
-          branch,
-          requiresHod: true,
-          hodStaffId: activeHod.staff_account_id,
-          unresolvedHod: false,
-          hodUnavailable: false,
-        };
-      } else {
-        // Institutional rule: If no active HOD exists, forward to Admission Staff
-        return {
-          staffType: 'admission',
-          hodApprovalStatus: 'NOT_REQUIRED',
-          branch,
-          requiresHod: false,
-          hodStaffId: null,
-          unresolvedHod: false,
-          hodUnavailable: true,
-          reason: `No active HOD assigned for department ${branch || 'N/A'}. Forwarded directly to Admission Staff per institutional policy.`,
-        };
-      }
+      return {
+        staffType: 'hod',
+        hodApprovalStatus: 'PENDING',
+        branch,
+        requiresHod: true,
+        hodStaffId: activeHod?.staff_account_id || null,
+        unresolvedHod: !activeHod,
+      };
     }
     
     if (certificateType === 'Bonafide Certificate') {
