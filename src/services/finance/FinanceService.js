@@ -202,7 +202,8 @@ export class FinanceService {
    * @param {Object} params { transactionId, paymentHash, studentId, requestId, feePaymentId, upiId, amount }
    * @returns {Promise<{ isFlagged: boolean, flagDetails: Object | null }>}
    */
-  static async verifyTransactionIntegrity({ transactionId, paymentHash, studentId, requestId, feePaymentId, upiId, _amount }) {
+  static async verifyTransactionIntegrity({ transactionId, paymentHash, studentId, requestId, feePaymentId, upiId, _amount, dbClient }) {
+    const executor = dbClient || db;
     let isFlagged = false;
     let flagDetails = null;
 
@@ -224,7 +225,7 @@ export class FinanceService {
     // 1. Transaction ID Conflict (UTR uniqueness)
     if (cleanTxId && !isFlagged) {
       // Check in fee payments
-      const conflictFee = await db.query.studentFeePayments.findFirst({
+      const conflictFee = await executor.query.studentFeePayments.findFirst({
         where: eq(studentFeePayments.transaction_ref_no, cleanTxId)
       });
 
@@ -238,7 +239,7 @@ export class FinanceService {
 
       // Check in certificate requests
       if (!isFlagged) {
-        const conflictReq = await db.query.studentRequests.findFirst({
+        const conflictReq = await executor.query.studentRequests.findFirst({
           where: and(
             eq(studentRequests.transaction_id, cleanTxId),
             ne(studentRequests.status, 'REJECTED')
@@ -258,7 +259,7 @@ export class FinanceService {
 
     // 2. Screenshot Hash Conflict (Fingerprinting)
     if (paymentHash && !isFlagged) {
-      const conflictHash = await db.query.studentRequests.findFirst({
+      const conflictHash = await executor.query.studentRequests.findFirst({
         where: and(
           eq(studentRequests.payment_hash, paymentHash),
           ne(studentRequests.status, 'REJECTED')

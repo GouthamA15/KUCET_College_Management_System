@@ -39,8 +39,8 @@ export default function OfflineClient() {
       const now = Date.now();
       const lastRetryStr = sessionStorage.getItem(OFFLINE_RELOAD_KEY);
       const lastRetry = lastRetryStr ? parseInt(lastRetryStr, 10) : 0;
-      if (lastRetry && now - lastRetry < 2000) {
-        // Prevent rapid double triggers
+      if (lastRetry && now - lastRetry < 10000) {
+        // Prevent rapid reload loops (minimum 10 second backoff)
         return;
       }
       sessionStorage.setItem(OFFLINE_RELOAD_KEY, now.toString());

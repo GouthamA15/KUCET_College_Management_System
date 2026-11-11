@@ -18,8 +18,19 @@ import {
   FileText,
   Archive,
   Users,
-  ShieldCheck
+  ShieldCheck,
+  Sparkles,
+  FileCheck,
+  Layers
 } from 'lucide-react';
+import {
+  ID_CARD_FORMATS,
+  ALL_ID_CARD_FORMATS,
+  CLASSIC_ID_CARD_FORMATS,
+  OFFICIAL_ID_CARD_FORMATS,
+  resolveIDCardFormat,
+  sanitizeBloodGroup
+} from '@/lib/id-card-formats';
 
 const CANONICAL_BRANCH_INFO = [
   { code: '09', name: 'CSE', fullName: 'Computer Science & Engineering' },
@@ -34,41 +45,42 @@ const CANONICAL_BRANCH_INFO = [
 export default function IDCardManagementHub({ 
   initialBranch = 'ALL',
   qrMode = 'standard',
+  defaultFormat = null,
   hubTitle = null,
   hubDescription = null,
   badgeText = null,
   bulkHref = null,
 }) {
+  const initialFormat = resolveIDCardFormat(defaultFormat || qrMode).id;
+  const [selectedFormat, setSelectedFormat] = useState(initialFormat);
+  const resolvedFormat = useMemo(() => resolveIDCardFormat(selectedFormat), [selectedFormat]);
+
   const title = hubTitle || (
-    qrMode === 'roll_number' 
+    resolvedFormat.template === 'official'
+      ? `Official 2026 Student ID Card Generator (${resolvedFormat.number})`
+      : resolvedFormat.qrMode === 'roll_number' 
       ? 'Roll Number QR ID Card Generator' 
-      : qrMode === 'public_url' 
+      : resolvedFormat.qrMode === 'public_url' 
       ? 'Public Student Identification QR ID Card Generator' 
       : 'Student ID Cards'
   );
 
   const description = hubDescription || (
-    qrMode === 'roll_number'
+    resolvedFormat.template === 'official'
+      ? `Generates official KUCET 2026 student ID cards using the authentic institutional template overlay, high-resolution student photograph, and ${resolvedFormat.shortDesc}.`
+      : resolvedFormat.qrMode === 'roll_number'
       ? "Generates student ID cards with QR codes containing only the student's hall-ticket number. Suitable for ordinary QR scanners and KUCET attendance scanning."
-      : qrMode === 'public_url'
+      : resolvedFormat.qrMode === 'public_url'
       ? 'Generates student ID cards with QR codes that open the official KUCET public student identification page.'
       : 'Generate print-ready identity cards and export official datasets for finalized students with persisted roll numbers.'
   );
 
   const currentBadge = badgeText || (
-    qrMode === 'roll_number'
-      ? 'Roll Number QR (Plain Text)'
-      : qrMode === 'public_url'
-      ? 'Public Identification URL QR'
-      : 'Standard 14-Line Plain-Text QR'
+    `${resolvedFormat.number} — ${resolvedFormat.badge}`
   );
 
   const effectiveBulkHref = bulkHref || (
-    qrMode === 'roll_number'
-      ? '/staff/admission/id-cards/bulk?mode=roll_number'
-      : qrMode === 'public_url'
-      ? '/staff/admission/id-cards/bulk?mode=public_url'
-      : '/staff/admission/id-cards/bulk'
+    `/staff/admission/id-cards/bulk?format=${encodeURIComponent(selectedFormat)}`
   );
 
   // Branch & Filters State
@@ -236,9 +248,9 @@ export default function IDCardManagementHub({
   // Download Single Student ID Card PDF
   const handleDownloadSinglePdf = async (rollNo) => {
     setIsSingleDownloading(true);
-    const toastId = toast.loading(`Generating official ID card PDF for ${rollNo}...`);
+    const toastId = toast.loading(`Generating ${resolvedFormat.number} ID card PDF for ${rollNo}...`);
     try {
-      const res = await fetch(`/api/staff/id-cards/${rollNo}/pdf?qrMode=${encodeURIComponent(qrMode)}`);
+      const res = await fetch(`/api/staff/id-cards/${encodeURIComponent(rollNo)}/pdf?cardFormat=${encodeURIComponent(selectedFormat)}`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Failed to generate ID card PDF');
@@ -247,12 +259,12 @@ export default function IDCardManagementHub({
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `kucet_id_card_${rollNo}.pdf`;
+      a.download = `${rollNo}_ID_CARD.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-      toast.success(`ID Card PDF downloaded for ${rollNo}`, { id: toastId });
+      toast.success(`${resolvedFormat.number} PDF downloaded for ${rollNo}`, { id: toastId });
     } catch (err) {
       toast.error(err.message || 'Download failed', { id: toastId });
     } finally {
@@ -321,7 +333,7 @@ export default function IDCardManagementHub({
   const handleOpenPreview = async (student) => {
     setPreviewStudent(student);
     try {
-      const res = await fetch(`/api/staff/id-cards/${student.rollNo}?qrMode=${encodeURIComponent(qrMode)}`);
+      const res = await fetch(`/api/staff/id-cards/${encodeURIComponent(student.rollNo)}?cardFormat=${encodeURIComponent(selectedFormat)}`);
       if (res.ok) {
         const data = await res.json();
         if (data.student) setPreviewStudent(data.student);
@@ -366,6 +378,106 @@ export default function IDCardManagementHub({
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
+        </div>
+      </div>
+
+      {/* 1.1 ID Card Generation Format Selector (6 Formats) */}
+      <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
+          <div>
+            <h2 className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+              <Layers className="w-4 h-4 text-[#0b3578]" />
+              Select ID Card Generation Format (1 of 6 Formats)
+            </h2>
+            <p className="text-[11px] text-gray-500 mt-0.5">
+              Choose the template design and verification QR payload. Active for single card downloads, previews, and bulk packages.
+            </p>
+          </div>
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold bg-[#0b3578]/10 text-[#0b3578] border border-[#0b3578]/20 self-start sm:self-center">
+            Active: {resolvedFormat.number} ({resolvedFormat.name})
+          </span>
+        </div>
+
+        {/* Group A: Official 2026 Template */}
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-900 bg-amber-50/70 px-2 py-0.5 rounded border border-amber-200/60">
+            <Sparkles className="w-3 h-3 text-amber-600" />
+            <span>Official Institutional 2026 Template (Formats 4, 5, 6)</span>
+            <span className="text-[10px] font-normal text-amber-700 ml-auto hidden sm:inline">Authentic artwork overlay, seal, principal signature &amp; blood group</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {OFFICIAL_ID_CARD_FORMATS.map((fmt) => {
+              const isSelected = selectedFormat === fmt.id;
+              return (
+                <button
+                  key={fmt.id}
+                  type="button"
+                  onClick={() => setSelectedFormat(fmt.id)}
+                  className={`p-2.5 rounded-lg border text-left transition cursor-pointer relative ${
+                    isSelected
+                      ? 'border-amber-600 bg-amber-50/60 ring-2 ring-amber-500/50 shadow-xs'
+                      : 'border-gray-200 bg-white hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-xs font-bold text-gray-900 flex items-center gap-1">
+                      <FileCheck className={`w-3 h-3 ${isSelected ? 'text-amber-600' : 'text-gray-400'}`} />
+                      {fmt.number}
+                    </span>
+                    <span className="text-[9px] font-mono font-bold text-amber-800 bg-amber-100 px-1 py-0.2 rounded">
+                      {fmt.badge}
+                    </span>
+                  </div>
+                  <div className="text-[11px] font-semibold text-gray-800">{fmt.name.replace('Official Template — ', '')}</div>
+                  <p className="text-[10px] text-gray-500 leading-tight mt-0.5">{fmt.shortDesc}</p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Group B: Classic Vector Template */}
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+            <Building2 className="w-3 h-3 text-slate-600" />
+            <span>Classic ID Card Vector Layout (Formats 1, 2, 3)</span>
+            <span className="text-[10px] font-normal text-slate-600 ml-auto hidden sm:inline">Original vector canvas layout</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {CLASSIC_ID_CARD_FORMATS.map((fmt) => {
+              const isSelected = selectedFormat === fmt.id;
+              return (
+                <button
+                  key={fmt.id}
+                  type="button"
+                  onClick={() => setSelectedFormat(fmt.id)}
+                  className={`p-2.5 rounded-lg border text-left transition cursor-pointer relative ${
+                    isSelected
+                      ? 'border-[#0b3578] bg-blue-50/40 ring-2 ring-[#0b3578]/50 shadow-xs'
+                      : 'border-gray-200 bg-white hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-xs font-bold text-gray-900 flex items-center gap-1">
+                      <FileCheck className={`w-3 h-3 ${isSelected ? 'text-[#0b3578]' : 'text-gray-400'}`} />
+                      {fmt.number}
+                    </span>
+                    <span className={`text-[9px] font-mono font-bold px-1 py-0.2 rounded ${
+                      fmt.qrMode === 'roll_number'
+                        ? 'text-emerald-800 bg-emerald-100'
+                        : fmt.qrMode === 'public_url'
+                        ? 'text-purple-800 bg-purple-100'
+                        : 'text-[#0b3578] bg-blue-100'
+                    }`}>
+                      {fmt.badge}
+                    </span>
+                  </div>
+                  <div className="text-[11px] font-semibold text-gray-800">{fmt.name.replace('Classic — ', '')}</div>
+                  <p className="text-[10px] text-gray-500 leading-tight mt-0.5">{fmt.shortDesc}</p>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -820,151 +932,321 @@ export default function IDCardManagementHub({
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-sm w-full overflow-hidden border border-gray-200 animate-in zoom-in-95 duration-150">
             {/* Modal Header */}
-            <div className="px-5 py-3.5 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+            <div className="px-5 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
               <div>
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <h3 className="font-bold text-gray-900 text-sm">Student ID Card Preview</h3>
                   <span className="text-[9px] font-bold px-1.5 py-0.5 bg-blue-100 text-[#0b3578] rounded">
-                    {currentBadge}
+                    {resolvedFormat.number}
                   </span>
                 </div>
                 <p className="text-xs text-gray-500 font-mono">{previewStudent.rollNo}</p>
               </div>
-              <button
-                onClick={() => setPreviewStudent(null)}
-                className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
+
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedFormat}
+                  onChange={(e) => setSelectedFormat(e.target.value)}
+                  className="text-xs bg-white border border-gray-300 rounded px-2 py-1 font-medium text-gray-700 shadow-2xs focus:ring-1 focus:ring-[#0b3578] cursor-pointer"
+                  title="Switch preview format"
+                >
+                  <optgroup label="Official 2026 Template">
+                    {OFFICIAL_ID_CARD_FORMATS.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.number}: {f.shortDesc}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Classic Vector Layout">
+                    {CLASSIC_ID_CARD_FORMATS.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.number}: {f.shortDesc}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+
+                <button
+                  onClick={() => setPreviewStudent(null)}
+                  className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* Modal Body: Physical Card Canvas Matching IDCardPDF */}
             <div className="p-4 bg-gray-100/70 flex justify-center">
-              <div 
-                className="w-[242px] h-[385px] bg-white rounded-[12px] shadow-md border-[1.5px] border-[#0b3578] relative overflow-hidden flex flex-col select-none"
-                style={{ fontFamily: 'sans-serif' }}
-              >
-                {/* 1. Header Area: Navy Curve and Title */}
-                <div className="relative h-[82px] w-full">
-                  <div 
-                    className="absolute top-0 left-0 w-[68px] h-[82px] bg-[#0b3578] rounded-tl-[10.5px] rounded-br-[20px] flex items-center justify-center z-10"
-                  >
-                    <div className="w-[48px] h-[48px] bg-white rounded-full flex items-center justify-center p-1">
-                      <img
-                        src="/assets/ku-college-logo.png"
-                        alt="KUCET Crest"
-                        className="w-full h-full object-contain"
-                      />
+              {resolvedFormat.template === 'official' ? (
+                /* Official 2026 Template Simulation */
+                <div 
+                  className="w-[242px] h-[385px] bg-white rounded-[12px] shadow-md border-[1.5px] border-[#0b3578] relative overflow-hidden flex flex-col select-none"
+                  style={{ fontFamily: 'sans-serif' }}
+                >
+                  {/* 1. Header Area: Navy Curve and Title */}
+                  <div className="relative h-[82px] w-full">
+                    <div 
+                      className="absolute top-0 left-0 w-[68px] h-[82px] bg-[#0b3578] rounded-tl-[10.5px] rounded-br-[20px] flex items-center justify-center z-10"
+                    >
+                      <div className="w-[48px] h-[48px] bg-white rounded-full flex items-center justify-center p-1">
+                        <img
+                          src="/assets/ku-college-logo.png"
+                          alt="KUCET Crest"
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="absolute top-1 left-[72px] right-2 z-10">
+                      <div className="text-[17px] font-black text-black leading-none tracking-wider">
+                        KUCE&amp;T
+                      </div>
+                      <div className="text-[7.2px] font-bold text-[#0b3578] leading-[1.15] mt-1 tracking-tight">
+                        KU COLLEGE OF ENGINEERING<br />&amp; TECHNOLOGY
+                      </div>
+                      <div className="text-[6px] font-bold text-black mt-1 leading-[1.2]">
+                        KAKATIYA UNIVERSITY CAMPUS
+                      </div>
+                      <div className="text-[6px] font-bold text-black leading-[1.2]">
+                        VIDYARANYAPURI, WARANGAL 506 009
+                      </div>
+                      <div className="text-[6px] font-bold text-black leading-[1.2]">
+                        Tel: 91- 870 - 2449191
+                      </div>
                     </div>
                   </div>
 
-                  <div className="absolute top-1 left-[72px] right-2 z-10">
-                    <div className="text-[17px] font-black text-black leading-none tracking-wider">
-                      KUCE&amp;T
-                    </div>
-                    <div className="text-[7.2px] font-bold text-[#0b3578] leading-[1.15] mt-1 tracking-tight">
-                      KU COLLEGE OF ENGINEERING<br />&amp; TECHNOLOGY
-                    </div>
-                    <div className="text-[6px] font-bold text-black mt-1 leading-[1.2]">
-                      KAKATIYA UNIVERSITY CAMPUS
-                    </div>
-                    <div className="text-[6px] font-bold text-black leading-[1.2]">
-                      VIDYARANYAPURI, WARANGAL 506 009
-                    </div>
-                    <div className="text-[6px] font-bold text-black leading-[1.2]">
-                      Tel: 91- 870 - 2449191
+                  {/* 2. Ribbon: IDENTITY CARD */}
+                  <div className="relative mt-0.5 flex justify-end">
+                    <div className="bg-[#e91e63] text-white text-[9.5px] font-black tracking-wider px-3 py-0.5 rounded-l-md shadow-sm">
+                      IDENTITY CARD
                     </div>
                   </div>
-                </div>
 
-                {/* 2. Ribbon: IDENTITY CARD */}
-                <div className="relative mt-0.5 flex justify-end">
-                  <div className="bg-[#e91e63] text-white text-[9.5px] font-black tracking-wider px-3 py-0.5 rounded-l-md shadow-sm">
-                    IDENTITY CARD
+                  {/* 3. Photo & Info Grid */}
+                  <div className="mt-1.5 px-2.5 flex gap-2">
+                    <div className="w-[80px] h-[80px] border-2 border-[#d32f2f] rounded bg-slate-50 overflow-hidden shrink-0 flex items-center justify-center">
+                      {previewStudent.photoUrl ? (
+                        <img
+                          src={previewStudent.photoUrl}
+                          alt={previewStudent.studentName}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="text-center p-2 text-slate-400">
+                          <ImageIcon className="w-5 h-5 mx-auto text-slate-300" />
+                          <span className="text-[7.5px] font-bold block mt-0.5 text-red-500">NO PHOTO</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex-1 h-[80px] border border-[#d32f2f] rounded flex flex-col justify-between py-1 px-1.5 bg-red-50/10 text-[9px]">
+                      <div className="border-b border-[#fca5a5] pb-0.5">
+                        <span className="font-black text-black text-[9.5px]">
+                          B.Tech ({previewStudent.branch})
+                        </span>
+                      </div>
+                      <div className="border-b border-[#fca5a5] py-0.5">
+                        <span className="text-slate-600 font-bold text-[7px] block">H.T. No:</span>
+                        <span className="font-black text-black text-[9.5px]">
+                          {previewStudent.rollNo}
+                        </span>
+                      </div>
+                      <div className="pt-0.5">
+                        <span className="text-slate-600 font-bold text-[7px] block">Academic Year :</span>
+                        <span className="font-black text-black text-[8.5px]">
+                          {previewStudent.batch || '2026-2030'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                {/* 3. Photo & Info Grid */}
-                <div className="mt-1.5 px-2.5 flex gap-2">
-                  <div className="w-[78px] h-[98px] border-2 border-[#0b3578] rounded bg-slate-50 overflow-hidden flex-shrink-0 flex items-center justify-center">
-                    {previewStudent.photoUrl ? (
-                      <img
-                        src={previewStudent.photoUrl}
-                        alt={previewStudent.studentName}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="text-center p-2 text-slate-400">
-                        <ImageIcon className="w-6 h-6 mx-auto" />
-                        <span className="text-[8px] font-bold block mt-1 text-red-500">NO PHOTO</span>
+                  {/* 4. Student Name & Father Name */}
+                  <div className="mt-1.5 px-2.5 text-left">
+                    <div className="text-[10.5px] font-black text-[#d32f2f] uppercase leading-tight truncate">
+                      {previewStudent.studentName}
+                    </div>
+                    {previewStudent.fatherName && previewStudent.fatherName !== 'N/A' && (
+                      <div className="text-[7.5px] font-bold text-black mt-0.5 truncate">
+                        Father&apos;s Name: {String(previewStudent.fatherName).toUpperCase()}
                       </div>
                     )}
                   </div>
 
-                  <div className="flex-1 h-[98px] border border-[#d32f2f] rounded flex flex-col justify-between py-1 px-1.5 bg-red-50/20 text-[9px]">
-                    <div className="border-b border-[#fca5a5] pb-0.5">
-                      <span className="font-black text-black text-[9.5px]">
-                        B.Tech ({previewStudent.branch})
-                      </span>
+                  {/* 5. QR Code & Authentic Principal Signature */}
+                  <div className="mt-1.5 px-2.5 flex items-end justify-between">
+                    <div className="w-[79px] h-[79px] border border-slate-300 p-1 bg-white rounded-xs shrink-0 flex items-center justify-center">
+                      {previewStudent.qrUrl ? (
+                        <img src={previewStudent.qrUrl} alt="QR Code" className="w-full h-full object-contain" />
+                      ) : (
+                        <div className="w-full h-full bg-slate-100 flex items-center justify-center text-[8px] text-slate-400 font-bold">QR</div>
+                      )}
                     </div>
-                    <div className="border-b border-[#fca5a5] py-0.5">
-                      <span className="text-slate-600 font-bold text-[7.5px] block">H.T. No:</span>
-                      <span className="font-black text-black text-[9.5px]">
-                        {previewStudent.rollNo}
-                      </span>
+
+                    <div className="w-[90px] flex flex-col items-center justify-end pb-1">
+                      <div className="w-16 h-8 flex items-center justify-center">
+                        <span className="text-[8.5px] font-bold font-serif text-emerald-800 italic transform -rotate-6">
+                          Principal
+                        </span>
+                      </div>
+                      <div className="border-t border-black text-[7.5px] font-black text-black w-[75px] text-center pt-0.5">
+                        Principal
+                      </div>
                     </div>
-                    <div className="pt-0.5">
-                      <span className="text-slate-600 font-bold text-[7.5px] block">Academic Year:</span>
-                      <span className="font-black text-black text-[9px]">
-                        {previewStudent.batch || '2026-2030'}
-                      </span>
+                  </div>
+
+                  {/* 6. Address */}
+                  <div className="mt-1 px-2.5 text-left">
+                    <p className="text-[7.5px] font-medium text-slate-900 line-clamp-2 leading-tight">
+                      {previewStudent.studentAddress || '—'}
+                    </p>
+                  </div>
+
+                  {/* 7. Blood Group & Cell: strictly display blood group only if valid */}
+                  <div className="mt-auto px-2.5 pb-2 pt-1 border-t border-red-200/60 flex items-center justify-between text-[8px]">
+                    <div className="flex items-center gap-1">
+                      <span className="inline-block text-red-600 font-bold" title="Blood Group">🩸</span>
+                      {sanitizeBloodGroup(previewStudent.bloodGroup || previewStudent.blood_group) ? (
+                        <span className="font-black text-red-700 text-[8.5px]">
+                          {sanitizeBloodGroup(previewStudent.bloodGroup || previewStudent.blood_group)}
+                        </span>
+                      ) : (
+                        <span className="inline-block w-6 h-3" />
+                      )}
+                    </div>
+                    <div className="font-bold text-slate-900 text-[8px]">
+                      Cell : <span className="font-mono">{previewStudent.studentPhone || '—'}</span>
                     </div>
                   </div>
                 </div>
-
-                {/* 4. Student Name & Father Name */}
-                <div className="mt-1.5 px-2.5 text-left">
-                  <div className="text-[10.5px] font-black text-[#d32f2f] uppercase leading-tight truncate">
-                    {previewStudent.studentName}
-                  </div>
-                  <div className="text-[8px] font-bold text-black mt-0.5 truncate">
-                    Father&apos;s Name: {(previewStudent.fatherName || 'N/A').toUpperCase()}
-                  </div>
-                </div>
-
-                {/* 5. QR Code & Authentic Principal Signature */}
-                <div className="mt-1.5 px-2.5 flex items-end justify-between">
-                  <div className="w-[82px] h-[82px] border border-slate-300 p-1 bg-white rounded-xs flex-shrink-0 flex items-center justify-center">
-                    {previewStudent.qrUrl ? (
-                      <img src={previewStudent.qrUrl} alt="QR Code" className="w-full h-full object-contain" />
-                    ) : (
-                      <div className="w-full h-full bg-slate-100 flex items-center justify-center text-[8px] text-slate-400 font-bold">QR</div>
-                    )}
-                  </div>
-
-                  <div className="w-[80px] flex flex-col items-center justify-end">
-                    <div className="flex items-center gap-1 px-1.5 py-0.5 mb-1.5 rounded bg-emerald-50 border border-emerald-300/80 shadow-xs">
-                      <ShieldCheck className="w-3 h-3 text-emerald-600 shrink-0" />
-                      <span className="text-[7.5px] font-bold text-emerald-800 tracking-tight leading-none whitespace-nowrap">
-                        Verified Seal
-                      </span>
+              ) : (
+                /* Classic Vector Template Simulation */
+                <div 
+                  className="w-[242px] h-[385px] bg-white rounded-[12px] shadow-md border-[1.5px] border-[#0b3578] relative overflow-hidden flex flex-col select-none"
+                  style={{ fontFamily: 'sans-serif' }}
+                >
+                  {/* 1. Header Area: Navy Curve and Title */}
+                  <div className="relative h-[82px] w-full">
+                    <div 
+                      className="absolute top-0 left-0 w-[68px] h-[82px] bg-[#0b3578] rounded-tl-[10.5px] rounded-br-[20px] flex items-center justify-center z-10"
+                    >
+                      <div className="w-[48px] h-[48px] bg-white rounded-full flex items-center justify-center p-1">
+                        <img
+                          src="/assets/ku-college-logo.png"
+                          alt="KUCET Crest"
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
                     </div>
-                    <div className="border-t border-black text-[8px] font-black text-black w-[70px] text-center pt-0.5">
-                      Principal
+
+                    <div className="absolute top-1 left-[72px] right-2 z-10">
+                      <div className="text-[17px] font-black text-black leading-none tracking-wider">
+                        KUCE&amp;T
+                      </div>
+                      <div className="text-[7.2px] font-bold text-[#0b3578] leading-[1.15] mt-1 tracking-tight">
+                        KU COLLEGE OF ENGINEERING<br />&amp; TECHNOLOGY
+                      </div>
+                      <div className="text-[6px] font-bold text-black mt-1 leading-[1.2]">
+                        KAKATIYA UNIVERSITY CAMPUS
+                      </div>
+                      <div className="text-[6px] font-bold text-black leading-[1.2]">
+                        VIDYARANYAPURI, WARANGAL 506 009
+                      </div>
+                      <div className="text-[6px] font-bold text-black leading-[1.2]">
+                        Tel: 91- 870 - 2449191
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* 6. Address & Contact */}
-                <div className="mt-2.5 px-2.5 pb-2 text-center">
-                  <p className="text-[9.5px] font-bold text-slate-900 line-clamp-2 leading-tight">
-                    {previewStudent.studentAddress}
-                  </p>
-                  <p className="text-[10px] font-black text-slate-900 mt-1">
-                    Cell: {previewStudent.studentPhone}
-                  </p>
+                  {/* 2. Ribbon: IDENTITY CARD */}
+                  <div className="relative mt-0.5 flex justify-end">
+                    <div className="bg-[#e91e63] text-white text-[9.5px] font-black tracking-wider px-3 py-0.5 rounded-l-md shadow-sm">
+                      IDENTITY CARD
+                    </div>
+                  </div>
+
+                  {/* 3. Photo & Info Grid */}
+                  <div className="mt-1.5 px-2.5 flex gap-2">
+                    <div className="w-[78px] h-[98px] border-2 border-[#0b3578] rounded bg-slate-50 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                      {previewStudent.photoUrl ? (
+                        <img
+                          src={previewStudent.photoUrl}
+                          alt={previewStudent.studentName}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="text-center p-2 text-slate-400">
+                          <ImageIcon className="w-6 h-6 mx-auto" />
+                          <span className="text-[8px] font-bold block mt-1 text-red-500">NO PHOTO</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex-1 h-[98px] border border-[#d32f2f] rounded flex flex-col justify-between py-1 px-1.5 bg-red-50/20 text-[9px]">
+                      <div className="border-b border-[#fca5a5] pb-0.5">
+                        <span className="font-black text-black text-[9.5px]">
+                          B.Tech ({previewStudent.branch})
+                        </span>
+                      </div>
+                      <div className="border-b border-[#fca5a5] py-0.5">
+                        <span className="text-slate-600 font-bold text-[7.5px] block">H.T. No:</span>
+                        <span className="font-black text-black text-[9.5px]">
+                          {previewStudent.rollNo}
+                        </span>
+                      </div>
+                      <div className="pt-0.5">
+                        <span className="text-slate-600 font-bold text-[7.5px] block">Academic Year:</span>
+                        <span className="font-black text-black text-[9px]">
+                          {previewStudent.batch || '2026-2030'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 4. Student Name & Father Name */}
+                  <div className="mt-1.5 px-2.5 text-left">
+                    <div className="text-[10.5px] font-black text-[#d32f2f] uppercase leading-tight truncate">
+                      {previewStudent.studentName}
+                    </div>
+                    <div className="text-[8px] font-bold text-black mt-0.5 truncate">
+                      Father&apos;s Name: {(previewStudent.fatherName || 'N/A').toUpperCase()}
+                    </div>
+                  </div>
+
+                  {/* 5. QR Code & Authentic Principal Signature */}
+                  <div className="mt-1.5 px-2.5 flex items-end justify-between">
+                    <div className="w-[82px] h-[82px] border border-slate-300 p-1 bg-white rounded-xs flex-shrink-0 flex items-center justify-center">
+                      {previewStudent.qrUrl ? (
+                        <img src={previewStudent.qrUrl} alt="QR Code" className="w-full h-full object-contain" />
+                      ) : (
+                        <div className="w-full h-full bg-slate-100 flex items-center justify-center text-[8px] text-slate-400 font-bold">QR</div>
+                      )}
+                    </div>
+
+                    <div className="w-[80px] flex flex-col items-center justify-end">
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 mb-1.5 rounded bg-emerald-50 border border-emerald-300/80 shadow-xs">
+                        <ShieldCheck className="w-3 h-3 text-emerald-600 shrink-0" />
+                        <span className="text-[7.5px] font-bold text-emerald-800 tracking-tight leading-none whitespace-nowrap">
+                          Verified Seal
+                        </span>
+                      </div>
+                      <div className="border-t border-black text-[8px] font-black text-black w-[70px] text-center pt-0.5">
+                        Principal
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 6. Address & Contact */}
+                  <div className="mt-2.5 px-2.5 pb-2 text-center">
+                    <p className="text-[9.5px] font-bold text-slate-900 line-clamp-2 leading-tight">
+                      {previewStudent.studentAddress}
+                    </p>
+                    <p className="text-[10px] font-black text-slate-900 mt-1">
+                      Cell: {previewStudent.studentPhone}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Modal Footer Controls */}

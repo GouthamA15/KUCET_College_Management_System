@@ -1,6 +1,7 @@
 // @react-pdf Image components do not use HTML alt attributes
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
+import { sanitizeBloodGroup } from "@/lib/id-card-formats";
 
 const h = React.createElement;
 
@@ -256,9 +257,198 @@ const styles = StyleSheet.create({
     color: "#000000",
     marginTop: 1.5,
   },
+
+  // -------------------------------------------------------------
+  // NEW OFFICIAL TEMPLATE STYLES (Formats 4, 5, 6)
+  // Scale factor: ~2.65 px / pt (642x1020 px -> 242x385 pt)
+  // -------------------------------------------------------------
+  officialContainer: {
+    width: 242,
+    height: 385,
+    position: "relative",
+    overflow: "hidden",
+    backgroundColor: "#ffffff",
+  },
+  officialBackground: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: 242,
+    height: 385,
+  },
+  officialPhotoBox: {
+    position: "absolute",
+    top: 115,
+    left: 9.5,
+    width: 80.5,
+    height: 80.5,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  officialPhotoImg: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+  },
+  officialNoPhotoBox: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  officialNoPhotoText: {
+    fontSize: 8,
+    fontWeight: "bold",
+    color: "#dc2626",
+    textAlign: "center",
+  },
+  officialCourseBox: {
+    position: "absolute",
+    top: 117,
+    left: 95,
+    width: 137,
+    height: 19,
+    justifyContent: "center",
+  },
+  officialCourseText: {
+    fontSize: 9.5,
+    fontWeight: "black",
+    color: "#000000",
+  },
+  officialHtNoBox: {
+    position: "absolute",
+    top: 138,
+    left: 140,
+    width: 92,
+    height: 17,
+    justifyContent: "center",
+  },
+  officialHtNoText: {
+    fontSize: 9.5,
+    fontWeight: "black",
+    color: "#000000",
+  },
+  officialBatchBox: {
+    position: "absolute",
+    top: 157,
+    left: 168,
+    width: 64,
+    height: 15,
+    justifyContent: "center",
+  },
+  officialBatchText: {
+    fontSize: 9,
+    fontWeight: "black",
+    color: "#000000",
+  },
+  officialNameBox: {
+    position: "absolute",
+    top: 183,
+    left: 11.5,
+    width: 220,
+    height: 21,
+    justifyContent: "center",
+  },
+  officialNameText: {
+    fontSize: 10.5,
+    fontWeight: "black",
+    color: "#d32f2f",
+    textTransform: "uppercase",
+  },
+  officialFatherBox: {
+    position: "absolute",
+    top: 206,
+    left: 108,
+    width: 124,
+    height: 15,
+    justifyContent: "center",
+  },
+  officialFatherText: {
+    fontSize: 8,
+    fontWeight: "bold",
+    color: "#000000",
+    textTransform: "uppercase",
+  },
+  officialQrBox: {
+    position: "absolute",
+    top: 226,
+    left: 11.5,
+    width: 79,
+    height: 79,
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 1,
+  },
+  officialQrImg: {
+    width: "100%",
+    height: "100%",
+    objectFit: "contain",
+  },
+  officialSignatureBox: {
+    position: "absolute",
+    top: 271,
+    left: 169,
+    width: 60,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  officialSignatureImg: {
+    width: 60,
+    height: 28,
+    objectFit: "contain",
+  },
+  officialAddressBox: {
+    position: "absolute",
+    top: 320,
+    left: 11.5,
+    width: 220,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  officialAddressText: {
+    fontSize: 7.5,
+    fontWeight: "bold",
+    color: "#000000",
+    textAlign: "center",
+    lineHeight: 1.15,
+  },
+  officialBloodGroupBox: {
+    position: "absolute",
+    top: 363,
+    left: 28,
+    width: 65,
+    height: 14,
+    justifyContent: "center",
+  },
+  officialBloodGroupText: {
+    fontSize: 8.5,
+    fontWeight: "black",
+    color: "#d32f2f",
+  },
+  officialCellBox: {
+    position: "absolute",
+    top: 363,
+    left: 120,
+    width: 89,
+    height: 14,
+    justifyContent: "center",
+  },
+  officialCellText: {
+    fontSize: 9,
+    fontWeight: "black",
+    color: "#000000",
+  },
 });
 
-export function IDCardPage({
+/**
+ * Classic Hand-Crafted Vector Card Layout (Formats 1, 2, 3)
+ */
+export function IDCardClassicPage({
   studentName,
   fatherName,
   admissionNo,
@@ -387,7 +577,153 @@ export function IDCardPage({
   );
 }
 
-export function BulkIDCardPDF({ students = [], logoUrl, signatureUrl }) {
+/**
+ * Official Institutional PNG Template Overlay Layout (Formats 4, 5, 6)
+ * Preserves the exact background artwork, institutional logo, headers, ribbon,
+ * and the pre-printed blood-drop symbol and Principal seal/signature.
+ */
+export function IDCardOfficialPage({
+  studentName,
+  fatherName,
+  admissionNo,
+  course,
+  batch,
+  address,
+  mobile,
+  bloodGroup,
+  pfpUrl,
+  signatureUrl,
+  qrUrl,
+  templateBgUrl,
+}) {
+  const cleanBloodGroup = sanitizeBloodGroup(bloodGroup);
+  const cleanFatherName = (fatherName && fatherName !== 'N/A') ? String(fatherName).trim().toUpperCase() : '';
+
+  return h(
+    Page,
+    { size: [242, 385], style: styles.page },
+    h(
+      View,
+      { style: styles.officialContainer },
+      // 1. Official Background Template Artwork
+      templateBgUrl
+        ? h(Image, { src: templateBgUrl, style: styles.officialBackground })
+        : null,
+
+      // 2. Student Photograph
+      h(
+        View,
+        { style: styles.officialPhotoBox },
+        pfpUrl
+          ? h(Image, { src: pfpUrl, style: styles.officialPhotoImg })
+          : h(
+              View,
+              { style: styles.officialNoPhotoBox },
+              h(Text, { style: styles.officialNoPhotoText }, "NO PHOTO")
+            )
+      ),
+
+      // 3. Course Value (Inside top cell of right info table)
+      h(
+        View,
+        { style: styles.officialCourseBox },
+        h(Text, { style: styles.officialCourseText }, `B.Tech (${course || '—'})`)
+      ),
+
+      // 4. Hall Ticket / Roll Number Value (Beside "H.T.No:")
+      h(
+        View,
+        { style: styles.officialHtNoBox },
+        h(Text, { style: styles.officialHtNoText }, admissionNo || '—')
+      ),
+
+      // 5. Academic Year Value (Beside "Academic Year :")
+      h(
+        View,
+        { style: styles.officialBatchBox },
+        h(Text, { style: styles.officialBatchText }, batch || '—')
+      ),
+
+      // 6. Student Full Name
+      h(
+        View,
+        { style: styles.officialNameBox },
+        h(Text, { style: styles.officialNameText }, studentName || 'N/A')
+      ),
+
+      // 7. Father's Name Value (Beside "Father's Name:")
+      cleanFatherName
+        ? h(
+            View,
+            { style: styles.officialFatherBox },
+            h(Text, { style: styles.officialFatherText }, cleanFatherName)
+          )
+        : null,
+
+      // 8. Verification QR Code
+      h(
+        View,
+        { style: styles.officialQrBox },
+        qrUrl ? h(Image, { src: qrUrl, style: styles.officialQrImg }) : null
+      ),
+
+      // 9. Principal Digital Signature (Optional overlay; background already embeds authentic signature)
+      signatureUrl
+        ? h(
+            View,
+            { style: styles.officialSignatureBox },
+            h(Image, { src: signatureUrl, style: styles.officialSignatureImg })
+          )
+        : null,
+
+      // 10. Complete Student Permanent Address
+      h(
+        View,
+        { style: styles.officialAddressBox },
+        h(Text, { style: styles.officialAddressText }, address || '—')
+      ),
+
+      // 11. Blood Group Value (Placed directly beside pre-printed red blood drop symbol)
+      cleanBloodGroup
+        ? h(
+            View,
+            { style: styles.officialBloodGroupBox },
+            h(Text, { style: styles.officialBloodGroupText }, cleanBloodGroup)
+          )
+        : null,
+
+      // 12. Contact Cell Number Value (Placed directly beside pre-printed "Cell :" label)
+      h(
+        View,
+        { style: styles.officialCellBox },
+        h(Text, { style: styles.officialCellText }, mobile || '—')
+      )
+    )
+  );
+}
+
+/**
+ * Unified IDCardPage: Dispatches to either Classic or Official Template
+ * based on template / cardFormat / format property.
+ * Default remains Classic layout for 100% backward compatibility.
+ */
+export function IDCardPage(props) {
+  const isOfficial =
+    props?.template === 'official' ||
+    String(props?.cardFormat || '').startsWith('official') ||
+    String(props?.format || '').startsWith('official') ||
+    props?.cardFormat === 4 ||
+    props?.cardFormat === 5 ||
+    props?.cardFormat === 6;
+
+  if (isOfficial) {
+    return IDCardOfficialPage(props);
+  }
+
+  return IDCardClassicPage(props);
+}
+
+export function BulkIDCardPDF({ students = [], logoUrl, signatureUrl, templateBgUrl, template, cardFormat, format }) {
   return h(
     Document,
     null,
@@ -395,6 +731,10 @@ export function BulkIDCardPDF({ students = [], logoUrl, signatureUrl }) {
       h(IDCardPage, {
         key: student.admissionNo || student.rollNo || idx,
         ...student,
+        template: student.template || template,
+        cardFormat: student.cardFormat || cardFormat,
+        format: student.format || format,
+        templateBgUrl: student.templateBgUrl || templateBgUrl,
         logoUrl: logoUrl || student.logoUrl,
         signatureUrl: signatureUrl || student.signatureUrl,
       })
@@ -405,3 +745,4 @@ export function BulkIDCardPDF({ students = [], logoUrl, signatureUrl }) {
 export default function IDCardPDF(props) {
   return h(Document, null, h(IDCardPage, props));
 }
+

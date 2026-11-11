@@ -114,11 +114,15 @@ function getBatchFromRoll(rollNo) {
 
 function getEntranceExamQualified(rollNo) {
   if (rollNo && typeof rollNo === 'string') {
-    if (rollNo.includes('T')) {
-      return 'TG EAPCET';
+    const { isValid, admissionType } = validateRollNo(rollNo);
+    if (isValid) {
+      return admissionType === 'Lateral' ? 'TG ECET' : 'TG EAPCET';
     }
-    if (rollNo.includes('L')) {
+    if (rollNo.toUpperCase().endsWith('L')) {
       return 'TG ECET';
+    }
+    if (rollNo.toUpperCase().includes('T')) {
+      return 'TG EAPCET';
     }
   }
   return null;

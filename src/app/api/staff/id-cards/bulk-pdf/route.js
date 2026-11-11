@@ -8,11 +8,16 @@ import { InstitutionAssetService } from '@/services/institution/InstitutionAsset
 import { resolvePdfImageDataUrl } from '../[rollno]/pdf/route';
 import { pdf } from '@react-pdf/renderer';
 import { BulkIDCardPDF } from '@/pdf/templates/IDCardPDF';
+import { resolveIDCardFormat } from '@/lib/id-card-formats';
 import logger from '@/lib/logger';
 import { z } from 'zod';
 
 const bulkSchema = z.object({
   rollNos: z.array(z.string().min(1)).min(1, 'At least one roll number is required').max(200, 'Maximum 200 cards per bulk batch'),
+  qrMode: z.string().optional(),
+  format: z.string().optional(),
+  cardFormat: z.string().optional(),
+  template: z.string().optional(),
 });
 
 export const POST = wrapHandler({
@@ -24,7 +29,8 @@ export const POST = wrapHandler({
       return apiError('Forbidden: You do not have permission to batch generate ID cards', 403);
     }
 
-    const { rollNos } = data;
+    const { rollNos, qrMode, format, cardFormat, template } = data;
+    const resolvedFormat = resolveIDCardFormat(cardFormat || format || qrMode, template);
 
     // 2. Departmental Scoping
     const allowedBranches = IDCardAuthorizationService.getAllowedBranches(user);
@@ -39,15 +45,17 @@ export const POST = wrapHandler({
     try {
       // 4. Resolve Institutional Assets
       let logoUrl = null;
-      try {
-        logoUrl = await InstitutionAssetService.getAssetDataUrl('institution/college-logo');
-      } catch (_e) {}
+      if (resolvedFormat.template === 'classic') {
+        try {
+          logoUrl = await InstitutionAssetService.getAssetDataUrl('institution/college-logo');
+        } catch (_e) {}
 
-      if (!logoUrl) {
-        const localLogoPath = path.join(process.cwd(), 'public/assets/ku-college-logo.png');
-        if (fs.existsSync(/*turbopackIgnore: true*/ localLogoPath)) {
-          const logoBuf = fs.readFileSync(/*turbopackIgnore: true*/ localLogoPath);
-          logoUrl = `data:image/png;base64,${logoBuf.toString('base64')}`;
+        if (!logoUrl) {
+          const localLogoPath = path.join(process.cwd(), 'public/assets/ku-college-logo.png');
+          if (fs.existsSync(/*turbopackIgnore: true*/ localLogoPath)) {
+            const logoBuf = fs.readFileSync(/*turbopackIgnore: true*/ localLogoPath);
+            logoUrl = `data:image/png;base64,${logoBuf.toString('base64')}`;
+          }
         }
       }
 
@@ -62,13 +70,35 @@ export const POST = wrapHandler({
         logger.warn('Principal digital signature not found in private storage for bulk ID card PDF');
       }
 
-      // 5. Pre-resolve photos in parallel with JPEG transcoding
+      // Pre-load official PNG template background if official format requested
+      let templateBgUrl = null;
+      if (resolvedFormat.template === 'official') {
+        try {
+          templateBgUrl = await InstitutionAssetService.getAssetDataUrl('institution/id-card-template-2026');
+        } catch (tplErr) {
+          logger.warn({ err: tplErr.message }, 'Failed to resolve official ID card template background');
+        }
+      }
+
+      // 5. Pre-resolve photos and format-specific QR codes in parallel with JPEG transcoding
       const enrichedStudents = await Promise.all(
         students.map(async (st) => {
           const resolvedPhoto = await resolvePdfImageDataUrl(st.pfpUrl);
+          let qrUrl = null;
+          try {
+            qrUrl = await IDCardDataService.generateQRDataUrlForMode(st, resolvedFormat.qrMode);
+          } catch (qrErr) {
+            logger.warn({ roll: st.rollNo, err: qrErr.message }, 'Failed to generate QR code for student in batch');
+          }
+
           return {
             ...st,
             pfpUrl: resolvedPhoto,
+            qrUrl: qrUrl || st.qrUrl,
+            template: resolvedFormat.template,
+            cardFormat: resolvedFormat.id,
+            format: resolvedFormat.id,
+            templateBgUrl,
           };
         })
       );
@@ -79,6 +109,10 @@ export const POST = wrapHandler({
           students={enrichedStudents}
           logoUrl={logoUrl}
           signatureUrl={signatureUrl}
+          templateBgUrl={templateBgUrl}
+          template={resolvedFormat.template}
+          cardFormat={resolvedFormat.id}
+          format={resolvedFormat.id}
         />
       );
 

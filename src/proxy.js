@@ -312,7 +312,12 @@ export default async function proxy(request) {
   } else if (pathname.startsWith('/student')) {
     if (!studentPayload) return handleUnauthorized(request);
     const isVerified = studentPayload.is_email_verified && studentPayload.has_password_set;
-    const allowedForUnverified = pathname === '/student' || pathname === '/student/settings/security' || pathname === '/student/profile';
+    const allowedForUnverified =
+      pathname === '/student' ||
+      pathname === '/student/settings/security' ||
+      pathname === '/student/profile' ||
+      pathname === '/student/apaar' ||
+      pathname === '/student/settings';
     if (!isVerified && !allowedForUnverified) return withCookies(NextResponse.redirect(new URL('/student/settings/security', request.url), 303));
   }
 

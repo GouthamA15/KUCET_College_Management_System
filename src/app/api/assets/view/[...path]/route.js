@@ -16,7 +16,7 @@ const MAX_CACHE_FILE_SIZE = 2 * 1024 * 1024; // 2MB
  * Resolves candidate file paths on disk using multi-path checks and institutional asset mappings.
  */
 export function resolveLocalFilePath(filename) {
-  const base = getLocalStorageBasePath();
+  const base = path.resolve(getLocalStorageBasePath());
   const repoPublic = path.join(process.cwd(), 'public');
   
   let cleanFilename = filename || '';

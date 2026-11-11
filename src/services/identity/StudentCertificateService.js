@@ -16,15 +16,29 @@ export class StudentCertificateService {
   /**
    * Specialized validator for Bonafide Certificate eligibility
    */
-  static async validateBonafideEligibility(studentId, rollNo, studentData, approvedRequests, _collegeInfo, _now) {
+  static async validateBonafideEligibility(studentId, rollNo, studentData, allRequests, _collegeInfo, _now) {
     try {
       const { getBranchFromRoll } = await import('@/lib/rollNumber');
       const { calculateYearAndSemesterAsync, getCollegeAcademicYear } = await import('@/lib/academic-utils');
       const { parsePurpose } = await import('@/lib/certificate-utils');
+      const { resolveAcademicClassification, evaluateBonafideFeeEntitlement } = await import('@/lib/academicClassification');
 
       const academicYear = await getCollegeAcademicYear();
       const branch = getBranchFromRoll(rollNo);
       const { semester } = await calculateYearAndSemesterAsync(rollNo, 0);
+
+      const classification = resolveAcademicClassification({
+        rollNo,
+        academicYear,
+        studySemester: semester || null
+      });
+
+      const bonafideRequests = (allRequests || []).filter(r => r?.certificate_type === 'Bonafide Certificate');
+      const feeEntitlement = evaluateBonafideFeeEntitlement({
+        allBonafideRows: bonafideRequests,
+        isFirstYearAtKucet: classification.isFirstYearAtKucet,
+        currentAcademicYear: academicYear
+      });
 
       let total = 0;
       let attended = 0;
@@ -53,8 +67,8 @@ export class StudentCertificateService {
         }
       }
 
-      const approvedBonafides = (approvedRequests || []).filter(r => 
-        r?.certificate_type === 'Bonafide Certificate' && r?.academic_year === academicYear
+      const approvedBonafides = bonafideRequests.filter(r => 
+        r?.status === 'APPROVED' && r?.academic_year === academicYear
       );
 
       const approvedPurposes = approvedBonafides.map(r => {
@@ -64,6 +78,8 @@ export class StudentCertificateService {
         }
         return parsed.purpose_type || 'General';
       });
+
+      const isEligible = feeEntitlement.canSubmit;
 
       return {
         attendance: {
@@ -77,19 +93,45 @@ export class StudentCertificateService {
         academicYear,
         approvedPurposes,
         alreadyHasApproved: approvedPurposes.length > 0,
-        isEligible: true,
-        reason: null
+        isEligible,
+        reason: isEligible ? null : feeEntitlement.feeReason,
+        classification,
+        feeEntitlement
       };
     } catch (err) {
       logger.warn({ err: err.message, studentId, rollNo }, '[BONAFIDE_ELIGIBILITY_FALLBACK]');
+      const { validateRollNo: parseRoll } = await import('@/lib/rollNumber').catch(() => ({ validateRollNo: () => ({ isValid: false }) }));
+      const parsed = rollNo ? parseRoll(rollNo) : null;
+      const entryYr = parsed?.entryYear ? parseInt(parsed.entryYear, 10) : null;
+      const currentYr = new Date().getFullYear();
+      const yearsAtKucet = entryYr ? Math.max(1, currentYr - entryYr + 1) : 1;
+      const isFirstYear = yearsAtKucet === 1;
+
       return {
         attendance: { total: 0, attended: 0, percentage: null, isEligible: true, thresholdReached: true },
         feeReimbursement: studentData?.fee_reimbursement || 'NO',
-        academicYear: '2025-2026',
+        academicYear: '2026-27',
         approvedPurposes: [],
         alreadyHasApproved: false,
         isEligible: true,
-        reason: null
+        reason: null,
+        classification: {
+          isValid: true,
+          admissionType: parsed?.admissionType || 'Regular',
+          yearsAtKucet,
+          studyYear: Math.min(4, yearsAtKucet),
+          certificateFormat: isFirstYear ? 'ORDINARY' : 'PERCENTAGE',
+          isFirstYearAtKucet: isFirstYear
+        },
+        feeEntitlement: {
+          canSubmit: true,
+          isPendingLocked: false,
+          conflictDetected: false,
+          requiredFee: isFirstYear ? 100 : 0,
+          feeReason: isFirstYear
+            ? 'First-Year Bonafide Processing Fee (₹100 payable once in Year 1 at KUCET)'
+            : 'Free under Senior Year Bonafide Entitlement (Year 2+ at KUCET)'
+        }
       };
     }
   }
@@ -171,22 +213,21 @@ export class StudentCertificateService {
 
       const studentData = db.query?.students
         ? await db.query.students.findFirst({
-            columns: { fee_reimbursement: true },
+            columns: { fee_reimbursement: true, academic_offset_years: true },
             where: eq(studentsTable.id, studentId)
           }).catch(() => null)
         : null;
 
-      const approvedRequests = db.query?.studentRequests
+      const allRequests = db.query?.studentRequests
         ? await db.query.studentRequests.findMany({
-            where: and(
-              eq(studentRequests.student_id, studentId),
-              eq(studentRequests.status, 'APPROVED')
-            )
+            where: eq(studentRequests.student_id, studentId)
           }).catch(() => [])
         : [];
 
+      const approvedRequests = allRequests.filter(r => r.status === 'APPROVED');
+
       return {
-        bonafide: await this.validateBonafideEligibility(studentId, rollNo, studentData, approvedRequests, collegeInfo, now),
+        bonafide: await this.validateBonafideEligibility(studentId, rollNo, studentData, allRequests, collegeInfo, now),
         tc: await this.validateTCEligibility(studentId, rollNo, studentData, approvedRequests, collegeInfo, now),
         noc: await this.validateNOCEligibility()
       };
@@ -236,11 +277,14 @@ export class StudentCertificateService {
     const branch = getBranchFromRoll(rollNo);
     
     if (certificateType === 'No Objection Certificate') {
+      const activeHod = await this.getActiveHodForBranch(branch);
       return {
         staffType: 'hod',
         hodApprovalStatus: 'PENDING',
         branch,
         requiresHod: true,
+        hodStaffId: activeHod?.staff_account_id || null,
+        unresolvedHod: !activeHod,
       };
     }
     
@@ -253,13 +297,18 @@ export class StudentCertificateService {
           branch,
           requiresHod: true,
           hodStaffId: activeHod.staff_account_id,
+          hodUnavailable: false,
         };
       } else {
+        // Institutional rule: If no active HOD exists, forward to Admission Staff
         return {
           staffType: 'admission',
           hodApprovalStatus: 'NOT_REQUIRED',
           branch,
           requiresHod: false,
+          hodStaffId: null,
+          hodUnavailable: true,
+          reason: `No active HOD assigned for department ${branch || 'N/A'}. Forwarded directly to Admission Staff per institutional policy.`,
         };
       }
     }
@@ -283,4 +332,3 @@ export class StudentCertificateService {
     };
   }
 }
-

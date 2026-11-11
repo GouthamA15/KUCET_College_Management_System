@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import {
   Download,
@@ -13,8 +14,16 @@ import {
   ShieldCheck,
   Layers,
   Info,
+  Sparkles,
+  FileCheck,
 } from 'lucide-react';
 import Link from 'next/link';
+import {
+  ID_CARD_FORMATS,
+  CLASSIC_ID_CARD_FORMATS,
+  OFFICIAL_ID_CARD_FORMATS,
+  resolveIDCardFormat,
+} from '@/lib/id-card-formats';
 
 const CANONICAL_BRANCHES = [
   { code: '09', name: 'CSE', fullName: 'Computer Science & Engineering' },
@@ -38,11 +47,18 @@ const GENERATION_PHASES = [
 ];
 
 export default function BulkIdCardDownload({ defaultBranch = 'ALL', isCoordinatorMode = false, defaultQrMode = 'standard' }) {
+  const searchParams = useSearchParams();
+  const urlFormat = searchParams?.get('cardFormat') || searchParams?.get('format');
+  const urlMode = searchParams?.get('mode') || searchParams?.get('qrMode');
+  const initialFormat = resolveIDCardFormat(urlFormat || urlMode || defaultQrMode).id;
+
   // State
   const [selectedBranch, setSelectedBranch] = useState(defaultBranch);
   const [academicLevel, setAcademicLevel] = useState('FIRST_YEAR');
   const [academicYear, setAcademicYear] = useState('');
-  const [qrMode, setQrMode] = useState(defaultQrMode);
+  const [selectedFormat, setSelectedFormat] = useState(initialFormat);
+  const resolvedFormat = useMemo(() => resolveIDCardFormat(selectedFormat), [selectedFormat]);
+  const qrMode = resolvedFormat.qrMode;
   const [isLoadingPreview, setIsLoadingPreview] = useState(true);
   const [previewData, setPreviewData] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -148,7 +164,10 @@ export default function BulkIdCardDownload({ defaultBranch = 'ALL', isCoordinato
           branch: selectedBranch,
           academicLevel: isCoordinator ? 'FIRST_YEAR' : academicLevel,
           academicYear,
-          qrMode,
+          cardFormat: selectedFormat,
+          format: selectedFormat,
+          template: resolvedFormat.template,
+          qrMode: resolvedFormat.qrMode,
         }),
       });
 
@@ -355,68 +374,112 @@ export default function BulkIdCardDownload({ defaultBranch = 'ALL', isCoordinato
           </div>
         </div>
 
-        {/* QR Code Format Selection */}
-        <div className="pt-3 border-t border-gray-100">
-          <label className="block text-xs font-semibold text-gray-700 mb-2">
-            QR Code Verification Format (Select Generator Module)
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <button
-              type="button"
-              onClick={() => setQrMode('standard')}
-              disabled={isGenerating}
-              className={`p-3 rounded-lg border text-left transition cursor-pointer ${
-                qrMode === 'standard'
-                  ? 'border-[#0b3578] bg-blue-50/40 ring-1 ring-[#0b3578]'
-                  : 'border-gray-200 bg-white hover:bg-gray-50'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-900">Standard QR</span>
-                <span className="text-[10px] font-mono font-bold text-[#0b3578] bg-blue-100 px-1.5 py-0.5 rounded">14 Fields</span>
-              </div>
-              <p className="text-[11px] text-gray-500 mt-1 leading-snug">
-                Generates original 14-line human-readable institutional verification payload.
+        {/* ID Card Generation Format Selection (6 Formats: 3 Official 2026 + 3 Classic) */}
+        <div className="pt-3 border-t border-gray-100 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <label className="block text-xs font-bold text-gray-900">
+                ID Card Generation Format (Select 1 of 6 Formats)
+              </label>
+              <p className="text-[11px] text-gray-500">
+                Choose between the New Official 2026 Template or the Classic Vector Canvas, paired with your target QR verification payload.
               </p>
-            </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold bg-[#0b3578]/10 text-[#0b3578] border border-[#0b3578]/20">
+                Selected: {resolvedFormat.number} ({resolvedFormat.template === 'official' ? 'Official 2026' : 'Classic'})
+              </span>
+            </div>
+          </div>
 
-            <button
-              type="button"
-              onClick={() => setQrMode('roll_number')}
-              disabled={isGenerating}
-              className={`p-3 rounded-lg border text-left transition cursor-pointer ${
-                qrMode === 'roll_number'
-                  ? 'border-[#0b3578] bg-blue-50/40 ring-1 ring-[#0b3578]'
-                  : 'border-gray-200 bg-white hover:bg-gray-50'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-900">Roll Number QR</span>
-                <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">Module A</span>
-              </div>
-              <p className="text-[11px] text-gray-500 mt-1 leading-snug">
-                QR contains strictly the plain student hall-ticket number. Suitable for attendance scanning.
-              </p>
-            </button>
+          {/* Group A: New Official 2026 Template Formats */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900 bg-amber-50/80 px-2.5 py-1 rounded-md border border-amber-200">
+              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              <span>Official Institutional 2026 Template (Formats 4, 5, 6)</span>
+              <span className="text-[10px] font-normal text-amber-700 ml-auto hidden sm:inline">High-res artwork overlay with authentic seal, signature &amp; blood group</span>
+            </div>
 
-            <button
-              type="button"
-              onClick={() => setQrMode('public_url')}
-              disabled={isGenerating}
-              className={`p-3 rounded-lg border text-left transition cursor-pointer ${
-                qrMode === 'public_url'
-                  ? 'border-[#0b3578] bg-blue-50/40 ring-1 ring-[#0b3578]'
-                  : 'border-gray-200 bg-white hover:bg-gray-50'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-900">Public Identification URL</span>
-                <span className="text-[10px] font-mono font-bold text-purple-800 bg-purple-100 px-1.5 py-0.5 rounded">Module B</span>
-              </div>
-              <p className="text-[11px] text-gray-500 mt-1 leading-snug">
-                QR contains the official KUCET public student verification link.
-              </p>
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {OFFICIAL_ID_CARD_FORMATS.map((fmt) => {
+                const isSelected = selectedFormat === fmt.id;
+                return (
+                  <button
+                    key={fmt.id}
+                    type="button"
+                    onClick={() => setSelectedFormat(fmt.id)}
+                    disabled={isGenerating}
+                    className={`p-3 rounded-lg border text-left transition cursor-pointer relative ${
+                      isSelected
+                        ? 'border-amber-600 bg-amber-50/60 ring-2 ring-amber-500/50 shadow-xs'
+                        : 'border-gray-200 bg-white hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                        <FileCheck className={`w-3.5 h-3.5 ${isSelected ? 'text-amber-600' : 'text-gray-400'}`} />
+                        {fmt.number}
+                      </span>
+                      <span className="text-[10px] font-mono font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
+                        {fmt.badge}
+                      </span>
+                    </div>
+                    <div className="text-xs font-semibold text-gray-800 mb-0.5">{fmt.name.replace('Official Template — ', '')}</div>
+                    <p className="text-[11px] text-gray-500 leading-snug">
+                      {fmt.shortDesc}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Group B: Classic Vector Template Formats */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
+              <Building2 className="w-3.5 h-3.5 text-slate-600" />
+              <span>Classic ID Card Vector Layout (Formats 1, 2, 3)</span>
+              <span className="text-[10px] font-normal text-slate-600 ml-auto hidden sm:inline">Retained classic vector layout with dynamic typography &amp; seal</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {CLASSIC_ID_CARD_FORMATS.map((fmt) => {
+                const isSelected = selectedFormat === fmt.id;
+                return (
+                  <button
+                    key={fmt.id}
+                    type="button"
+                    onClick={() => setSelectedFormat(fmt.id)}
+                    disabled={isGenerating}
+                    className={`p-3 rounded-lg border text-left transition cursor-pointer relative ${
+                      isSelected
+                        ? 'border-[#0b3578] bg-blue-50/40 ring-2 ring-[#0b3578]/50 shadow-xs'
+                        : 'border-gray-200 bg-white hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                        <FileCheck className={`w-3.5 h-3.5 ${isSelected ? 'text-[#0b3578]' : 'text-gray-400'}`} />
+                        {fmt.number}
+                      </span>
+                      <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                        fmt.qrMode === 'roll_number'
+                          ? 'text-emerald-800 bg-emerald-100'
+                          : fmt.qrMode === 'public_url'
+                          ? 'text-purple-800 bg-purple-100'
+                          : 'text-[#0b3578] bg-blue-100'
+                      }`}>
+                        {fmt.badge}
+                      </span>
+                    </div>
+                    <div className="text-xs font-semibold text-gray-800 mb-0.5">{fmt.name.replace('Classic — ', '')}</div>
+                    <p className="text-[11px] text-gray-500 leading-snug">
+                      {fmt.shortDesc}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -682,7 +745,11 @@ export default function BulkIdCardDownload({ defaultBranch = 'ALL', isCoordinato
                 <p className="text-xs text-emerald-800 mt-0.5">
                   Package: <strong className="font-mono text-emerald-900">{generationResult.zipFilename}</strong>
                 </p>
-                <div className="flex items-center gap-3 text-xs text-emerald-700 mt-1">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-emerald-700 mt-1">
+                  <span className="font-bold bg-emerald-200/60 text-emerald-900 px-2 py-0.5 rounded text-[11px]">
+                    {resolvedFormat.number} ({resolvedFormat.name})
+                  </span>
+                  <span>•</span>
                   <span>Size: {formatFileSize(generationResult.fileSize)}</span>
                   <span>•</span>
                   <span>Generated: {generationResult.generatedCount} individual PDFs</span>

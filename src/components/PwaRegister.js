@@ -75,6 +75,26 @@ export default function PwaRegister() {
 
     // 2. Service Worker Lifecycle Management
     if ('serviceWorker' in navigator) {
+      // In development mode, NEVER register the Service Worker to prevent HMR and reload loops.
+      // Proactively clean up any stale registrations and caches on localhost.
+      if (process.env.NODE_ENV !== 'production') {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const reg of registrations) {
+            reg.unregister();
+            console.info('[PWA] Unregistered development ServiceWorker:', reg.scope);
+          }
+        });
+        if ('caches' in window) {
+          caches.keys().then((names) => {
+            names.forEach((name) => caches.delete(name));
+          });
+        }
+        return () => {
+          window.removeEventListener('error', handleError);
+          window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+        };
+      }
+
       let refreshing = false;
       let workerCleanup = null; // Stores cleanup returned by registerWorker
 

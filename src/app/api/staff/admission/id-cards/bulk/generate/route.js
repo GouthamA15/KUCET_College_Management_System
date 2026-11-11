@@ -7,7 +7,10 @@ const generateSchema = z.object({
   branch: z.string().trim().default('ALL'),
   academicLevel: z.string().trim().default('FIRST_YEAR'),
   academicYear: z.string().trim().optional(),
-  qrMode: z.enum(['standard', 'roll_number', 'public_url']).default('standard'),
+  qrMode: z.string().optional().default('standard'),
+  cardFormat: z.string().optional(),
+  format: z.string().optional(),
+  template: z.string().optional(),
 });
 
 export const POST = wrapHandler({
@@ -24,6 +27,9 @@ export const POST = wrapHandler({
         academicLevel: data.academicLevel,
         academicYear: data.academicYear,
         qrMode: data.qrMode,
+        cardFormat: data.cardFormat || data.format,
+        format: data.format || data.cardFormat,
+        template: data.template,
         ip: clientIp,
         userAgent,
       });
