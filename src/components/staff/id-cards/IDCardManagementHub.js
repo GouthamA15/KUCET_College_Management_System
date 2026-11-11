@@ -1024,8 +1024,8 @@ export default function IDCardManagementHub({
                   </div>
 
                   {/* 3. Photo & Info Grid */}
-                  <div className="mt-1.5 px-2.5 flex gap-2">
-                    <div className="w-[80px] h-[80px] border-2 border-[#d32f2f] rounded bg-slate-50 overflow-hidden shrink-0 flex items-center justify-center">
+                  <div className="mt-1 px-3 flex gap-2.5 items-center">
+                    <div className="w-[64px] h-[56px] border border-[#d32f2f] rounded-xs bg-slate-50 overflow-hidden shrink-0 flex items-center justify-center">
                       {previewStudent.photoUrl ? (
                         <img
                           src={previewStudent.photoUrl}
@@ -1033,27 +1033,27 @@ export default function IDCardManagementHub({
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="text-center p-2 text-slate-400">
-                          <ImageIcon className="w-5 h-5 mx-auto text-slate-300" />
-                          <span className="text-[7.5px] font-bold block mt-0.5 text-red-500">NO PHOTO</span>
+                        <div className="text-center p-1 text-slate-400">
+                          <ImageIcon className="w-4 h-4 mx-auto text-slate-300" />
+                          <span className="text-[7px] font-bold block mt-0.5 text-red-500">NO PHOTO</span>
                         </div>
                       )}
                     </div>
 
-                    <div className="flex-1 h-[80px] border border-[#d32f2f] rounded flex flex-col justify-between py-1 px-1.5 bg-red-50/10 text-[9px]">
+                    <div className="flex-1 h-[56px] border border-[#d32f2f] rounded-xs flex flex-col justify-between py-1 px-1.5 bg-red-50/10 text-[9px]">
                       <div className="border-b border-[#fca5a5] pb-0.5">
                         <span className="font-black text-black text-[9.5px]">
                           B.Tech ({previewStudent.branch})
                         </span>
                       </div>
-                      <div className="border-b border-[#fca5a5] py-0.5">
-                        <span className="text-slate-600 font-bold text-[7px] block">H.T. No:</span>
-                        <span className="font-black text-black text-[9.5px]">
+                      <div className="border-b border-[#fca5a5] py-0.5 flex justify-between items-center">
+                        <span className="text-slate-600 font-bold text-[7px]">H.T. No:</span>
+                        <span className="font-black text-black text-[9px]">
                           {previewStudent.rollNo}
                         </span>
                       </div>
-                      <div className="pt-0.5">
-                        <span className="text-slate-600 font-bold text-[7px] block">Academic Year :</span>
+                      <div className="pt-0.5 flex justify-between items-center">
+                        <span className="text-slate-600 font-bold text-[7px]">Academic Year :</span>
                         <span className="font-black text-black text-[8.5px]">
                           {previewStudent.batch || '2026-2030'}
                         </span>
@@ -1061,21 +1061,25 @@ export default function IDCardManagementHub({
                     </div>
                   </div>
 
-                  {/* 4. Student Name & Father Name */}
-                  <div className="mt-1.5 px-2.5 text-left">
-                    <div className="text-[10.5px] font-black text-[#d32f2f] uppercase leading-tight truncate">
+                  {/* 4. Student Full Name (Dedicated section below Academic Year & below red line) */}
+                  <div className="mt-1 px-3 text-center border-t border-[#d32f2f] pt-1">
+                    <div className="text-[10px] font-black text-[#d32f2f] uppercase leading-tight truncate">
                       {previewStudent.studentName}
                     </div>
+                  </div>
+
+                  {/* 5. Father's Name (Dedicated aligned row) */}
+                  <div className="px-3 text-left">
                     {previewStudent.fatherName && previewStudent.fatherName !== 'N/A' && (
-                      <div className="text-[7.5px] font-bold text-black mt-0.5 truncate">
+                      <div className="text-[7.5px] font-bold text-black truncate">
                         Father&apos;s Name: {String(previewStudent.fatherName).toUpperCase()}
                       </div>
                     )}
                   </div>
 
-                  {/* 5. QR Code & Authentic Principal Signature */}
-                  <div className="mt-1.5 px-2.5 flex items-end justify-between">
-                    <div className="w-[79px] h-[79px] border border-slate-300 p-1 bg-white rounded-xs shrink-0 flex items-center justify-center">
+                  {/* 6. QR Code & Pre-Printed Principal Signature */}
+                  <div className="mt-1 px-3 flex items-center justify-between">
+                    <div className="w-[86px] h-[86px] border border-slate-300 p-1 bg-white rounded-xs shrink-0 flex items-center justify-center ml-2">
                       {previewStudent.qrUrl ? (
                         <img src={previewStudent.qrUrl} alt="QR Code" className="w-full h-full object-contain" />
                       ) : (
@@ -1083,22 +1087,24 @@ export default function IDCardManagementHub({
                       )}
                     </div>
 
-                    <div className="w-[90px] flex flex-col items-center justify-end pb-1">
+                    <div className="w-[85px] flex flex-col items-center justify-end pb-1 pr-1">
                       <div className="w-16 h-8 flex items-center justify-center">
                         <span className="text-[8.5px] font-bold font-serif text-emerald-800 italic transform -rotate-6">
                           Principal
                         </span>
                       </div>
-                      <div className="border-t border-black text-[7.5px] font-black text-black w-[75px] text-center pt-0.5">
+                      <div className="border-t border-black text-[7.5px] font-black text-black w-[70px] text-center pt-0.5">
                         Principal
                       </div>
                     </div>
                   </div>
 
-                  {/* 6. Address */}
-                  <div className="mt-1 px-2.5 text-left">
-                    <p className="text-[7.5px] font-medium text-slate-900 line-clamp-2 leading-tight">
-                      {previewStudent.studentAddress || '—'}
+                  {/* 7. Complete Student Permanent Address (Prefixed with #) */}
+                  <div className="mt-1 px-3 text-center">
+                    <p className="text-[7.2px] font-bold text-black line-clamp-2 leading-tight">
+                      {previewStudent.studentAddress 
+                        ? (previewStudent.studentAddress.startsWith('#') ? previewStudent.studentAddress : `# ${previewStudent.studentAddress}`)
+                        : '—'}
                     </p>
                   </div>
 
