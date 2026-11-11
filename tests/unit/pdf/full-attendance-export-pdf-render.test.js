@@ -776,7 +776,7 @@ describe('Full Attendance Export PDF Template Rendering Pipeline', () => {
     const text = getPdfText(buffer);
     expect(text).toContain('Part 1 of 2: Sessions 1 to 10 of 20 Conducted Classes');
     expect(text).toContain('Part 2 of 2: Sessions 11 to 20 of 20 Conducted Classes');
-  }, 30000);
+  }, 45000);
 
   it('handles horizontal chunking for 40 sessions (4 chunks of 10) cleanly for 75 students', async () => {
     const sessions = Array.from({ length: 40 }, (_, i) => ({

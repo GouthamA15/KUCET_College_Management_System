@@ -150,6 +150,20 @@ export const INSTITUTION_ASSET_REGISTRY = {
       'assets/Naac_A+.png',
       'institution/naac-badge'
     ]
+  },
+  'institution/id-card-template-2026': {
+    key: 'institution/id-card-template-2026',
+    filename: 'kucet-official-id-card-template-2026.png',
+    category: 'branding',
+    mimeType: 'image/png',
+    isPrivate: true,
+    description: 'Authoritative Official Student ID Card PNG Template 2026',
+    aliases: [
+      'kucet-official-id-card-template-2026.png',
+      'id-card-template-2026.png',
+      'id-card-template-2026.jpg',
+      'institution/id-card-template-2026'
+    ]
   }
 };
 
@@ -319,6 +333,8 @@ export class InstitutionAssetService {
         path.join('/app/storage', filename),
         path.join('/var/www/kucet-storage', 'kucet', 'institution', 'private', filename),
         path.join('/var/www/kucet-storage', 'kucet', filename),
+        path.join('/tmp', filename),
+        path.join('/tmp', 'kucet_photos_cache', filename),
       ];
     } else {
       // Public / branding assets
@@ -352,6 +368,25 @@ export class InstitutionAssetService {
         } catch (_e) {
           // continue
         }
+      }
+    }
+
+    // Remote Cloudinary fallback for template if local disk does not have it
+    if (asset && asset.key === 'institution/id-card-template-2026') {
+      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME || 'djs0ry74r';
+      const cldUrl = `https://res.cloudinary.com/${cloudName}/image/upload/kucet/institution/${filename}`;
+      try {
+        const res = await fetch(cldUrl, { signal: AbortSignal.timeout(6000) });
+        if (res.ok) {
+          const arrayBuf = await res.arrayBuffer();
+          const buf = Buffer.from(arrayBuf);
+          if (buf && buf.length > 0) {
+            if (assetBufferCache.size < MAX_CACHE_ENTRIES) assetBufferCache.set(cacheKey, buf);
+            return buf;
+          }
+        }
+      } catch (cldErr) {
+        logger.warn({ err: cldErr.message }, 'Failed to fetch official ID card template from Cloudinary fallback');
       }
     }
 

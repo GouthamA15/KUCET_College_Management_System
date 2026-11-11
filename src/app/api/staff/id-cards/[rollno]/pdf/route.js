@@ -10,6 +10,7 @@ import { getAssetUrl } from '@/lib/assets';
 import { getLocalStorageBasePath } from '@/lib/providers/storage/LocalStorageProvider';
 import { pdf } from '@react-pdf/renderer';
 import IDCardPDF from '@/pdf/templates/IDCardPDF';
+import { resolveIDCardFormat } from '@/lib/id-card-formats';
 import logger from '@/lib/logger';
 import sharp from 'sharp';
 
@@ -104,10 +105,16 @@ export const GET = wrapHandler({
     }
 
     const { searchParams } = new URL(req.url, 'http://localhost');
-    const qrMode = searchParams.get('qrMode') || 'standard';
+    const rawFormat = searchParams.get('format') || searchParams.get('cardFormat') || searchParams.get('qrMode') || 'standard';
+    const explicitTemplate = searchParams.get('template') || null;
+    const resolvedFormat = resolveIDCardFormat(rawFormat, explicitTemplate);
 
-    // 2. Fetch Student Data
-    const student = await IDCardDataService.getStudentRecordByRollNo(rollno, { qrMode });
+    // 2. Fetch Student Data with format awareness
+    const student = await IDCardDataService.getStudentRecordByRollNo(rollno, {
+      qrMode: resolvedFormat.qrMode,
+      cardFormat: resolvedFormat.id,
+      template: resolvedFormat.template,
+    });
     if (!student) {
       return apiError(`Student with roll number ${rollno} not found`, 404);
     }
@@ -128,15 +135,17 @@ export const GET = wrapHandler({
     try {
       // 4. Resolve Institutional Assets
       let logoUrl = null;
-      try {
-        logoUrl = await InstitutionAssetService.getAssetDataUrl('institution/college-logo');
-      } catch (_e) {}
+      if (resolvedFormat.template === 'classic') {
+        try {
+          logoUrl = await InstitutionAssetService.getAssetDataUrl('institution/college-logo');
+        } catch (_e) {}
 
-      if (!logoUrl) {
-        const localLogoPath = path.join(process.cwd(), 'public/assets/ku-college-logo.png');
-        if (fs.existsSync(/*turbopackIgnore: true*/ localLogoPath)) {
-          const logoBuf = fs.readFileSync(/*turbopackIgnore: true*/ localLogoPath);
-          logoUrl = `data:image/png;base64,${logoBuf.toString('base64')}`;
+        if (!logoUrl) {
+          const localLogoPath = path.join(process.cwd(), 'public/assets/ku-college-logo.png');
+          if (fs.existsSync(/*turbopackIgnore: true*/ localLogoPath)) {
+            const logoBuf = fs.readFileSync(/*turbopackIgnore: true*/ localLogoPath);
+            logoUrl = `data:image/png;base64,${logoBuf.toString('base64')}`;
+          }
         }
       }
 
@@ -151,6 +160,16 @@ export const GET = wrapHandler({
         logger.warn({ roll: student.rollNo }, 'Principal digital signature not found in private storage for ID card');
       }
 
+      // Pre-load official PNG template background if official format requested
+      let templateBgUrl = null;
+      if (resolvedFormat.template === 'official') {
+        try {
+          templateBgUrl = await InstitutionAssetService.getAssetDataUrl('institution/id-card-template-2026');
+        } catch (tplErr) {
+          logger.warn({ err: tplErr.message }, 'Failed to resolve official ID card template background');
+        }
+      }
+
       // 5. Resolve Student Photo with standard JPEG transcoding
       const resolvedPhoto = await resolvePdfImageDataUrl(student.photoKey || student.photoUrl);
 
@@ -163,17 +182,28 @@ export const GET = wrapHandler({
         batch: student.batch,
         address: student.studentAddress,
         mobile: student.studentPhone,
+        bloodGroup: student.bloodGroup,
         pfpUrl: resolvedPhoto,
         logoUrl: logoUrl,
         signatureUrl: signatureUrl,
         qrUrl: student.qrUrl,
+        template: resolvedFormat.template,
+        cardFormat: resolvedFormat.id,
+        format: resolvedFormat.id,
+        templateBgUrl: templateBgUrl,
       });
 
       const pdfStream = await pdf(pdfElement).toBuffer();
 
+      const cleanName = String(student.studentName || 'STUDENT')
+        .toUpperCase()
+        .replace(/[^A-Z0-9_-]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 50) || 'STUDENT';
+
       const headers = new Headers();
       headers.set('Content-Type', 'application/pdf');
-      headers.set('Content-Disposition', `inline; filename="kucet_id_card_${student.rollNo}.pdf"`);
+      headers.set('Content-Disposition', `inline; filename="${student.rollNo}_${cleanName}_ID_CARD.pdf"`);
       headers.set('Cache-Control', 'private, no-cache, no-store, max-age=0, must-revalidate');
 
       return new NextResponse(pdfStream, { status: 200, headers });

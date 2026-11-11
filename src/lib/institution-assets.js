@@ -14,6 +14,7 @@ export const INSTITUTION_ASSET_KEYS = {
   INSTITUTION_COLLEGE_LOGO: 'institution/college-logo',
   INSTITUTION_KALATHORANAM: 'institution/kalathoranam',
   INSTITUTION_NAAC_BADGE: 'institution/naac-badge',
+  OFFICIAL_ID_CARD_TEMPLATE_2026: 'institution/id-card-template-2026',
 };
 
 /**
@@ -90,6 +91,18 @@ export const INSTITUTIONAL_ASSETS_MAP = {
     mimeType: 'image/png',
     description: 'NAAC A+ Accreditation Grade Badge',
     legacyAliases: ['Naac_A+.png', '/assets/Naac_A+.png']
+  },
+  [INSTITUTION_ASSET_KEYS.OFFICIAL_ID_CARD_TEMPLATE_2026]: {
+    filename: 'kucet-official-id-card-template-2026.png',
+    mimeType: 'image/png',
+    isPrivate: true,
+    description: 'Authoritative Official Student ID Card PNG Template 2026',
+    legacyAliases: [
+      'kucet-official-id-card-template-2026.png',
+      'id-card-template-2026.png',
+      'id-card-template-2026.jpg',
+      'institution/id-card-template-2026'
+    ]
   }
 };
 

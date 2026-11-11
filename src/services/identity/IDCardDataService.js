@@ -27,6 +27,7 @@ import { decrypt } from '@/lib/encryption';
 import { getPermanentAddressFromDetails } from '@/lib/address-utils';
 import { calculateStudentYearAndSemester, getCurrentCalendarSession } from '@/lib/academic-utils';
 import { getPublicStudentUrl } from '@/lib/public-url';
+import { sanitizeBloodGroup, resolveIDCardFormat } from '@/lib/id-card-formats';
 
 export const CANONICAL_BRANCHES = [
   { code: '09', name: 'CSE', fullName: 'Computer Science & Engineering' },
@@ -253,10 +254,7 @@ function resolveCollegeAddress(student) {
 function resolveBloodGroup(student) {
   if (!student) return '';
   const raw = student.bloodGroup ?? student.blood_group;
-  if (!raw) return '';
-  const str = String(raw).trim().toUpperCase();
-  if (str === 'N/A' || str === 'NULL' || str === 'UNDEFINED') return '';
-  return str;
+  return sanitizeBloodGroup(raw);
 }
 
 /**
@@ -384,7 +382,7 @@ export class IDCardDataService {
     const decryptedMobile = row.mobile ? decrypt(row.mobile) : null;
     const fatherName = row.father_name || 'N/A';
     const permanentAddress = getPermanentAddressFromDetails(row) || 'N/A';
-    const bloodGroup = row.blood_group || 'N/A';
+    const bloodGroup = sanitizeBloodGroup(row.blood_group);
     const slNo = row.sl_no ?? row.slNo ?? row.s_no ?? row.sNo ?? row.serial_no ?? row.serialNo ?? row.sno ?? null;
 
     return {
@@ -789,7 +787,7 @@ export class IDCardDataService {
   /**
    * Retrieves single student details for ID card preview or generation
    */
-  static async getStudentRecordByRollNo(rollNo, { firstYearOnly = false, qrMode = 'standard' } = {}) {
+  static async getStudentRecordByRollNo(rollNo, { firstYearOnly = false, qrMode = 'standard', cardFormat = null, template = null } = {}) {
     if (!rollNo) return null;
     const cleanRoll = String(rollNo).toUpperCase().trim();
 
@@ -842,10 +840,14 @@ export class IDCardDataService {
     const student = this.mapAuthoritativeStudent(rows[0]);
     if (!student) return null;
 
-    // Generate Verification QR Code based on requested mode
+    // Resolve 6-format specification
+    const resolvedFormat = resolveIDCardFormat(cardFormat || qrMode, template);
+    const effectiveQrMode = resolvedFormat.qrMode;
+
+    // Generate Verification QR Code based on resolved mode
     let qrUrl = null;
     try {
-      qrUrl = await this.generateQRDataUrlForMode(student, qrMode);
+      qrUrl = await this.generateQRDataUrlForMode(student, effectiveQrMode);
     } catch (err) {
       logger.warn({ roll: student.rollNo, err: err.message }, 'Failed to generate QR code for ID card');
     }
@@ -853,7 +855,12 @@ export class IDCardDataService {
     return {
       ...student,
       qrUrl,
-      qrMode,
+      qrMode: effectiveQrMode,
+      format: resolvedFormat.id,
+      cardFormat: resolvedFormat.id,
+      formatCode: resolvedFormat.code,
+      formatName: resolvedFormat.name,
+      template: resolvedFormat.template,
     };
   }
 

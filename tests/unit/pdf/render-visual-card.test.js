@@ -144,4 +144,105 @@ describe('Render & Visual Verification of ID Card', () => {
       }
     }
   }, 30000);
+
+  it('renders Official 2026 Template ID card to PDF, converts to PNG and optically verifies QR', async () => {
+    const testStudent = {
+      id: 102,
+      rollNo: '26567T0902',
+      admissionNo: '26567T0902',
+      studentName: 'ADEPU SUCHARITHA',
+      fatherName: 'ADEPU RAMAKRISHNA',
+      branch: 'CSE',
+      batch: '2026-2030',
+      courseDisplay: 'B.Tech (CSE)',
+      studentPhone: '9059084844',
+      studentAddress: '16-1-559/2/A/1, Warangal, Kareemabad, SRR Thota, Telangana, 506002',
+      bloodGroup: 'O+',
+      admissionDate: '2026-08-01',
+      studentStatus: 'ACTIVE',
+    };
+
+    const qrUrl = await IDCardDataService.generateStudentQRDataUrl(testStudent);
+    expect(qrUrl).toBeDefined();
+
+    // 1x1 test image for student photo
+    const samplePhotoBuf = await sharp({
+      create: {
+        width: 80,
+        height: 80,
+        channels: 4,
+        background: { r: 11, g: 53, b: 120, alpha: 1 },
+      },
+    })
+      .png()
+      .toBuffer();
+    const pfpUrl = `data:image/png;base64,${samplePhotoBuf.toString('base64')}`;
+
+    // Read official template PNG from /tmp if available
+    const templateLocalPath = '/tmp/kucet-official-id-card-template-2026.png';
+    let templateBgUrl = null;
+    if (fs.existsSync(templateLocalPath)) {
+      const tBuf = fs.readFileSync(templateLocalPath);
+      templateBgUrl = `data:image/png;base64,${tBuf.toString('base64')}`;
+    }
+
+    const doc = React.createElement(IDCardPDF, {
+      studentName: testStudent.studentName,
+      fatherName: testStudent.fatherName,
+      admissionNo: testStudent.rollNo,
+      course: testStudent.branch,
+      batch: testStudent.batch,
+      address: testStudent.studentAddress,
+      mobile: testStudent.studentPhone,
+      bloodGroup: testStudent.bloodGroup,
+      pfpUrl,
+      qrUrl,
+      template: 'official',
+      cardFormat: 'official_standard',
+      templateBgUrl,
+    });
+
+    const stream = await pdf(doc).toBuffer();
+    const chunks = [];
+    for await (const chunk of stream) chunks.push(chunk);
+    const pdfBuffer = Buffer.concat(chunks);
+
+    const pdfPath = path.join(tempDir, 'official_id_card_preview.pdf');
+    fs.writeFileSync(pdfPath, pdfBuffer);
+    expect(fs.existsSync(pdfPath)).toBe(true);
+    expect(fs.statSync(pdfPath).size).toBeGreaterThan(1000);
+
+    let hasPdftoppm = false;
+    try {
+      execSync('command -v pdftoppm', { stdio: 'ignore' });
+      hasPdftoppm = true;
+    } catch {
+      hasPdftoppm = false;
+    }
+
+    if (hasPdftoppm) {
+      const pngPrefix = path.join(tempDir, 'official_id_card_preview');
+      execSync(`pdftoppm -png -r 300 "${pdfPath}" "${pngPrefix}"`);
+
+      const generatedPng = `${pngPrefix}-1.png`;
+      expect(fs.existsSync(generatedPng)).toBe(true);
+
+      let hasZbar = false;
+      try {
+        execSync('command -v zbarimg', { stdio: 'ignore' });
+        hasZbar = true;
+      } catch {
+        hasZbar = false;
+      }
+
+      if (hasZbar) {
+        const zbarOut = execSync(`zbarimg -q "${generatedPng}"`).toString();
+        expect(zbarOut).toContain('QR-Code:');
+        expect(zbarOut).toContain('26567T0902');
+        expect(zbarOut).toContain('NAME : ADEPU SUCHARITHA');
+        expect(zbarOut).toContain('COURSE : B.TECH (CSE)');
+        expect(zbarOut).toContain('BLOOD-GROUP : O+');
+      }
+    }
+  }, 30000);
 });
