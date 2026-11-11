@@ -128,8 +128,8 @@ describe('Student ID Card — 6 Selectable Formats & Architecture Suite', () => 
     it('renders valid blood group in official card overlay beside blood-drop marker', () => {
       const page = IDCardOfficialPage({ ...sampleStudent, bloodGroup: 'B+' });
       const container = page.props.children;
-      // Item 10 is the Blood Group box
-      const bloodGroupBox = container.props.children[10];
+      // Item 9 is the Blood Group box (duplicate signature overlay was removed)
+      const bloodGroupBox = container.props.children[9];
       expect(bloodGroupBox).not.toBeNull();
       expect(bloodGroupBox.props.children.props.children).toBe('B+');
     });
@@ -138,18 +138,47 @@ describe('Student ID Card — 6 Selectable Formats & Architecture Suite', () => 
       ['-Select-', 'N/A', '', null, undefined, 'Not Available'].forEach((missingVal) => {
         const page = IDCardOfficialPage({ ...sampleStudent, bloodGroup: missingVal });
         const container = page.props.children;
-        const bloodGroupBox = container.props.children[10];
+        const bloodGroupBox = container.props.children[9];
         expect(bloodGroupBox).toBeNull();
       });
     });
 
-    it('displays student full name in uppercase red font', () => {
+    it('displays student full name in uppercase red font in dedicated section below academic year', () => {
       const page = IDCardOfficialPage(sampleStudent);
       const container = page.props.children;
       // Item 5 is the Student Name box
       const nameBox = container.props.children[5];
       expect(nameBox.props.children.props.children).toBe(sampleStudent.studentName);
       expect(nameBox.props.children.props.style.color).toBe('#d32f2f');
+      expect(nameBox.props.style.top).toBe(172);
+      expect(nameBox.props.style.left).toBe(12);
+    });
+
+    it('prefixes student address with # and wraps correctly', () => {
+      const withHash = IDCardOfficialPage({ ...sampleStudent, address: '# 1-2-3, Warangal' });
+      const addrBox1 = withHash.props.children.props.children[8];
+      expect(addrBox1.props.children.props.children).toBe('# 1-2-3, Warangal');
+
+      const withoutHash = IDCardOfficialPage({ ...sampleStudent, address: '16-1-559, Warangal' });
+      const addrBox2 = withoutHash.props.children.props.children[8];
+      expect(addrBox2.props.children.props.children).toBe('# 16-1-559, Warangal');
+    });
+
+    it('does not dynamically insert duplicate signature in official template', () => {
+      const page = IDCardOfficialPage({ ...sampleStudent, signatureUrl: 'https://example.com/sig.png' });
+      const container = page.props.children;
+      // Verify children does not contain a signature box
+      const childCount = container.props.children.length;
+      expect(childCount).toBe(11); // bg, photo, course, htNo, batch, name, father, qr, address, bloodGroup, cell
+    });
+
+    it('positions QR code in designated white QR area with increased size', () => {
+      const page = IDCardOfficialPage(sampleStudent);
+      const container = page.props.children;
+      const qrBox = container.props.children[7];
+      expect(qrBox.props.style.left).toBe(45);
+      expect(qrBox.props.style.width).toBe(86);
+      expect(qrBox.props.style.height).toBe(86);
     });
 
     it('displays father name when available and omits when missing', () => {

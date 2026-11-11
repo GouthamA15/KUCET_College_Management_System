@@ -278,10 +278,10 @@ const styles = StyleSheet.create({
   },
   officialPhotoBox: {
     position: "absolute",
-    top: 115,
-    left: 9.5,
-    width: 80.5,
-    height: 80.5,
+    top: 108,
+    left: 14,
+    width: 64,
+    height: 56,
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
@@ -290,26 +290,29 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     objectFit: "cover",
+    borderRadius: 2,
   },
   officialNoPhotoBox: {
     width: "100%",
     height: "100%",
-    backgroundColor: "#f1f5f9",
+    backgroundColor: "#f8fafc",
+    border: "0.5pt dashed #cbd5e1",
+    borderRadius: 2,
     alignItems: "center",
     justifyContent: "center",
   },
   officialNoPhotoText: {
-    fontSize: 8,
+    fontSize: 7.5,
     fontWeight: "bold",
     color: "#dc2626",
     textAlign: "center",
   },
   officialCourseBox: {
     position: "absolute",
-    top: 117,
-    left: 95,
-    width: 137,
-    height: 19,
+    top: 112,
+    left: 90,
+    width: 142,
+    height: 18,
     justifyContent: "center",
   },
   officialCourseText: {
@@ -319,54 +322,55 @@ const styles = StyleSheet.create({
   },
   officialHtNoBox: {
     position: "absolute",
-    top: 138,
-    left: 140,
-    width: 92,
-    height: 17,
+    top: 135,
+    left: 138,
+    width: 94,
+    height: 15,
     justifyContent: "center",
   },
   officialHtNoText: {
-    fontSize: 9.5,
+    fontSize: 9,
     fontWeight: "black",
     color: "#000000",
   },
   officialBatchBox: {
     position: "absolute",
-    top: 157,
-    left: 168,
-    width: 64,
+    top: 152,
+    left: 165,
+    width: 68,
     height: 15,
     justifyContent: "center",
   },
   officialBatchText: {
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: "black",
     color: "#000000",
   },
   officialNameBox: {
     position: "absolute",
-    top: 183,
-    left: 11.5,
-    width: 220,
-    height: 21,
+    top: 172,
+    left: 12,
+    width: 218,
+    height: 30,
+    alignItems: "center",
     justifyContent: "center",
   },
   officialNameText: {
-    fontSize: 10.5,
     fontWeight: "black",
     color: "#d32f2f",
     textTransform: "uppercase",
+    textAlign: "center",
+    lineHeight: 1.15,
   },
   officialFatherBox: {
     position: "absolute",
-    top: 206,
-    left: 108,
-    width: 124,
-    height: 15,
+    top: 204,
+    left: 110,
+    width: 122,
+    height: 16,
     justifyContent: "center",
   },
   officialFatherText: {
-    fontSize: 8,
     fontWeight: "bold",
     color: "#000000",
     textTransform: "uppercase",
@@ -374,54 +378,39 @@ const styles = StyleSheet.create({
   officialQrBox: {
     position: "absolute",
     top: 226,
-    left: 11.5,
-    width: 79,
-    height: 79,
+    left: 45,
+    width: 86,
+    height: 86,
     backgroundColor: "#ffffff",
     alignItems: "center",
     justifyContent: "center",
-    padding: 1,
+    padding: 2,
   },
   officialQrImg: {
     width: "100%",
     height: "100%",
     objectFit: "contain",
   },
-  officialSignatureBox: {
-    position: "absolute",
-    top: 271,
-    left: 169,
-    width: 60,
-    height: 28,
-    alignItems: "center",
-    justifyContent: "flex-end",
-  },
-  officialSignatureImg: {
-    width: 60,
-    height: 28,
-    objectFit: "contain",
-  },
   officialAddressBox: {
     position: "absolute",
-    top: 320,
-    left: 11.5,
-    width: 220,
-    height: 40,
+    top: 317,
+    left: 14,
+    width: 214,
+    height: 38,
     alignItems: "center",
     justifyContent: "center",
   },
   officialAddressText: {
-    fontSize: 7.5,
     fontWeight: "bold",
     color: "#000000",
     textAlign: "center",
-    lineHeight: 1.15,
+    lineHeight: 1.18,
   },
   officialBloodGroupBox: {
     position: "absolute",
-    top: 363,
-    left: 28,
-    width: 65,
+    top: 362,
+    left: 27,
+    width: 55,
     height: 14,
     justifyContent: "center",
   },
@@ -432,14 +421,14 @@ const styles = StyleSheet.create({
   },
   officialCellBox: {
     position: "absolute",
-    top: 363,
+    top: 362,
     left: 120,
-    width: 89,
+    width: 95,
     height: 14,
     justifyContent: "center",
   },
   officialCellText: {
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: "black",
     color: "#000000",
   },
@@ -592,12 +581,27 @@ export function IDCardOfficialPage({
   mobile,
   bloodGroup,
   pfpUrl,
-  signatureUrl,
+  _signatureUrl, // Signature is pre-printed in official background template; never duplicated
   qrUrl,
   templateBgUrl,
 }) {
   const cleanBloodGroup = sanitizeBloodGroup(bloodGroup);
   const cleanFatherName = (fatherName && fatherName !== 'N/A') ? String(fatherName).trim().toUpperCase() : '';
+  const cleanStudentName = String(studentName || 'STUDENT').trim().toUpperCase();
+
+  // Formatting and adaptive font scaling for student address (must begin with #)
+  const formatAddress = (addr) => {
+    if (!addr || addr === '—' || addr === 'N/A') return '—';
+    const trimmed = String(addr).trim();
+    if (trimmed.startsWith('#')) return trimmed;
+    return `# ${trimmed}`;
+  };
+  const cleanAddress = formatAddress(address);
+
+  // Dynamic font sizing for long student names, long father names, and long addresses
+  const nameFontSize = cleanStudentName.length > 34 ? 8.2 : cleanStudentName.length > 24 ? 9.2 : 10.5;
+  const fatherFontSize = cleanFatherName.length > 25 ? 7.2 : 8.2;
+  const addrFontSize = cleanAddress.length > 95 ? 6.5 : cleanAddress.length > 65 ? 7.0 : 7.6;
 
   return h(
     Page,
@@ -610,7 +614,7 @@ export function IDCardOfficialPage({
         ? h(Image, { src: templateBgUrl, style: styles.officialBackground })
         : null,
 
-      // 2. Student Photograph
+      // 2. Student Photograph (Bounded neatly above the red line at 168 pt)
       h(
         View,
         { style: styles.officialPhotoBox },
@@ -630,60 +634,81 @@ export function IDCardOfficialPage({
         h(Text, { style: styles.officialCourseText }, `B.Tech (${course || '—'})`)
       ),
 
-      // 4. Hall Ticket / Roll Number Value (Beside "H.T.No:")
+      // 4. Hall Ticket / Roll Number Value (Beside pre-printed "H.T.No:")
       h(
         View,
         { style: styles.officialHtNoBox },
         h(Text, { style: styles.officialHtNoText }, admissionNo || '—')
       ),
 
-      // 5. Academic Year Value (Beside "Academic Year :")
+      // 5. Academic Year Value (Beside pre-printed "Academic Year :")
       h(
         View,
         { style: styles.officialBatchBox },
         h(Text, { style: styles.officialBatchText }, batch || '—')
       ),
 
-      // 6. Student Full Name
+      // 6. Student Full Name (Dedicated section below Academic Year and below the red line)
       h(
         View,
         { style: styles.officialNameBox },
-        h(Text, { style: styles.officialNameText }, studentName || 'N/A')
+        h(
+          Text,
+          { 
+            style: { 
+              ...styles.officialNameText, 
+              fontSize: nameFontSize 
+            } 
+          }, 
+          cleanStudentName
+        )
       ),
 
-      // 7. Father's Name Value (Beside "Father's Name:")
+      // 7. Father's Name Value (Beside pre-printed "Father's Name:")
       cleanFatherName
         ? h(
             View,
             { style: styles.officialFatherBox },
-            h(Text, { style: styles.officialFatherText }, cleanFatherName)
+            h(
+              Text, 
+              { 
+                style: { 
+                  ...styles.officialFatherText, 
+                  fontSize: fatherFontSize 
+                } 
+              }, 
+              cleanFatherName
+            )
           )
         : null,
 
-      // 8. Verification QR Code
+      // 8. Verification QR Code (Centered in designated white QR zone, increased to 86x86 pt)
       h(
         View,
         { style: styles.officialQrBox },
         qrUrl ? h(Image, { src: qrUrl, style: styles.officialQrImg }) : null
       ),
 
-      // 9. Principal Digital Signature (Optional overlay; background already embeds authentic signature)
-      signatureUrl
-        ? h(
-            View,
-            { style: styles.officialSignatureBox },
-            h(Image, { src: signatureUrl, style: styles.officialSignatureImg })
-          )
-        : null,
+      // Note: Authentic Principal signature & "Principal" label are embedded in the PNG background template.
+      // We strictly omit dynamic signature overlay to prevent duplicate rendering.
 
-      // 10. Complete Student Permanent Address
+      // 9. Complete Student Permanent Address (Prefixed with '#', balanced multi-line wrapping)
       h(
         View,
         { style: styles.officialAddressBox },
-        h(Text, { style: styles.officialAddressText }, address || '—')
+        h(
+          Text, 
+          { 
+            style: { 
+              ...styles.officialAddressText, 
+              fontSize: addrFontSize 
+            } 
+          }, 
+          cleanAddress
+        )
       ),
 
-      // 11. Blood Group Value (Placed directly beside pre-printed red blood drop symbol)
+      // 10. Blood Group Value (Placed directly beside pre-printed red blood drop symbol)
       cleanBloodGroup
         ? h(
             View,
@@ -692,7 +717,7 @@ export function IDCardOfficialPage({
           )
         : null,
 
-      // 12. Contact Cell Number Value (Placed directly beside pre-printed "Cell :" label)
+      // 11. Contact Cell Number Value (Placed directly beside pre-printed "Cell :" label)
       h(
         View,
         { style: styles.officialCellBox },
