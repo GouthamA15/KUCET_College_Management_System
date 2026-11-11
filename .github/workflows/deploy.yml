@@ -28,8 +28,21 @@ jobs:
 
       - name: Install System Optical Tools (Tesseract OCR, ZBar & Poppler)
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y --no-install-recommends tesseract-ocr zbar-tools poppler-utils
+          # Mitigate Azure Ubuntu mirror DNS failure in GitHub Actions
+          sudo sed -i 's|azure\.archive\.ubuntu\.com|archive.ubuntu.com|g' /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null || true
+          echo -e "nameserver 8.8.8.8\nnameserver 1.1.1.1" | sudo tee -a /etc/resolv.conf > /dev/null || true
+
+          # Retry loop with --fix-missing for network resilience
+          for i in 1 2 3 4 5; do
+            echo "Apt update/install attempt $i..."
+            if sudo apt-get update -y && sudo apt-get install -y --no-install-recommends --fix-missing tesseract-ocr zbar-tools poppler-utils; then
+              echo "✅ System optical tools installed successfully."
+              break
+            fi
+            echo "⚠️ Attempt $i failed, retrying in 5 seconds..."
+            sleep 5
+          done
+        continue-on-error: true
 
       - name: Install Dependencies
         run: npm ci

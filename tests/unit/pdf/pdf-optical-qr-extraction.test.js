@@ -8,7 +8,16 @@ import { pdf } from '@react-pdf/renderer';
 import { IDCardDataService } from '@/services/identity/IDCardDataService';
 import IDCardPDF from '@/pdf/templates/IDCardPDF';
 
-describe('PDF Optical QR Code Extraction and Decoding', () => {
+const hasOpticalTools = (() => {
+  try {
+    execSync('command -v pdftoppm && command -v zbarimg', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+})();
+
+describe.skipIf(!hasOpticalTools)('PDF Optical QR Code Extraction and Decoding', () => {
   let tmpDir;
 
   beforeAll(() => {
