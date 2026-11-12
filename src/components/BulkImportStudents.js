@@ -21,6 +21,7 @@ const HEADERS_MAP = {
   // Optional Fields (students table)
   mobile: { display: 'Mobile', aliases: ['mobile number', 'phone', 'phone number', 'contact number', 'student number'], required: false },
   email: { display: 'Email', aliases: ['email id'], required: false },
+  blood_group: { display: 'Blood Group', aliases: ['blood group', 'blood_group', 'bloodgroup', 'bg', 'blood', 'blood_grp'], required: false },
 
   // Optional Fields (student_personal_details table)
   mother_name: { display: 'Mother Name', aliases: [], required: false },
@@ -183,6 +184,26 @@ const validateRow = (rowData, excelRowNumber) => {
   if (rank && !NUMBER_REGEX.test(rank)) {
     rowWarnings['intermediate_rank'] = 'Rank should be a number.';
     validationErrors.push({ row: excelRowNumber, field: 'Rank', message: `Invalid Rank: ${rank}`, isWarning: true });
+  }
+
+  // 14. Blood Group (Optional - Validated against canonical groups or blank)
+  const rawBg = String(rowData['blood_group'] || '').trim().toUpperCase();
+  if (rawBg) {
+    const validBgs = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+    if (['NOT AVAILABLE', 'UNKNOWN', 'N/A', '-SELECT-', 'NULL', 'UNDEFINED', '—', '-'].includes(rawBg)) {
+      rowData['blood_group'] = '';
+    } else if (validBgs.includes(rawBg)) {
+      rowData['blood_group'] = rawBg;
+    } else {
+      rowErrors['blood_group'] = `Invalid Blood Group: ${rowData['blood_group']}. Must be one of A+, A-, B+, B-, AB+, AB-, O+, O- or empty.`;
+      validationErrors.push({
+        row: excelRowNumber,
+        field: 'Blood Group',
+        message: `Invalid Blood Group: ${rowData['blood_group']}. Must be one of A+, A-, B+, B-, AB+, AB-, O+, O- or empty.`
+      });
+    }
+  } else {
+    rowData['blood_group'] = '';
   }
 
   // Other optional fields (mother_name, nationality, etc.) are treated as free text, so no specific validation is added for them.
@@ -486,7 +507,23 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mt-8">
-      <h3 className="text-xl font-semibold text-gray-800 mb-4">Bulk Import Students</h3>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div>
+          <h3 className="text-xl font-semibold text-gray-800">Bulk Import Students</h3>
+          <p className="text-xs text-gray-500 mt-0.5">Upload official Excel workbook to create or update student records</p>
+        </div>
+        <a
+          href="/api/staff/admission/bulk-import/template"
+          download="KUCET_Student_Bulk_Import_Template.xlsx"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#0b3578] bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors shadow-2xs shrink-0"
+          title="Download official bulk Excel template with Blood Group column"
+        >
+          <svg className="w-4 h-4 text-[#0b3578]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          Download Excel Template (.xlsx)
+        </a>
+      </div>
       <input
         ref={fileInputRef}
         type="file"
