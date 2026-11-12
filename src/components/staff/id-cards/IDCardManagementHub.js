@@ -1030,7 +1030,7 @@ export default function IDCardManagementHub({
                         <img
                           src={previewStudent.photoUrl}
                           alt={previewStudent.studentName}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain"
                         />
                       ) : (
                         <div className="text-center p-1 text-slate-400">
@@ -1061,8 +1061,8 @@ export default function IDCardManagementHub({
                     </div>
                   </div>
 
-                  {/* 4. Student Full Name (Dedicated section below Academic Year & below red line) */}
-                  <div className="mt-1 px-3 text-center border-t border-[#d32f2f] pt-1">
+                  {/* 4. Student Full Name (Dedicated section below Academic Year & below red line, restored to left-aligned) */}
+                  <div className="mt-1 px-3 text-left border-t border-[#d32f2f] pt-1">
                     <div className="text-[10px] font-black text-[#d32f2f] uppercase leading-tight truncate">
                       {previewStudent.studentName}
                     </div>
@@ -1178,7 +1178,7 @@ export default function IDCardManagementHub({
                         <img
                           src={previewStudent.photoUrl}
                           alt={previewStudent.studentName}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain"
                         />
                       ) : (
                         <div className="text-center p-2 text-slate-400">
@@ -1304,7 +1304,7 @@ export default function IDCardManagementHub({
                 {uploadPreviewUrl ? (
                   <div className="space-y-2">
                     <div className="w-20 h-26 rounded border border-gray-300 overflow-hidden mx-auto shadow-sm">
-                      <img src={uploadPreviewUrl} alt="Preview" className="w-full h-full object-cover" />
+                      <img src={uploadPreviewUrl} alt="Preview" className="w-full h-full object-contain" />
                     </div>
                     <p className="text-xs text-emerald-700 font-medium">Image ready for upload</p>
                   </div>

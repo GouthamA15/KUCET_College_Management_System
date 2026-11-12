@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   photoImg: {
     width: "100%",
     height: "100%",
-    objectFit: "cover",
+    objectFit: "contain",
   },
   noPhotoBox: {
     width: "100%",
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
   officialPhotoImg: {
     width: "100%",
     height: "100%",
-    objectFit: "cover",
+    objectFit: "contain",
     borderRadius: 2,
   },
   officialNoPhotoBox: {
@@ -352,14 +352,13 @@ const styles = StyleSheet.create({
     left: 12,
     width: 218,
     height: 30,
-    alignItems: "center",
     justifyContent: "center",
   },
   officialNameText: {
     fontWeight: "black",
     color: "#d32f2f",
     textTransform: "uppercase",
-    textAlign: "center",
+    textAlign: "left",
     lineHeight: 1.15,
   },
   officialFatherBox: {

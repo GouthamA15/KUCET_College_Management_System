@@ -4,12 +4,14 @@ import {
   studentImportLogs
 } from '@/db/schema';
 import { inArray } from 'drizzle-orm';
+import { NextResponse } from 'next/server';
 import * as XLSX from 'xlsx-js-style';
 import { toMySQLDate, parseDate } from '@/lib/date';
 import { apiError, wrapHandler } from '@/lib/api-utils';
 import { encrypt, hashForIndex } from '@/lib/encryption';
 import { StudentService } from '@/services/StudentService';
 import { normalizeAreaStatus } from '@/lib/college-config';
+import { BulkImportTemplateService } from '@/services/admission/BulkImportTemplateService';
 
 // Header normalization: lowercase, trim, spaces & hyphens to _, remove non-word chars
 const normalizeHeader = (h) => {
@@ -33,7 +35,7 @@ const ALIASES = {
   },
   student_personal_details: {
     father_name: ['father_name', 'fathers_name', 'parent_name'],
-    blood_group: ['blood_group', 'bloodgroup', 'bg'],
+    blood_group: ['blood_group', 'bloodgroup', 'bg', 'blood', 'blood_grp'],
     category: ['category', 'caste_category', 'caste', 'category_cast'],
     permanent_address: ['permanent_address', 'permanentaddress', 'address', 'residential_address', 'aadhar_card_address'],
     contact_address: ['contact_address', 'contactaddress', 'current_address', 'currentaddress', 'present_address', 'presentaddress'],
@@ -107,6 +109,27 @@ function normalizeDateToMySQL(value) {
   if (mysql && /^\d{4}-\d{2}-\d{2}$/.test(mysql)) return mysql;
   return null;
 }
+
+export const GET = wrapHandler({
+  auth: ['staff', 'admin'],
+  handler: async () => {
+    try {
+      const buffer = await BulkImportTemplateService.generateTemplateBuffer();
+      const filename = 'KUCET_Student_Bulk_Import_Template.xlsx';
+      const headers = new Headers();
+      headers.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      headers.set('Content-Disposition', `attachment; filename="${filename}"`);
+      headers.set('Cache-Control', 'private, no-cache, no-store, max-age=0, must-revalidate');
+
+      return new NextResponse(buffer, {
+        status: 200,
+        headers,
+      });
+    } catch (_err) {
+      return apiError('Failed to generate template', 500);
+    }
+  },
+});
 
 export const POST = wrapHandler({
   auth: 'staff',
@@ -220,9 +243,28 @@ export const POST = wrapHandler({
         continue;
       }
 
+      // Blood Group Validation (Optional, strict canonical validation)
+      let bloodGroup = null;
+      if (personal.blood_group !== undefined && personal.blood_group !== null) {
+        const rawBg = String(personal.blood_group).trim().toUpperCase();
+        if (rawBg && !['NOT AVAILABLE', 'UNKNOWN', 'N/A', '-SELECT-', 'NULL', 'UNDEFINED', '—', '-'].includes(rawBg)) {
+          const validBgs = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+          if (validBgs.includes(rawBg)) {
+            bloodGroup = rawBg;
+          } else {
+            errors.push({
+              row: rowNumber,
+              roll_no: roll,
+              reason: `Invalid Blood Group: "${personal.blood_group}". Supported values are A+, A-, B+, B-, AB+, AB-, O+, O- or leave empty.`,
+            });
+            continue;
+          }
+        }
+      }
+
       prepared.push({
         student: { ...student, roll_no: roll, name, gender, date_of_birth: dob },
-        personal: { ...personal, father_name: fatherName, category, permanent_address, contact_address },
+        personal: { ...personal, father_name: fatherName, category, permanent_address, contact_address, blood_group: bloodGroup },
         academic,
         rowNumber
       });
