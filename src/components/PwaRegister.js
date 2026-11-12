@@ -30,12 +30,24 @@ export function isChunkLoadError(error) {
 export function handleChunkRecovery(error) {
   if (typeof window === 'undefined') return false;
 
-  const now = Date.now();
-  const lastRetryStr = sessionStorage.getItem(CHUNK_RETRY_KEY);
-  const lastRetry = lastRetryStr ? parseInt(lastRetryStr, 10) : 0;
+  // Never trigger chunk reload loops in development mode
+  if (process.env.NODE_ENV === 'development') return false;
 
+  let lastRetry = 0;
+  try {
+    const lastRetryStr = sessionStorage.getItem(CHUNK_RETRY_KEY);
+    lastRetry = lastRetryStr ? parseInt(lastRetryStr, 10) : 0;
+  } catch (_e) {
+    return false;
+  }
+
+  const now = Date.now();
   if (!lastRetry || now - lastRetry > CHUNK_RETRY_WINDOW_MS) {
-    sessionStorage.setItem(CHUNK_RETRY_KEY, now.toString());
+    try {
+      sessionStorage.setItem(CHUNK_RETRY_KEY, now.toString());
+    } catch (_e) {
+      return false;
+    }
     console.warn('[PWA] Stale chunk detected after deployment. Performing graceful page refresh...', error);
     window.location.reload();
     return true;
@@ -48,6 +60,25 @@ export function handleChunkRecovery(error) {
 export default function PwaRegister() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // In development mode, NEVER register the Service Worker or intercept window errors
+    // to prevent HMR and reload loops. Proactively clean up any stale registrations and caches on localhost.
+    if (process.env.NODE_ENV === 'development') {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const reg of registrations) {
+            reg.unregister();
+            console.info('[PWA] Unregistered development ServiceWorker:', reg.scope);
+          }
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then((names) => {
+          names.forEach((name) => caches.delete(name));
+        });
+      }
+      return;
+    }
 
     // 1. Global Window Error & Unhandled Rejection Listeners for ChunkLoadErrors
     const handleError = (event) => {
@@ -75,25 +106,6 @@ export default function PwaRegister() {
 
     // 2. Service Worker Lifecycle Management
     if ('serviceWorker' in navigator) {
-      // In development mode, NEVER register the Service Worker to prevent HMR and reload loops.
-      // Proactively clean up any stale registrations and caches on localhost.
-      if (process.env.NODE_ENV !== 'production') {
-        navigator.serviceWorker.getRegistrations().then((registrations) => {
-          for (const reg of registrations) {
-            reg.unregister();
-            console.info('[PWA] Unregistered development ServiceWorker:', reg.scope);
-          }
-        });
-        if ('caches' in window) {
-          caches.keys().then((names) => {
-            names.forEach((name) => caches.delete(name));
-          });
-        }
-        return () => {
-          window.removeEventListener('error', handleError);
-          window.removeEventListener('unhandledrejection', handleUnhandledRejection);
-        };
-      }
 
       let refreshing = false;
       let workerCleanup = null; // Stores cleanup returned by registerWorker

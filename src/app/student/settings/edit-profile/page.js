@@ -174,6 +174,12 @@ export default function EditProfilePage() {
       changes.name = formData.student.name;
     }
 
+    const currentMobile = (formData.student?.mobile || '').replace(/\D/g, '');
+    const originalMobile = (originalData.student?.mobile || '').replace(/\D/g, '');
+    if (currentMobile !== originalMobile) {
+      changes.mobile = currentMobile;
+    }
+
     // Editable personal fields
     const spd_fields = [
       'father_name', 'mother_name', 'dob',
@@ -211,9 +217,16 @@ export default function EditProfilePage() {
         return;
     }
 
+    if (changedData?.mobile) {
+      if (changedData.mobile.length !== 10) {
+        toast.error('Mobile number must be exactly 10 digits.');
+        return;
+      }
+    }
+
     const needsProof = !!changedData;
     if (needsProof && !proofDataUrl) {
-        toast.error('Verification proof is mandatory for personal or address updates.');
+        toast.error('Verification proof is mandatory for personal, contact, or address updates.');
         return;
     }
 
@@ -596,7 +609,7 @@ export default function EditProfilePage() {
               {/* Supporting Documents Card */}
               <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
                 <h3 className="text-xs font-semibold text-gray-800 uppercase tracking-wide mb-1">Supporting Documents</h3>
-                <p className="text-[11px] text-gray-500 mb-3">Upload proof for personal/address changes.</p>
+                <p className="text-[11px] text-gray-500 mb-3">Upload proof for personal, contact, or address changes.</p>
                 <div 
                     onClick={() => !isPending && proofInputRef.current.click()}
                     className={`w-full h-32 border-2 border-dashed ${isPending ? 'border-gray-200 bg-gray-50 cursor-not-allowed' : 'border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer'} transition-colors rounded-md flex flex-col items-center justify-center p-4 relative`}
@@ -637,6 +650,24 @@ export default function EditProfilePage() {
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-gray-600">Student Name</label>
                     <input disabled={isPending} value={formData.student.name || ''} onChange={e => updateField('student', 'name', e.target.value)} className="w-full border border-gray-300 px-3 py-1.5 text-sm rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-50 disabled:text-gray-400 transition-shadow" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-600">Mobile Number</label>
+                    <input 
+                      disabled={isPending} 
+                      type="tel"
+                      maxLength={10}
+                      placeholder="10-digit mobile number"
+                      value={formData.student.mobile || ''} 
+                      onChange={e => {
+                        let val = e.target.value.replace(/\D/g, '');
+                        if (val.length === 12 && val.startsWith('91')) {
+                          val = val.slice(2);
+                        }
+                        updateField('student', 'mobile', val.slice(0, 10));
+                      }} 
+                      className="w-full border border-gray-300 px-3 py-1.5 text-sm rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-50 disabled:text-gray-400 transition-shadow" 
+                    />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-gray-600">Father Name</label>
@@ -785,7 +816,7 @@ export default function EditProfilePage() {
                     const headings = new Set();
                     const keys = Object.keys(dataObj);
                     
-                    if (keys.some(k => ['name', 'father_name', 'mother_name', 'dob'].includes(k))) {
+                    if (keys.some(k => ['name', 'mobile', 'father_name', 'mother_name', 'dob'].includes(k))) {
                         headings.add('Personal Information');
                     }
                     if (keys.some(k => k.startsWith('curr_') || k === 'is_current_same_as_permanent')) {
