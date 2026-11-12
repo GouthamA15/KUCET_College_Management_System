@@ -169,21 +169,21 @@ describe('Student ID Card Layout Correction, Alignment & Production Rendering Re
       });
       const nameBox = page.props.children.props.children[5];
       expect(nameBox.props.style.top).toBe(172);
-      expect(nameBox.props.style.left).toBe(12);
-      expect(nameBox.props.style.width).toBe(218);
-      expect(nameBox.props.style.height).toBe(30);
+      expect(nameBox.props.style.left).toBe(20);
+      expect(nameBox.props.style.width).toBe(204);
+      expect(nameBox.props.style.height).toBe(32);
       expect(nameBox.props.children.props.children).toBe('GOUTHAM ANKAPOOR');
       expect(nameBox.props.children.props.style.color).toBe('#d32f2f');
     });
 
-    it('photo box is bounded strictly above red line at 168 pt (top: 108, height: 56)', () => {
+    it('photo box is bounded strictly above red line at 168 pt (top: 108, height: 58)', () => {
       const page = IDCardOfficialPage({
         studentName: 'RAM',
         pfpUrl: samplePhotoUrl,
       });
       const photoBox = page.props.children.props.children[1];
       expect(photoBox.props.style.top).toBe(108);
-      expect(photoBox.props.style.height).toBe(56);
+      expect(photoBox.props.style.height).toBe(58);
       expect(photoBox.props.style.top + photoBox.props.style.height).toBeLessThanOrEqual(168);
     });
 

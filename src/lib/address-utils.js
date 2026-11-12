@@ -1,3 +1,70 @@
+/**
+ * Cleans an individual address token.
+ * Strips whitespace and filters out placeholder tokens:
+ * null, undefined, N/A, NA, None, -, --, ., Not Applicable.
+ * Returns empty string '' if invalid or placeholder.
+ *
+ * @param {any} val
+ * @returns {string}
+ */
+export function cleanAddressPart(val) {
+  if (val === null || val === undefined) return '';
+  const str = String(val).trim();
+  if (!str) return '';
+  const upper = str.toUpperCase();
+  if (
+    upper === 'N/A' ||
+    upper === 'NA' ||
+    upper === 'NULL' ||
+    upper === 'UNDEFINED' ||
+    upper === 'NONE' ||
+    upper === '-' ||
+    upper === '--' ||
+    upper === '—' ||
+    upper === '.' ||
+    upper === 'NOT APPLICABLE' ||
+    upper === 'N.A.' ||
+    upper === 'N.A'
+  ) {
+    return '';
+  }
+  return str;
+}
+
+/**
+ * Sanitizes an address string:
+ * 1. Splits by commas and newlines
+ * 2. Cleans each token via cleanAddressPart
+ * 3. Removes adjacent case-insensitive duplicate tokens (e.g. "SHIVUNIPALLY, SHIVUNIPALLY" -> "SHIVUNIPALLY")
+ * 4. Rejoins with ', '
+ *
+ * @param {string} addrStr
+ * @returns {string}
+ */
+export function sanitizeAddressString(addrStr) {
+  if (!addrStr || typeof addrStr !== 'string') return '';
+  const rawParts = addrStr
+    .split(/[\r\n,]+/)
+    .map(p => cleanAddressPart(p))
+    .filter(Boolean);
+
+  const deduplicated = [];
+  for (const part of rawParts) {
+    const norm = part.toLowerCase().trim();
+    if (deduplicated.length > 0 && deduplicated[deduplicated.length - 1].toLowerCase().trim() === norm) {
+      continue;
+    }
+    deduplicated.push(part);
+  }
+
+  // If the only token is 'India', but no other address info exists, return ''
+  if (deduplicated.length === 1 && deduplicated[0].toLowerCase() === 'india') {
+    return '';
+  }
+
+  return deduplicated.join(', ');
+}
+
 export function parseAddress(addrStr) {
   if (!addrStr || typeof addrStr !== 'string') {
     return {
@@ -11,7 +78,7 @@ export function parseAddress(addrStr) {
     };
   }
 
-  const parts = addrStr.split(',').map(p => p.trim()).filter(Boolean);
+  const parts = addrStr.split(',').map(p => cleanAddressPart(p)).filter(Boolean);
   
   let country = 'India';
   let pincode = '';
@@ -95,40 +162,98 @@ export function parseAddress(addrStr) {
 export function formatAddress(structured) {
   if (!structured) return '';
   const { house_no, street, apartment, city, state, pincode, country } = structured;
-  const parts = [house_no, apartment, street, city, state, pincode, country]
-    .map(p => String(p || '').trim())
+  const rawParts = [house_no, apartment, street, city, state, pincode, country]
+    .map(cleanAddressPart)
     .filter(Boolean);
-  return parts.join(', ');
+
+  const deduplicated = [];
+  for (const part of rawParts) {
+    const norm = part.toLowerCase().trim();
+    if (deduplicated.length > 0 && deduplicated[deduplicated.length - 1].toLowerCase().trim() === norm) {
+      continue;
+    }
+    deduplicated.push(part);
+  }
+
+  if (deduplicated.length === 1 && deduplicated[0].toLowerCase() === 'india') {
+    return '';
+  }
+
+  return deduplicated.join(', ');
 }
 
 export function getPermanentAddressFromDetails(details) {
   if (!details) return '';
   const perm = {
-    house_no: details.perm_house_no || '',
-    street: details.perm_street || '',
-    apartment: details.perm_apartment || '',
-    city: details.perm_city || '',
-    state: details.perm_state || '',
-    pincode: details.perm_pincode || '',
-    country: details.perm_country || 'India'
+    house_no: cleanAddressPart(details.perm_house_no),
+    street: cleanAddressPart(details.perm_street),
+    apartment: cleanAddressPart(details.perm_apartment),
+    city: cleanAddressPart(details.perm_city),
+    state: cleanAddressPart(details.perm_state),
+    pincode: cleanAddressPart(details.perm_pincode),
+    country: cleanAddressPart(details.perm_country) || 'India'
   };
-  const hasPerm = Object.values(perm).some(v => v && v !== 'India');
-  return hasPerm ? formatAddress(perm) : (details.address || '');
+  const hasPerm = Object.entries(perm).some(([k, v]) => k !== 'country' && Boolean(v));
+  return hasPerm ? formatAddress(perm) : sanitizeAddressString(details.address || '');
 }
 
 export function getContactAddressFromDetails(details) {
   if (!details) return '';
   const curr = {
-    house_no: details.curr_house_no || '',
-    street: details.curr_street || '',
-    apartment: details.curr_apartment || '',
-    city: details.curr_city || '',
-    state: details.curr_state || '',
-    pincode: details.curr_pincode || '',
-    country: details.curr_country || 'India'
+    house_no: cleanAddressPart(details.curr_house_no),
+    street: cleanAddressPart(details.curr_street),
+    apartment: cleanAddressPart(details.curr_apartment),
+    city: cleanAddressPart(details.curr_city),
+    state: cleanAddressPart(details.curr_state),
+    pincode: cleanAddressPart(details.curr_pincode),
+    country: cleanAddressPart(details.curr_country) || 'India'
   };
-  const hasCurr = Object.values(curr).some(v => v && v !== 'India');
-  return hasCurr ? formatAddress(curr) : (details.address || '');
+  const hasCurr = Object.entries(curr).some(([k, v]) => k !== 'country' && Boolean(v));
+  return hasCurr ? formatAddress(curr) : sanitizeAddressString(details.address || '');
+}
+
+/**
+ * Merges permanent and current address components into a single authoritative, clean address.
+ * Gracefully handles students who only filled partial details across permanent and current addresses.
+ *
+ * Rules:
+ * 1. For each component (house_no, apartment, street, city, state, pincode, country),
+ *    prefers permanent address if present and non-placeholder; falls back to current address.
+ * 2. If both permanent and current structured fields are empty, falls back to details.address.
+ * 3. Cleans any "N/A", "null", "undefined", or placeholder values.
+ * 4. Deduplicates consecutive identical tokens (e.g. "SHIVUNIPALLY, SHIVUNIPALLY" -> "SHIVUNIPALLY").
+ *
+ * @param {object} details
+ * @returns {string}
+ */
+export function getEffectiveStudentAddress(details) {
+  if (!details) return '';
+
+  const house_no = cleanAddressPart(details.perm_house_no) || cleanAddressPart(details.curr_house_no) || '';
+  const apartment = cleanAddressPart(details.perm_apartment) || cleanAddressPart(details.curr_apartment) || '';
+  const street = cleanAddressPart(details.perm_street) || cleanAddressPart(details.curr_street) || '';
+  const city = cleanAddressPart(details.perm_city) || cleanAddressPart(details.curr_city) || '';
+  const state = cleanAddressPart(details.perm_state) || cleanAddressPart(details.curr_state) || '';
+  const pincode = cleanAddressPart(details.perm_pincode) || cleanAddressPart(details.curr_pincode) || '';
+  const country = cleanAddressPart(details.perm_country) || cleanAddressPart(details.curr_country) || 'India';
+
+  const hasAnyComponent = Boolean(house_no || apartment || street || city || state || pincode);
+
+  if (hasAnyComponent) {
+    return formatAddress({
+      house_no,
+      apartment,
+      street,
+      city,
+      state,
+      pincode,
+      country,
+    });
+  }
+
+  // Fallback to unstructured address if structured fields were not available
+  const fallback = details.address || details.permanent_address || details.contact_address || '';
+  return sanitizeAddressString(fallback);
 }
 
 export function mapAddressStringsToFields(contactAddressStr, permanentAddressStr) {
@@ -164,5 +289,5 @@ export function getProfileDisplayAddress(student) {
   if (contact && perm && contact.trim().toLowerCase() !== perm.trim().toLowerCase()) {
     return contact;
   }
-  return perm || details.address || student.address || '';
+  return perm || sanitizeAddressString(details.address || student.address || '');
 }

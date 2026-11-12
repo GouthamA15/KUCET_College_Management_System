@@ -24,7 +24,10 @@ import {
   branchCodes 
 } from '@/lib/rollNumber';
 import { decrypt } from '@/lib/encryption';
-import { getPermanentAddressFromDetails } from '@/lib/address-utils';
+import { 
+  getEffectiveStudentAddress, 
+  sanitizeAddressString 
+} from '@/lib/address-utils';
 import { calculateStudentYearAndSemester, getCurrentCalendarSession } from '@/lib/academic-utils';
 import { getPublicStudentUrl } from '@/lib/public-url';
 import { sanitizeBloodGroup, resolveIDCardFormat } from '@/lib/id-card-formats';
@@ -87,7 +90,7 @@ function resolveFatherName(student) {
   if (!raw) return '';
   const str = String(raw).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
   if (str === 'N/A' || str === 'NULL' || str === 'UNDEFINED') return '';
-  return str;
+  return str.replace(/^FATHER(?:'S)?\s*NAME\s*:\s*/i, '').trim();
 }
 
 /**
@@ -109,22 +112,13 @@ function resolveCourse(student) {
 }
 
 /**
- * Formats address readably on one single line without line-breaks.
+ * Formats address readably on one single line without line-breaks or duplicate placeholder tokens.
  */
 function resolveAddress(student) {
   if (!student) return '';
   const raw = student.studentAddress ?? student.address ?? student.permanentAddress ?? student.permanent_address;
   if (!raw) return '';
-  const str = String(raw)
-    .replace(/[\r\n]+/g, ', ')
-    .replace(/\s+/g, ' ')
-    .replace(/,\s*,+/g, ', ')
-    .replace(/^[, ]+|[, ]+$/g, '')
-    .trim();
-  if (str.toUpperCase() === 'N/A' || str.toLowerCase() === 'null' || str.toLowerCase() === 'undefined') {
-    return '';
-  }
-  return str;
+  return sanitizeAddressString(raw);
 }
 
 /**
@@ -380,8 +374,10 @@ export class IDCardDataService {
     const photoUrl = photoKey ? getAssetUrl(photoKey) : null;
 
     const decryptedMobile = row.mobile ? decrypt(row.mobile) : null;
-    const fatherName = row.father_name || 'N/A';
-    const permanentAddress = getPermanentAddressFromDetails(row) || 'N/A';
+    const fatherName = (row.father_name && String(row.father_name).trim().toUpperCase() !== 'N/A')
+      ? String(row.father_name).replace(/^FATHER(?:'S)?\s*NAME\s*:\s*/i, '').trim().toUpperCase()
+      : 'N/A';
+    const effectiveAddress = getEffectiveStudentAddress(row) || 'N/A';
     const bloodGroup = sanitizeBloodGroup(row.blood_group);
     const slNo = row.sl_no ?? row.slNo ?? row.s_no ?? row.sNo ?? row.serial_no ?? row.serialNo ?? row.sno ?? null;
 
@@ -396,7 +392,7 @@ export class IDCardDataService {
       courseDisplay: `B.Tech (${branch})`,
       fatherName,
       studentPhone: decryptedMobile || 'N/A',
-      studentAddress: permanentAddress,
+      studentAddress: effectiveAddress,
       bloodGroup,
       photoKey,
       photoUrl,
@@ -435,6 +431,13 @@ export class IDCardDataService {
         perm_state: studentPersonalDetails.perm_state,
         perm_pincode: studentPersonalDetails.perm_pincode,
         perm_country: studentPersonalDetails.perm_country,
+        curr_house_no: studentPersonalDetails.curr_house_no,
+        curr_street: studentPersonalDetails.curr_street,
+        curr_apartment: studentPersonalDetails.curr_apartment,
+        curr_city: studentPersonalDetails.curr_city,
+        curr_state: studentPersonalDetails.curr_state,
+        curr_pincode: studentPersonalDetails.curr_pincode,
+        curr_country: studentPersonalDetails.curr_country,
         // Image
         pfp: studentImages.pfp,
       })
@@ -592,6 +595,13 @@ export class IDCardDataService {
             perm_state: studentPersonalDetails.perm_state,
             perm_pincode: studentPersonalDetails.perm_pincode,
             perm_country: studentPersonalDetails.perm_country,
+            curr_house_no: studentPersonalDetails.curr_house_no,
+            curr_street: studentPersonalDetails.curr_street,
+            curr_apartment: studentPersonalDetails.curr_apartment,
+            curr_city: studentPersonalDetails.curr_city,
+            curr_state: studentPersonalDetails.curr_state,
+            curr_pincode: studentPersonalDetails.curr_pincode,
+            curr_country: studentPersonalDetails.curr_country,
             pfp: studentImages.pfp,
           })
           .from(studentsTable)
@@ -821,6 +831,13 @@ export class IDCardDataService {
         perm_state: studentPersonalDetails.perm_state,
         perm_pincode: studentPersonalDetails.perm_pincode,
         perm_country: studentPersonalDetails.perm_country,
+        curr_house_no: studentPersonalDetails.curr_house_no,
+        curr_street: studentPersonalDetails.curr_street,
+        curr_apartment: studentPersonalDetails.curr_apartment,
+        curr_city: studentPersonalDetails.curr_city,
+        curr_state: studentPersonalDetails.curr_state,
+        curr_pincode: studentPersonalDetails.curr_pincode,
+        curr_country: studentPersonalDetails.curr_country,
         pfp: studentImages.pfp,
       })
       .from(studentsTable)
@@ -907,6 +924,13 @@ export class IDCardDataService {
         perm_state: studentPersonalDetails.perm_state,
         perm_pincode: studentPersonalDetails.perm_pincode,
         perm_country: studentPersonalDetails.perm_country,
+        curr_house_no: studentPersonalDetails.curr_house_no,
+        curr_street: studentPersonalDetails.curr_street,
+        curr_apartment: studentPersonalDetails.curr_apartment,
+        curr_city: studentPersonalDetails.curr_city,
+        curr_state: studentPersonalDetails.curr_state,
+        curr_pincode: studentPersonalDetails.curr_pincode,
+        curr_country: studentPersonalDetails.curr_country,
         pfp: studentImages.pfp,
       })
       .from(studentsTable)
@@ -1018,6 +1042,13 @@ export class IDCardDataService {
             perm_state: studentPersonalDetails.perm_state,
             perm_pincode: studentPersonalDetails.perm_pincode,
             perm_country: studentPersonalDetails.perm_country,
+            curr_house_no: studentPersonalDetails.curr_house_no,
+            curr_street: studentPersonalDetails.curr_street,
+            curr_apartment: studentPersonalDetails.curr_apartment,
+            curr_city: studentPersonalDetails.curr_city,
+            curr_state: studentPersonalDetails.curr_state,
+            curr_pincode: studentPersonalDetails.curr_pincode,
+            curr_country: studentPersonalDetails.curr_country,
             pfp: studentImages.pfp,
           })
           .from(studentsTable)

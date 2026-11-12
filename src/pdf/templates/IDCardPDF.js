@@ -2,6 +2,7 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 import { sanitizeBloodGroup } from "@/lib/id-card-formats";
+import { sanitizeAddressString } from "@/lib/address-utils";
 
 const h = React.createElement;
 
@@ -279,9 +280,12 @@ const styles = StyleSheet.create({
   officialPhotoBox: {
     position: "absolute",
     top: 108,
-    left: 14,
-    width: 64,
-    height: 56,
+    left: 19,
+    width: 50,
+    height: 58,
+    border: "0.8pt solid #334155",
+    borderRadius: 2,
+    backgroundColor: "#ffffff",
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
@@ -289,8 +293,8 @@ const styles = StyleSheet.create({
   officialPhotoImg: {
     width: "100%",
     height: "100%",
-    objectFit: "contain",
-    borderRadius: 2,
+    objectFit: "cover",
+    borderRadius: 1,
   },
   officialNoPhotoBox: {
     width: "100%",
@@ -349,16 +353,17 @@ const styles = StyleSheet.create({
   officialNameBox: {
     position: "absolute",
     top: 172,
-    left: 12,
-    width: 218,
-    height: 30,
+    left: 20,
+    width: 204,
+    height: 32,
+    alignItems: "center",
     justifyContent: "center",
   },
   officialNameText: {
     fontWeight: "black",
     color: "#d32f2f",
     textTransform: "uppercase",
-    textAlign: "left",
+    textAlign: "center",
     lineHeight: 1.15,
   },
   officialFatherBox: {
@@ -585,14 +590,20 @@ export function IDCardOfficialPage({
   templateBgUrl,
 }) {
   const cleanBloodGroup = sanitizeBloodGroup(bloodGroup);
-  const cleanFatherName = (fatherName && fatherName !== 'N/A') ? String(fatherName).trim().toUpperCase() : '';
+  const cleanFatherName = (fatherName && fatherName !== 'N/A' && fatherName !== 'null') 
+    ? String(fatherName).replace(/^FATHER(?:'S)?\s*NAME\s*:\s*/i, '').trim().toUpperCase() 
+    : '';
   const cleanStudentName = String(studentName || 'STUDENT').trim().toUpperCase();
 
   // Formatting and adaptive font scaling for student address (must begin with #)
   const formatAddress = (addr) => {
-    if (!addr || addr === '—' || addr === 'N/A') return '—';
-    const trimmed = String(addr).trim();
-    if (trimmed.startsWith('#')) return trimmed;
+    if (!addr || addr === '—' || addr === 'N/A' || addr === 'null') return '—';
+    const sanitized = sanitizeAddressString(addr);
+    if (!sanitized) return '—';
+    const trimmed = sanitized.trim();
+    if (trimmed.startsWith('#')) {
+      return trimmed.replace(/^#+\s*/, '# ');
+    }
     return `# ${trimmed}`;
   };
   const cleanAddress = formatAddress(address);

@@ -143,15 +143,30 @@ describe('Student ID Card — 6 Selectable Formats & Architecture Suite', () => 
       });
     });
 
-    it('displays student full name in uppercase red font in dedicated section below academic year', () => {
+    it('renders profile picture in a dedicated bounded box with thin border and portrait aspect ratio', () => {
+      const page = IDCardOfficialPage(sampleStudent);
+      const container = page.props.children;
+      // Item 1 is the Photo box
+      const photoBox = container.props.children[1];
+      expect(photoBox.props.style.top).toBe(108);
+      expect(photoBox.props.style.left).toBe(19);
+      expect(photoBox.props.style.width).toBe(50);
+      expect(photoBox.props.style.height).toBe(58);
+      expect(photoBox.props.style.border).toBe('0.8pt solid #334155');
+      expect(photoBox.props.children.props.style.objectFit).toBe('cover');
+    });
+
+    it('displays student full name in uppercase red font centered in dedicated section below academic year', () => {
       const page = IDCardOfficialPage(sampleStudent);
       const container = page.props.children;
       // Item 5 is the Student Name box
       const nameBox = container.props.children[5];
       expect(nameBox.props.children.props.children).toBe(sampleStudent.studentName);
       expect(nameBox.props.children.props.style.color).toBe('#d32f2f');
+      expect(nameBox.props.children.props.style.textAlign).toBe('center');
       expect(nameBox.props.style.top).toBe(172);
-      expect(nameBox.props.style.left).toBe(12);
+      expect(nameBox.props.style.left).toBe(20);
+      expect(nameBox.props.style.width).toBe(204);
     });
 
     it('prefixes student address with # and wraps correctly', () => {
