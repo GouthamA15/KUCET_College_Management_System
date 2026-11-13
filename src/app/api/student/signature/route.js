@@ -14,6 +14,7 @@ import { safeJsonParse } from '@/lib/json-utils';
 import { storage } from '@/lib/providers';
 import { encrypt, decrypt, _hashForIndex } from '@/lib/encryption';
 import { getPermanentAddressFromDetails, getContactAddressFromDetails } from '@/lib/address-utils';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export async function GET(_req) {
   const user = await getAuthUser('student');
@@ -124,7 +125,6 @@ export async function POST(req) {
   if (!user) return apiError('Unauthorized', 401);
 
   try {
-    const { checkRateLimit } = require('@/lib/rate-limit');
     const rateCheck = await checkRateLimit(`profile_req:${user.student_id}`, 5, 86400); // 5 per day
     if (!rateCheck.success) {
       return apiError('You can only submit 5 update requests per day.', 429);
@@ -145,7 +145,16 @@ export async function POST(req) {
     // Encrypt sensitive fields in the data payload before storing
     const encryptedData = data ? { ...data } : null;
     if (encryptedData) {
-        if (encryptedData.mobile) encryptedData.mobile = encrypt(encryptedData.mobile);
+        if (encryptedData.mobile) {
+          let cleanMobile = String(encryptedData.mobile).replace(/\D/g, '');
+          if (cleanMobile.length === 12 && cleanMobile.startsWith('91')) {
+            cleanMobile = cleanMobile.slice(2);
+          }
+          if (cleanMobile.length !== 10) {
+            return apiError('Mobile number must be exactly 10 digits.', 400);
+          }
+          encryptedData.mobile = encrypt(cleanMobile);
+        }
         if (encryptedData.guardian_mobile) encryptedData.guardian_mobile = encrypt(encryptedData.guardian_mobile);
         if (encryptedData.aadhaar_no) encryptedData.aadhaar_no = encrypt(encryptedData.aadhaar_no);
     }

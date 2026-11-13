@@ -104,6 +104,19 @@ describe('PWA & Chunk Recovery Resilience Suite', () => {
       expect(result).toBe(true);
       expect(global.window.location.reload).toHaveBeenCalledTimes(1);
     });
+
+    it('should never reload in development mode to prevent HMR and startup refresh loops', () => {
+      const origEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development';
+      try {
+        const error = new Error('Loading chunk 123 failed');
+        const result = handleChunkRecovery(error);
+        expect(result).toBe(false);
+        expect(global.window.location.reload).not.toHaveBeenCalled();
+      } finally {
+        process.env.NODE_ENV = origEnv;
+      }
+    });
   });
 
   describe('Service Worker File Invariants', () => {

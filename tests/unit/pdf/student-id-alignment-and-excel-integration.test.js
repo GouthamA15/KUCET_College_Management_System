@@ -83,7 +83,7 @@ describe('Student ID Card — Photograph Alignment, Left-Aligned Name & Blood Gr
   // 1. PHOTOGRAPH PLACEMENT & UN-CROPPED RENDERING
   // =========================================================================
   describe('1. Student Photograph Alignment & Un-cropped Aspect-Ratio Containment', () => {
-    it('official card photo style strictly enforces objectFit: contain to prevent cropping', () => {
+    it('official card photo style strictly enforces thin border and portrait dimensions', () => {
       const page = IDCardOfficialPage({
         studentName: 'RAM',
         pfpUrl: testPhotoDataUrls.portrait,
@@ -91,11 +91,14 @@ describe('Student ID Card — Photograph Alignment, Left-Aligned Name & Blood Gr
       const photoBox = page.props.children.props.children[1];
       const photoImg = photoBox.props.children;
 
-      expect(photoImg.props.style.objectFit).toBe('contain');
+      expect(photoImg.props.style.objectFit).toBe('cover');
       expect(photoBox.props.style.alignItems).toBe('center');
       expect(photoBox.props.style.justifyContent).toBe('center');
-      expect(photoBox.props.style.width).toBe(64);
-      expect(photoBox.props.style.height).toBe(56);
+      expect(photoBox.props.style.top).toBe(108);
+      expect(photoBox.props.style.left).toBe(19);
+      expect(photoBox.props.style.width).toBe(50);
+      expect(photoBox.props.style.height).toBe(58);
+      expect(photoBox.props.style.border).toBe('0.8pt solid #334155');
     });
 
     it('classic card photo style strictly enforces objectFit: contain to prevent cropping', () => {
@@ -160,68 +163,68 @@ describe('Student ID Card — Photograph Alignment, Left-Aligned Name & Blood Gr
   // =========================================================================
   // 2. STUDENT NAME POSITIONING RESTORATION (LEFT-ALIGNED)
   // =========================================================================
-  describe('2. Student Name Left-Aligned Positioning & Text Wrapping', () => {
-    it('restores official card student name to left-aligned positioning (textAlign: left)', () => {
+  describe('2. Student Name Positioning & Text Wrapping', () => {
+    it('centers official card student name safely clear of the left margin chevron (textAlign: center)', () => {
       const page = IDCardOfficialPage({
         studentName: 'KALYAN REDDY',
       });
       const nameBox = page.props.children.props.children[5];
       const nameText = nameBox.props.children;
 
-      // Container: top 172, left 12, height 30, left-aligned
+      // Container: top 172, left 20, width 204, height 32, centered
       expect(nameBox.props.style.top).toBe(172);
-      expect(nameBox.props.style.left).toBe(12);
-      expect(nameBox.props.style.width).toBe(218);
-      expect(nameBox.props.style.height).toBe(30);
-      expect(nameBox.props.style.alignItems).toBeUndefined(); // Not center!
-      expect(nameText.props.style.textAlign).toBe('left');
+      expect(nameBox.props.style.left).toBe(20);
+      expect(nameBox.props.style.width).toBe(204);
+      expect(nameBox.props.style.height).toBe(32);
+      expect(nameBox.props.style.alignItems).toBe('center');
+      expect(nameText.props.style.textAlign).toBe('center');
       expect(nameText.props.style.color).toBe('#d32f2f');
     });
 
-    it('short student name displays on one line, left-aligned', () => {
+    it('short student name displays on one line, centered', () => {
       const page = IDCardOfficialPage({ studentName: 'RAM' });
       const nameBox = page.props.children.props.children[5];
       const nameText = nameBox.props.children;
 
       expect(nameText.props.children).toBe('RAM');
-      expect(nameText.props.style.textAlign).toBe('left');
+      expect(nameText.props.style.textAlign).toBe('center');
       expect(nameText.props.style.fontSize).toBe(10.5);
     });
 
-    it('normal length student name displays on one line at 10.5pt, left-aligned', () => {
+    it('normal length student name displays on one line at 10.5pt, centered', () => {
       const page = IDCardOfficialPage({ studentName: 'ADEPU SUCHARITHA' });
       const nameBox = page.props.children.props.children[5];
       const nameText = nameBox.props.children;
 
       expect(nameText.props.children).toBe('ADEPU SUCHARITHA');
-      expect(nameText.props.style.textAlign).toBe('left');
+      expect(nameText.props.style.textAlign).toBe('center');
       expect(nameText.props.style.fontSize).toBe(10.5);
     });
 
-    it('long student name scales to 9.2pt or 9.5pt and wraps into 2 left-aligned lines within 30pt height', () => {
+    it('long student name scales to 9.2pt or 9.5pt and wraps into 2 centered lines within height', () => {
       const longName = 'MOHAMMED ABDUL REHMAN SIDDIQUI';
       const page = IDCardOfficialPage({ studentName: longName });
       const nameBox = page.props.children.props.children[5];
       const nameText = nameBox.props.children;
 
       expect(nameText.props.children).toBe(longName);
-      expect(nameText.props.style.textAlign).toBe('left');
+      expect(nameText.props.style.textAlign).toBe('center');
       expect(nameText.props.style.fontSize).toBeLessThan(10);
-      expect(nameBox.props.style.height).toBe(30);
+      expect(nameBox.props.style.height).toBe(32);
       // Ensures it does not collide with father name at top: 204
-      expect(nameBox.props.style.top + nameBox.props.style.height).toBeLessThanOrEqual(202);
+      expect(nameBox.props.style.top + nameBox.props.style.height).toBeLessThanOrEqual(204);
     });
 
-    it('very long student name scales to 8.2pt, remaining left-aligned without overlapping father name or QR', () => {
+    it('very long student name scales to 8.2pt, remaining centered without overlapping father name or QR', () => {
       const veryLongName = 'CHINTHA KUNTA VENKATA RAMA NARASIMHA REDDY';
       const page = IDCardOfficialPage({ studentName: veryLongName });
       const nameBox = page.props.children.props.children[5];
       const nameText = nameBox.props.children;
 
       expect(nameText.props.children).toBe(veryLongName);
-      expect(nameText.props.style.textAlign).toBe('left');
+      expect(nameText.props.style.textAlign).toBe('center');
       expect(nameText.props.style.fontSize).toBeLessThanOrEqual(8.5);
-      expect(nameBox.props.style.top + nameBox.props.style.height).toBeLessThanOrEqual(202);
+      expect(nameBox.props.style.top + nameBox.props.style.height).toBeLessThanOrEqual(204);
     });
   });
 

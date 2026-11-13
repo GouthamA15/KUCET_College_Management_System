@@ -15,14 +15,13 @@ const inter = Inter({
 export const metadata = {
   title: "KUCET Management System",
   description: "KU College of Engineering and Technology - Comprehensive Academic & Management Portal",
-  manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "KUCET CMS",
   },
   other: {
-    "build-version": new Date().toISOString(),
+    "build-version": process.env.BUILD_VERSION || "2026.11.12",
   },
 };
 
