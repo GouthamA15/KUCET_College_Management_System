@@ -22,11 +22,14 @@ const nextConfig = {
     'pino',
     'pino-pretty',
     'ioredis',
+    'archiver',
+    'xlsx-js-style',
   ],
   typescript: {
     ignoreBuildErrors: true,
   },
   experimental: {
+    cpus: 2, // Explicitly limit worker processes during page collection & static generation to 2 (prevents 47 workers on Render/cloud runners from exceeding 8GB RAM)
     webpackBuildWorker: false,
   },
   images: {
