@@ -10,33 +10,40 @@ The Student Portal (`/student/*`) is a mobile-first web interface providing stud
 
 | Route Path | Feature Module | Required Auth State | Verification Required |
 | :--- | :--- | :---: | :---: |
-| `/student` | Student Dashboard | `student_auth` | ❌ (Accessible to setup account) |
+| `/student` | Student Dashboard (`StudentDashboardClient.js`) | `student_auth` | ❌ (Accessible to setup account) |
 | `/student/profile` | Personal Profile Details | `student_auth` | ❌ (Accessible) |
 | `/student/settings/security` | Security Center & Credentials | `student_auth` | ❌ (Accessible) |
-| `/student/academics` | Unified Academics Hub (Subjects, Attendance, Achievements) | `student_auth` | ✅ (Full Verification Required) |
-| `/student/attendance` | Subject-Wise Attendance Breakdown | `student_auth` | ✅ (Full Verification Required) |
-| `/student/marks` | Academic Marks & Grades | `student_auth` | ✅ (Full Verification Required) |
-| `/student/requests` | Certificate Application Portal | `student_auth` | ✅ (Full Verification Required) |
-| `/student/finances` | Fee Ledger & Transaction History | `student_auth` | ✅ (Full Verification Required) |
+| `/student/settings/edit-profile` | Student Profile & Mobile Number Editing | `student_auth` | ❌ (Accessible) |
+| `/student/apaar` | APAAR ID Submission & Verification Portal | `student_auth` | ❌ (Accessible) |
+| `/student/reactivate` | Student Account Reactivation Portal | `student_auth` | ❌ (Accessible for inactive accounts) |
+| `/student/academics` | Unified Academics Hub (Subjects, Attendance, Internals, Achievements) | `student_auth` | ✅ (Full Verification Required) |
+| `/student/academics/subjects/[assignmentId]` | Individual Subject Attendance & Timeline | `student_auth` | ✅ (Full Verification Required) |
 | `/student/timetable` | Weekly Class Timetable | `student_auth` | ✅ (Full Verification Required) |
+| `/student/finances` | Fee Ledger & Transaction History | `student_auth` | ✅ (Full Verification Required) |
+| `/student/requests/certificates` | Digital Certificate Applications & Downloads | `student_auth` | ✅ (Full Verification Required) |
+| `/student/requests/id-card` | Physical Student ID Card Replacement Request | `student_auth` | ✅ (Full Verification Required) |
+| `/student/requests/profile-updates` | Student Profile Modification Requests | `student_auth` | ✅ (Full Verification Required) |
 
 ---
 
 ### Student Academics Hub (`/student/academics`)
-Consolidates the student's classroom lifecycle under a responsive 3-tab interface:
-1. **Subjects**: Enrolled syllabus courses, faculty assignments, and mid-exam marks evaluation.
-2. **Attendance**: Subject-wise percentage, conducted classes, attended classes, and 75% condonation margin calculator.
-3. **Achievements**: Extracurricular and technical achievements registry with certificate image upload (strictly capped at 1 MB / 1,048,576 bytes via progressive 3-stage client compression).
+Consolidates the student's complete academic lifecycle under a unified 4-tab interface ([`StudentAcademicsClient.js`](file:///run/media/admino/New%20Volume/User/Desktop/CMS/src/app/student/academics/StudentAcademicsClient.js)):
+1. **Subjects**: Displays currently enrolled curriculum courses, course type (Theory, Lab, Seminar), assigned faculty names, syllabus curriculum links, and navigation to detailed subject timelines (`/student/academics/subjects/[assignmentId]`).
+2. **Attendance**: Interactive visual bar chart and subject-by-subject percentage roster, displaying conducted vs. attended classes, and total aggregate attendance percentage.
+3. **Internals**: Continuous Internal Evaluation (CIE) ledger:
+   - *Theory Subjects*: Mid-1, Mid-2, Assignment marks, and computed Total Internal Score ($\max(\text{Mid 1}, \text{Mid 2}) + \text{Assignment}$, max 30).
+   - *Practical / Lab Subjects*: Day-to-day Execution, Theory/Writing, and Record/Observation marks.
+4. **Achievements**: Extracurricular, technical, and internship achievements registry with certificate image upload (capped at 1 MB via progressive client canvas compression).
 
 ---
 
 ## Key Workflows & UI Components
 
 ### 1. Main Student Dashboard (`/student`)
-The dashboard aggregates core academic metrics:
-- **Attendance Summary Card**: Displays overall attendance percentage with visual color coding (Green: $\ge 75\%$, Amber: $65\% - 74\%$, Red: $< 65\%$).
-- **Today's Timetable & Action Center**: Shows current day periods, PIN verification, scholarship alerts, and live classroom activity.
-- **Student Quick Links Grid (`StudentQuickLinks.js`)**: A responsive ERP service grid (4 columns desktop, 3 columns tablet, 2 columns mobile) providing direct keyboard-accessible navigation to verified portal modules:
+The main dashboard serves as the personalized portal overview:
+- **Header Card**: Authoritative student name with Kakatiya Navy gradient, roll number, academic branch, year of study, and semester label.
+- **Dashboard Action Center (`DashboardActionCenter.js`)**: Displays contextual priority notifications (pending fee payments, active attendance sessions, PIN verification alerts).
+- **Student Quick Links Grid (`StudentQuickLinks.js`)**: A responsive ERP service grid (4 columns desktop, 3 columns tablet, 2 columns mobile) providing direct navigation to:
   - *Apply Certificate* (`/student/requests/certificates`)
   - *Attendance & Marks* (`/student/academics`)
   - *Class Timetable* (`/student/timetable`)
@@ -45,13 +52,15 @@ The dashboard aggregates core academic metrics:
   - *Edit Profile* (`/student/settings/edit-profile`)
   - *Security Center* (`/student/settings/security`)
   - *ID Card Request* (`/student/requests/id-card`)
+- **Academic Records Panel**: Displays the student's enrolled subjects for the active academic session with dynamic visual icons, subject code, assigned faculty name, and live attendance percentage. Respects authoritative semester calendar and excludes previous semester subjects during semester breaks.
+- **Internal Assessment Average (CIE) Panel**: Displays continuous internal evaluation average across evaluated subjects ($\max(\text{Mid 1}, \text{Mid 2}) + \text{Assignment}$ for theory, $\text{Execution} + \text{Writing} + \text{Record}$ for lab, max 30 marks) computed via [`calculateStudentCIE`](file:///run/media/admino/New%20Volume/User/Desktop/CMS/src/lib/evaluation-utils.js). Clearly denotes partial vs complete evaluations, handles pending marks, and features an explicit disclaimer that the score represents continuous internal assessment and not university CGPA/SGPA.
 
 ```mermaid
 flowchart TD
     A[Student Login] --> B[Dashboard /student]
-    B --> C[Attendance Gauge & Action Center]
+    B --> C[Academic Records & Attendance List]
     B --> D[Quick Links Grid 4x3x2 Responsive]
-    B --> E[Fee Ledger & Receipts]
+    B --> E[Action Center Alerts]
     D -->|Click| F[/student/requests/certificates]
     D -->|Click| G[/student/academics]
     D -->|Click| H[/student/finances]
@@ -60,24 +69,27 @@ flowchart TD
 
 ---
 
-### 2. Mobile Timetable Swipe Gesture System
+### 2. Mobile Timetable Swipe Gesture System (`/student/timetable`)
 The timetable component incorporates touch gesture handlers (`onTouchStart`, `onTouchMove`, `onTouchEnd`) allowing mobile users to swipe left/right to navigate between weekdays (Monday to Saturday).
 - **Threshold Sensitivity**: 50px swipe offset triggers smooth day transition.
 - **Visual Feedback**: Active day tab highlights with slide animations.
 
 ---
 
-### 3. Subject-Wise Attendance Analytics (`/student/attendance`)
-Provides transparent tracking of lecture attendance:
-- **Per-Subject Cards**: Total conducted classes, attended classes, and percentage score.
-- **Condonation Warning Engine**: Calculates the exact number of consecutive classes a student can afford to miss (or must attend) to stay above the mandatory $75\%$ threshold.
-- **Attendance Appeal Workflow**: Allows students to submit formal absence appeals (with medical certificates or event proof) for faculty/HOD review.
+### 3. Subject Detail & Attendance Timeline (`/student/academics/subjects/[assignmentId]`)
+Clicking on an individual subject card opens its dedicated timeline view:
+- **Attendance Breakdown**: Total classes held, present sessions, NCC sessions, medical sessions, and absence count.
+- **Chronological Session Timeline**: Date-by-date session log indicating period number, attendance status (`PRESENT`, `ABSENT`, `NCC`, `MEDICAL`), and session submission timestamp.
+- **Dispute Submission Trigger**: Direct link to submit attendance dispute requests with documentary evidence.
 
 ---
 
-### 4. Examination Marks & Performance Ledger (`/student/marks`)
-- Displays Mid-1, Mid-2, Assignment, Lab Internal, and External end-semester marks.
-- Highlights best-of-two Mid exam calculations according to university regulations.
+### 4. APAAR ID Submission Portal (`/student/apaar`)
+Dedicated government registry compliance portal:
+- Captures and validates 12-digit APAAR numbers (`^\d{12}$`).
+- Real-time keystroke validation with warning alerts preventing submission of Aadhaar numbers.
+- One-time submission lock preventing client-side tampering post-commitment.
+
 
 ---
 

@@ -90,26 +90,43 @@ export class CoordinatorAssignmentService {
         throw err;
       }
 
-      // 3. Prevent duplicate active assignment for the same person, coordinator type, and academic year
-      const existingActive = await tx
-        .select({ id: facultyCoordinatorAssignments.id })
-        .from(facultyCoordinatorAssignments)
-        .where(
-          and(
-            eq(facultyCoordinatorAssignments.staff_account_id, staff.id),
-            eq(facultyCoordinatorAssignments.coordinator_type, coordinatorType),
-            eq(facultyCoordinatorAssignments.academic_year, academicYear),
-            eq(facultyCoordinatorAssignments.is_active, true)
+      // 3. Handle single college-wide coordinator invariant for INTERNSHIP
+      if (coordinatorType === 'INTERNSHIP') {
+        const todayStr = new Date().toISOString().split('T')[0];
+        await tx
+          .update(facultyCoordinatorAssignments)
+          .set({
+            is_active: false,
+            end_date: todayStr,
+          })
+          .where(
+            and(
+              eq(facultyCoordinatorAssignments.coordinator_type, 'INTERNSHIP'),
+              eq(facultyCoordinatorAssignments.is_active, true)
+            )
+          );
+      } else {
+        // Prevent duplicate active assignment for the same person, coordinator type, and academic year
+        const existingActive = await tx
+          .select({ id: facultyCoordinatorAssignments.id })
+          .from(facultyCoordinatorAssignments)
+          .where(
+            and(
+              eq(facultyCoordinatorAssignments.staff_account_id, staff.id),
+              eq(facultyCoordinatorAssignments.coordinator_type, coordinatorType),
+              eq(facultyCoordinatorAssignments.academic_year, academicYear),
+              eq(facultyCoordinatorAssignments.is_active, true)
+            )
           )
-        )
-        .limit(1);
+          .limit(1);
 
-      if (existingActive.length > 0) {
-        const err = new Error(
-          `Staff member ${staff.name} already has an active ${coordinatorType} assignment for academic year ${academicYear}`
-        );
-        err.status = 409;
-        throw err;
+        if (existingActive.length > 0) {
+          const err = new Error(
+            `Staff member ${staff.name} already has an active ${coordinatorType} assignment for academic year ${academicYear}`
+          );
+          err.status = 409;
+          throw err;
+        }
       }
 
       // 4. Insert assignment record
@@ -500,6 +517,63 @@ export class CoordinatorAssignmentService {
     };
 
     const activeRow = rows.find((r) => {
+      const sStr = toDateStr(r.start_date);
+      const eStr = toDateStr(r.end_date);
+      if (sStr && todayStr < sStr) return false;
+      if (eStr && todayStr > eStr) return false;
+      return true;
+    });
+
+    return activeRow || null;
+  }
+
+  /**
+   * Retrieves the currently active designated college-wide Internship Coordinator.
+   */
+  static async getActiveInternshipCoordinator() {
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+
+    const rows = await db
+      .select({
+        id: facultyCoordinatorAssignments.id,
+        staff_account_id: facultyCoordinatorAssignments.staff_account_id,
+        coordinator_type: facultyCoordinatorAssignments.coordinator_type,
+        academic_year: facultyCoordinatorAssignments.academic_year,
+        start_date: facultyCoordinatorAssignments.start_date,
+        end_date: facultyCoordinatorAssignments.end_date,
+        is_active: facultyCoordinatorAssignments.is_active,
+        assigned_by: facultyCoordinatorAssignments.assigned_by,
+        created_at: facultyCoordinatorAssignments.created_at,
+        staff_name: staffAccounts.name,
+        staff_email: staffAccounts.email,
+        employee_id: staffAccounts.employee_id,
+        staff_status: staffAccounts.account_status,
+        department_code: academicDepartments.department_code,
+        department_name: academicDepartments.department_name,
+      })
+      .from(facultyCoordinatorAssignments)
+      .innerJoin(staffAccounts, eq(facultyCoordinatorAssignments.staff_account_id, staffAccounts.id))
+      .leftJoin(
+        staffAcademicAffiliations,
+        eq(facultyCoordinatorAssignments.staff_account_id, staffAcademicAffiliations.staff_account_id)
+      )
+      .leftJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
+      .where(
+        and(
+          eq(facultyCoordinatorAssignments.coordinator_type, 'INTERNSHIP'),
+          eq(facultyCoordinatorAssignments.is_active, true)
+        )
+      )
+      .orderBy(desc(facultyCoordinatorAssignments.created_at));
+
+    const toDateStr = (val) => {
+      if (!val) return null;
+      if (val instanceof Date) return val.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      return String(val).split('T')[0];
+    };
+
+    const activeRow = rows.find((r) => {
+      if (r.staff_status !== 'ACTIVE') return false;
       const sStr = toDateStr(r.start_date);
       const eStr = toDateStr(r.end_date);
       if (sStr && todayStr < sStr) return false;

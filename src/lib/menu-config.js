@@ -8,6 +8,7 @@ export const NAV_MENU_CONFIG = {
     { label: 'HOME', route: '/student' },
     { label: 'PROFILE', route: '/student/profile' },
     { label: 'ACADEMICS', route: '/student/academics' },
+    { label: 'INTERNSHIPS', route: '/student/internships' },
     { label: 'FEES', route: '/student/finances' },
     { label: 'TIME TABLE', route: '/student/timetable' },
     { label: 'MY EVENT', route: '/events' },

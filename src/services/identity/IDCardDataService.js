@@ -1141,7 +1141,7 @@ export class IDCardDataService {
           if (cand && fs.existsSync(/*turbopackIgnore: true*/ cand)) {
             const stat = fs.statSync(/*turbopackIgnore: true*/ cand);
             if (stat.isFile() && stat.size > 0) {
-              return await fs.promises.readFile(cand);
+              return await fs.promises.readFile(/*turbopackIgnore: true*/ cand);
             }
           }
         }

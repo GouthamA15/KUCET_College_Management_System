@@ -35,6 +35,11 @@ graph TD
     F --> F2[Faculty Workload & Substitutions]
     F --> F3[Condonation Analytics]
     
+    B -->|is_first_year_coordinator: true| FY[/staff/first-year/*]
+    FY --> FY1[First-Year Academic Dashboard]
+    FY --> FY2[First-Year ID Card Hub & Bulk ZIP]
+    FY --> FY3[First-Year APAAR Registry]
+    
     B -->|Any Authenticated Staff| G[/staff/settings/*]
     G --> G1[Profile Details & Image Upload]
     G --> G2[Security Center & Password Management]
@@ -50,11 +55,16 @@ graph TD
    - Collects personal details, academic history (SSC, Inter, EAMCET), and uploads PFP/Signature.
    - Computes standardized roll numbers (`autoGenerateRollNumber.js`) per branch and entry category.
    - Finalization executes a transactional insert into `students`, `student_personal_details`, and `student_academic_background`.
-2. **Student Request Processing (`/staff/admission/requests`)**:
+2. **Student ID Card Management Hub (`/staff/admission/id-cards`)**:
+   - Interactive preview and single/bulk PDF generation supporting all 6 canonical formats.
+   - Asynchronous batch generation of consolidated multi-page PDFs or ZIP archives containing individual student PDFs.
+   - Missing photograph upload and rectification modal.
+   - One-click branch-wide dataset export to Excel (`.xlsx`) and CSV.
+3. **Student Request Processing (`/staff/admission/requests`)**:
    - Reviews Bonafide, Custodian, and Transfer certificate requests.
    - Approves requests triggering digital signature generation and verification QR stamping.
-3. **Bulk Student Import (`/api/staff/admission/bulk-import`)**:
-   - Asynchronous QStash worker processing with fallback to synchronous DB transactions.
+4. **Bulk Student Import (`/api/staff/admission/bulk-import`)**:
+   - Excel template generation with dedicated Blood Group column and asynchronous batch ingestion.
 
 ---
 
@@ -95,7 +105,18 @@ graph TD
 
 ---
 
-### 2.5 Staff Profile & Security Center (`/staff/settings/*`)
+### 2.5 First-Year Coordinator Workspace (`/staff/first-year/*`)
+1. **First-Year Academic Dashboard (`/staff/first-year/dashboard`)**:
+   - Monitors first-year student attendance, section distributions, and transition health across all engineering branches.
+2. **First-Year ID Card Hub (`/staff/first-year/id-cards`)**:
+   - Complete ID card generation and rectification interface scoped strictly to first-year undergraduate intake.
+   - Sub-routes for bulk ZIP downloads (`/staff/first-year/id-cards/bulk`), hall ticket QR generation, and public verification URLs.
+3. **First-Year APAAR Registry (`/staff/first-year/apaar`)**:
+   - Oversees national APAAR registration compliance for the incoming fresher cohort.
+
+---
+
+### 2.6 Staff Profile & Security Center (`/staff/settings/*`)
 1. **Profile Editing (`/staff/settings/edit-profile`)**:
    - Client-side image compression (`compressImage()`) for avatars and signatures.
    - Relative storage key generation (`kucet/clerks/pfp/...` or `kucet/staff/...`).

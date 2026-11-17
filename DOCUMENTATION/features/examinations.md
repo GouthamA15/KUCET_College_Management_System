@@ -77,27 +77,41 @@ export const studentMarks = mysqlTable('student_marks', {
 
 ---
 
-## 3. Departmental Pattern Recommendations & Configurations
+## 3. Departmental Theory Assessment Patterns & CIE Calculation
 
-Different academic departments or regulation years enforce specific internal evaluation max limits. The system configures these limits via `branch_config` and `faculty_subject_assignments`.
+The system implements three university-approved assessment patterns defined in [`src/lib/evaluation-utils.js`](file:///run/media/admino/New%20Volume/User/Desktop/CMS/src/lib/evaluation-utils.js) and selected via `PatternSelectionModal.js`:
 
-```javascript
-// Configured in branch_config and faculty_subject_assignments
-export const branchConfig = mysqlTable('branch_config', {
-  id: int('id').autoincrement().primaryKey().notNull(),
-  branch: varchar('branch', { length: 50 }).notNull(),
-  academic_year: varchar('academic_year', { length: 9 }).notNull(),
-  semester: tinyint('semester').notNull(),
-  mid_max: int('mid_max').default(20),
-  assignment_max: int('assignment_max').default(10),
-  is_locked: boolean('is_locked').default(false),
-});
-```
+### Authoritative Assessment Patterns
 
-### Regulation Weightage Formula
-For standard Kakatiya University engineering regulations:
-$$\text{Best Mid Weightage} = (0.80 \times \max(\text{Mid1}, \text{Mid2})) + (0.20 \times \min(\text{Mid1}, \text{Mid2}))$$
-$$\text{Total Internal Score} = \text{Best Mid Weightage} + \text{Assignment Marks}$$
+| Pattern ID | Pattern Key | Mid Maximum | Assignment Maximum | Overall CIE Maximum | Description |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| `PATTERN_1` (`MID_20_ASSIGNMENT_10`) | `20_10` | 20 | 10 | **30** | Mid exams evaluate up to 20 marks. Assignment evaluates up to 10 marks. |
+| `PATTERN_2` (`MID_25_ASSIGNMENT_5`) | `25_5` | 25 | 5 | **30** | Mid exams evaluate up to 25 marks. Assignment evaluates up to 5 marks. |
+| `PATTERN_3` (`MID_30_ONLY`) | `30_0` | 30 | N/A | **30** | Mid exams evaluate up to 30 marks. Assignment is Not Applicable. |
+
+### Continuous Internal Evaluation (CIE) Calculation Formula
+
+In all three patterns, the overall CIE maximum is strictly capped at **30 marks**, and the Mid contribution is computed as the **Best of MID-1 and MID-2**:
+
+$$\text{Best Mid Score} = \max(\text{Mid 1}, \text{Mid 2})$$
+
+$$\text{Total Theory Internal Score} = \begin{cases} 
+\text{Best Mid Score} + \text{Assignment Marks} & \text{(Patterns 1 & 2)} \\
+\text{Best Mid Score} & \text{(Pattern 3)} 
+\end{cases}$$
+
+> [!NOTE]
+> **Implementation Clarification**: Earlier technical documentation theorized a weighted average formula ($0.80 \times \max + 0.20 \times \min$). The actual codebase across both the backend (`evaluation-utils.js`) and frontend (`StudentAcademicsClient.js`, `AcademicTab.js`) strictly computes the **pure Best of Mid** ($\max(\text{Mid 1}, \text{Mid 2})$), which reflects actual Kakatiya University engineering academic practice.
+
+### Practical Laboratory Evaluation Breakdown
+
+Laboratory evaluation sums execution, viva/theory, and continuous record notebooks:
+
+$$\text{Total Lab Internal Score} = \text{Execution Marks} + \text{Writing / Viva Marks} + \text{Record / Observation Marks}$$
+
+- `lab_execution_marks`: Max 25 (program execution and practical outputs).
+- `lab_theory_marks`: Max 10 or 25 (day-to-day write-up, theory, and viva-voce).
+- `lab_record_marks`: Max 15 or 25 (observation book and certified laboratory record).
 
 ---
 
@@ -149,18 +163,36 @@ sequenceDiagram
 
 ## 5. Internal Evaluation Analytics
 
-The marks intelligence engine (`/api/intelligence/analytics/marks`) computes real-time performance analytics for Heads of Departments (HODs) and Principals.
-
-### Key Metrics Computed
+The marks intelligence engine (`/api/intelligence/analytics/marks`) computes real-time performance analytics for Heads of Departments (HODs) and Principals:
 - **Class Pass Percentage**: Percentage of students scoring $\ge 40\%$ in internal evaluation components.
 - **Section Distribution**: Normal distribution histogram categorizing student scores into ranges (`90-100%`, `75-89%`, `60-74%`, `<60%`).
 - **Low Performance Alerts**: Automated flagging of students with low combined attendance and mid-term marks for remedial classes.
 
+### 5.1 Student Dashboard Internal Assessment Average (CIE)
+
+The student portal dashboard features an authoritative continuous internal assessment summary card driven by [`calculateStudentCIE()`](file:///run/media/admino/New%20Volume/User/Desktop/CMS/src/lib/evaluation-utils.js):
+- **Formula**:
+  - Theory: $\text{Total} = \min(30, \max(\text{Mid 1}, \text{Mid 2}) + \text{Assignment})$ (or best of mids only if Pattern 3).
+  - Practical / Lab: $\text{Total} = \text{Execution} + \text{Writing} + \text{Record}$ (max 30).
+  - Average: $\frac{\sum \text{Evaluated Subject Totals}}{\text{Evaluated Subjects Count}}$.
+- **Partial vs. Complete Indicator**: Clearly denotes evaluated subject count (e.g., "Partial Evaluation • 4 of 6 subjects") or pending state when marks have not yet been published.
+- **Inviolable Display Invariant**: Explicitly labeled `Internal Assessment Average (CIE)`. Strictly accompanied by a disclaimer explaining that it measures college internal assessments and is NOT final university examination marks or university CGPA/SGPA.
+
 ---
 
-## 6. Cross-References
+## 6. Absence of External University Marks & Overall Marks Architecture
+
+When evaluating student performance in the KUCET CMS, the following architectural boundaries are strictly observed:
+1. **Continuous Internal Evaluation Only**: The database table `student_marks` stores internal assessment scores exclusively.
+2. **External Examination Management**: End-semester external theory examinations and external lab viva evaluations are conducted centrally by the Kakatiya University Examination Branch (KU Campus, Warangal). External marks, grades, SGPA, and CGPA are published on external university result servers and are **NOT stored or synchronized within this database schema**.
+3. **No Aggregate Overall Marks Service**: The application does not currently possess an overarching multi-semester marks aggregation engine or credit-weighted CGPA calculator. Any student dashboard display of overall marks must be carefully specified as subject-level CIE averages rather than official university degree grades.
+
+---
+
+## 7. Cross-References
 
 - Proxy-Free Attendance System: [attendance.md](./attendance.md)
 - Academic Archival & Grade Archival: [reports.md](./reports.md)
 - Database Schemas: [schema.md](../database/schema.md)
 - User Authentication: [authentication.md](../authentication/authentication.md)
+

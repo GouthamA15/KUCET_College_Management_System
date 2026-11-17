@@ -253,3 +253,143 @@ export function checkPatternSwitchCompatibility(existingMarks = [], targetPatter
 
   return { compatible: true, details };
 }
+
+/**
+ * Authoritative Student Continuous Internal Evaluation (CIE) Aggregator.
+ * 
+ * Computes the authoritative Internal Assessment Average (CIE) across evaluated subjects:
+ * - Theory subjects: pure Best-of-Mids (max(Mid-1, Mid-2) + Assignment), capped at 30.
+ *   If pattern is 30 for Mids (Pattern 3 / midMax=30), assignment does not apply.
+ * - Laboratory subjects: sum of Execution + Writing/Theory + Record/Observation (max 30).
+ * - Overall Average: Arithmetic mean across evaluated subjects only.
+ * 
+ * Zero external dependencies — safe for React 19 Client Components, SSR, and API routes.
+ * 
+ * @param {Array<Object>} subjects List of subjects from academic info
+ * @returns {{
+ *   hasMarks: boolean,
+ *   evaluatedCount: number,
+ *   totalCount: number,
+ *   averageScore: number | null,
+ *   averagePercentage: number | null,
+ *   maxMarks: number,
+ *   isPartial: boolean,
+ *   isComplete: boolean,
+ *   subjectBreakdown: Array<Object>
+ * }}
+ */
+export function calculateStudentCIE(subjects = []) {
+  if (!Array.isArray(subjects) || subjects.length === 0) {
+    return {
+      hasMarks: false,
+      evaluatedCount: 0,
+      totalCount: 0,
+      averageScore: null,
+      averagePercentage: null,
+      maxMarks: 30,
+      isPartial: false,
+      isComplete: false,
+      subjectBreakdown: []
+    };
+  }
+
+  const toNum = (v) => {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  let studentTotalMarks = 0;
+  let evaluatedSubjectsCount = 0;
+  const breakdown = [];
+
+  for (const sub of subjects) {
+    const isLab = String(sub.subject_type || '').toLowerCase() === 'lab' || Boolean(sub.is_lab);
+    let calculatedTotal = null;
+    let isEvaluated = false;
+
+    if (isLab) {
+      const ex = toNum(sub.lab_execution_marks);
+      const th = toNum(sub.lab_theory_marks);
+      const rec = toNum(sub.lab_record_marks);
+
+      if (ex !== null || th !== null || rec !== null) {
+        calculatedTotal = (ex ?? 0) + (th ?? 0) + (rec ?? 0);
+        calculatedTotal = Math.round(calculatedTotal * 100) / 100;
+        isEvaluated = true;
+      }
+
+      breakdown.push({
+        subject_code: sub.subject_code,
+        subject_name: sub.subject_name,
+        subject_type: 'lab',
+        is_lab: true,
+        is_evaluated: isEvaluated,
+        total: calculatedTotal,
+        max: 30,
+        components: {
+          execution: ex,
+          writing: th,
+          record: rec
+        }
+      });
+    } else {
+      const m1 = toNum(sub.mid1_marks);
+      const m2 = toNum(sub.mid2_marks);
+      const asg = toNum(sub.assignment_marks);
+
+      const hasAny = m1 !== null || m2 !== null || asg !== null;
+      if (hasAny) {
+        const bestMid = Math.max(m1 ?? 0, m2 ?? 0);
+        const midMaxVal = Number(sub.mid_max || sub.midMax || 20);
+        const isPattern3 = midMaxVal === 30;
+
+        calculatedTotal = isPattern3 ? bestMid : bestMid + (asg ?? 0);
+        calculatedTotal = Math.min(30, Math.round(calculatedTotal * 100) / 100);
+        isEvaluated = true;
+      }
+
+      breakdown.push({
+        subject_code: sub.subject_code,
+        subject_name: sub.subject_name,
+        subject_type: 'theory',
+        is_lab: false,
+        is_evaluated: isEvaluated,
+        total: calculatedTotal,
+        max: 30,
+        components: {
+          mid1: m1,
+          mid2: m2,
+          assignment: asg,
+          best_mid: (m1 !== null || m2 !== null) ? Math.max(m1 ?? 0, m2 ?? 0) : null
+        }
+      });
+    }
+
+    if (calculatedTotal !== null) {
+      studentTotalMarks += calculatedTotal;
+      evaluatedSubjectsCount++;
+    }
+  }
+
+  const totalCount = subjects.length;
+  const hasMarks = evaluatedSubjectsCount > 0;
+  const averageScore = hasMarks
+    ? Math.round((studentTotalMarks / evaluatedSubjectsCount) * 100) / 100
+    : null;
+  const averagePercentage = averageScore !== null
+    ? Math.round((averageScore / 30) * 1000) / 10
+    : null;
+
+  return {
+    hasMarks,
+    evaluatedCount: evaluatedSubjectsCount,
+    totalCount,
+    averageScore,
+    averagePercentage,
+    maxMarks: 30,
+    isPartial: evaluatedSubjectsCount > 0 && evaluatedSubjectsCount < totalCount,
+    isComplete: evaluatedSubjectsCount > 0 && evaluatedSubjectsCount === totalCount,
+    subjectBreakdown: breakdown
+  };
+}

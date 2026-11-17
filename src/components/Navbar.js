@@ -81,6 +81,16 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
     });
   }
 
+  // Inject Internship Coordinator navigation if designated
+  if ((effectiveRole === 'faculty' || effectiveRole === 'staff') && staffData?.is_internship_coordinator) {
+    const academicsIdx = menuItemsRaw.findIndex(i => i.label === 'ACADEMICS');
+    let insertIdx = academicsIdx > -1 ? academicsIdx + 1 : menuItemsRaw.length;
+    menuItemsRaw.splice(insertIdx, 0, {
+      label: 'INTERNSHIP COORDINATION',
+      route: '/staff/internship/dashboard'
+    });
+  }
+
   // Inject Academic Supervisor monitoring navigation if designated
   if ((effectiveRole === 'faculty' || effectiveRole === 'staff') && staffData?.is_designated_supervisor) {
     const academicsIdx = menuItemsRaw.findIndex(i => i.label === 'ACADEMICS');

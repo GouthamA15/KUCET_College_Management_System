@@ -1,9 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useStudent } from '@/context/StudentContext';
 import Link from 'next/link';
 import { getBranchFromRoll } from '@/lib/rollNumber';
+import { calculateStudentCIE } from '@/lib/evaluation-utils';
 import DashboardActionCenter from '@/components/student/DashboardActionCenter';
 import StudentQuickLinks from '@/components/student/StudentQuickLinks';
 import { StudentDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
@@ -131,6 +132,8 @@ export default function StudentDashboardClient() {
   const student = studentData?.student || null;
   const branch = student ? getBranchFromRoll(student.roll_no) : null;
   const { semesterLabel, yearOfStudy, semester, academicYear } = student?.academic_session || { semesterLabel: '', yearOfStudy: null, semester: null, academicYear: null, status: null };
+
+  const cieSummary = useMemo(() => calculateStudentCIE(academicPerformance), [academicPerformance]);
 
   if (contextLoading && !student) {
     return <StudentDashboardSkeleton />;
@@ -299,8 +302,86 @@ export default function StudentDashboardClient() {
               </section>
             </div>
 
+            {/* Internal Assessment Average (CIE) Section */}
+            <section className="order-2 lg:order-3 lg:shrink-0 rounded-sm overflow-hidden border border-blue-200 lg:border-slate-200 bg-white">
+              <div className="bg-[#0b3578]/5 lg:bg-slate-50 px-4 py-2.5 lg:py-2 border-b border-blue-200 lg:border-slate-200 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-[10px] font-bold text-[#0b3578] lg:text-slate-500 uppercase tracking-[0.20em]">
+                    Internal Assessment Average (CIE)
+                  </h2>
+                </div>
+                {cieSummary.hasMarks && (
+                  <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                    cieSummary.isComplete
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-amber-50 text-amber-700 border-amber-200'
+                  }`}>
+                    {cieSummary.isComplete ? 'Complete' : 'Partial Evaluation'}
+                  </span>
+                )}
+              </div>
+
+              <div className="p-4 bg-white">
+                {cieSummary.hasMarks ? (
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-black text-[#0b3578] tracking-tight">
+                          {cieSummary.averageScore !== null ? cieSummary.averageScore.toFixed(1) : '--'}
+                        </span>
+                        <span className="text-xs font-semibold text-slate-400">
+                          / {cieSummary.maxMarks} max marks
+                        </span>
+                        {cieSummary.averagePercentage !== null && (
+                          <span className="ml-2 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
+                            {cieSummary.averagePercentage.toFixed(1)}%
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] font-medium text-slate-500">
+                        {cieSummary.isComplete ? (
+                          <span>Based on all <strong>{cieSummary.evaluatedCount} of {cieSummary.totalCount}</strong> evaluated subjects</span>
+                        ) : (
+                          <span>Based on <strong>{cieSummary.evaluatedCount} of {cieSummary.totalCount}</strong> evaluated subjects (evaluation ongoing)</span>
+                        )}
+                      </p>
+                    </div>
+
+                    {/* Compact gauge / meter */}
+                    <div className="w-full sm:w-48 flex flex-col gap-1.5 shrink-0">
+                      <div className="flex justify-between text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                        <span>CIE Average</span>
+                        <span>{cieSummary.averagePercentage !== null ? `${cieSummary.averagePercentage.toFixed(1)}%` : '--'}</span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden border border-slate-200/80">
+                        <div
+                          className="h-full bg-gradient-to-r from-blue-600 to-[#0b3578] rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(100, Math.max(0, cieSummary.averagePercentage || 0))}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-3 px-2 text-center text-slate-500 space-y-1">
+                    <p className="text-xs font-semibold text-slate-700">
+                      Internal marks have not yet been published for the current semester.
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      Evaluations will appear here as mid examinations, assignments, and lab assessments are recorded.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Explanatory Note Footer */}
+              <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 text-[10.5px] text-slate-500 leading-relaxed">
+                <span className="font-bold text-slate-700">Continuous Internal Evaluation: </span>
+                This metric represents the continuous internal evaluation conducted by the college (mid examinations, assignments, and lab evaluations). It does not represent final university examination marks or university CGPA/SGPA.
+              </div>
+            </section>
+
             {/* Support Card */}
-            <section className="order-2 lg:order-3 lg:shrink-0 rounded-sm border border-slate-200 bg-white p-4">
+            <section className="order-2 lg:order-4 lg:shrink-0 rounded-sm border border-slate-200 bg-white p-4">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.20em]">Support</p>
               <p className="text-[11.5px] text-slate-500 mt-1.5 leading-relaxed">
                 Contact the departmental staff during office hours.

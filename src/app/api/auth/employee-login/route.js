@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { staffAccounts, staffAccountRoles, staffRoles, staffAcademicAffiliations, academicDepartments, principal } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
@@ -106,6 +106,7 @@ export async function POST(request) {
         // Fetch HOD, Coordinator & Branch
         let isHod = isPrincipal;
         let isCoordinator = false;
+        let isInternshipCoordinator = false;
         let branch = null;
         if (resolvedRole === 'faculty') {
             const affil = await db.select({ branch_code: academicDepartments.department_code })
@@ -135,13 +136,14 @@ export async function POST(request) {
               const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
               const coordRows = await db.select({
                 id: facultyCoordinatorAssignments.id,
+                coordinator_type: facultyCoordinatorAssignments.coordinator_type,
                 start_date: facultyCoordinatorAssignments.start_date,
                 end_date: facultyCoordinatorAssignments.end_date
               })
               .from(facultyCoordinatorAssignments)
               .where(and(
                 eq(facultyCoordinatorAssignments.staff_account_id, staff.id),
-                eq(facultyCoordinatorAssignments.coordinator_type, 'FIRST_YEAR'),
+                inArray(facultyCoordinatorAssignments.coordinator_type, ['FIRST_YEAR', 'INTERNSHIP']),
                 eq(facultyCoordinatorAssignments.is_active, true)
               ));
 
@@ -151,13 +153,16 @@ export async function POST(request) {
                 return String(val).split('T')[0];
               };
 
-              isCoordinator = coordRows.some(c => {
+              const activeCoords = coordRows.filter(c => {
                 const sStr = toDateStr(c.start_date);
                 const eStr = toDateStr(c.end_date);
                 if (sStr && todayStr < sStr) return false;
                 if (eStr && todayStr > eStr) return false;
                 return true;
               });
+
+              isCoordinator = activeCoords.some(c => !c.coordinator_type || c.coordinator_type === 'FIRST_YEAR');
+              isInternshipCoordinator = activeCoords.some(c => c.coordinator_type === 'INTERNSHIP');
             }
         }
 
@@ -187,6 +192,7 @@ export async function POST(request) {
            is_hod: isHod,
            is_principal: isPrincipal,
            is_first_year_coordinator: isCoordinator,
+           is_internship_coordinator: isInternshipCoordinator,
            branch: branch
         };
         await issueStaffAuthCookie(response, adaptedStaff, rememberMe, ip, userAgent);

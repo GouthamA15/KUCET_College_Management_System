@@ -140,5 +140,67 @@ In Session 223 (Commit `3582e48c`, Migration `0023`), the institutional identity
 1. **Independent HOD Appointments**: HOD status is tracked strictly via `faculty_hod_assignments` (`is_active = true`, `department_code = '...'`). This allows faculty members to be appointed as HOD without mutating their base teaching profile or historical lecture assignments.
 2. **Cross-Branch Teaching Assignments**: Faculty members can be assigned courses across departments (e.g. Mathematics faculty assigned to First Year CSE and ECE cohorts) without requiring cross-department role duplication. Course-level eligibility checks validate specific assignment IDs rather than restricting access to the faculty's primary affiliation.
 
+---
+
+## 11. First-Year Coordinator Sub-Role Architecture (Migration `0026`)
+
+To oversee first-year undergraduate intake across all engineering branches, the system implements the **First-Year Coordinator** role using time-bounded assignments:
+
+### Database Model (`src/db/schema/identity.js` / Migration `0026`)
+```javascript
+export const facultyCoordinatorAssignments = mysqlTable('faculty_coordinator_assignments', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  staff_account_id: int('staff_account_id').notNull(),
+  coordinator_type: varchar('coordinator_type', { length: 50 }).notNull().default('FIRST_YEAR'),
+  academic_year: varchar('academic_year', { length: 9 }).notNull(),
+  start_date: date('start_date').notNull(),
+  end_date: date('end_date'),
+  is_active: boolean('is_active').notNull().default(true),
+  assigned_by: int('assigned_by'),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').onUpdateNow(),
+});
+```
+
+### Assignment & Lifecycle Engine (`CoordinatorAssignmentService.js`)
+1. **Eligibility Guard**: Only active staff members with the `FACULTY` role are eligible for coordinator assignments.
+2. **Time-Bounded Status Resolution**: Computes real-time status (`ACTIVE`, `SCHEDULED`, `EXPIRED`, `DISABLED`) based on the current date relative to `start_date` and `end_date`.
+3. **Dedicated Workspace (`/staff/first-year/*`)**:
+   - `/staff/first-year/dashboard`: First-year cohort academic monitoring and attendance health.
+   - `/staff/first-year/id-cards`: Full ID card generation hub scoped strictly to first-year students across all branches.
+   - `/staff/first-year/apaar`: First-year APAAR ID verification and compliance tracker.
+4. **JWT & Session Integration**:
+   - `src/app/api/auth/employee-login` and `src/app/api/auth/refresh` check for active coordinator assignments and set `is_first_year_coordinator: true` on the authenticated staff user token.
+   - Edge proxy (`src/proxy.js`) gates `/staff/first-year/*` to callers holding `is_first_year_coordinator: true` or `is_principal: true`.
+
+---
+
+## 12. Institutional Roles Console (`/admin/institutional-roles`)
+
+The Super Admin console provides a dedicated module at `/admin/institutional-roles` for designating college-wide leadership:
+1. **Academic Supervisor (`/admin/institutional-roles?tab=academic-supervisor`)**:
+   - Assigns a senior faculty member or department head as the institutional Academic Supervisor.
+   - Persists setting in `system_configs` under `config_key = 'academic_supervisor_staff_id'`.
+   - Grants cross-departmental supervision over timetables, subject distributions, and attendance condonation.
+2. **Principal Role Designation (`/admin/institutional-roles?tab=principal-role`)**:
+   - Associates an active staff account with the `PRINCIPAL` role code in `staff_roles` and `staff_account_roles`.
+   - Automatically synchronizes institutional signatures for certificate rendering via `InstitutionAssetService`.
+3. **Internship Coordinator Designation (`/admin/institutional-roles?tab=internship-coordinator`)**:
+   - Assigns a faculty member as the college-wide designated **Internship Coordinator** (`coordinator_type: 'INTERNSHIP'`).
+   - Automatically retires any preceding active coordinator, strictly maintaining the single-coordinator invariant.
+   - Grants cross-departmental authority over opportunities, student applications, company directories, completion certificate verification, and bulk document ZIP exports.
+4. **Immutable Audit Trail**: All appointments, designations, replacements, and revocations write cryptographically timestamped entries to `audit_logs`.
+
+---
+
+## 13. Cross-References
+
+- Authentication Architecture & Cookie Engine: [authentication.md](../authentication/authentication.md)
+- Role-Based Access Control (RBAC): [authorization.md](../authentication/authorization.md)
+- Database Schemas: [schema.md](../database/schema.md)
+- Super Admin Pages: [admin-pages.md](../pages/admin-pages.md)
+- Staff Pages: [staff-pages.md](../pages/staff-pages.md)
+
+
 
 

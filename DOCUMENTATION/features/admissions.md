@@ -381,9 +381,73 @@ To ensure student submissions meet institutional standards for **physical KUCET 
 
 ---
 
-## 13. Cross-References
+## 13. APAAR ID Registry Integration & Real-Time Validation
+
+### Overview & Schema Integration (Migration `0028`)
+In accordance with the Government of India's Automated Permanent Academic Account Registry (APAAR / One Nation One Student ID) initiative, the CMS integrates full APAAR tracking:
+- **Database Schema**: Added `apaar_id varchar(20)` to `student_personal_details` and `student_admission_drafts`.
+- **Format Constraint**: Enforces a strict 12-digit numeric identifier format (`^\d{12}$`).
+- **Student Portal Submission (`/student/apaar`)**: Students can review and submit their official APAAR ID. Includes real-time client-side warning validation to prevent accidental keystroke errors or submitting invalid Aadhaar numbers as APAAR IDs.
+- **Audit & Anti-Fraud Invariant**: Once committed to the registry, the student portal cannot edit or delete the APAAR ID to prevent fraudulent substitution. Any required demographic or ID correction must be routed through the KUCET Admission or Scholarship section with documentary proof.
+
+---
+
+## 14. Bulk Student Excel Import & Template Engine
+
+To support batch onboarding of newly admitted cohorts from official convener allocation lists, the admission module provides automated spreadsheet ingestion (`/api/staff/admission/bulk-import`):
+
+### 14.1 Official Bulk Import Template (`BulkImportTemplateService`)
+The system dynamically generates the official KUCET Bulk Student Import Excel Workbook (`.xlsx`) via [`BulkImportTemplateService.generateWorkbook()`](file:///run/media/admino/New%20Volume/User/Desktop/CMS/src/services/admission/BulkImportTemplateService.js):
+- **Header Row Styling**: Kakatiya Navy (`#0B3578`) background with bold white typography, center alignment, and automated column width adjustment.
+- **Dedicated Blood Group Column**: Includes a dedicated `Blood Group` column directly within the template, ensuring medical blood groups are captured during initial cohort ingestion.
+- **Canonical 25-Column Roster**:
+  1. `Roll Number` (`roll_no`)
+  2. `Candidate Name` (`name`)
+  3. `Gender` (`gender`)
+  4. `Date of Birth` (`date_of_birth`)
+  5. `Father Name` (`father_name`)
+  6. `Category` (`category`)
+  7. `Permanent Address` (`permanent_address`)
+  8. `Contact Address` (`contact_address`)
+  9. `Mobile` (`mobile`)
+  10. `Email` (`email`)
+  11. `Blood Group` (`blood_group`)
+  12. `Mother Name` (`mother_name`)
+  13. `Aadhaar No` (`aadhaar_no`)
+  14. `Nationality` (`nationality`)
+  15. `Religion` (`religion`)
+  16. `Sub Caste` (`sub_caste`)
+  17. `Area Status` (`area_status`)
+  18. `Place of Birth` (`place_of_birth`)
+  19. `Father Occupation` (`father_occupation`)
+  20. `Annual Income` (`annual_income`)
+  21. `Identification Marks` (`identification_marks`)
+  22. `Medium of Instruction` (`medium_of_instruction`)
+  23. `Ranks` (`ranks`)
+  24. `Qualifying Exam` (`qualifying_exam`)
+  25. `Previous College` (`previous_college`)
+
+### 14.2 Robust Header Alias Normalization
+[`buildHeaderMapping()`](file:///run/media/admino/New%20Volume/User/Desktop/CMS/src/app/api/staff/admission/bulk-import/route.js) strips whitespace, symbols, and case variations, mapping diverse external column headers (e.g. `hall_ticket_no`, `ht_no`, `caste_category`, `bloodgroup`, `bg`, `dob`, `uid`) to the canonical database schema targets.
+
+---
+
+## 15. KUCET Admission Bridge Extension Integration
+
+For transferring admitted student records from KUCET CMS into the Kakatiya University online registration portal (`https://kuonline.co.in/BTechsql/Btechreg.aspx`), admission staff utilize the **KUCET Admission Bridge Chrome Extension** (`./extension`):
+- **Primary Details Autofill**: Automates demographic, residential, and identity field population.
+- **5-Tier Lower-Boundary Income Mapping**: Strictly translates CMS income brackets to KU Online portal codes (`50000`, `100001`, `250001`, `500001`, `800001`).
+- **Image Optimization**: Transcodes WebP photos and signatures into baseline JPEGs guaranteed to be under the 190 KiB ceiling (target 100–150 KiB).
+- **Mandatory Exclusions**: In strict compliance with institutional policy, Email ID, Common Education, Fee Details, and Documentation upload sections are explicitly excluded from automated filling and remain subject to manual staff verification.
+
+---
+
+## 16. Cross-References
 
 - Database Schemas: [schema.md](../database/schema.md)
+- Student ID Card Generation: [id-card-generation.md](./id-card-generation.md)
 - Storage Lifecycle & Media Promotion: [requests.md](./requests.md)
 - Institutional Certificates: [certificates.md](./certificates.md)
 - Identity & User Management: [authentication.md](../authentication/authentication.md)
+- Admission Bridge Architecture: [kucet-admission-bridge-phase-2-primary-details.md](./kucet-admission-bridge-phase-2-primary-details.md)
+

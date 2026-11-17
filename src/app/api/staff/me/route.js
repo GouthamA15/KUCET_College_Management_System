@@ -121,13 +121,20 @@ export const GET = wrapHandler({
 
     let isFirstYearCoordinator = false;
     let coordinatorAssignment = null;
+    let isInternshipCoordinator = false;
+    let internshipCoordinatorAssignment = null;
     if (resolvedRole === 'faculty') {
       try {
         const { CoordinatorAssignmentService } = await import('@/services/identity/CoordinatorAssignmentService');
-        const activeCoord = await CoordinatorAssignmentService.getActiveCoordinatorForStaff(staff.id);
+        const activeCoord = await CoordinatorAssignmentService.getActiveCoordinatorForStaff(staff.id, 'FIRST_YEAR');
         if (activeCoord) {
           isFirstYearCoordinator = true;
           coordinatorAssignment = activeCoord;
+        }
+        const activeInternshipCoord = await CoordinatorAssignmentService.getActiveCoordinatorForStaff(staff.id, 'INTERNSHIP');
+        if (activeInternshipCoord) {
+          isInternshipCoordinator = true;
+          internshipCoordinatorAssignment = activeInternshipCoord;
         }
       } catch (_e) {
         // Non-fatal
@@ -152,7 +159,9 @@ export const GET = wrapHandler({
       is_hod: isHod,
       is_principal: Boolean(isPrincipal),
       is_first_year_coordinator: isFirstYearCoordinator,
+      is_internship_coordinator: isInternshipCoordinator,
       coordinator_assignment: coordinatorAssignment,
+      internship_coordinator_assignment: internshipCoordinatorAssignment,
       hod_branches: hodBranches,
       authorized_branches: authorizedBranches,
       hod_department_code: hodBranches[0] || (isPrincipal ? 'CSE' : branch),

@@ -516,6 +516,7 @@ export function StaffProvider({ children }) {
       refreshHOD: fetchHODData,
       hasFetchedHOD,
       isFirstYearCoordinator: !!staffData?.is_first_year_coordinator,
+      isInternshipCoordinator: !!staffData?.is_internship_coordinator,
       studentHistory,
       isLoadingHistory,
       refreshStudentHistory: fetchStudentHistory

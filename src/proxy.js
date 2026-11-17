@@ -209,6 +209,12 @@ export default async function proxy(request) {
       !staffPayload.is_first_year_coordinator &&
       !staffPayload.is_principal &&
       pathname.startsWith('/staff/first-year') &&
+      (cookies.get('staff_refresh_token') || cookies.get('staff_logged_in'))) ||
+    (staffPayload &&
+      staffPayload.role === 'faculty' &&
+      !staffPayload.is_internship_coordinator &&
+      !staffPayload.is_principal &&
+      pathname.startsWith('/staff/internship') &&
       (cookies.get('staff_refresh_token') || cookies.get('staff_logged_in')));
 
   const needsStudentRefresh =
@@ -278,7 +284,7 @@ export default async function proxy(request) {
   if (pathname.startsWith('/api/admin')) {
     if (!adminPayload) return handleUnauthorized(request);
   } else if (pathname.startsWith('/api/staff')) {
-    if (pathname.startsWith('/api/staff/academic-calendar') || pathname.startsWith('/api/staff/semesters') || pathname.startsWith('/api/staff/id-cards') || pathname.startsWith('/api/staff/admission/id-cards') || pathname.startsWith('/api/staff/admission/bridge')) {
+    if (pathname.startsWith('/api/staff/academic-calendar') || pathname.startsWith('/api/staff/semesters') || pathname.startsWith('/api/staff/id-cards') || pathname.startsWith('/api/staff/admission/id-cards') || pathname.startsWith('/api/staff/admission/bridge') || pathname.startsWith('/api/staff/internship')) {
        // These endpoints are shared with Admin for management
        if (!adminPayload && !staffPayload) return handleUnauthorized(request);
     } else {
@@ -308,6 +314,7 @@ export default async function proxy(request) {
       if (pathname.startsWith('/staff/faculty') && staffPayload.role !== 'faculty') return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
       if (pathname.startsWith('/staff/hod') && (staffPayload.role !== 'faculty' || (!staffPayload.is_hod && !staffPayload.is_principal))) return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
       if (pathname.startsWith('/staff/first-year') && (staffPayload.role !== 'faculty' || (!staffPayload.is_first_year_coordinator && !staffPayload.is_principal))) return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
+      if (pathname.startsWith('/staff/internship') && (staffPayload.role !== 'faculty' || (!staffPayload.is_internship_coordinator && !staffPayload.is_principal))) return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(staffPayload.role), request.url), 303));
     }
   } else if (pathname.startsWith('/student')) {
     if (!studentPayload) return handleUnauthorized(request);

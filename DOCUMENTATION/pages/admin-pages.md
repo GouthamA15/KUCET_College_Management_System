@@ -14,6 +14,7 @@ Access requires an active `admin_auth` JWT cookie signed with Super Admin privil
 | :--- | :--- | :--- | :--- |
 | `/admin/dashboard` | Executive Dashboard | Institution-wide metrics, system health, revenue counters | `HealthService.js`, `StudentService.js` |
 | `/admin/manage-staff` | Staff & Faculty Directory | Unified directory to view, search, filter, edit, assign HOD/branches, or deactivate staff | `/api/admin/staff`, `/api/admin/staff/[id]` |
+| `/admin/institutional-roles` | Institutional Leadership | Appoint Academic Supervisor and Principal roles across college departments | `/api/admin/institutional-roles` |
 | `/admin/staff-requests` | Staff Registration Requests | Review, approve, reject, or resend activation for onboarding requests | `/api/admin/staff-requests` |
 | `/admin/infrastructure` | Infrastructure & Backups | Server health, DB pool monitoring, backup execution & restore | `BackupService.js`, `DisasterRecoveryService.js` |
 | `/admin/archive` | Archive & Retention Center | Data archiving jobs, policy configuration, record restore | `ArchiveService.js`, `ArchiveRestoreService.js` |
