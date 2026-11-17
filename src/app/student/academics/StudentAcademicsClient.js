@@ -301,54 +301,63 @@ function AcademicsInner({ studentData }) {
             </div>
           </header>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {data.map((sub) => {
-              const meta = getSubjectMeta(sub.subject_name);
-              const code = sub.subject_code || '--';
-              const isClickable = !!sub.assignment_id;
-              
-              // Determine colors based on timetable logic
-              let circleColor = 'bg-slate-50/80 group-hover:bg-slate-100';
-              let hoverBorder = 'hover:border-slate-300';
-              let pillClasses = 'bg-slate-50 border-slate-200 text-slate-700';
-              
-              if (meta.type.toLowerCase().includes('theory')) {
-                circleColor = 'bg-blue-50/80 group-hover:bg-blue-100';
-                hoverBorder = 'hover:border-blue-200';
-                pillClasses = 'bg-blue-50 border-blue-200 text-blue-700';
-              } else if (meta.type.toLowerCase().includes('lab') || meta.type.toLowerCase().includes('practical')) {
-                circleColor = 'bg-emerald-50/80 group-hover:bg-emerald-100';
-                hoverBorder = 'hover:border-emerald-200';
-                pillClasses = 'bg-emerald-50 border-emerald-200 text-emerald-700';
-              } else if (meta.type.toLowerCase().includes('project') || meta.type.toLowerCase().includes('seminar')) {
-                circleColor = 'bg-amber-50/80 group-hover:bg-amber-100';
-                hoverBorder = 'hover:border-amber-200';
-                pillClasses = 'bg-amber-50 border-amber-200 text-amber-700';
-              }
+          {data.length === 0 ? (
+            <div className="p-8 text-center bg-slate-50 rounded-lg border border-dashed border-slate-300">
+              <p className="text-base font-semibold text-slate-700">No active subjects for the current semester</p>
+              <p className="text-xs text-slate-500 mt-1">
+                The academic semester is either in break or upcoming. Records will appear once the academic session commences.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {data.map((sub) => {
+                const meta = getSubjectMeta(sub.subject_name);
+                const code = sub.subject_code || '--';
+                const isClickable = !!sub.assignment_id;
+                
+                // Determine colors based on timetable logic
+                let circleColor = 'bg-slate-50/80 group-hover:bg-slate-100';
+                let hoverBorder = 'hover:border-slate-300';
+                let pillClasses = 'bg-slate-50 border-slate-200 text-slate-700';
+                
+                if (meta.type.toLowerCase().includes('theory')) {
+                  circleColor = 'bg-blue-50/80 group-hover:bg-blue-100';
+                  hoverBorder = 'hover:border-blue-200';
+                  pillClasses = 'bg-blue-50 border-blue-200 text-blue-700';
+                } else if (meta.type.toLowerCase().includes('lab') || meta.type.toLowerCase().includes('practical')) {
+                  circleColor = 'bg-emerald-50/80 group-hover:bg-emerald-100';
+                  hoverBorder = 'hover:border-emerald-200';
+                  pillClasses = 'bg-emerald-50 border-emerald-200 text-emerald-700';
+                } else if (meta.type.toLowerCase().includes('project') || meta.type.toLowerCase().includes('seminar')) {
+                  circleColor = 'bg-amber-50/80 group-hover:bg-amber-100';
+                  hoverBorder = 'hover:border-amber-200';
+                  pillClasses = 'bg-amber-50 border-amber-200 text-amber-700';
+                }
 
-              return (
-                <div 
-                  key={sub.subject_code} 
-                  onClick={() => isClickable && router.push(`/student/academics/subjects/${sub.assignment_id}`)}
-                  className={`bg-white rounded-md p-5 sm:p-6 border border-slate-200 shadow-sm relative overflow-hidden group transition-all ${isClickable ? 'cursor-pointer ' + hoverBorder : 'opacity-70'}`}
-                >
-                  <div className={`absolute top-0 right-0 w-20 h-20 sm:w-24 sm:h-24 ${circleColor} rounded-bl-full -mr-5 -mt-5 transition-all duration-300 ${isClickable ? 'group-hover:scale-110' : ''}`}></div>
-                  <div className="relative flex flex-col items-center text-center">
-                    <h3 className="font-bold text-slate-800 text-lg tracking-wide mb-1">{sub.subject_name}</h3>
-                    <p className="text-xs font-medium text-slate-500 mb-4">
-                      {code} &bull; {meta.type} <br />
-                      <span className="opacity-80 font-normal">Faculty: {sub.faculty_name || 'TBA'} &bull; Credits: {meta.credits}</span>
-                    </p>
-                    {isClickable && (
-                      <span className={`text-[10px] font-bold px-3 py-1 rounded-full border ${pillClasses} uppercase tracking-wider`}>
-                        View Details
-                      </span>
-                    )}
+                return (
+                  <div 
+                    key={sub.subject_code} 
+                    onClick={() => isClickable && router.push(`/student/academics/subjects/${sub.assignment_id}`)}
+                    className={`bg-white rounded-md p-5 sm:p-6 border border-slate-200 shadow-sm relative overflow-hidden group transition-all ${isClickable ? 'cursor-pointer ' + hoverBorder : 'opacity-70'}`}
+                  >
+                    <div className={`absolute top-0 right-0 w-20 h-20 sm:w-24 sm:h-24 ${circleColor} rounded-bl-full -mr-5 -mt-5 transition-all duration-300 ${isClickable ? 'group-hover:scale-110' : ''}`}></div>
+                    <div className="relative flex flex-col items-center text-center">
+                      <h3 className="font-bold text-slate-800 text-lg tracking-wide mb-1">{sub.subject_name}</h3>
+                      <p className="text-xs font-medium text-slate-500 mb-4">
+                        {code} &bull; {meta.type} <br />
+                        <span className="opacity-80 font-normal">Faculty: {sub.faculty_name || 'TBA'} &bull; Credits: {meta.credits}</span>
+                      </p>
+                      {isClickable && (
+                        <span className={`text-[10px] font-bold px-3 py-1 rounded-full border ${pillClasses} uppercase tracking-wider`}>
+                          View Details
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </section>
       )}
 
@@ -356,75 +365,94 @@ function AcademicsInner({ studentData }) {
       {activeTab === 'attendance' && (
         <section className="bg-white border border-gray-300 rounded-md p-4 sm:p-6 lg:p-8 w-full shadow-sm">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-8 flex items-center gap-2">
-            
             Overall Attendance
           </h2>
           
-          {/* Custom Vertical Bar Chart */}
-          <div className="relative h-48 sm:h-56 w-full flex items-end justify-between gap-1 sm:gap-3 mb-6 pr-2 sm:pr-4">
-             {/* Y-axis labels */}
-             <div className="absolute left-0 top-0 bottom-0 w-8 flex flex-col justify-between text-[10px] sm:text-xs text-gray-800 font-bold pb-6 z-0">
-               <span>100</span>
-               <span>50</span>
-               <span>0</span>
-             </div>
-             
-             {/* Bars Container */}
-             <div className="ml-8 flex-1 flex items-end justify-around h-full pb-6 relative z-10 border-b border-gray-200">
-               {data.map((sub, idx) => {
-                 const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 0;
-                 // Fixed colors mapping exactly to the design constraints
-                 const colors = ['#f97316', '#06b6d4', '#0ea5e9', '#84cc16', '#f59e0b', '#8b5cf6', '#ec4899', '#f97316', '#ef4444', '#10b981'];
-                 const color = colors[idx % colors.length];
-                 return (
-                   <div key={`bar-${sub.subject_code}`} className="w-full max-w-[2.5rem] md:max-w-[3.5rem] lg:max-w-[4rem] mx-1 sm:mx-2 lg:mx-4 flex flex-col items-center justify-end h-full group">
-                     <div 
-                       className="w-full rounded-t-sm transition-all duration-700 hover:opacity-80 cursor-pointer shadow-sm" 
-                       style={{ height: `${pct}%`, backgroundColor: color }}
-                       title={`${sub.subject_name}: ${pct.toFixed(2)}%`}
-                     ></div>
-                   </div>
-                 );
-               })}
-             </div>
-          </div>
-
-          {/* Total Attendance Box */}
-          {(() => {
-            const totalHeld = data.reduce((sum, sub) => sum + (sub.total_classes || 0), 0);
-            const totalAttended = data.reduce((sum, sub) => sum + (sub.attended_classes || 0), 0);
-            const overallPct = totalHeld > 0 ? ((totalAttended / totalHeld) * 100).toFixed(2) : '0.00';
-            return (
-              <div className="bg-[#e8f7ee] border border-[#bbf7d0] rounded-2xl p-4 sm:p-5 mb-8 shadow-sm">
-                <h3 className="text-base sm:text-lg font-bold text-gray-900">Total Attendance: {overallPct}%</h3>
+          {data.length === 0 ? (
+            <div className="p-8 text-center bg-slate-50 rounded-lg border border-dashed border-slate-300">
+              <p className="text-base font-semibold text-slate-700">No attendance records for the current semester</p>
+              <p className="text-xs text-slate-500 mt-1">
+                The academic semester is either in break or upcoming. Records will appear once classes commence.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Custom Vertical Bar Chart */}
+              <div className="relative h-48 sm:h-56 w-full flex items-end justify-between gap-1 sm:gap-3 mb-6 pr-2 sm:pr-4">
+                 {/* Y-axis labels */}
+                 <div className="absolute left-0 top-0 bottom-0 w-8 flex flex-col justify-between text-[10px] sm:text-xs text-gray-800 font-bold pb-6 z-0">
+                   <span>100</span>
+                   <span>50</span>
+                   <span>0</span>
+                 </div>
+                 
+                 {/* Bars Container */}
+                 <div className="ml-8 flex-1 flex items-end justify-around h-full pb-6 relative z-10 border-b border-gray-200">
+                   {data.map((sub, idx) => {
+                     const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 0;
+                     // Fixed colors mapping exactly to the design constraints
+                     const colors = ['#f97316', '#06b6d4', '#0ea5e9', '#84cc16', '#f59e0b', '#8b5cf6', '#ec4899', '#f97316', '#ef4444', '#10b981'];
+                     const color = colors[idx % colors.length];
+                     return (
+                       <div key={`bar-${sub.subject_code}`} className="w-full max-w-[2.5rem] md:max-w-[3.5rem] lg:max-w-[4rem] mx-1 sm:mx-2 lg:mx-4 flex flex-col items-center justify-end h-full group">
+                         <div 
+                           className="w-full rounded-t-sm transition-all duration-700 hover:opacity-80 cursor-pointer shadow-sm" 
+                           style={{ height: `${pct}%`, backgroundColor: color }}
+                           title={`${sub.subject_name}: ${pct.toFixed(2)}%`}
+                         ></div>
+                       </div>
+                     );
+                   })}
+                 </div>
               </div>
-            );
-          })()}
 
-          {/* Legend / List */}
-          <div className="space-y-4 sm:space-y-5">
-            {data.map((sub, idx) => {
-              const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 0;
-              const colors = ['#f97316', '#06b6d4', '#0ea5e9', '#84cc16', '#f59e0b', '#8b5cf6', '#ec4899', '#f97316', '#ef4444', '#10b981'];
-              const color = colors[idx % colors.length];
-              return (
-                <div key={`list-${sub.subject_code}`} className="flex items-start sm:items-center justify-between gap-4">
-                  <div className="flex items-start sm:items-center gap-3 sm:gap-4 pr-2">
-                    <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full shrink-0 mt-1 sm:mt-0 shadow-sm" style={{ backgroundColor: color }}></div>
-                    <span className="text-sm sm:text-[15px] font-semibold text-gray-900 leading-tight">{sub.subject_name}</span>
+              {/* Total Attendance Box */}
+              {(() => {
+                const totalHeld = data.reduce((sum, sub) => sum + (sub.total_classes || 0), 0);
+                const totalAttended = data.reduce((sum, sub) => sum + (sub.attended_classes || 0), 0);
+                const overallPct = totalHeld > 0 ? ((totalAttended / totalHeld) * 100).toFixed(2) : '0.00';
+                return (
+                  <div className="bg-[#e8f7ee] border border-[#bbf7d0] rounded-2xl p-4 sm:p-5 mb-8 shadow-sm">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900">Total Attendance: {overallPct}%</h3>
                   </div>
-                  <span className="text-sm sm:text-[15px] font-semibold text-gray-900 shrink-0 mt-0.5 sm:mt-0">{pct.toFixed(2)}%</span>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })()}
+
+              {/* Legend / List */}
+              <div className="space-y-4 sm:space-y-5">
+                {data.map((sub, idx) => {
+                  const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 0;
+                  const colors = ['#f97316', '#06b6d4', '#0ea5e9', '#84cc16', '#f59e0b', '#8b5cf6', '#ec4899', '#f97316', '#ef4444', '#10b981'];
+                  const color = colors[idx % colors.length];
+                  return (
+                    <div key={`list-${sub.subject_code}`} className="flex items-start sm:items-center justify-between gap-4">
+                      <div className="flex items-start sm:items-center gap-3 sm:gap-4 pr-2">
+                        <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full shrink-0 mt-1 sm:mt-0 shadow-sm" style={{ backgroundColor: color }}></div>
+                        <span className="text-sm sm:text-[15px] font-semibold text-gray-900 leading-tight">{sub.subject_name}</span>
+                      </div>
+                      <span className="text-sm sm:text-[15px] font-semibold text-gray-900 shrink-0 mt-0.5 sm:mt-0">{pct.toFixed(2)}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </section>
       )}
 
       {/* Section 3: Internal Assessment Summary */}
       {activeTab === 'internals' && (
         <section className="space-y-4">
-          {/* Theory subjects */}
+          {data.length === 0 ? (
+            <div className="p-8 text-center bg-white rounded-md border border-dashed border-gray-300">
+              <p className="text-base font-semibold text-gray-700">No internal marks for the current semester</p>
+              <p className="text-xs text-gray-500 mt-1">
+                The academic semester is either in break or upcoming. Marks will appear once assessments are published.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Theory subjects */}
           {(() => {
             const theorySubjects = data.filter((sub) => sub.subject_type !== 'lab');
             if (!theorySubjects.length) return null;
@@ -581,6 +609,8 @@ function AcademicsInner({ studentData }) {
               </div>
             );
           })()}
+            </>
+          )}
         </section>
       )}
 

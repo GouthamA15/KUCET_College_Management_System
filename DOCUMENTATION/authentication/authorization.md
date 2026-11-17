@@ -10,7 +10,7 @@ The KUCET CMS employs a fine-grained Role-Based Access Control (RBAC) framework 
 
 ## Fine-Grained RBAC Permission Matrix
 
-All permissions in the system are explicitly enumerated in the `PERMISSIONS` dictionary (`src/lib/rbac.js`).
+All permissions in the system are explicitly enumerated in the `PERMISSIONS` dictionary ([`src/lib/rbac.js`](file:///run/media/admino/New%20Volume/User/Desktop/CMS/src/lib/rbac.js)):
 
 ```javascript
 export const PERMISSIONS = Object.freeze({
@@ -25,6 +25,11 @@ export const PERMISSIONS = Object.freeze({
   ARCHIVE_RESTORE: 'ARCHIVE_RESTORE',
   REPORT_EXPORT: 'REPORT_EXPORT',
   VIEW_OWN_RECORDS: 'VIEW_OWN_RECORDS',
+  ID_CARD_VIEW: 'ID_CARD_VIEW',
+  ID_CARD_PREVIEW: 'ID_CARD_PREVIEW',
+  ID_CARD_GENERATE: 'ID_CARD_GENERATE',
+  ID_CARD_BULK_GENERATE: 'ID_CARD_BULK_GENERATE',
+  ID_CARD_MANAGE_PHOTOS: 'ID_CARD_MANAGE_PHOTOS',
 });
 ```
 
@@ -34,19 +39,24 @@ export const PERMISSIONS = Object.freeze({
 
 The `DEFAULT_ROLE_PERMISSIONS` dictionary maps institutional roles to their granted permissions:
 
-| Permission Name | Super Admin / Principal | HOD | Faculty | General Staff | Scholarship Staff | Admission Staff | Student |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| `ATTENDANCE_MARK` | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| `ATTENDANCE_EDIT` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| `MARK_ENTRY` | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| `MARK_APPROVE` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| `FEE_VERIFY` | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
-| `FEE_EDIT` | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
-| `CERTIFICATE_APPROVE` | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ |
-| `ARCHIVE_RUN` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| `ARCHIVE_RESTORE` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| `REPORT_EXPORT` | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ |
-| `VIEW_OWN_RECORDS` | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ |
+| Permission Name | Super Admin / Principal | HOD | Faculty | First-Year Coordinator | Admission Staff | Scholarship Staff | General Staff | Student |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| `ATTENDANCE_MARK` | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `ATTENDANCE_EDIT` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `MARK_ENTRY` | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `MARK_APPROVE` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `FEE_VERIFY` | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| `FEE_EDIT` | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| `CERTIFICATE_APPROVE` | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| `ARCHIVE_RUN` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `ARCHIVE_RESTORE` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `REPORT_EXPORT` | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
+| `VIEW_OWN_RECORDS` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `ID_CARD_VIEW` | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `ID_CARD_PREVIEW` | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `ID_CARD_GENERATE` | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `ID_CARD_BULK_GENERATE` | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `ID_CARD_MANAGE_PHOTOS` | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
 
 ---
 
@@ -90,33 +100,37 @@ graph TD
     B -->|/staff/*| F{staff_auth valid?}
     F -->|No| E
     F -->|Yes| G{Subpath Check}
-    G -->|/staff/scholarship| H{role === 'scholarship' / 'scholarship_clerk'?}
-    G -->|/staff/admission| I{role === 'admission' / 'admission_clerk'?}
-    G -->|/staff/faculty| J{role === 'faculty' / is_hod?}
+    G -->|/staff/scholarship| H{role === 'scholarship'?}
+    G -->|/staff/admission| I{role === 'admission' / 1st-Yr ID Cards?}
+    G -->|/staff/faculty| J{role === 'faculty'?}
+    G -->|/staff/hod| K{role === 'faculty' && (is_hod || is_principal)?}
+    G -->|/staff/first-year| L{role === 'faculty' && (is_first_year_coordinator || is_principal)?}
     H -->|Yes| D
-    H -->|No| K[Redirect to Role Dashboard]
     I -->|Yes| D
-    I -->|No| K
     J -->|Yes| D
-    J -->|No| K
+    K -->|Yes| D
+    L -->|Yes| D
+    H & I & J & K & L -->|No| M[Redirect to Authorized Role Dashboard]
     
-    B -->|/student/*| L{student_auth valid?}
-    L -->|No| E
-    L -->|Yes| M{Email & Password Verified?}
-    M -->|Yes| D
-    M -->|No| N{Allowed Unverified Route?}
-    N -->|/student, /settings/security, /profile| D
-    N -->|Other /student/*| O[Redirect to /student]
+    B -->|/student/*| N{student_auth valid?}
+    N -->|No| E
+    N -->|Yes| O{Email & Password Verified?}
+    O -->|Yes| D
+    O -->|No| P{Allowed Unverified Route?}
+    P -->|/student, /settings/security, /profile, /apaar| D
+    P -->|Other /student/*| Q[Redirect to /student/settings/security]
 ```
 
 ### Route Defense Specifications
 1. **Admin Routes (`/admin/*`, `/api/admin/*`)**: Strictly requires a valid `admin_auth` cookie containing `role: 'admin'`.
 2. **Staff Routes (`/staff/*`, `/api/staff/*`)**: Requires a valid `staff_auth` cookie. Sub-route checking ensures role segregation:
-   - `/staff/scholarship/*` restricts to `scholarship_clerk` / `scholarship` staff.
-   - `/staff/admission/*` restricts to `admission_clerk` / `admission` staff.
-   - `/staff/faculty/*` restricts to `faculty` / `hod` staff.
-   - `/staff/hod/*` requires `is_hod: true`.
-3. **Student Routes (`/student/*`)**: Requires `student_auth`. Unverified students (who haven't set up passwords or verified email) are restricted exclusively to `/student`, `/student/profile`, and `/student/settings/security`.
+   - `/staff/scholarship/*` restricts to `scholarship` staff.
+   - `/staff/admission/*` restricts to `admission` staff (or First-Year Coordinators for `/staff/admission/id-cards`).
+   - `/staff/faculty/*` restricts to `faculty` staff.
+   - `/staff/hod/*` requires `role === 'faculty'` AND (`is_hod === true` or `is_principal === true`).
+   - `/staff/first-year/*` requires `role === 'faculty'` AND (`is_first_year_coordinator === true` or `is_principal === true`).
+3. **Student Routes (`/student/*`)**: Requires `student_auth`. Unverified students (who haven't set up passwords or verified email) are restricted exclusively to `/student`, `/student/profile`, `/student/apaar`, and `/student/settings/security`. Any attempt to access `/student/academics`, `/student/finances`, or certificate applications redirects to `/student/settings/security`.
+
 
 ---
 

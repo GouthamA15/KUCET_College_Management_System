@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { refreshTokens, students, staffAccounts, principal, userSessions } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import crypto from 'crypto';
 import { 
@@ -185,6 +185,7 @@ export async function POST(req) {
             user.is_principal = isPrincipal;
             user.is_hod = isPrincipal;
             user.is_first_year_coordinator = false;
+            user.is_internship_coordinator = false;
             user.branch = null;
             if (resolvedRole === 'faculty') {
                 const affil = await db.select({ branch_code: academicDepartments.department_code })
@@ -214,13 +215,14 @@ export async function POST(req) {
                   const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
                   const coordRows = await db.select({
                     id: facultyCoordinatorAssignments.id,
+                    coordinator_type: facultyCoordinatorAssignments.coordinator_type,
                     start_date: facultyCoordinatorAssignments.start_date,
                     end_date: facultyCoordinatorAssignments.end_date
                   })
                   .from(facultyCoordinatorAssignments)
                   .where(and(
                     eq(facultyCoordinatorAssignments.staff_account_id, user.id),
-                    eq(facultyCoordinatorAssignments.coordinator_type, 'FIRST_YEAR'),
+                    inArray(facultyCoordinatorAssignments.coordinator_type, ['FIRST_YEAR', 'INTERNSHIP']),
                     eq(facultyCoordinatorAssignments.is_active, true)
                   ));
 
@@ -230,13 +232,16 @@ export async function POST(req) {
                     return String(val).split('T')[0];
                   };
 
-                  user.is_first_year_coordinator = coordRows.some(c => {
+                  const activeCoords = coordRows.filter(c => {
                     const sStr = toDateStr(c.start_date);
                     const eStr = toDateStr(c.end_date);
                     if (sStr && todayStr < sStr) return false;
                     if (eStr && todayStr > eStr) return false;
                     return true;
                   });
+
+                  user.is_first_year_coordinator = activeCoords.some(c => !c.coordinator_type || c.coordinator_type === 'FIRST_YEAR');
+                  user.is_internship_coordinator = activeCoords.some(c => c.coordinator_type === 'INTERNSHIP');
                 }
             }
           }
@@ -336,6 +341,7 @@ export async function POST(req) {
             is_hod: !!user.is_hod,
             is_principal: !!user.is_principal,
             is_first_year_coordinator: !!user.is_first_year_coordinator,
+            is_internship_coordinator: !!user.is_internship_coordinator,
             branch: user.branch,
           })
             .setProtectedHeader({ alg: 'HS256' })
@@ -418,6 +424,7 @@ export async function POST(req) {
         user.is_principal = isPrincipal;
         user.is_hod = isPrincipal;
         user.is_first_year_coordinator = false;
+        user.is_internship_coordinator = false;
         user.branch = null;
         if (resolvedRole === 'faculty') {
             const affil = await db.select({ branch_code: academicDepartments.department_code })
@@ -447,13 +454,14 @@ export async function POST(req) {
               const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
               const coordRows = await db.select({
                 id: facultyCoordinatorAssignments.id,
+                coordinator_type: facultyCoordinatorAssignments.coordinator_type,
                 start_date: facultyCoordinatorAssignments.start_date,
                 end_date: facultyCoordinatorAssignments.end_date
               })
               .from(facultyCoordinatorAssignments)
               .where(and(
                 eq(facultyCoordinatorAssignments.staff_account_id, user.id),
-                eq(facultyCoordinatorAssignments.coordinator_type, 'FIRST_YEAR'),
+                inArray(facultyCoordinatorAssignments.coordinator_type, ['FIRST_YEAR', 'INTERNSHIP']),
                 eq(facultyCoordinatorAssignments.is_active, true)
               ));
 
@@ -463,13 +471,16 @@ export async function POST(req) {
                 return String(val).split('T')[0];
               };
 
-              user.is_first_year_coordinator = coordRows.some(c => {
+              const activeCoords = coordRows.filter(c => {
                 const sStr = toDateStr(c.start_date);
                 const eStr = toDateStr(c.end_date);
                 if (sStr && todayStr < sStr) return false;
                 if (eStr && todayStr > eStr) return false;
                 return true;
               });
+
+              user.is_first_year_coordinator = activeCoords.some(c => !c.coordinator_type || c.coordinator_type === 'FIRST_YEAR');
+              user.is_internship_coordinator = activeCoords.some(c => c.coordinator_type === 'INTERNSHIP');
             }
         }
       }

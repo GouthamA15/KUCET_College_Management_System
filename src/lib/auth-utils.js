@@ -215,6 +215,7 @@ export async function issueStaffAuthCookie(response, staff, rememberMe = false, 
     is_hod: !!staff.is_hod,
     is_principal: !!staff.is_principal,
     is_first_year_coordinator: !!staff.is_first_year_coordinator,
+    is_internship_coordinator: !!staff.is_internship_coordinator,
     branch: staff.branch,
   })
     .setProtectedHeader({ alg: 'HS256' })
@@ -355,6 +356,7 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
       let isHod = false;
       let isPrincipal = roleRecords.some(r => r.role_code === 'PRINCIPAL');
       let isCoordinator = false;
+      let isInternshipCoordinator = false;
       let branch = null;
       if (resolvedRole === 'faculty') {
           const affil = await db.select({ branch_code: academicDepartments.department_code })
@@ -405,6 +407,26 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
               if (eStr && todayStr > eStr) return false;
               return true;
             });
+
+            const internshipRows = await db.select({
+              id: facultyCoordinatorAssignments.id,
+              start_date: facultyCoordinatorAssignments.start_date,
+              end_date: facultyCoordinatorAssignments.end_date
+            })
+            .from(facultyCoordinatorAssignments)
+            .where(and(
+              eq(facultyCoordinatorAssignments.staff_account_id, user.id),
+              eq(facultyCoordinatorAssignments.coordinator_type, 'INTERNSHIP'),
+              eq(facultyCoordinatorAssignments.is_active, true)
+            ));
+
+            isInternshipCoordinator = internshipRows.some(c => {
+              const sStr = toDateStr(c.start_date);
+              const eStr = toDateStr(c.end_date);
+              if (sStr && todayStr < sStr) return false;
+              if (eStr && todayStr > eStr) return false;
+              return true;
+            });
           }
       }
 
@@ -415,6 +437,7 @@ export async function refreshAccessToken(response, userType, cookies, ip = null,
          is_hod: isHod,
          is_principal: isPrincipal,
          is_first_year_coordinator: isCoordinator || false,
+         is_internship_coordinator: isInternshipCoordinator || false,
          branch: branch
       };
 

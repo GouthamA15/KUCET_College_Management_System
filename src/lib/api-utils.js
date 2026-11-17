@@ -448,6 +448,25 @@ export async function getAuthUser(role = null) {
         } else {
           return null;
         }
+      } else if (expectedRole === 'internship_coordinator') {
+        if (actualRole === 'admin') {
+          payload.is_internship_coordinator = true;
+        } else if (actualRole === 'faculty') {
+          try {
+            const { CoordinatorAssignmentService } = await import('@/services/identity/CoordinatorAssignmentService');
+            const activeCoord = await CoordinatorAssignmentService.getActiveCoordinatorForStaff(payload.id, 'INTERNSHIP');
+            if (activeCoord) {
+              payload.is_internship_coordinator = true;
+              payload.internship_coordinator_assignment = activeCoord;
+            } else {
+              return null;
+            }
+          } catch (_e) {
+            if (!payload.is_internship_coordinator) return null;
+          }
+        } else {
+          return null;
+        }
       } else {
         if (actualRole !== expectedRole) return null;
       }
@@ -544,6 +563,14 @@ export async function getAuthUser(role = null) {
           payload.first_year_coordinator_assignment = activeCoord;
         } else {
           payload.is_first_year_coordinator = false;
+        }
+
+        const activeInternshipCoord = await CoordinatorAssignmentService.getActiveCoordinatorForStaff(payload.id, 'INTERNSHIP');
+        if (activeInternshipCoord) {
+          payload.is_internship_coordinator = true;
+          payload.internship_coordinator_assignment = activeInternshipCoord;
+        } else {
+          payload.is_internship_coordinator = false;
         }
       } catch (_e) {
         // Non-fatal

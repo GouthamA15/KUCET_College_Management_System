@@ -35,7 +35,7 @@ DOCUMENTATION/
 │
 ├── database/                                  # Database Schemas & Migrations
 │   ├── schema.md                              # Identity, Academic, Operations, Finance, Security Schemas
-│   ├── migrations.md                          # Safe 4-Step Drizzle Migration Standard (0000-0018)
+│   ├── migrations.md                          # Safe 4-Step Drizzle Migration Standard (0000-0033)
 │   └── backup-strategy.md                     # Automated 02:30 AM Backups, 14-Day Retention, Safe Restore
 │
 ├── deployment/                                # Infrastructure & Server Operations
@@ -53,22 +53,31 @@ DOCUMENTATION/
 │   └── ui-guidelines.md                       # Tailwind 4 Theming, Mobile Drawers, WCAG 2.1 AA
 │
 ├── features/                                  # Detailed Feature Domain Specifications
-│   ├── staff-management.md                    # Staff Onboarding Wizard, Admin Approval, HOD Matrix
-│   ├── admissions.md                          # Multi-Stage Admission Engine, Soft Rejections, Restore
-│   ├── attendance.md                          # 4-Mode Attendance: Manual, PIN, GPS Geofence, QR
-│   ├── certificates.md                        # React-PDF Generator, HMAC Signing, QR Verification
-│   ├── examinations.md                        # Internal Assessment & Mid-Exam Marks Entry
+│   ├── staff-management.md                    # Staff Onboarding Wizard, Admin Approval, HOD & Coordinator Matrix
+│   ├── admissions.md                          # Multi-Stage Admission Engine, APAAR ID, Soft Rejections, Restore
+│   ├── id-card-generation.md                  # 6 Canonical Formats, Official 2026 PNG Template, Async Bulk ZIP/PDF
+│   ├── attendance.md                          # 4-Mode Attendance, Lab Batching (0031), Session Reuse, Inactivity
+│   ├── examinations.md                        # 3 CIE Assessment Patterns, Pure Best-of-Mids, Lab Scoring
+│   ├── certificates.md                        # React-PDF Generator, Ordinary Bonafide (0032), HMAC Signing
 │   ├── fees.md                                # Scholarship Sanctions (RTF/MTF), Ledger Auditing
 │   ├── notifications.md                       # Web Push (VAPID), Realtime Broadcasts, Email Dispatch
 │   ├── reports.md                             # Academic Reports, Condonation Analytics, CSV Export
-│   └── requests.md                            # Student Digital Document & Profile Update Requests
+│   ├── requests.md                            # Student Digital Document & Profile Update Requests
+│   ├── internships.md                         # College-wide Coordinator, Review Queues, Excel & Bulk ZIP Archive
+│   ├── academic-monitoring.md                 # Longitudinal Student Tracking, Early Risk Detection
+│   ├── timetable.md                           # Dynamic Semester Timetable Matrix (S1-S8), Conflict Engine
+│   ├── syllabus.md                            # Departmental Curriculum Structure, Elective Groups
+│   ├── events-chess.md                        # Smart Campus Chess Tournament Subsystem, FIDE Engine
+│   ├── kucet-admission-bridge-investigation.md# Admission Bridge Architecture & KU Online Integration
+│   ├── kucet-admission-bridge-phase-2-primary-details.md # Primary Details Autofill & Field Mapping
+│   └── kucet-admission-bridge-staff-user-guide.md # Staff Extension Installation & Operation Manual
 │
 ├── pages/                                     # UI Page Inventory & Component Blueprints
-│   ├── admin-pages.md                         # Super Admin Console (/admin/*)
-│   ├── staff-pages.md                         # Institutional Staff Portal (/staff/*)
+│   ├── admin-pages.md                         # Super Admin Console (/admin/*) & Institutional Roles
+│   ├── staff-pages.md                         # Institutional Staff Portal (/staff/*) & 1st-Yr Coordinator
 │   ├── faculty-pages.md                       # Faculty Classroom Console (/staff/faculty/*)
 │   ├── hod-pages.md                           # Department Head Console (/staff/hod/*)
-│   ├── student-pages.md                       # Student Portal (/student/*)
+│   ├── student-pages.md                       # Student Portal (/student/*), APAAR & Academics Hub
 │   └── clerk-pages.md                         # Legacy Clerk Reference & Migration Guide
 │
 ├── storage/                                   # File Storage & Asset Pipeline
@@ -79,7 +88,7 @@ DOCUMENTATION/
 │
 ├── history/                                   # Historical Audits, ADRs & Release Notes
 │   ├── architectural-decisions.md             # System Architectural Decision Records (ADRs)
-│   ├── migration-history.md                   # Database Migrations Log (0000_... to 0018_...)
+│   ├── migration-history.md                   # Database Migrations Log (0000_... to 0032_...)
 │   ├── resolved-incidents.md                  # Forensic Post-Mortems (Sessions 176 - 205)
 │   ├── official-hosting-budget-and-migration-plan.md # Official Infrastructure Budget & Selection ADR
 │   ├── old-cloudinary-migration.md            # Legacy Cloudinary Migration Forensics
@@ -88,7 +97,9 @@ DOCUMENTATION/
 │   ├── session-207-pr-changes-and-workflow-audit.md # PR & Workflow Audit
 │   ├── session-207-hard-clerk-to-staff-migration.md # Hard Clerk to Staff Migration
 │   ├── session-207-final-hard-break-and-faculty-attendance.md # Final Break & Faculty Attendance
-│   └── session-210-comprehensive-system-audit.md # Complete 53-Section Architectural Audit
+│   ├── session-210-comprehensive-system-audit.md # Complete 53-Section Architectural Audit
+│   └── session-227-tasks-1-4-comprehensive-audit-and-remediation.md # Remediation & Audit Log
+
 │
 └── troubleshooting/                           # Diagnostics & Operational Runbooks
     ├── debugging-guide.md                     # Step-by-Step Problem Resolution Playbook
@@ -111,9 +122,13 @@ DOCUMENTATION/
 | **Disaster Recovery & Backups** | [`database/backup-strategy.md`](./database/backup-strategy.md) | [`architecture/database.md`](./architecture/database.md), [`history/migration-history.md`](./history/migration-history.md) |
 | **Storage Strategy & Relative Keys** | [`architecture/storage.md`](./architecture/storage.md) | [`storage/file-storage.md`](./storage/file-storage.md), [`storage/uploads.md`](./storage/uploads.md) |
 | **Staff & Faculty Onboarding** | [`features/staff-management.md`](./features/staff-management.md) | [`pages/staff-pages.md`](./pages/staff-pages.md), [`pages/faculty-pages.md`](./pages/faculty-pages.md) |
+| **First-Year Coordinator & Intake** | [`features/staff-management.md#11-first-year-coordinator-sub-role-architecture-migration-0026`](./features/staff-management.md) | [`features/id-card-generation.md`](./features/id-card-generation.md), [`pages/staff-pages.md`](./pages/staff-pages.md) |
+| **Student ID Cards & 6 Formats** | [`features/id-card-generation.md`](./features/id-card-generation.md) | [`features/admissions.md`](./features/admissions.md), [`pages/staff-pages.md`](./pages/staff-pages.md) |
 | **HOD Matrix & Timetables** | [`pages/hod-pages.md`](./pages/hod-pages.md) | [`features/attendance.md`](./features/attendance.md), [`features/examinations.md`](./features/examinations.md) |
 | **Admissions & Roll Numbers** | [`features/admissions.md`](./features/admissions.md) | [`pages/staff-pages.md`](./pages/staff-pages.md), [`database/schema.md`](./database/schema.md) |
+| **Admission Bridge Extension** | [`features/kucet-admission-bridge-phase-2-primary-details.md`](./features/kucet-admission-bridge-phase-2-primary-details.md) | [`features/kucet-admission-bridge-investigation.md`](./features/kucet-admission-bridge-investigation.md), [`features/kucet-admission-bridge-staff-user-guide.md`](./features/kucet-admission-bridge-staff-user-guide.md) |
 | **Attendance & PIN/GPS/QR** | [`features/attendance.md`](./features/attendance.md) | [`pages/faculty-pages.md`](./pages/faculty-pages.md), [`pages/student-pages.md`](./pages/student-pages.md) |
+| **Examinations & CIE Patterns** | [`features/examinations.md`](./features/examinations.md) | [`pages/faculty-pages.md`](./pages/faculty-pages.md), [`pages/student-pages.md`](./pages/student-pages.md) |
 | **Certificates & Verification** | [`features/certificates.md`](./features/certificates.md) | [`features/requests.md`](./features/requests.md), [`pages/student-pages.md`](./pages/student-pages.md) |
 | **Hostinger VPS & Nginx** | [`deployment/vps.md`](./deployment/vps.md) | [`deployment/nginx.md`](./deployment/nginx.md), [`deployment/ssl.md`](./deployment/ssl.md) |
 | **Coding Standards & Invariants** | [`development/coding-standards.md`](./development/coding-standards.md) | [`development/lessons-learned.md`](./development/lessons-learned.md), [`development/ai-agent-guide.md`](./development/ai-agent-guide.md) |

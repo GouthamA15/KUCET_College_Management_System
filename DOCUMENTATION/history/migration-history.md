@@ -417,7 +417,84 @@ Prior to Session 210, rejecting a student admission draft executed an unrecovera
 
 ---
 
-## 19. Cross-References & Related Documentation
+## 19. Session 226 & 227 — Database Migrations (0025 – 0032), 6-Format ID Cards, Lab Batch Management, APAAR ID & Ordinary Bonafide (November 2026)
+
+### Applied Migrations (`0025` to `0032`):
+1. **Migration `0025_canonical_area_status.sql`**:
+   - Enforced canonical `mysqlEnum('area_status', ['Local', 'Non-Local'])` across `student_personal_details`.
+   - Prevented runtime data truncation errors during finalization and bulk imports.
+2. **Migration `0026_faculty_coordinator_assignments.sql`**:
+   - Created `faculty_coordinator_assignments` table with indexes (`idx_coord_staff_id`, `idx_coord_type_active`, `idx_coord_acad_year`).
+   - Enabled time-bounded academic coordinator sub-roles (e.g. `FIRST_YEAR`), evaluated by `CoordinatorAssignmentService`.
+3. **Migration `0027_remove_class_section.sql`**:
+   - Removed legacy `class_section` column in alignment with KUCET single-cohort institutional structure.
+4. **Migration `0028_add_apaar_id.sql`**:
+   - Added `apaar_id varchar(20)` to `student_personal_details` and `student_admission_drafts`.
+   - Integrated automated 12-digit format validation and anti-fraud immutable registry locks.
+5. **Migration `0029_attendance_submission_timestamp.sql`**:
+   - Added `submitted_at timestamp` column to `student_attendance` and `attendance_sessions`.
+   - Enabled granular attendance submission latency tracking and audit forensics.
+6. **Migration `0030_attendance_architecture_optimization.sql`**:
+   - Added high-performance composite indexes (`idx_attendance_lookup`, `idx_sa_student_assignment`, `idx_student_attendance_history`, `idx_att_student_status_date`, `idx_sa_session_status`).
+   - Accelerated student attendance percentage queries by eliminating full-table scans.
+7. **Migration `0031_lab_batch_management.sql`**:
+   - Created `lab_batch_allocations`, `lab_batch_students`, and `lab_batch_allocation_audit_logs`.
+   - Added `batch_number` column to `branch_timetable` and `attendance_sessions`, enabling isolated lab batch attendance taking and dispute handling.
+8. **Migration `0032_bonafide_enhancement.sql`**:
+   - Enforced institutional rules and enhanced metadata for first-year Ordinary Bonafide certificate generation.
+
+### Key Functional Features Delivered:
+- **Six Canonical ID Card Formats**: Formats 1-3 (Classic Vector) and Formats 4-6 (Official 2026 PNG Template) across 3 QR modes (`roll_number`, `standard`, `public_url`).
+- **Asynchronous In-Memory Bulk Generation Engine**: Asynchronous job engine (`BulkIdCardService`) generating merged multi-page PDFs and individual PDF ZIP archives.
+- **Strict Blood Group Sanitization**: `sanitizeBloodGroup()` invariant enforcing 8 valid medical categories.
+- **Zero Duplicate Signature Architecture**: Omitted dynamic signature on Formats 4-6 (pre-printed on template artwork).
+- **First-Year Coordinator Workspace**: Dedicated `/staff/first-year/*` workspace with full ID card generation and attendance monitoring parity.
+
+---
+
+## 20. Session 228 — College-wide Internship Management Module, Drizzle Migrations 0033 & 0034, 11-Status State Machine & Institutional 8 Reports (November 2026)
+
+### Applied Migrations:
+1. **Migration `0033_internship_management_system.sql`**:
+   - Created 5 relational tables: `internship_companies`, `internship_opportunities`, `student_internships`, `internship_documents`, and `internship_audit_logs`.
+   - Enabled indexes across student IDs, academic years, application statuses, completion statuses, and normalized company names.
+2. **Migration `0034_internship_lifecycle_and_withdrawal.sql`**:
+   - Expanded `student_internships` with `stage` (`UPCOMING`, `ONGOING`, `COMPLETED`), non-blocking date overlap tracking (`has_overlap_warning`, `overlap_details`), and `WITHDRAWAL_REQUESTED` application status.
+   - Added student formal withdrawal request tracking (`withdrawal_reason`, `withdrawal_requested_at`, `withdrawal_reviewed_by`, `withdrawal_reviewed_at`, `withdrawal_remarks`).
+   - Added unverified corporate exception audit fields (`is_unverified_company_exception`, `unverified_company_exception_reason`, `unverified_company_exception_by`, `unverified_company_exception_at`).
+
+### Key Engineering Milestones:
+- **Single College-wide Internship Coordinator Role (`INTERNSHIP_COORDINATOR`)**:
+   - Designed institutional role spanning all 7 academic branches, assigned exclusively by administrators.
+   - Enforced single-coordinator invariant in `CoordinatorAssignmentService.assignCoordinator` by automatically retiring preceding assignments.
+   - Guarded edge proxy routes (`/staff/internship/*`) and API handlers with `getAuthUser('internship_coordinator')`.
+- **Canonical 11-Status State Machine & Date Overlap Warnings**:
+   - Implemented centralized `computeCanonicalStatus` mapping records to `DRAFT`, `SUBMITTED`, `UNDER_REVIEW`, `APPROVED`, `ONGOING`, `COMPLETION_SUBMITTED`, `COMPLETED`, `CORRECTION_REQUESTED`, `REJECTED`, `WITHDRAWAL_REQUESTED`, and `WITHDRAWN`.
+   - Real-time date overlap detection engine (`checkInternshipDateOverlaps`) flagging overlaps without blocking student registration.
+- **Student Internship Portal (`/student/internships`)**:
+   - 5-tab workspace: My Internships, Discover Opportunities, Apply Internal, Register External, and My Internship Documents.
+   - Dedicated "My Internship Documents" repository aggregating all uploaded offer letters and certificates with version history and secure links.
+   - Student withdrawal request modal with justification prompt and status change warning.
+- **Coordinator Management Console (`/staff/internship/dashboard`)**:
+   - 10 live overview metric cards (Total Internships, Verified Partners, Published Openings, Pending Approvals, Ongoing Work, Pending Completions, Verified Completions, Withdrawal Requests, Unverified Exceptions, Action Required).
+   - 8 filtered review queues including dedicated `WITHDRAWAL_REQUESTS` and `UNVERIFIED_COMPANY_EXCEPTIONS`.
+   - Audited exception approvals for unverified companies requiring mandatory academic justification.
+   - Dedicated 8 Institutional Reports (Branch, Academic Year, Company, Student, Status, Completed, Pending Verifications, External vs Campus) with on-screen preview, CSV export, and styled Excel (`.xlsx`) downloads via `ExcelJS`.
+- **Structured Bulk Document ZIP Streaming**:
+   - Engineered streaming in-memory ZIP generation via `archiver` adhering to directory format:
+     `Internship_Documents_[ACADEMIC_YEAR]/[BRANCH]/[HT_NUMBER]_[Student_Name]/[Document_Type]_[UUID_8].[ext]`.
+   - Added root `MANIFEST.csv` file mapping exported files to students, companies, roles, and storage keys.
+   - Traversal attack defense via `sanitizePathSegment` stripping illegal characters and directory hopping sequences.
+- **Private Document Asset Authorization**:
+   - Hardened `src/lib/asset-auth.js` so that direct access to `internships/` files is restricted to the owning student, designated coordinator, principal, or administrator.
+- **Verification Metrics**:
+   - **25/25 unit tests passed** in `tests/unit/internships/` across 4 test suites (`eligibility-engine`, `zip-export-sanitization`, `internship-workflow`, `lifecycle-and-status`).
+   - `npm run db:check` passing with 35 migrations and 84 schema tables verified.
+   - ESLint: 0 errors, 0 warnings across all internship module files.
+
+---
+
+## 21. Cross-References & Related Documentation
 
 - [System Architectural Decision Records (ADRs)](./architectural-decisions.md)
 - [Chronological Forensics of Resolved Incidents](./resolved-incidents.md)
@@ -425,8 +502,11 @@ Prior to Session 210, rejecting a student admission draft executed an unrecovera
 - [Backend Architecture & Service Ecosystem](../architecture/backend.md)
 - [Production Deployment & DevOps Specification](../architecture/deployment.md)
 - [Head of Department (HOD) Console](../pages/hod-pages.md)
+- [Internship Management System](../features/internships.md)
 - [Digital Certificate Engine](../features/certificates.md)
 - [Admissions System](../features/admissions.md)
+- [ID Card Generation & Bulk Export](../features/id-card-generation.md)
+
 
 
 

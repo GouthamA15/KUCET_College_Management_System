@@ -42,6 +42,26 @@ The system uses role-partitioned HTTP-only cookies to maintain session boundarie
 
 ---
 
+### First-Time Student Authentication & Flexible DOB Parsing (Commit `4237a756`)
+
+To streamline student onboarding while maintaining strict identity verification, the student authentication endpoint (`/api/student/login`) supports flexible date of birth verification:
+1. **Three Accepted DOB Formats**: Prospective students can enter their birth date in standard ISO format (`YYYY-MM-DD`), Indian hyphenated format (`DD-MM-YYYY`), or forward-slash format (`DD/MM/YYYY`).
+2. **Resumable Setup Flow**: Students who have verified their DOB but not yet completed password setup or email verification can cleanly resume their onboarding flow without being locked out.
+3. **Restricted Initial Access**: First-time unverified students receive a JWT token with `is_email_verified: false` or `has_password_set: false`. The Edge proxy middleware (`src/proxy.js`) permits them to access `/student`, `/student/profile`, `/student/apaar`, and `/student/settings/security`, while redirecting all attempts to access sensitive academic or financial portals until setup is finalized.
+
+---
+
+### Staff & Faculty Token Claims Resolution (Session 207 & 227)
+
+When authenticating via `/api/auth/employee-login` or silently refreshing via `/api/auth/refresh`, the authentication engine resolves staff privileges dynamically across multiple relational tables:
+1. **Primary Role Resolution**: JOINs `staff_accounts`, `staff_account_roles`, and `staff_roles` to extract canonical role code (`FACULTY`, `SCHOLARSHIP`, `ADMISSION`).
+2. **Departmental Affiliation**: JOINs `staff_academic_affiliations` and `academic_departments` to resolve primary teaching branch code (e.g. `CSE`, `ECE`).
+3. **Head of Department (HOD) Evaluation**: Queries `faculty_hod_assignments` for an active assignment (`is_active = true`), setting `is_hod: true`.
+4. **First-Year Coordinator Evaluation**: Queries `faculty_coordinator_assignments` where `coordinator_type = 'FIRST_YEAR'` and `is_active = true`. Evaluates whether the current IST date falls between `start_date` and `end_date`, setting `is_first_year_coordinator: true`.
+5. **Principal Supervisor Check**: Verifies if the user is designated as the Principal in `staff_roles` or `system_configs`, attaching `is_principal: true`.
+
+---
+
 ## Multi-Role Cookie Purging Protocol (Session 205 & 207 Isolation)
 
 To prevent cross-role session contamination (e.g., an admin user logging into a student account on the same browser or stale staff cookies interfering with super admin authorization), authentication issuers explicitly execute a full purge of all alternative role cookies before issuing new credentials.

@@ -16,19 +16,28 @@ export default function InstitutionalRolesClient() {
   const [activeModal, setActiveModal] = useState(null); 
   // activeModal: { type: 'DESIGNATE_SUPERVISOR' | 'REVOKE_SUPERVISOR' | 'ASSIGN_PRINCIPAL' | 'REVOKE_PRINCIPAL', staff: object }
 
+  // Internship Coordinator State
+  const [internshipCoordData, setInternshipCoordData] = useState(null);
+
   const fetchData = useCallback(async (isManualRefresh = false) => {
     try {
       if (isManualRefresh) setLoading(true);
       setError(null);
-      const res = await fetch('/api/admin/institutional-roles', {
-        headers: { 'Cache-Control': 'no-cache' }
-      });
+      const [res, coordRes] = await Promise.all([
+        fetch('/api/admin/institutional-roles', { headers: { 'Cache-Control': 'no-cache' } }),
+        fetch('/api/admin/institutional-roles/internship-coordinator', { headers: { 'Cache-Control': 'no-cache' } })
+      ]);
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
         throw new Error(errJson.error || `HTTP error ${res.status}`);
       }
       const json = await res.json();
       setData(json.data);
+
+      if (coordRes.ok) {
+        const coordJson = await coordRes.json();
+        setInternshipCoordData(coordJson.data);
+      }
     } catch (err) {
       setError(err.message || 'Failed to load institutional roles data');
     } finally {
@@ -89,6 +98,58 @@ export default function InstitutionalRolesClient() {
 
       setSuccessMessage(json.message);
       setActiveModal(null);
+      await fetchData();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDesignateInternshipCoordinator = async (staffId) => {
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      const res = await fetch('/api/admin/institutional-roles/internship-coordinator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'DESIGNATE', staff_id: staffId })
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || 'Failed to designate Internship Coordinator');
+      }
+
+      setSuccessMessage(json.message || 'Internship Coordinator successfully designated');
+      await fetchData();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRevokeInternshipCoordinator = async (assignmentId) => {
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      const res = await fetch('/api/admin/institutional-roles/internship-coordinator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'REVOKE', assignment_id: assignmentId })
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || 'Failed to revoke Internship Coordinator');
+      }
+
+      setSuccessMessage(json.message || 'Internship Coordinator role revoked');
       await fetchData();
     } catch (err) {
       setError(err.message);
@@ -352,7 +413,116 @@ export default function InstitutionalRolesClient() {
         </div>
       </div>
 
-      {/* SECTION 2: Institutional Principal Accounts */}
+      {/* SECTION 2: Designated Internship Coordinator */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">💼</span>
+              <h2 className="text-lg font-bold text-slate-900">
+                Designated Internship Coordinator
+              </h2>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Holds single-identity college-wide authority across all 7 institutional branches for reviewing external registrations, company verification, completion certificates, and opportunity publishing.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/staff/internship/dashboard"
+              className="px-3.5 py-1.5 text-xs font-bold text-[#0b3578] bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-200 transition-colors"
+            >
+              Open Coordinator Console ↗
+            </Link>
+          </div>
+        </div>
+
+        <div className="p-6">
+          {internshipCoordData?.active_coordinator ? (
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 p-6 rounded-xl bg-blue-50/40 border border-blue-100">
+              <div className="flex items-start gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-[#0b3578] text-white font-extrabold text-xl flex items-center justify-center shrink-0 shadow-sm">
+                  {internshipCoordData.active_coordinator.staff_name ? internshipCoordData.active_coordinator.staff_name.charAt(0).toUpperCase() : 'C'}
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-lg font-extrabold text-slate-900">
+                      {internshipCoordData.active_coordinator.staff_name}
+                    </h3>
+                    <span className="bg-blue-100 text-blue-800 text-[10px] font-extrabold px-2 py-0.5 rounded border border-blue-200">
+                      STAFF ID #{internshipCoordData.active_coordinator.staff_account_id}
+                    </span>
+                    <span className="bg-slate-100 text-slate-700 text-[10px] font-semibold px-2 py-0.5 rounded">
+                      {internshipCoordData.active_coordinator.department_code || 'FACULTY'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 mt-1 font-medium">
+                    {internshipCoordData.active_coordinator.staff_email} • Batch: {internshipCoordData.active_coordinator.academic_year} • Appointed: {internshipCoordData.active_coordinator.start_date}
+                  </p>
+                  <p className="text-[11px] text-emerald-700 font-semibold mt-1">
+                    ✓ College-wide oversight active across CSE, IT, CSD, ECE, EEE, CIVIL, and MECH
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleRevokeInternshipCoordinator(internshipCoordData.active_coordinator.id)}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl hover:bg-rose-100 transition-colors"
+                >
+                  Revoke Assignment
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 px-4 bg-slate-50/60 rounded-xl border border-dashed border-slate-300">
+              <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-xl mb-3">
+                💼
+              </div>
+              <h4 className="text-sm font-bold text-slate-800">No Active Internship Coordinator Designated</h4>
+              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                Select an active faculty member below to designate as the sole college-wide Internship Coordinator.
+              </p>
+            </div>
+          )}
+
+          {/* Quick Designation Form */}
+          <div className="mt-5 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex-1 min-w-[280px] max-w-md">
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Designate New Internship Coordinator:
+              </label>
+              <select
+                id="select-internship-coord"
+                className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg font-medium bg-white"
+                defaultValue=""
+              >
+                <option value="" disabled>Choose active faculty member...</option>
+                {internshipCoordData?.eligible_faculty?.map(f => (
+                  <option key={f.id} value={f.id}>
+                    {f.name} ({f.department_code || 'Faculty'}) - {f.email}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={() => {
+                const select = document.getElementById('select-internship-coord');
+                if (select && select.value) {
+                  handleDesignateInternshipCoordinator(Number(select.value));
+                }
+              }}
+              disabled={isSubmitting}
+              className="mt-5 px-5 py-2 rounded-xl text-xs font-bold bg-[#0b3578] text-white hover:bg-blue-800 disabled:opacity-50 shadow-sm"
+            >
+              Confirm Designation
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* SECTION 3: Institutional Principal Accounts */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div>

@@ -9,9 +9,10 @@ import {
   studentRequestImages,
   staffAccounts,
   principal,
-  bugReports 
+  bugReports,
+  internshipDocuments 
 } from '@/db/schema';
-import { eq, or, inArray } from 'drizzle-orm';
+import { eq, or, inArray, and } from 'drizzle-orm';
 import { STATIC_ASSETS } from '@/lib/assets';
 import logger from '@/lib/logger';
 
@@ -164,6 +165,13 @@ export async function canUserAccessAsset(user, rawPath) {
 
   // 3. STAFF / FACULTY / HOD ACCESS CONTROL
   if (['scholarship', 'admission', 'faculty', 'staff'].includes(userRole) || user.is_hod || user.staffId) {
+    // Internship documents are strictly private: only the Internship Coordinator or Principal can view them
+    if (cleanPath.startsWith('internships/') || cleanPath.includes('internships/')) {
+      if (user.is_internship_coordinator || user.is_principal) {
+        return true;
+      }
+      return false;
+    }
     // Staff members are authorized for operational media (student photos, signatures, admission drafts, payment proofs, staff photos/signatures, bug reports)
     return true;
   }
@@ -296,6 +304,23 @@ export async function canUserAccessAsset(user, rawPath) {
       // f) Faculty/Staff signature check on verified documents/memos
       if (cleanPath.startsWith('staffAccounts/') || cleanPath.startsWith('staff/') || cleanPath.startsWith('staffs/')) {
         return true;
+      }
+
+      // g) Internship Documents ownership check
+      if (cleanPath.startsWith('internships/') || cleanPath.includes('internships/')) {
+        if (studentId) {
+          const docRecord = await db.query.internshipDocuments.findFirst({
+            where: and(
+              eq(internshipDocuments.student_id, studentId),
+              or(
+                eq(internshipDocuments.storage_key, cleanPath),
+                eq(internshipDocuments.storage_key, `kucet/${cleanPath}`)
+              )
+            ),
+            columns: { id: true }
+          });
+          if (docRecord) return true;
+        }
       }
 
     } catch (err) {

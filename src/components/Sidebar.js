@@ -91,6 +91,14 @@ const Icons = {
       <path d="M8 21h8m-4-4v4M6 4h12v4a6 6 0 0 1-12 0V4Zm0 2H3a2 2 0 0 0 2 2h1m12-2h3a2 2 0 0 1-2 2h-1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </SvgIcon>
   ),
+  internship: (props) => (
+    <SvgIcon {...props}>
+      <path d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 12h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M10 12v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </SvgIcon>
+  ),
   logout: (props) => (
     <SvgIcon {...props}>
       <path d="M10.4 7.2V6.6c0-1 .8-1.8 1.8-1.8h5c1 0 1.8.8 1.8 1.8v10.8c0 1-.8 1.8-1.8 1.8h-5c-1 0-1.8-.8-1.8-1.8v-.6" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -188,6 +196,16 @@ function buildMenuItems({ effectiveRole, studentData, staffData, hasActiveEvents
     });
   }
 
+  // Add Internship Coordinator Dashboard dynamically
+  if ((effectiveRole === 'faculty' || effectiveRole === 'staff') && staffData?.is_internship_coordinator) {
+    const academicsIdx = enhancedMenu.findIndex(i => i.label === 'ACADEMICS');
+    let insertIdx = academicsIdx > -1 ? academicsIdx + 1 : enhancedMenu.length;
+    enhancedMenu.splice(insertIdx, 0, {
+      label: 'INTERNSHIP COORDINATION',
+      route: '/staff/internship/dashboard'
+    });
+  }
+
   // Add Academic Supervisor Dashboard dynamically
   if ((effectiveRole === 'faculty' || effectiveRole === 'staff') && staffData?.is_designated_supervisor) {
     const academicsIdx = enhancedMenu.findIndex(i => i.label === 'ACADEMICS');
@@ -241,6 +259,7 @@ function pickIconKey(label) {
   const upper = String(label || '').toUpperCase();
   if (upper === 'DASHBOARD' || upper === 'HOME' || upper.includes('DASHBOARD')) return 'dashboard';
   if (upper === 'PROFILE') return 'profile';
+  if (upper.includes('INTERN')) return 'internship';
   if (upper.includes('COORDINAT') || upper.includes('FIRST YEAR') || upper.includes('ACADEMIC') || upper === 'ACADEMICS' || upper === 'ATTENDANCE' || upper === 'MATERIALS' || upper.includes('ROLES')) return 'academics';
   if (upper === 'FINANCES') return 'finances';
   if (upper.includes('TIME TABLE') || upper.includes('TIMETABLE')) return 'timetable';

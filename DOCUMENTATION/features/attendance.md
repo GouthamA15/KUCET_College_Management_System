@@ -214,24 +214,26 @@ When attendance marking or session verification fails in the classroom, follow t
 
 ## 10. Attendance Correction Disputes Workflow (Migration `0022`)
 
-To resolve legitimate student attendance grievances (e.g., official institutional duty, medical leaves, NCC/NSS camps, or technical geofence failures):
+To resolve legitimate student attendance grievances (e.g., official institutional duty, medical leaves, NCC camps, or technical geofence failures):
 
 ```mermaid
 flowchart TD
-    Student[Student in Portal /student/academics] -->|File Correction Request| Form[Dispute Form: Date, Session, Reason]
+    Student[Student in Portal /student/academics] -->|File Correction Request| Form[Dispute Form: Date, Session, Requested Status, Reason]
     Form -->|Upload Proof Document| Storage[Private Storage: kucet/disputes/uuid.ext]
-    Storage -->|Insert Record| DB[(attendance_disputes table\nStatus: PENDING)]
+    Storage -->|Insert Record| DB[(student_attendance_disputes table\nStatus: PENDING)]
     
     DB --> Reviewer[Faculty / HOD Classroom Console /staff/faculty/academics]
     Reviewer -->|Inspect Evidence in Proof Viewer| Decision{Review Decision}
     Decision -->|Reject with Feedback| Rejected[Status: REJECTED\nReviewer Notes Persisted]
-    Decision -->|Approve Dispute| Approved[Status: APPROVED\nstudentAttendance Marked PRESENT\nAtomic DB Transaction]
+    Decision -->|Approve Dispute| Approved[Status: APPROVED\nstudentAttendance Marked PRESENT/NCC/MEDICAL\nWrite to attendance_audit_logs]
 ```
 
 ### Key Security & Operational Invariants
 1. **Evidence Upload IDOR Defense**: The proof viewer endpoint (`/api/assets/view/...`) authoritatively checks that the requester is either the owning student, the assigned faculty, or the department HOD. Students cannot view or tamper with other students' dispute evidence.
-2. **Atomic Correction**: When a dispute is marked `APPROVED`, the student's corresponding record in `studentAttendance` is updated to `PRESENT` within a database transaction, recalculating aggregate percentage immediately.
-3. **Reviewer Audit Trail**: Rejections and approvals mandate reviewer comments and store `reviewed_by` and `reviewed_at` timestamps for institutional auditing.
+2. **Atomic Correction & Audit Trail**: When a dispute is marked `APPROVED`, the student's corresponding record in `student_attendance` is updated to the approved status (`PRESENT`, `NCC`, or `MEDICAL`) within a database transaction. Simultaneously, a row is inserted into `attendance_audit_logs` capturing `previous_status`, `new_status`, `modified_by_staff_id`, `change_type: 'DISPUTE_APPROVAL'`, and reason.
+3. **Institutional Attendance Credit Policy**: Kakatiya University policy awards attendance credit for `PRESENT`, `NCC` (National Cadet Corps / official duty), and `MEDICAL` statuses. All attendance calculations across the system compute attended classes as:
+   $$\text{Total Attended} = \text{Present Count} + \text{NCC Count} + \text{Medical Count}$$
+4. **Reviewer Audit Trail**: Rejections, requests for additional information (`MORE_INFO_REQUIRED`), and approvals mandate reviewer comments and store `reviewed_by_staff_id` and `reviewed_at` timestamps.
 
 ---
 
@@ -249,10 +251,58 @@ The academic calendar subsystem (`src/app/staff/academic-calendar/`) establishes
 
 ---
 
-## 12. Cross-References
+## 12. Lab Batch Management & Scheduling Engine (Migration `0031`)
+
+Practical laboratory subjects often divide a classroom cohort into smaller sub-groups (e.g. Batch 1 and Batch 2) to match laboratory workbench capacity:
+
+### Database Models (`src/db/schema/operations.js`)
+- **`lab_batch_allocations`**: Defines cohort allocations for a subject (`academic_year`, `branch`, `semester`, `subject_code`, `batch_1_name`, `batch_2_name`, `version`, `status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'`).
+- **`lab_batch_students`**: Links individual students to specific batches (`allocation_id`, `student_id`, `batch_number: 1 | 2`).
+- **`lab_batch_allocation_audit_logs`**: Tracks complete allocation version history, modifications, publishing timestamps, and administrative change reasons.
+
+### Operational Attendance Invariants
+1. **Batch-Scoped Sessions**: When starting attendance for a practical subject, the faculty specifies `batch_number` (`0` for entire cohort, `1` for Batch 1, `2` for Batch 2).
+2. **PIN & GPS Isolation**: Students allocated to Batch 2 cannot verify into an active Batch 1 attendance session, and vice-versa.
+3. **Attendance Denominator Accuracy**: In student academic summaries, practical laboratory attendance denominators accurately count only sessions held for that student's assigned lab batch (or whole-cohort sessions), preventing false absence penalties for periods held for the other batch.
+
+---
+
+## 13. Reuse Previous Session Attendance Workflow
+
+For faculty teaching consecutive back-to-back periods (e.g. Periods 3 & 4 or 3-hour practical labs):
+- Faculty can open the **Reuse Previous Session Attendance** modal (`ReuseAttendanceModal.js`, commit `d55e0d96`).
+- The system automatically loads the attendance roster marked in the immediate predecessor session.
+- Faculty can review the populated roster, apply individual status adjustments if any student arrived late or departed early, and commit the new session with a single confirmation.
+- Eliminates redundant manual marking while preserving individual session integrity and audit logs.
+
+---
+
+## 14. 90-Day Student Inactivity & Multi-Stage Reactivation
+
+To maintain regulatory compliance and prevent phantom student rosters:
+1. **Automated Inactivity Detection**: Tracks students with 90+ consecutive days without qualifying attendance (`PRESENT`, `NCC`, or `MEDICAL`).
+2. **Account Deactivation**: Transitions `students.student_status` from `ACTIVE` to `INACTIVE_ATTENDANCE` and writes to `student_inactivity_logs`.
+3. **Two-Stage Reactivation Workflow (`student_reactivation_requests`)**:
+   - Inactive student logs in and is redirected to `/student/reactivate` to submit a formal reactivation request with reason.
+   - **Stage 1 (HOD Review)**: Department HOD reviews attendance history and recommends approval or rejection with remarks.
+   - **Stage 2 (Admin Review)**: Super Admin / Principal grants final approval, restoring `student_status` to `ACTIVE`.
+
+---
+
+## 15. Comprehensive Attendance Register PDF & CSV Export
+
+The attendance export engine provides institutional documentation for exam eligibility, condonation, and university inspection:
+- **Full Attendance Export PDF (`FullAttendanceExportPDF.js`)**: Universal A4 portrait layout with adaptive column distribution, supporting up to 75 students per batch without truncated rows or orphaned summary blocks.
+- **Single Session Register PDF (`AttendanceSessionPDF.js`)**: Generates an authoritative signed single-session roster with topics covered, session number, time, GPS coordinates, and breakdown counts (`Present`, `NCC`, `Medical`, `Absent`).
+- **CSV Data Streaming**: Streams raw session and aggregated subject attendance data formatted for university submission.
+
+---
+
+## 16. Cross-References
 
 - Examinations & Evaluation System: [examinations.md](./examinations.md)
 - Institutional Reports & Attendance Archival: [reports.md](./reports.md)
 - Database Attendance Schema: [schema.md](../database/schema.md)
 - Troubleshooting & Common Errors: [common-errors.md](../troubleshooting/common-errors.md)
 - Student Request System: [requests.md](./requests.md)
+
