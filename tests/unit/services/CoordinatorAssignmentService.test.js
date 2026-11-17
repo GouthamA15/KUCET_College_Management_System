@@ -1,18 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CoordinatorAssignmentService } from '@/services/identity/CoordinatorAssignmentService';
-import { staffAccounts } from '@/db/schema';
+import { staffAccounts, auditLogs, facultyCoordinatorAssignments } from '@/db/schema';
 import { db } from '@/db';
 
 // Mock DB
 let mockStaff = [];
 let mockAssignments = [];
+let mockAuditLogs = [];
 
 vi.mock('@/db', () => ({
   db: {
     select: vi.fn(() => ({
       from: vi.fn(() => ({
         where: vi.fn((_cond) => {
-          // If querying staffAccounts
           return {
             limit: vi.fn((_lim) => mockStaff)
           };
@@ -50,11 +50,18 @@ vi.mock('@/db', () => ({
             findFirst: vi.fn(async () => mockAssignments[0] || null)
           }
         },
-        insert: vi.fn(() => ({
+        insert: vi.fn((table) => ({
           values: vi.fn((vals) => {
+            if (table === auditLogs) {
+              if (vals.ip_address && vals.ip_address.length > 45) {
+                throw new Error("ER_DATA_TOO_LONG: Data too long for column 'ip_address' at row 1");
+              }
+              mockAuditLogs.push(vals);
+              return [{ affectedRows: 1, insertId: mockAuditLogs.length }];
+            }
+
             const newId = mockAssignments.length + 1;
             mockAssignments.push({ id: newId, ...vals });
-            // Genuine mysql2 / TiDB ResultSetHeader structure
             return [{
               fieldCount: 0,
               affectedRows: 1,
@@ -96,6 +103,7 @@ describe('CoordinatorAssignmentService', () => {
       { id: 10, name: 'Dr. Jane Smith', employee_id: 'FAC-010', is_active: true, account_status: 'ACTIVE' }
     ];
     mockAssignments = [];
+    mockAuditLogs = [];
   });
 
   describe('assignCoordinator', () => {
@@ -175,6 +183,64 @@ describe('CoordinatorAssignmentService', () => {
         startDate: '2024-07-01',
         assignedBy: 1
       })).rejects.toThrow(/database did not return a valid inserted assignment ID/);
+    });
+
+    it('sanitizes long proxy-forwarded IP addresses (> 45 chars) into audit_logs without throwing ER_DATA_TOO_LONG', async () => {
+      const longProxyChainIp = '203.0.113.195, 70.41.3.18, 150.172.238.178, 192.168.1.1, 10.0.0.1';
+      expect(longProxyChainIp.length).toBeGreaterThan(45);
+
+      const result = await CoordinatorAssignmentService.assignCoordinator({
+        staffAccountId: 10,
+        coordinatorType: 'FIRST_YEAR',
+        academicYear: '2024-2025',
+        startDate: '2024-07-01',
+        assignedBy: 1,
+        ip: longProxyChainIp,
+        userAgent: 'Mozilla/5.0 Chrome/130.0.0.0 Safari/537.36'
+      });
+
+      expect(result.id).toBeDefined();
+      expect(mockAuditLogs.length).toBeGreaterThan(0);
+      const lastAudit = mockAuditLogs[mockAuditLogs.length - 1];
+      expect(lastAudit.ip_address).toBe('203.0.113.195');
+      expect(lastAudit.ip_address.length).toBeLessThanOrEqual(45);
+      expect(lastAudit.action).toBe('COORDINATOR_ASSIGNED');
+    });
+
+    it('enforces single college-wide coordinator invariant for INTERNSHIP by deactivating previous holder and auditing', async () => {
+      // First, set up a prior active internship assignment
+      mockAssignments = [
+        {
+          id: 1,
+          staff_account_id: 5,
+          coordinator_type: 'INTERNSHIP',
+          academic_year: '2024-2025',
+          start_date: '2024-01-01',
+          end_date: null,
+          is_active: true
+        }
+      ];
+
+      const result = await CoordinatorAssignmentService.assignCoordinator({
+        staffAccountId: 10,
+        coordinatorType: 'INTERNSHIP',
+        academicYear: '2024-2025',
+        startDate: '2024-07-01',
+        assignedBy: 1,
+        ip: '198.51.100.22, 10.0.0.1',
+      });
+
+      expect(result.id).toBeDefined();
+      expect(result.coordinator_type).toBe('INTERNSHIP');
+      // The prior assignment should have been deactivated
+      expect(mockAssignments[0].is_active).toBe(false);
+      // Both revocation and new assignment should have audit logs
+      const revokeAudit = mockAuditLogs.find(a => a.action === 'COORDINATOR_REVOKED');
+      expect(revokeAudit).toBeDefined();
+      expect(revokeAudit.target_id).toBe('1');
+      const assignAudit = mockAuditLogs.find(a => a.action === 'COORDINATOR_ASSIGNED');
+      expect(assignAudit).toBeDefined();
+      expect(assignAudit.target_id).toBe(String(result.id));
     });
   });
 

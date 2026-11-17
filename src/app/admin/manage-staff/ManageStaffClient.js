@@ -10,7 +10,7 @@ import { FACULTY_BRANCHES } from '@/lib/staff-config';
 import { 
   Users, CheckCircle2, Search, 
   AlertTriangle, UserX, UserCheck, Save,
-  ShieldCheck, BookOpen, ExternalLink, Award, GraduationCap, X
+  ShieldCheck, BookOpen, ExternalLink, Award, GraduationCap, X, Briefcase
 } from 'lucide-react';
 
 export default function ManageStaffClient() {
@@ -31,15 +31,32 @@ export default function ManageStaffClient() {
     academicYear: '',
     newHodName: ''
   });
+  const [reassignInternshipConfirmModal, setReassignInternshipConfirmModal] = useState({
+    isOpen: false,
+    currentCoordinator: '',
+    currentEmail: '',
+    newCoordinatorName: '',
+    academicYear: '',
+  });
   const [processing, setProcessing] = useState(false);
 
   // Coordinator Modal State
+  const [coordModalTab, setCoordModalTab] = useState('FIRST_YEAR');
   const [isCoordModalOpen, setIsCoordModalOpen] = useState(false);
   const [coordAssignments, setCoordAssignments] = useState([]);
+  const [internshipAssignments, setInternshipAssignments] = useState([]);
   const [loadingCoord, setLoadingCoord] = useState(false);
+  const [loadingInternshipCoord, setLoadingInternshipCoord] = useState(false);
   const [coordActionLoading, setCoordActionLoading] = useState(false);
   const [showNewCoordForm, setShowNewCoordForm] = useState(false);
+  const [showNewInternshipForm, setShowNewInternshipForm] = useState(false);
   const [newCoordData, setNewCoordData] = useState({
+    staff_account_id: '',
+    academic_year: '2024-2025',
+    start_date: new Date().toISOString().split('T')[0],
+    end_date: ''
+  });
+  const [newInternshipData, setNewInternshipData] = useState({
     staff_account_id: '',
     academic_year: '2024-2025',
     start_date: new Date().toISOString().split('T')[0],
@@ -61,28 +78,49 @@ export default function ManageStaffClient() {
     };
   }, [refreshStaff, staffList.length, loading]);
 
-  const fetchCoordinatorAssignments = async () => {
-    setLoadingCoord(true);
-    try {
-      const res = await fetch('/api/admin/coordinator-assignments');
-      const json = await res.json();
-      if (res.ok) {
-        setCoordAssignments(json.data || []);
-        if (json.currentAcademicYear) {
-          setNewCoordData(prev => ({ ...prev, academic_year: json.currentAcademicYear }));
+  const fetchCoordinatorAssignments = async (type = coordModalTab) => {
+    if (type === 'FIRST_YEAR') {
+      setLoadingCoord(true);
+      try {
+        const res = await fetch('/api/admin/coordinator-assignments?type=FIRST_YEAR');
+        const json = await res.json();
+        if (res.ok) {
+          setCoordAssignments(json.data || []);
+          if (json.currentAcademicYear) {
+            setNewCoordData(prev => ({ ...prev, academic_year: json.currentAcademicYear }));
+          }
+        } else {
+          toast.error(json.error || 'Failed to load First Year coordinator assignments');
         }
-      } else {
-        toast.error(json.error || 'Failed to load coordinator assignments');
+      } catch (_err) {
+        toast.error('Failed to load coordinator assignments');
+      } finally {
+        setLoadingCoord(false);
       }
-    } catch (_err) {
-      toast.error('Failed to load coordinator assignments');
-    } finally {
-      setLoadingCoord(false);
+    } else if (type === 'INTERNSHIP') {
+      setLoadingInternshipCoord(true);
+      try {
+        const res = await fetch('/api/admin/coordinator-assignments?type=INTERNSHIP');
+        const json = await res.json();
+        if (res.ok) {
+          setInternshipAssignments(json.data || []);
+          if (json.currentAcademicYear) {
+            setNewInternshipData(prev => ({ ...prev, academic_year: json.currentAcademicYear }));
+          }
+        } else {
+          toast.error(json.error || 'Failed to load Internship coordinator assignments');
+        }
+      } catch (_err) {
+        toast.error('Failed to load Internship coordinator assignments');
+      } finally {
+        setLoadingInternshipCoord(false);
+      }
     }
   };
 
-  const handleRevokeCoord = async (assignmentId) => {
-    if (!confirm('Are you sure you want to revoke this First Year Coordinator assignment?')) return;
+  const handleRevokeCoord = async (assignmentId, type = 'FIRST_YEAR') => {
+    const label = type === 'INTERNSHIP' ? 'Internship Coordinator' : 'First Year Coordinator';
+    if (!confirm(`Are you sure you want to revoke this ${label} assignment?`)) return;
     setCoordActionLoading(true);
     try {
       const res = await fetch(`/api/admin/coordinator-assignments/${assignmentId}`, {
@@ -92,8 +130,8 @@ export default function ManageStaffClient() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to revoke assignment');
-      toast.success('Coordinator assignment revoked');
-      await fetchCoordinatorAssignments();
+      toast.success(`${label} assignment revoked`);
+      await fetchCoordinatorAssignments(type);
       if (refreshStaff) await refreshStaff();
     } catch (err) {
       toast.error(err.message);
@@ -113,13 +151,45 @@ export default function ManageStaffClient() {
       const res = await fetch('/api/admin/coordinator-assignments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newCoordData)
+        body: JSON.stringify({
+          ...newCoordData,
+          coordinator_type: 'FIRST_YEAR'
+        })
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to create assignment');
       toast.success('First Year Coordinator appointed successfully');
       setShowNewCoordForm(false);
-      await fetchCoordinatorAssignments();
+      await fetchCoordinatorAssignments('FIRST_YEAR');
+      if (refreshStaff) await refreshStaff();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setCoordActionLoading(false);
+    }
+  };
+
+  const handleCreateInternshipAssignment = async (e) => {
+    e.preventDefault();
+    if (!newInternshipData.staff_account_id) {
+      toast.error('Please select a faculty member');
+      return;
+    }
+    setCoordActionLoading(true);
+    try {
+      const res = await fetch('/api/admin/coordinator-assignments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...newInternshipData,
+          coordinator_type: 'INTERNSHIP'
+        })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to designate Internship Coordinator');
+      toast.success('Internship Coordinator designated successfully');
+      setShowNewInternshipForm(false);
+      await fetchCoordinatorAssignments('INTERNSHIP');
       if (refreshStaff) await refreshStaff();
     } catch (err) {
       toast.error(err.message);
@@ -169,8 +239,13 @@ export default function ManageStaffClient() {
       admissionTotal: admissionstaffList.length,
       hodCount: facultystaffList.filter(c => c.is_hod || (c.hod_branches && c.hod_branches.length > 0)).length,
       principalCount: facultystaffList.filter(c => c.is_principal).length,
-      coordCount: facultystaffList.filter(c => c.is_first_year_coordinator).length
+      coordCount: facultystaffList.filter(c => c.is_first_year_coordinator).length,
+      internshipCoordCount: facultystaffList.filter(c => c.is_internship_coordinator).length
     };
+  }, [staffList]);
+
+  const activeInternshipCoord = useMemo(() => {
+    return staffList.find(s => s.roles?.includes('faculty') && s.is_internship_coordinator) || null;
   }, [staffList]);
 
   const openDetails = async (staffMember) => {
@@ -182,7 +257,10 @@ export default function ManageStaffClient() {
       is_principal: !!staffMember.is_principal,
       is_first_year_coordinator: !!staffMember.is_first_year_coordinator,
       coordinator_start_date: staffMember.coordinator_assignment?.start_date || new Date().toISOString().split('T')[0],
-      coordinator_end_date: staffMember.coordinator_assignment?.end_date || ''
+      coordinator_end_date: staffMember.coordinator_assignment?.end_date || '',
+      is_internship_coordinator: !!staffMember.is_internship_coordinator,
+      internship_start_date: staffMember.internship_assignment?.start_date || new Date().toISOString().split('T')[0],
+      internship_end_date: staffMember.internship_assignment?.end_date || ''
     });
     
     // Fetch their latest requests
@@ -232,7 +310,7 @@ export default function ManageStaffClient() {
     }));
   };
 
-  const handleSave = async (confirmedReassignBranches = null) => {
+  const handleSave = async (confirmedReassignBranches = null, confirmReassignInternship = false) => {
     if (!selectedStaff) return;
 
     setProcessing(true);
@@ -244,6 +322,10 @@ export default function ManageStaffClient() {
         is_first_year_coordinator: !!editedStaff.is_first_year_coordinator,
         coordinator_start_date: editedStaff.coordinator_start_date,
         coordinator_end_date: editedStaff.coordinator_end_date || null,
+        is_internship_coordinator: !!editedStaff.is_internship_coordinator,
+        internship_start_date: editedStaff.internship_start_date,
+        internship_end_date: editedStaff.internship_end_date || null,
+        reassign_internship: confirmReassignInternship,
         ...(confirmedReassignBranches && confirmedReassignBranches.length > 0 
           ? { reassign_branches: confirmedReassignBranches } 
           : {})
@@ -259,6 +341,16 @@ export default function ManageStaffClient() {
       if (!res.ok) {
         if (res.status === 409 && data.conflictDetails) {
           toast.dismiss(toastId);
+          if (data.conflictDetails.role === 'INTERNSHIP_COORDINATOR') {
+            setReassignInternshipConfirmModal({
+              isOpen: true,
+              currentCoordinator: data.conflictDetails.current_coordinator,
+              currentEmail: data.conflictDetails.current_email,
+              newCoordinatorName: editedStaff.name || selectedStaff.name,
+              academicYear: data.conflictDetails.academic_year,
+            });
+            return;
+          }
           setReassignConfirmModal({
             isOpen: true,
             branch: data.conflictDetails.branch,
@@ -291,6 +383,7 @@ export default function ManageStaffClient() {
 
       toast.success('Staff record updated successfully!', { id: toastId });
       setReassignConfirmModal({ isOpen: false, branch: '', currentHod: '', academicYear: '', newHodName: '' });
+      setReassignInternshipConfirmModal({ isOpen: false, currentCoordinator: '', currentEmail: '', newCoordinatorName: '', academicYear: '' });
       setSelectedStaff(null);
       setEditedStaff({});
     } catch (error) {
@@ -332,6 +425,9 @@ export default function ManageStaffClient() {
     selectedStaff.is_first_year_coordinator !== editedStaff.is_first_year_coordinator ||
     selectedStaff.coordinator_start_date !== editedStaff.coordinator_start_date ||
     selectedStaff.coordinator_end_date !== editedStaff.coordinator_end_date ||
+    selectedStaff.is_internship_coordinator !== editedStaff.is_internship_coordinator ||
+    selectedStaff.internship_start_date !== editedStaff.internship_start_date ||
+    selectedStaff.internship_end_date !== editedStaff.internship_end_date ||
     JSON.stringify((selectedStaff.branches || []).sort()) !== JSON.stringify((editedStaff.branches || []).sort()) ||
     JSON.stringify((selectedStaff.hod_branches || []).sort()) !== JSON.stringify((editedStaff.hod_branches || []).sort()) ||
     JSON.stringify((selectedStaff.roles || []).sort()) !== JSON.stringify((editedStaff.roles || []).sort())
@@ -344,17 +440,30 @@ export default function ManageStaffClient() {
           <h1 className="text-2xl font-semibold text-gray-800">Staff & Role Management</h1>
           <p className="text-sm text-gray-600 mt-1">Manage institutional staff accounts, branch HOD appointments, academic affiliations, and supervisory roles.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
             onClick={() => {
+              setCoordModalTab('FIRST_YEAR');
               setIsCoordModalOpen(true);
-              fetchCoordinatorAssignments();
+              fetchCoordinatorAssignments('FIRST_YEAR');
             }}
             className="inline-flex items-center gap-2 px-3.5 py-2 bg-sky-50 text-sky-800 border border-sky-200 hover:bg-sky-100 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
           >
             <GraduationCap className="w-4 h-4 text-sky-600" />
             <span>1st Year Coordinators ({stats.coordCount})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setCoordModalTab('INTERNSHIP');
+              setIsCoordModalOpen(true);
+              fetchCoordinatorAssignments('INTERNSHIP');
+            }}
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+          >
+            <Briefcase className="w-4 h-4 text-emerald-600" />
+            <span>Internship Coordinator ({stats.internshipCoordCount})</span>
           </button>
         </div>
       </header>
@@ -537,6 +646,13 @@ export default function ManageStaffClient() {
                           {staffMember.is_first_year_coordinator && (
                             <span className="bg-sky-100 text-sky-900 border border-sky-300 font-extrabold text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs whitespace-nowrap inline-flex items-center gap-0.5 shrink-0">
                               🎓 1st Year Coord
+                            </span>
+                          )}
+
+                          {/* Internship Coordinator Badge */}
+                          {staffMember.is_internship_coordinator && (
+                            <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 font-extrabold text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs whitespace-nowrap inline-flex items-center gap-0.5 shrink-0">
+                              💼 Internship Coord
                             </span>
                           )}
                         </div>
@@ -902,6 +1018,71 @@ export default function ManageStaffClient() {
                                   </div>
                                 </label>
                               </div>
+
+                              {/* College-wide Internship Coordinator Section */}
+                              <div className="bg-emerald-50/60 rounded-lg p-5 border border-emerald-100 mt-4">
+                                <label className="flex items-start gap-3 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    name="is_internship_coordinator"
+                                    checked={!!editedStaff.is_internship_coordinator}
+                                    onChange={handleChange}
+                                    className="mt-1 h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-slate-300 rounded cursor-pointer"
+                                  />
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-semibold text-slate-800">
+                                        College-wide Internship Coordinator
+                                      </span>
+                                      <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-200">
+                                        College-wide Sole Authority
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-slate-600 mt-1">
+                                      Sole institutional authority to approve student internship registrations, verify completion certificates, and manage college-wide industry internships.
+                                    </p>
+
+                                    {/* Reassignment Warning Preview */}
+                                    {editedStaff.is_internship_coordinator && activeInternshipCoord && activeInternshipCoord.id !== editedStaff.id && (
+                                      <div className="mt-2.5 p-2.5 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800 flex items-start gap-2">
+                                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                                        <div>
+                                          <strong>Reassignment Notice:</strong> {activeInternshipCoord.name} ({activeInternshipCoord.employee_id || 'ID: ' + activeInternshipCoord.id}) is currently designated as the active Internship Coordinator. Saving will prompt confirmation to transfer this role to {editedStaff.name}.
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {editedStaff.is_internship_coordinator && (
+                                      <div className="mt-3 pt-3 border-t border-emerald-200/60 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                          <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                                            Appointment Start Date
+                                          </label>
+                                          <input
+                                            type="date"
+                                            name="internship_start_date"
+                                            value={editedStaff.internship_start_date || ''}
+                                            onChange={handleChange}
+                                            className="w-full text-xs border border-slate-300 rounded px-2.5 py-1.5 bg-white text-slate-800 focus:outline-none focus:border-emerald-500"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                                            Appointment End Date (Optional)
+                                          </label>
+                                          <input
+                                            type="date"
+                                            name="internship_end_date"
+                                            value={editedStaff.internship_end_date || ''}
+                                            onChange={handleChange}
+                                            className="w-full text-xs border border-slate-300 rounded px-2.5 py-1.5 bg-white text-slate-800 focus:outline-none focus:border-emerald-500"
+                                          />
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </label>
+                              </div>
                             </div>
                           </>
                         )}
@@ -1135,18 +1316,89 @@ export default function ManageStaffClient() {
         </div>
       )}
 
-      {/* ─── Coordinator Assignment Hub Modal ─────────────────────────────────── */}
+      {/* ─── Internship Reassignment Confirmation Modal ────────────────────────────── */}
+      {reassignInternshipConfirmModal.isOpen && (
+        <div className="fixed inset-0 z-[60] overflow-y-auto" aria-labelledby="reassign-internship-modal-title" role="dialog" aria-modal="true">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" onClick={() => !processing && setReassignInternshipConfirmModal({ isOpen: false, currentCoordinator: '', currentEmail: '', newCoordinatorName: '', academicYear: '' })}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div className="relative z-10 inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full border border-amber-300">
+              <div className="bg-amber-50 px-6 pt-5 pb-4 border-b border-amber-200">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 p-2 bg-amber-100 rounded-full text-amber-600">
+                    <AlertTriangle className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900" id="reassign-internship-modal-title">
+                      Transfer Internship Coordinator Role?
+                    </h3>
+                    <p className="text-xs text-amber-800 mt-1">
+                      Sole College-wide Institutional Responsibility Transfer
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-medium">Current Coordinator:</span>
+                    <span className="font-semibold text-slate-900">{reassignInternshipConfirmModal.currentCoordinator}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-medium">New Appointed Coordinator:</span>
+                    <span className="font-bold text-emerald-700">{reassignInternshipConfirmModal.newCoordinatorName}</span>
+                  </div>
+                </div>
+                <div className="text-xs text-slate-600 space-y-1.5 bg-blue-50 border border-blue-100 rounded-md p-3">
+                  <p className="font-semibold text-[#0b3578] flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Safe Transactional Role Transfer
+                  </p>
+                  <p>
+                    There is <strong>exactly one active college-wide Internship Coordinator</strong>. Confirming will conclude <strong>{reassignInternshipConfirmModal.currentCoordinator}</strong>&apos;s active term.
+                  </p>
+                  <p>
+                    Their staff account will <strong>remain active</strong>, all previous historical records, certificates verified, and audit logs are safely preserved.
+                  </p>
+                </div>
+              </div>
+              <div className="bg-slate-50 px-6 py-3 border-t border-slate-200 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                <button
+                  type="button"
+                  disabled={processing}
+                  onClick={() => setReassignInternshipConfirmModal({ isOpen: false, currentCoordinator: '', currentEmail: '', newCoordinatorName: '', academicYear: '' })}
+                  className="w-full sm:w-auto px-4 py-2 bg-white border border-slate-300 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={processing}
+                  onClick={() => {
+                    setReassignInternshipConfirmModal({ isOpen: false, currentCoordinator: '', currentEmail: '', newCoordinatorName: '', academicYear: '' });
+                    handleSave(null, true);
+                  }}
+                  className="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm font-semibold shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  {processing ? 'Transferring...' : 'Confirm Transfer'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Institutional Coordinator Assignment Hub Modal ────────────────────── */}
       {isCoordModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]">
             <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-sky-100 text-sky-700 rounded-lg">
-                  <GraduationCap className="w-5 h-5" />
+                <div className="p-2 bg-slate-800 text-white rounded-lg">
+                  <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-800">First Year Coordinator Management Hub</h3>
-                  <p className="text-xs text-slate-500">Appoint, track, and revoke time-bounded First Year Coordinator responsibilities</p>
+                  <h3 className="text-base font-bold text-slate-800">Institutional Coordinators Hub</h3>
+                  <p className="text-xs text-slate-500">Appoint, track, and manage First Year Coordinators and College-wide Internship Coordinator</p>
                 </div>
               </div>
               <button
@@ -1158,171 +1410,419 @@ export default function ManageStaffClient() {
               </button>
             </div>
 
+            {/* Hub Tabs */}
+            <div className="flex border-b border-slate-200 bg-slate-100/70 px-6 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setCoordModalTab('FIRST_YEAR');
+                  fetchCoordinatorAssignments('FIRST_YEAR');
+                }}
+                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-colors cursor-pointer ${
+                  coordModalTab === 'FIRST_YEAR'
+                    ? 'border-sky-600 text-sky-900 bg-white rounded-t-lg shadow-xs'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <GraduationCap className="w-4 h-4 text-sky-600" />
+                <span>First Year Coordinators ({coordAssignments.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCoordModalTab('INTERNSHIP');
+                  fetchCoordinatorAssignments('INTERNSHIP');
+                }}
+                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-colors cursor-pointer ${
+                  coordModalTab === 'INTERNSHIP'
+                    ? 'border-emerald-600 text-emerald-900 bg-white rounded-t-lg shadow-xs'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Briefcase className="w-4 h-4 text-emerald-600" />
+                <span>Internship Coordinator ({internshipAssignments.length})</span>
+              </button>
+            </div>
+
             <div className="p-6 overflow-y-auto space-y-6 flex-1">
-              {/* Actions Header */}
-              <div className="flex justify-between items-center bg-sky-50/70 p-4 rounded-lg border border-sky-100">
-                <div>
-                  <h4 className="text-sm font-bold text-sky-950">First Year Coordination Scope</h4>
-                  <p className="text-xs text-sky-800 mt-0.5">
-                    Coordinators oversee Semesters 1 & 2 across all institutional branches. Retains Faculty duties.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowNewCoordForm(!showNewCoordForm)}
-                  className="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
-                >
-                  {showNewCoordForm ? 'Cancel New Appointment' : '+ Appoint Coordinator'}
-                </button>
-              </div>
-
-              {/* New Appointment Form */}
-              {showNewCoordForm && (
-                <form onSubmit={handleCreateCoordAssignment} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">New Coordinator Appointment</h4>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* TAB 1: FIRST YEAR COORDINATORS */}
+              {coordModalTab === 'FIRST_YEAR' && (
+                <div className="space-y-6">
+                  {/* Actions Header */}
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-sky-50/70 p-4 rounded-lg border border-sky-100">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                        Select Active Faculty Member *
-                      </label>
-                      <select
-                        required
-                        value={newCoordData.staff_account_id}
-                        onChange={(e) => setNewCoordData({ ...newCoordData, staff_account_id: e.target.value })}
-                        className="w-full text-xs border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-sky-500"
-                      >
-                        <option value="">-- Choose Faculty Member --</option>
-                        {staffList
-                          .filter(s => s.roles?.includes('faculty') && s.is_active)
-                          .map(s => (
-                            <option key={s.id} value={s.id}>
-                              {s.name} ({s.employee_id || 'ID: ' + s.id}) {s.branches?.length ? `— ${s.branches.join(', ')}` : ''}
-                            </option>
-                          ))}
-                      </select>
+                      <h4 className="text-sm font-bold text-sky-950">First Year Coordination Scope</h4>
+                      <p className="text-xs text-sky-800 mt-0.5">
+                        Coordinators oversee Semesters 1 & 2 across all institutional branches. Retains Faculty duties.
+                      </p>
                     </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                        Academic Year *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. 2024-2025"
-                        value={newCoordData.academic_year}
-                        onChange={(e) => setNewCoordData({ ...newCoordData, academic_year: e.target.value })}
-                        className="w-full text-xs border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-sky-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                        Start Date *
-                      </label>
-                      <input
-                        type="date"
-                        required
-                        value={newCoordData.start_date}
-                        onChange={(e) => setNewCoordData({ ...newCoordData, start_date: e.target.value })}
-                        className="w-full text-xs border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-sky-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                        End Date (Optional)
-                      </label>
-                      <input
-                        type="date"
-                        value={newCoordData.end_date}
-                        onChange={(e) => setNewCoordData({ ...newCoordData, end_date: e.target.value })}
-                        className="w-full text-xs border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-sky-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-2">
                     <button
                       type="button"
-                      onClick={() => setShowNewCoordForm(false)}
-                      className="px-3 py-1.5 bg-white border border-slate-300 rounded text-xs font-medium text-slate-600 hover:bg-slate-50 cursor-pointer"
+                      onClick={() => setShowNewCoordForm(!showNewCoordForm)}
+                      className="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer shrink-0"
                     >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={coordActionLoading}
-                      className="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                      {coordActionLoading ? 'Saving...' : 'Confirm Appointment'}
+                      {showNewCoordForm ? 'Cancel New Appointment' : '+ Appoint Coordinator'}
                     </button>
                   </div>
-                </form>
+
+                  {/* New Appointment Form */}
+                  {showNewCoordForm && (
+                    <form onSubmit={handleCreateCoordAssignment} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">New First Year Coordinator Appointment</h4>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                            Select Active Faculty Member *
+                          </label>
+                          <select
+                            required
+                            value={newCoordData.staff_account_id}
+                            onChange={(e) => setNewCoordData({ ...newCoordData, staff_account_id: e.target.value })}
+                            className="w-full text-xs border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-sky-500"
+                          >
+                            <option value="">-- Choose Faculty Member --</option>
+                            {staffList
+                              .filter(s => s.roles?.includes('faculty') && s.is_active)
+                              .map(s => (
+                                <option key={s.id} value={s.id}>
+                                  {s.name} ({s.employee_id || 'ID: ' + s.id}) {s.branches?.length ? `— ${s.branches.join(', ')}` : ''}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                            Academic Year *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. 2024-2025"
+                            value={newCoordData.academic_year}
+                            onChange={(e) => setNewCoordData({ ...newCoordData, academic_year: e.target.value })}
+                            className="w-full text-xs border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-sky-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                            Start Date *
+                          </label>
+                          <input
+                            type="date"
+                            required
+                            value={newCoordData.start_date}
+                            onChange={(e) => setNewCoordData({ ...newCoordData, start_date: e.target.value })}
+                            className="w-full text-xs border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-sky-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                            End Date (Optional)
+                          </label>
+                          <input
+                            type="date"
+                            value={newCoordData.end_date}
+                            onChange={(e) => setNewCoordData({ ...newCoordData, end_date: e.target.value })}
+                            className="w-full text-xs border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-sky-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowNewCoordForm(false)}
+                          className="px-3 py-1.5 bg-white border border-slate-300 rounded text-xs font-medium text-slate-600 hover:bg-slate-50 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={coordActionLoading}
+                          className="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {coordActionLoading ? 'Saving...' : 'Confirm Appointment'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* Assignment History & Active List */}
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Appointment History & Status</h4>
+                    {loadingCoord ? (
+                      <div className="py-8 text-center text-xs text-slate-500">Loading coordinator assignments...</div>
+                    ) : coordAssignments.length === 0 ? (
+                      <div className="py-8 text-center text-xs text-slate-400 italic bg-slate-50 rounded-lg border border-slate-200">
+                        No First Year Coordinator assignments on record.
+                      </div>
+                    ) : (
+                      <div className="border border-slate-200 rounded-lg overflow-hidden">
+                        <table className="w-full text-left text-xs text-slate-600">
+                          <thead className="bg-slate-50 text-slate-700 border-b border-slate-200 font-semibold">
+                            <tr>
+                              <th className="px-4 py-2.5">Faculty Member</th>
+                              <th className="px-4 py-2.5">Academic Year</th>
+                              <th className="px-4 py-2.5">Appointment Period</th>
+                              <th className="px-4 py-2.5">Status</th>
+                              <th className="px-4 py-2.5 text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {coordAssignments.map(asgn => (
+                              <tr key={asgn.id} className="hover:bg-slate-50/70">
+                                <td className="px-4 py-3 font-medium text-slate-900">
+                                  <div>{asgn.staff_name || 'Staff #' + asgn.staff_account_id}</div>
+                                  <div className="text-[10px] text-slate-400">{asgn.employee_id || asgn.email}</div>
+                                </td>
+                                <td className="px-4 py-3 font-mono">{asgn.academic_year}</td>
+                                <td className="px-4 py-3">
+                                  {asgn.start_date} to {asgn.end_date || 'Ongoing'}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                    asgn.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                                    asgn.status === 'SCHEDULED' ? 'bg-sky-100 text-sky-800 border border-sky-200' :
+                                    asgn.status === 'REVOKED' ? 'bg-slate-100 text-slate-700 border border-slate-200' :
+                                    'bg-amber-100 text-amber-800 border border-amber-200'
+                                  }`}>
+                                    {asgn.status}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  {asgn.status === 'ACTIVE' && (
+                                    <button
+                                      type="button"
+                                      disabled={coordActionLoading}
+                                      onClick={() => handleRevokeCoord(asgn.id, 'FIRST_YEAR')}
+                                      className="text-xs text-red-600 hover:text-red-800 font-medium cursor-pointer disabled:opacity-50"
+                                    >
+                                      Revoke
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
 
-              {/* Assignment History & Active List */}
-              <div>
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Appointment History & Status</h4>
-                {loadingCoord ? (
-                  <div className="py-8 text-center text-xs text-slate-500">Loading coordinator assignments...</div>
-                ) : coordAssignments.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-slate-400 italic bg-slate-50 rounded-lg border border-slate-200">
-                    No First Year Coordinator assignments on record.
+              {/* TAB 2: INTERNSHIP COORDINATOR */}
+              {coordModalTab === 'INTERNSHIP' && (
+                <div className="space-y-6">
+                  {/* Actions Header */}
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-emerald-50/70 p-4 rounded-lg border border-emerald-100">
+                    <div>
+                      <h4 className="text-sm font-bold text-emerald-950">College-wide Internship Coordination Scope</h4>
+                      <p className="text-xs text-emerald-800 mt-0.5">
+                        Sole institutional authority responsible for approving student internship registrations, verifying completion certificates, and managing industry partnerships. Retains Faculty duties.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowNewInternshipForm(!showNewInternshipForm)}
+                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer shrink-0"
+                    >
+                      {showNewInternshipForm ? 'Cancel Form' : '+ Appoint / Replace Coordinator'}
+                    </button>
                   </div>
-                ) : (
-                  <div className="border border-slate-200 rounded-lg overflow-hidden">
-                    <table className="w-full text-left text-xs text-slate-600">
-                      <thead className="bg-slate-50 text-slate-700 border-b border-slate-200 font-semibold">
-                        <tr>
-                          <th className="px-4 py-2.5">Faculty Member</th>
-                          <th className="px-4 py-2.5">Academic Year</th>
-                          <th className="px-4 py-2.5">Appointment Period</th>
-                          <th className="px-4 py-2.5">Status</th>
-                          <th className="px-4 py-2.5 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {coordAssignments.map(asgn => (
-                          <tr key={asgn.id} className="hover:bg-slate-50/70">
-                            <td className="px-4 py-3 font-medium text-slate-900">
-                              <div>{asgn.staff_name || 'Staff #' + asgn.staff_account_id}</div>
-                              <div className="text-[10px] text-slate-400">{asgn.employee_id || asgn.email}</div>
-                            </td>
-                            <td className="px-4 py-3 font-mono">{asgn.academic_year}</td>
-                            <td className="px-4 py-3">
-                              {asgn.start_date} to {asgn.end_date || 'Ongoing'}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                                asgn.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
-                                asgn.status === 'SCHEDULED' ? 'bg-sky-100 text-sky-800 border border-sky-200' :
-                                asgn.status === 'REVOKED' ? 'bg-slate-100 text-slate-700 border border-slate-200' :
-                                'bg-amber-100 text-amber-800 border border-amber-200'
-                              }`}>
-                                {asgn.status}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              {asgn.status === 'ACTIVE' && (
-                                <button
-                                  type="button"
-                                  disabled={coordActionLoading}
-                                  onClick={() => handleRevokeCoord(asgn.id)}
-                                  className="text-xs text-red-600 hover:text-red-800 font-medium cursor-pointer disabled:opacity-50"
-                                >
-                                  Revoke
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+
+                  {/* Current Active Coordinator Card */}
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                    <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Current Active Coordinator</div>
+                    {activeInternshipCoord ? (
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-emerald-50/30 p-3.5 rounded-lg border border-emerald-100">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-sm">
+                            {activeInternshipCoord.name?.charAt(0) || 'I'}
+                          </div>
+                          <div>
+                            <div className="font-bold text-sm text-slate-900">{activeInternshipCoord.name}</div>
+                            <div className="text-xs text-slate-500">
+                              {activeInternshipCoord.employee_id} • {activeInternshipCoord.email}
+                            </div>
+                            <div className="text-[11px] text-emerald-700 font-semibold mt-0.5">
+                              Departments: {activeInternshipCoord.branches?.join(', ') || 'Faculty'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-md text-xs font-bold uppercase tracking-wider">
+                            Active Designated
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-500 italic text-center">
+                        No college-wide Internship Coordinator is currently active. Appoint one below.
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+
+                  {/* New Appointment Form */}
+                  {showNewInternshipForm && (
+                    <form onSubmit={handleCreateInternshipAssignment} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Appoint / Replace Internship Coordinator</h4>
+                        {activeInternshipCoord && (
+                          <span className="text-[11px] text-amber-700 font-medium bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                            Note: Designating a new coordinator will conclude {activeInternshipCoord.name}&apos;s appointment.
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                            Select Active Faculty Member *
+                          </label>
+                          <select
+                            required
+                            value={newInternshipData.staff_account_id}
+                            onChange={(e) => setNewInternshipData({ ...newInternshipData, staff_account_id: e.target.value })}
+                            className="w-full text-xs border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-emerald-500"
+                          >
+                            <option value="">-- Choose Faculty Member --</option>
+                            {staffList
+                              .filter(s => s.roles?.includes('faculty') && s.is_active)
+                              .map(s => (
+                                <option key={s.id} value={s.id}>
+                                  {s.name} ({s.employee_id || 'ID: ' + s.id}) {s.branches?.length ? `— ${s.branches.join(', ')}` : ''}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                            Academic Year *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. 2024-2025"
+                            value={newInternshipData.academic_year}
+                            onChange={(e) => setNewInternshipData({ ...newInternshipData, academic_year: e.target.value })}
+                            className="w-full text-xs border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                            Start Date *
+                          </label>
+                          <input
+                            type="date"
+                            required
+                            value={newInternshipData.start_date}
+                            onChange={(e) => setNewInternshipData({ ...newInternshipData, start_date: e.target.value })}
+                            className="w-full text-xs border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                            End Date (Optional)
+                          </label>
+                          <input
+                            type="date"
+                            value={newInternshipData.end_date}
+                            onChange={(e) => setNewInternshipData({ ...newInternshipData, end_date: e.target.value })}
+                            className="w-full text-xs border border-slate-300 rounded px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowNewInternshipForm(false)}
+                          className="px-3 py-1.5 bg-white border border-slate-300 rounded text-xs font-medium text-slate-600 hover:bg-slate-50 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={coordActionLoading}
+                          className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {coordActionLoading ? 'Saving...' : 'Confirm Appointment'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* Assignment History Table for Internship Coordinator */}
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Appointment History & Records</h4>
+                    {loadingInternshipCoord ? (
+                      <div className="py-8 text-center text-xs text-slate-500">Loading internship coordinator history...</div>
+                    ) : internshipAssignments.length === 0 ? (
+                      <div className="py-8 text-center text-xs text-slate-400 italic bg-slate-50 rounded-lg border border-slate-200">
+                        No Internship Coordinator assignments on record.
+                      </div>
+                    ) : (
+                      <div className="border border-slate-200 rounded-lg overflow-hidden">
+                        <table className="w-full text-left text-xs text-slate-600">
+                          <thead className="bg-slate-50 text-slate-700 border-b border-slate-200 font-semibold">
+                            <tr>
+                              <th className="px-4 py-2.5">Faculty Member</th>
+                              <th className="px-4 py-2.5">Academic Year</th>
+                              <th className="px-4 py-2.5">Appointment Period</th>
+                              <th className="px-4 py-2.5">Status</th>
+                              <th className="px-4 py-2.5 text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {internshipAssignments.map(asgn => (
+                              <tr key={asgn.id} className="hover:bg-slate-50/70">
+                                <td className="px-4 py-3 font-medium text-slate-900">
+                                  <div>{asgn.staff_name || 'Staff #' + asgn.staff_account_id}</div>
+                                  <div className="text-[10px] text-slate-400">{asgn.employee_id || asgn.staff_email}</div>
+                                </td>
+                                <td className="px-4 py-3 font-mono">{asgn.academic_year}</td>
+                                <td className="px-4 py-3">
+                                  {asgn.start_date} to {asgn.end_date || 'Ongoing'}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                    asgn.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                                    asgn.status === 'SCHEDULED' ? 'bg-sky-100 text-sky-800 border border-sky-200' :
+                                    asgn.status === 'REVOKED' ? 'bg-slate-100 text-slate-700 border border-slate-200' :
+                                    'bg-amber-100 text-amber-800 border border-amber-200'
+                                  }`}>
+                                    {asgn.status}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  {asgn.status === 'ACTIVE' && (
+                                    <button
+                                      type="button"
+                                      disabled={coordActionLoading}
+                                      onClick={() => handleRevokeCoord(asgn.id, 'INTERNSHIP')}
+                                      className="text-xs text-red-600 hover:text-red-800 font-medium cursor-pointer disabled:opacity-50"
+                                    >
+                                      Revoke
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="bg-slate-50 px-6 py-3 border-t border-slate-200 flex justify-end">

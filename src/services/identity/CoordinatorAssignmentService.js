@@ -12,6 +12,28 @@ import {
 import { eq, and, desc } from 'drizzle-orm';
 import logger from '@/lib/logger';
 
+function sanitizeIp(ip) {
+  if (!ip) return '127.0.0.1';
+  return String(ip).split(',')[0].trim().slice(0, 45) || '127.0.0.1';
+}
+
+function sanitizeUserAgent(ua) {
+  if (!ua) return 'internal';
+  return String(ua).slice(0, 500);
+}
+
+function sanitizeUserId(val, fallback = null) {
+  if (val != null && val !== '') {
+    const num = Number(val);
+    if (!isNaN(num) && num > 0) return num;
+  }
+  if (fallback != null && fallback !== '') {
+    const num = Number(fallback);
+    if (!isNaN(num) && num > 0) return num;
+  }
+  return null;
+}
+
 export class CoordinatorAssignmentService {
   /**
    * Assigns a faculty member as an academic coordinator (e.g. First Year Coordinator).
@@ -93,18 +115,53 @@ export class CoordinatorAssignmentService {
       // 3. Handle single college-wide coordinator invariant for INTERNSHIP
       if (coordinatorType === 'INTERNSHIP') {
         const todayStr = new Date().toISOString().split('T')[0];
-        await tx
-          .update(facultyCoordinatorAssignments)
-          .set({
-            is_active: false,
-            end_date: todayStr,
+        const priorActive = await tx
+          .select({
+            id: facultyCoordinatorAssignments.id,
+            staff_account_id: facultyCoordinatorAssignments.staff_account_id,
+            academic_year: facultyCoordinatorAssignments.academic_year,
           })
+          .from(facultyCoordinatorAssignments)
           .where(
             and(
               eq(facultyCoordinatorAssignments.coordinator_type, 'INTERNSHIP'),
               eq(facultyCoordinatorAssignments.is_active, true)
             )
           );
+
+        if (priorActive.length > 0) {
+          await tx
+            .update(facultyCoordinatorAssignments)
+            .set({
+              is_active: false,
+              end_date: todayStr,
+            })
+            .where(
+              and(
+                eq(facultyCoordinatorAssignments.coordinator_type, 'INTERNSHIP'),
+                eq(facultyCoordinatorAssignments.is_active, true)
+              )
+            );
+
+          for (const prior of priorActive) {
+            await tx.insert(auditLogs).values({
+              user_id: sanitizeUserId(assignedBy, staff.id),
+              user_type: assignedBy ? 'admin' : 'system',
+              action: 'COORDINATOR_REVOKED',
+              target_type: 'faculty_coordinator_assignments',
+              target_id: String(prior.id),
+              payload_before: { is_active: true },
+              payload_after: {
+                is_active: false,
+                end_date: todayStr,
+                replaced_by_staff_id: staff.id,
+                reason: 'Superceded by new college-wide Internship Coordinator appointment',
+              },
+              ip_address: sanitizeIp(ip),
+              user_agent: sanitizeUserAgent(userAgent),
+            });
+          }
+        }
       } else {
         // Prevent duplicate active assignment for the same person, coordinator type, and academic year
         const existingActive = await tx
@@ -153,7 +210,7 @@ export class CoordinatorAssignmentService {
 
       // 5. Audit Log
       await tx.insert(auditLogs).values({
-        user_id: assignedBy || staff.id,
+        user_id: sanitizeUserId(assignedBy, staff.id),
         user_type: assignedBy ? 'admin' : 'system',
         action: 'COORDINATOR_ASSIGNED',
         target_type: 'faculty_coordinator_assignments',
@@ -168,8 +225,8 @@ export class CoordinatorAssignmentService {
           start_date: startDate,
           end_date: endDate,
         },
-        ip_address: ip || '127.0.0.1',
-        user_agent: userAgent || 'internal',
+        ip_address: sanitizeIp(ip),
+        user_agent: sanitizeUserAgent(userAgent),
       });
 
       logger.info(
@@ -249,7 +306,7 @@ export class CoordinatorAssignmentService {
         .where(eq(facultyCoordinatorAssignments.id, idNum));
 
       await tx.insert(auditLogs).values({
-        user_id: revokedBy || assignment.staff_account_id,
+        user_id: sanitizeUserId(revokedBy, assignment.staff_account_id),
         user_type: revokedBy ? 'admin' : 'system',
         action: 'COORDINATOR_REVOKED',
         target_type: 'faculty_coordinator_assignments',
@@ -264,8 +321,8 @@ export class CoordinatorAssignmentService {
           revoked_by: revokedBy,
           reason: reason || null,
         },
-        ip_address: ip || '127.0.0.1',
-        user_agent: userAgent || 'internal',
+        ip_address: sanitizeIp(ip),
+        user_agent: sanitizeUserAgent(userAgent),
       });
 
       logger.info(
@@ -331,7 +388,7 @@ export class CoordinatorAssignmentService {
         .where(eq(facultyCoordinatorAssignments.id, idNum));
 
       await tx.insert(auditLogs).values({
-        user_id: updatedBy || assignment.staff_account_id,
+        user_id: sanitizeUserId(updatedBy, assignment.staff_account_id),
         user_type: updatedBy ? 'admin' : 'system',
         action: 'COORDINATOR_DATES_UPDATED',
         target_type: 'faculty_coordinator_assignments',
@@ -344,8 +401,8 @@ export class CoordinatorAssignmentService {
           start_date: startDate,
           end_date: endDate,
         },
-        ip_address: ip || '127.0.0.1',
-        user_agent: userAgent || 'internal',
+        ip_address: sanitizeIp(ip),
+        user_agent: sanitizeUserAgent(userAgent),
       });
 
       return {

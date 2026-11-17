@@ -109,11 +109,16 @@ export async function GET() {
     .where(eq(facultyCoordinatorAssignments.is_active, true));
 
     const todayStr = new Date().toISOString().split('T')[0];
-    const activeCoordMap = new Map();
+    const activeFirstYearCoordMap = new Map();
+    const activeInternshipCoordMap = new Map();
     activeCoordRows.forEach(c => {
       if (c.start_date && todayStr < c.start_date) return;
       if (c.end_date && todayStr > c.end_date) return;
-      activeCoordMap.set(c.staff_id, c);
+      if (c.coordinator_type === 'FIRST_YEAR') {
+        activeFirstYearCoordMap.set(c.staff_id, c);
+      } else if (c.coordinator_type === 'INTERNSHIP') {
+        activeInternshipCoordMap.set(c.staff_id, c);
+      }
     });
 
     const formattedData = Array.from(staffMap.values()).map(staff => ({
@@ -123,14 +128,17 @@ export async function GET() {
       hod_branches: Array.from(staff.hod_branches),
       is_hod: staff.hod_branches.size > 0,
       is_principal: !!staff.is_principal,
-      is_first_year_coordinator: activeCoordMap.has(staff.id),
-      coordinator_assignment: activeCoordMap.get(staff.id) || null,
+      is_first_year_coordinator: activeFirstYearCoordMap.has(staff.id),
+      coordinator_assignment: activeFirstYearCoordMap.get(staff.id) || null,
+      is_internship_coordinator: activeInternshipCoordMap.has(staff.id),
+      internship_assignment: activeInternshipCoordMap.get(staff.id) || null,
     }));
 
     return apiResponse({ 
       data: formattedData, 
       active_hod_directory: activeHodDirectory,
-      active_coordinators: Array.from(activeCoordMap.values())
+      active_coordinators: Array.from(activeFirstYearCoordMap.values()),
+      active_internship_coordinators: Array.from(activeInternshipCoordMap.values())
     });
   } catch (error) {
     logger.error('Error fetching staff:', error);

@@ -114,12 +114,16 @@ export async function GET(req, context) {
         eq(facultyCoordinatorAssignments.is_active, true)
       ));
 
-    let activeCoord = null;
+    let activeFirstYearCoord = null;
+    let activeInternshipCoord = null;
     for (const c of coordRows) {
       if (c.start_date && todayStr < c.start_date) continue;
       if (c.end_date && todayStr > c.end_date) continue;
-      activeCoord = c;
-      break;
+      if (c.coordinator_type === 'FIRST_YEAR' && !activeFirstYearCoord) {
+        activeFirstYearCoord = c;
+      } else if (c.coordinator_type === 'INTERNSHIP' && !activeInternshipCoord) {
+        activeInternshipCoord = c;
+      }
     }
 
     const formattedStaff = {
@@ -136,8 +140,10 @@ export async function GET(req, context) {
       hod_branches: hodBranches,
       is_hod: hodBranches.length > 0,
       is_principal: isPrincipal,
-      is_first_year_coordinator: !!activeCoord,
-      coordinator_assignment: activeCoord,
+      is_first_year_coordinator: !!activeFirstYearCoord,
+      coordinator_assignment: activeFirstYearCoord,
+      is_internship_coordinator: !!activeInternshipCoord,
+      internship_assignment: activeInternshipCoord,
       created_at: staff.created_at,
       updated_at: staff.updated_at,
     };
@@ -248,7 +254,11 @@ export async function PUT(req, context) {
       roles: z.array(z.string()).optional(),
       is_first_year_coordinator: z.boolean().optional(),
       coordinator_start_date: z.string().optional(),
-      coordinator_end_date: z.string().optional().nullable()
+      coordinator_end_date: z.string().optional().nullable(),
+      is_internship_coordinator: z.boolean().optional(),
+      internship_start_date: z.string().optional(),
+      internship_end_date: z.string().optional().nullable(),
+      reassign_internship: z.boolean().optional()
     });
 
     const validatedData = updateSchema.parse(json);
@@ -256,7 +266,8 @@ export async function PUT(req, context) {
       name, email, employee_id, is_active, 
       is_hod, hod_branches, is_principal, reassign_branches, 
       branches, roles,
-      is_first_year_coordinator, coordinator_start_date, coordinator_end_date
+      is_first_year_coordinator, coordinator_start_date, coordinator_end_date,
+      is_internship_coordinator, internship_start_date, internship_end_date, reassign_internship
     } = validatedData;
 
     if (branches !== undefined) {
@@ -824,6 +835,150 @@ export async function PUT(req, context) {
           });
         }
       }
+
+      // 5. Handle College-Wide Internship Coordinator Assignment
+      if (is_internship_coordinator !== undefined) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const { getCurrentCalendarSession } = await import('@/lib/academic-utils');
+        const currentSession = await getCurrentCalendarSession().catch(() => null);
+        const currentAcademicYear = currentSession?.academicYear || '2026-27';
+
+        const existingSelfCoord = await tx.select().from(facultyCoordinatorAssignments).where(and(
+          eq(facultyCoordinatorAssignments.staff_account_id, idNum),
+          eq(facultyCoordinatorAssignments.coordinator_type, 'INTERNSHIP'),
+          eq(facultyCoordinatorAssignments.is_active, true)
+        ));
+
+        if (is_internship_coordinator === true) {
+          if (staffBefore.account_status !== 'ACTIVE' && is_active !== true) {
+            throw new ValidationError('Cannot assign coordinator role to an inactive staff account.');
+          }
+          const hasFaculty = await tx.select().from(staffAccountRoles)
+            .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
+            .where(and(
+              eq(staffAccountRoles.staff_account_id, idNum),
+              eq(staffRoles.role_code, 'FACULTY')
+            ));
+          if (hasFaculty.length === 0) {
+            throw new ValidationError('Only active faculty members are eligible for Internship Coordinator assignment.');
+          }
+
+          // Check if another staff member holds the active internship coordinator role
+          const otherActiveCoordRows = await tx.select({
+            id: facultyCoordinatorAssignments.id,
+            staff_account_id: facultyCoordinatorAssignments.staff_account_id,
+            academic_year: facultyCoordinatorAssignments.academic_year,
+            staff_name: staffAccounts.name,
+            staff_email: staffAccounts.email,
+          })
+            .from(facultyCoordinatorAssignments)
+            .innerJoin(staffAccounts, eq(facultyCoordinatorAssignments.staff_account_id, staffAccounts.id))
+            .where(and(
+              eq(facultyCoordinatorAssignments.coordinator_type, 'INTERNSHIP'),
+              eq(facultyCoordinatorAssignments.is_active, true)
+            ));
+
+          const otherActive = otherActiveCoordRows.find(r => r.staff_account_id !== idNum);
+          if (otherActive && !reassign_internship) {
+            const conflictErr = new ValidationError(`Faculty member ${otherActive.staff_name} is already designated as the active College-wide Internship Coordinator.`);
+            conflictErr.status = 409;
+            conflictErr.conflictDetails = {
+              role: 'INTERNSHIP_COORDINATOR',
+              current_coordinator: otherActive.staff_name,
+              current_email: otherActive.staff_email,
+              academic_year: otherActive.academic_year,
+              staff_account_id: otherActive.staff_account_id,
+            };
+            throw conflictErr;
+          }
+
+          // If reassigning, deactivate previous active coordinator
+          if (otherActive && reassign_internship) {
+            await tx.update(facultyCoordinatorAssignments).set({
+              is_active: false,
+              end_date: todayStr,
+            }).where(eq(facultyCoordinatorAssignments.id, otherActive.id));
+
+            await tx.insert(auditLogs).values({
+              user_id: user.id,
+              user_type: 'admin',
+              action: 'COORDINATOR_REVOKED',
+              target_type: 'faculty_coordinator_assignments',
+              target_id: String(otherActive.id),
+              payload_before: { is_active: true },
+              payload_after: {
+                is_active: false,
+                end_date: todayStr,
+                replaced_by_staff_id: idNum,
+                reason: 'Reassigned via Manage Staff console',
+              },
+              ip_address: clientIp,
+              user_agent: userAgent,
+            });
+          }
+
+          if (existingSelfCoord.length === 0) {
+            const startD = internship_start_date || todayStr;
+            const endD = internship_end_date || null;
+            if (endD && startD && endD < startD) {
+              throw new ValidationError('End date cannot be earlier than start date');
+            }
+            const [inserted] = await tx.insert(facultyCoordinatorAssignments).values({
+              staff_account_id: idNum,
+              coordinator_type: 'INTERNSHIP',
+              academic_year: currentAcademicYear,
+              start_date: startD,
+              end_date: endD,
+              is_active: true,
+              assigned_by: user.id,
+            });
+            await tx.insert(auditLogs).values({
+              user_id: user.id,
+              user_type: 'admin',
+              action: 'COORDINATOR_ASSIGNED',
+              target_type: 'faculty_coordinator_assignments',
+              target_id: String(inserted?.insertId || idNum),
+              payload_after: {
+                coordinator_type: 'INTERNSHIP',
+                academic_year: currentAcademicYear,
+                start_date: startD,
+                end_date: endD,
+              },
+              ip_address: clientIp,
+              user_agent: userAgent,
+            });
+          } else if (internship_start_date || internship_end_date !== undefined) {
+            const startD = internship_start_date || existingSelfCoord[0].start_date;
+            const endD = internship_end_date !== undefined ? internship_end_date : existingSelfCoord[0].end_date;
+            if (endD && startD && endD < startD) {
+              throw new ValidationError('End date cannot be earlier than start date');
+            }
+            await tx.update(facultyCoordinatorAssignments).set({
+              start_date: startD,
+              end_date: endD,
+            }).where(eq(facultyCoordinatorAssignments.id, existingSelfCoord[0].id));
+          }
+        } else if (is_internship_coordinator === false && existingSelfCoord.length > 0) {
+          await tx.update(facultyCoordinatorAssignments).set({
+            is_active: false,
+            end_date: todayStr,
+          }).where(and(
+            eq(facultyCoordinatorAssignments.staff_account_id, idNum),
+            eq(facultyCoordinatorAssignments.coordinator_type, 'INTERNSHIP'),
+            eq(facultyCoordinatorAssignments.is_active, true)
+          ));
+          await tx.insert(auditLogs).values({
+            user_id: user.id,
+            user_type: 'admin',
+            action: 'COORDINATOR_REVOKED',
+            target_type: 'faculty_coordinator_assignments',
+            target_id: String(existingSelfCoord[0].id),
+            payload_after: { is_active: false, end_date: todayStr },
+            ip_address: clientIp,
+            user_agent: userAgent,
+          });
+        }
+      }
     });
 
     // Audit Log for overall update
@@ -867,6 +1022,7 @@ export async function PUT(req, context) {
       hod_branches: hod_branches !== undefined ? hod_branches : [],
       is_principal: is_principal !== undefined ? is_principal : false,
       is_first_year_coordinator: is_first_year_coordinator !== undefined ? is_first_year_coordinator : false,
+      is_internship_coordinator: is_internship_coordinator !== undefined ? is_internship_coordinator : false,
     };
 
     return apiResponse({ 
@@ -888,6 +1044,7 @@ export async function PUT(req, context) {
       'Staff must have the FACULTY role to be assigned as HOD',
       'Cannot assign coordinator role to an inactive staff account',
       'Only active faculty members are eligible for First Year Coordinator assignment',
+      'Only active faculty members are eligible for Internship Coordinator assignment',
       'End date cannot be earlier than start date',
       'Invalid branch',
       'Invalid HOD branch'

@@ -48,6 +48,17 @@ function AcademicsInner({ studentData }) {
   const [currentSem, setCurrentSem] = useState(null);
   const [currentYear, setCurrentYear] = useState(null);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam && ['subjects', 'attendance', 'internals', 'achievements'].includes(tabParam)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setActiveTab(tabParam);
+      }
+    }
+  }, []);
+
   // Help Icon / Bottom Sheet state
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -460,7 +471,7 @@ function AcademicsInner({ studentData }) {
               <div className="border border-gray-300 rounded-md bg-white p-4">
                 <div className="mb-3">
                   <h2 className="text-sm font-semibold text-gray-800">Internal Assessment 
-                    <span className="font-normal"> â€“ Theory Subjects</span>
+                    <span className="font-normal"> – Theory Subjects</span>
                   </h2>
                   <p className="text-sm text-gray-600">Mid examinations and assignment marks for theory subjects.</p>
                 </div>
@@ -486,7 +497,7 @@ function AcademicsInner({ studentData }) {
                             const bestMid = Math.max(m1 ?? 0, m2 ?? 0);
                             total = bestMid + (assgn ?? 0);
                           }
-                          const short = deriveShortName(sub.subject_name) || sub.subject_code || 'â€”';
+                          const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
                           return (
                             <tr key={`theory-${sub.subject_code}`} className="border-b">
                               <td className="py-2 px-2 text-xs sm:text-sm text-gray-800 whitespace-normal wrap-break-word">{short}</td>
@@ -510,7 +521,7 @@ function AcademicsInner({ studentData }) {
                         const bestMid = Math.max(m1 ?? 0, m2 ?? 0);
                         total = bestMid + (assgn ?? 0);
                       }
-                      const short = deriveShortName(sub.subject_name) || sub.subject_code || 'â€”';
+                      const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
                       return (
                         <div key={`theory-${sub.subject_code}`} className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-4 text-sm flex flex-col gap-2 shadow-sm">
                           <div className="font-semibold text-gray-800">{short}</div>
@@ -564,7 +575,7 @@ function AcademicsInner({ studentData }) {
                           if (th !== null || ex !== null || rec !== null) {
                             total = (th ?? 0) + (ex ?? 0) + (rec ?? 0);
                           }
-                          const short = deriveShortName(sub.subject_name) || sub.subject_code || 'â€”';
+                          const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
                           return (
                             <tr key={`lab-${sub.subject_code}`} className="border-b">
                               <td className="py-2 px-2 text-xs sm:text-sm text-gray-800 whitespace-normal wrap-break-word">{short}</td>
@@ -587,7 +598,7 @@ function AcademicsInner({ studentData }) {
                       if (th !== null || ex !== null || rec !== null) {
                         total = (th ?? 0) + (ex ?? 0) + (rec ?? 0);
                       }
-                      const short = deriveShortName(sub.subject_name) || sub.subject_code || 'â€”';
+                      const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
                       return (
                         <div key={`lab-${sub.subject_code}`} className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-4 text-sm flex flex-col gap-2 shadow-sm">
                           <div className="font-semibold text-gray-800">{short}</div>

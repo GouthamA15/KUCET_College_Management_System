@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, Award, Trash2, Loader2, Edit2, AlertTriangle } from 'lucide-react';
+import { PlusCircle, Award, Trash2, Loader2, Edit2, AlertTriangle, Briefcase } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getAssetUrl } from '@/lib/assets';
+import { formatDate } from '@/lib/date';
 import StudentAchievementModal from '@/components/ui/edit-modals/StudentAchievementModal';
 import { createPortal } from 'react-dom';
 
@@ -179,27 +180,43 @@ export default function StudentAchievementsTab() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {achievements.map((ach) => {
+              const isInternship = (ach.achievement_type || '').toLowerCase() === 'internship';
               let circleColor = 'bg-slate-50/80 group-hover:bg-slate-100';
               let hoverBorder = 'hover:border-slate-300';
               let pillClasses = 'bg-slate-50 border-slate-200 text-slate-700';
+
+              let additional = {};
+              if (ach.additional_data) {
+                if (typeof ach.additional_data === 'string') {
+                  try { additional = JSON.parse(ach.additional_data); } catch { /* ignore */ }
+                } else {
+                  additional = ach.additional_data;
+                }
+              }
               
-              const level = (ach.achievement_level || '').toLowerCase();
-              if (level.includes('international')) {
-                circleColor = 'bg-fuchsia-50/80 group-hover:bg-fuchsia-100';
-                hoverBorder = 'hover:border-fuchsia-200';
-                pillClasses = 'bg-fuchsia-50 border-fuchsia-200 text-fuchsia-700 hover:bg-fuchsia-100';
-              } else if (level.includes('national')) {
-                circleColor = 'bg-blue-50/80 group-hover:bg-blue-100';
-                hoverBorder = 'hover:border-blue-200';
-                pillClasses = 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100';
-              } else if (level.includes('state')) {
-                circleColor = 'bg-emerald-50/80 group-hover:bg-emerald-100';
-                hoverBorder = 'hover:border-emerald-200';
-                pillClasses = 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100';
+              if (isInternship) {
+                circleColor = 'bg-teal-50/80 group-hover:bg-teal-100';
+                hoverBorder = 'hover:border-teal-200';
+                pillClasses = 'bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100';
               } else {
-                circleColor = 'bg-amber-50/80 group-hover:bg-amber-100';
-                hoverBorder = 'hover:border-amber-200';
-                pillClasses = 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100';
+                const level = (ach.achievement_level || '').toLowerCase();
+                if (level.includes('international')) {
+                  circleColor = 'bg-fuchsia-50/80 group-hover:bg-fuchsia-100';
+                  hoverBorder = 'hover:border-fuchsia-200';
+                  pillClasses = 'bg-fuchsia-50 border-fuchsia-200 text-fuchsia-700 hover:bg-fuchsia-100';
+                } else if (level.includes('national')) {
+                  circleColor = 'bg-blue-50/80 group-hover:bg-blue-100';
+                  hoverBorder = 'hover:border-blue-200';
+                  pillClasses = 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100';
+                } else if (level.includes('state')) {
+                  circleColor = 'bg-emerald-50/80 group-hover:bg-emerald-100';
+                  hoverBorder = 'hover:border-emerald-200';
+                  pillClasses = 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100';
+                } else {
+                  circleColor = 'bg-amber-50/80 group-hover:bg-amber-100';
+                  hoverBorder = 'hover:border-amber-200';
+                  pillClasses = 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100';
+                }
               }
 
               return (
@@ -207,12 +224,54 @@ export default function StudentAchievementsTab() {
                 <div className={`absolute top-0 right-0 w-24 h-24 sm:w-28 sm:h-28 ${circleColor} rounded-bl-full -mr-5 -mt-5 transition-all duration-500 group-hover:scale-110 pointer-events-none`}></div>
                 
                 <div className="relative z-10 flex flex-col items-center justify-center h-full w-full">
+                  {/* Category Badge */}
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase border mb-2 ${
+                    isInternship
+                      ? 'bg-teal-50 text-teal-700 border-teal-200'
+                      : 'bg-blue-50 text-[#0b3578] border-blue-200'
+                  }`}>
+                    {isInternship && <Briefcase className="w-3 h-3 shrink-0" />}
+                    {ach.achievement_type || 'Achievement'}
+                  </span>
+
                   <h3 className="font-bold text-slate-800 text-[16px] tracking-wide leading-snug mb-1">{ach.title}</h3>
-                  <div className="text-[12px] font-semibold text-[#0b3578] mb-1.5 tracking-wide">
-                    {ach.achievement_type} • {ach.achievement_level}
-                  </div>
-                  <div className="text-[11px] text-slate-500 mb-3 px-2">
-                    {ach.academic_year} {ach.issuing_organization ? <React.Fragment>• <span>{ach.issuing_organization}</span></React.Fragment> : ""}
+
+                  {isInternship ? (
+                    <div className="text-[12px] font-semibold text-[#0b3578] mb-1.5 tracking-wide">
+                      {ach.issuing_organization || 'Organization'}
+                    </div>
+                  ) : ach.achievement_level ? (
+                    <div className="text-[12px] font-semibold text-[#0b3578] mb-1.5 tracking-wide">
+                      {ach.achievement_level}
+                    </div>
+                  ) : null}
+
+                  <div className="text-[11px] text-slate-500 mb-3 px-2 flex flex-wrap items-center justify-center gap-1.5">
+                    <span>{ach.academic_year}</span>
+                    {!isInternship && ach.issuing_organization && (
+                      <>
+                        <span>•</span>
+                        <span>{ach.issuing_organization}</span>
+                      </>
+                    )}
+                    {isInternship && additional?.duration && (
+                      <>
+                        <span>•</span>
+                        <span>{additional.duration}</span>
+                      </>
+                    )}
+                    {isInternship && !additional?.duration && ach.start_date && ach.end_date && (
+                      <>
+                        <span>•</span>
+                        <span>{formatDate(ach.start_date)} – {formatDate(ach.end_date)}</span>
+                      </>
+                    )}
+                    {additional?.mode && (
+                      <>
+                        <span>•</span>
+                        <span className="capitalize">{additional.mode}</span>
+                      </>
+                    )}
                   </div>
                   
                   {ach.recognition && (
