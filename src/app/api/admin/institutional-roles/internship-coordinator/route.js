@@ -110,8 +110,8 @@ export async function POST(req) {
   }
 
   const { action, staff_id: staffId, assignment_id: assignmentId, academic_year, start_date, end_date, reason } = parsed.data;
-  const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
-  const userAgent = req.headers.get('user-agent') || 'Internal';
+  const ip = (req.headers.get('x-forwarded-for')?.split(',')[0] || req.headers.get('x-real-ip') || '127.0.0.1').trim().slice(0, 45);
+  const userAgent = (req.headers.get('user-agent') || 'Internal').slice(0, 500);
 
   try {
     if (action === 'DESIGNATE') {

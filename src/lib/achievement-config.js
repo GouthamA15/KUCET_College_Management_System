@@ -44,19 +44,20 @@ export const ACHIEVEMENT_CONFIG = {
   Internship: {
     groups: {
       'Internship Details': [
-        { name: 'title', label: 'Internship Title / Role', required: true, span: 2 },
-        { name: 'issuing_organization', label: 'Organization', required: true, span: 2 }
+        { name: 'title', label: 'Internship Title / Role', required: true, span: 2, placeholder: 'e.g., Software Engineering Intern' },
+        { name: 'issuing_organization', label: 'Company / Organization Name', required: true, span: 2, placeholder: 'e.g., Microsoft, TCS, Tech Mahindra' }
       ],
-      'Duration': [
-        { name: 'start_date', label: 'Start Date', type: 'date', required: true },
-        { name: 'end_date', label: 'End Date', type: 'date', required: true }
+      'Duration & Dates': [
+        { name: 'duration', label: 'Internship Duration (Optional)', placeholder: 'e.g., 3 Months, 8 Weeks', isAdditional: true },
+        { name: 'start_date', label: 'Start Date (Optional)', type: 'date' },
+        { name: 'end_date', label: 'End Date (Optional)', type: 'date' }
       ],
-      'Additional Details': [
-        { name: 'mode', label: 'Mode', type: 'select', options: ['On-site', 'Remote', 'Hybrid'], isAdditional: true },
-        { name: 'location', label: 'Location', isAdditional: true }
+      'Additional Details (Optional)': [
+        { name: 'mode', label: 'Mode (Optional)', type: 'select', options: ['On-site', 'Remote', 'Hybrid'], isAdditional: true },
+        { name: 'location', label: 'Location (Optional)', placeholder: 'e.g., Hyderabad, Bengaluru', isAdditional: true }
       ]
     },
-    descLabel: 'Description'
+    descLabel: 'Description (Optional)'
   },
   Competition: {
     groups: {

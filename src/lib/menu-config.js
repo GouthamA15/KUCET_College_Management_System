@@ -8,7 +8,6 @@ export const NAV_MENU_CONFIG = {
     { label: 'HOME', route: '/student' },
     { label: 'PROFILE', route: '/student/profile' },
     { label: 'ACADEMICS', route: '/student/academics' },
-    { label: 'INTERNSHIPS', route: '/student/internships' },
     { label: 'FEES', route: '/student/finances' },
     { label: 'TIME TABLE', route: '/student/timetable' },
     { label: 'MY EVENT', route: '/events' },
@@ -112,7 +111,6 @@ export const NAV_MENU_CONFIG = {
     { label: 'ACADEMIC CALENDAR', route: '/admin/academic-calendar' },
     { label: 'PAYMENTS', route: '/admin/payments' },
     { label: 'MANAGE STAFF', route: '/admin/manage-staff' },
-    { label: 'INSTITUTIONAL ROLES', route: '/admin/institutional-roles' },
     { label: 'STAFF REQUESTS', route: '/admin/staff-requests' },
     { label: 'INFRASTRUCTURE', children: [
         { label: 'System Configuration', route: '/admin/infrastructure?tab=config' },
