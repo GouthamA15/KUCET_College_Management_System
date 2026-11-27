@@ -106,12 +106,13 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
     if (typeof window === 'undefined') return;
     const onFocusOrVisible = () => {
       if (document.visibilityState && document.visibilityState !== 'visible') return;
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
       const now = Date.now();
       if (now - lastFocusSyncRef.current < 15000) return;
       lastFocusSyncRef.current = now;
       fetchHistory({ current: true });
       if (typeof refreshStreak === 'function') {
-        refreshStreak();
+        Promise.resolve(refreshStreak()).catch(() => {});
       }
     };
     window.addEventListener('focus', onFocusOrVisible);

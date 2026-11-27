@@ -55,7 +55,7 @@ export function StudentProvider({ children }) {
         return json.data;
       }
     } catch (e) {
-      console.error('Failed to fetch academic performance', e);
+      console.warn('Failed to fetch academic performance', e?.message || e);
     } finally {
       setIsLoadingAcademic(false);
     }
@@ -72,7 +72,7 @@ export function StudentProvider({ children }) {
         return json.data;
       }
     } catch (e) {
-      console.error('Failed to fetch attendance streak', e);
+      console.warn('Failed to fetch attendance streak', e?.message || e);
     } finally {
       setIsLoadingStreak(false);
     }
