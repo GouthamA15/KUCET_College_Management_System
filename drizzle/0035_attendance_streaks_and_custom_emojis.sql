@@ -39,12 +39,12 @@ CREATE TABLE IF NOT EXISTS `student_streak_preferences` (
 	CONSTRAINT `fk_student_streak_preferences_student` FOREIGN KEY (`student_id`) REFERENCES `students`(`id`) ON DELETE cascade ON UPDATE no action
 );
 --> statement-breakpoint
-CREATE INDEX IF NOT EXISTS `idx_asm_required_streak` ON `attendance_streak_milestones` (`required_streak`);
+CREATE INDEX `idx_asm_required_streak` ON `attendance_streak_milestones` (`required_streak`);
 --> statement-breakpoint
-CREATE INDEX IF NOT EXISTS `idx_asm_active_order` ON `attendance_streak_milestones` (`is_active`,`display_order`);
+CREATE INDEX `idx_asm_active_order` ON `attendance_streak_milestones` (`is_active`,`display_order`);
 --> statement-breakpoint
-CREATE INDEX IF NOT EXISTS `idx_ssu_student` ON `student_streak_unlocks` (`student_id`);
+CREATE INDEX `idx_ssu_student` ON `student_streak_unlocks` (`student_id`);
 --> statement-breakpoint
-CREATE INDEX IF NOT EXISTS `idx_ssu_milestone` ON `student_streak_unlocks` (`milestone_id`);
+CREATE INDEX `idx_ssu_milestone` ON `student_streak_unlocks` (`milestone_id`);
 --> statement-breakpoint
-CREATE INDEX IF NOT EXISTS `idx_ssp_milestone` ON `student_streak_preferences` (`selected_milestone_id`);
+CREATE INDEX `idx_ssp_milestone` ON `student_streak_preferences` (`selected_milestone_id`);

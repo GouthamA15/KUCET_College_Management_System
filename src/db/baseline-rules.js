@@ -320,6 +320,24 @@ const BASELINE_RULES = [
     },
     getReason: () => 'lab_batch_allocations table already exists',
   },
+  {
+    id: 35,
+    description: '0035_attendance_streaks_and_custom_emojis',
+    getEntries: (entries) => entries.filter((e) => e.idx === 35),
+    isSatisfied: async (conn) => {
+      const [r] = await conn.query(
+        'SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = "attendance_streak_milestones"'
+      );
+      const hasTable = Number(r?.[0]?.count || 0) > 0;
+      if (!hasTable) return false;
+
+      const [idx] = await conn.query(
+        'SELECT COUNT(*) as count FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = "attendance_streak_milestones" AND index_name = "idx_asm_required_streak"'
+      );
+      return Number(idx?.[0]?.count || 0) > 0;
+    },
+    getReason: () => 'attendance_streak_milestones table and indexes already exist',
+  },
 ];
 
 module.exports = {
