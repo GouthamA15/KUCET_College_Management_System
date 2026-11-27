@@ -369,4 +369,27 @@ describe('Attendance Dispute Approval -> Official Attendance -> Streak Reconcili
     expect(rooms).toContain('user:student:40');
     expect(rooms).toContain('student:23B81A0501');
   });
+
+  it('Phase 18D: GoalAndNotificationService.updateNotificationPreference validates input and surfaces clear migration error', async () => {
+    const { GoalAndNotificationService } = await import('@/services/attendance/GoalAndNotificationService');
+    await expect(GoalAndNotificationService.updateNotificationPreference(null, true)).rejects.toThrow(
+      'Student ID is required'
+    );
+
+    const mockMissingColDb = {
+      insert: vi.fn(() => ({
+        values: vi.fn(() => ({
+          onDuplicateKeyUpdate: vi.fn(async () => {
+            const err = new Error('Query failed');
+            err.cause = { sqlMessage: "Unknown column 'reminders_enabled' in 'field list'" };
+            throw err;
+          }),
+        })),
+      })),
+    };
+
+    await expect(GoalAndNotificationService.updateNotificationPreference(40, false, mockMissingColDb)).rejects.toThrow(
+      'migration 0037_achievement_goals_notifications_reconciliation.sql must be applied'
+    );
+  });
 });
