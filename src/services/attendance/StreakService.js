@@ -253,7 +253,10 @@ export class StreakService {
     const executor = dbClient || db;
     try {
       const rows = await executor
-        .select()
+        .select({
+          selected_emoji_char: studentStreakPreferences.selected_emoji_char,
+          selected_emoji_code: studentStreakPreferences.selected_emoji_code,
+        })
         .from(studentStreakPreferences)
         .where(eq(studentStreakPreferences.student_id, studentId))
         .limit(1);
