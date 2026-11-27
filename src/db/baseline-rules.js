@@ -325,18 +325,19 @@ const BASELINE_RULES = [
     description: '0035_attendance_streaks_and_custom_emojis',
     getEntries: (entries) => entries.filter((e) => e.idx === 35),
     isSatisfied: async (conn) => {
-      const [r] = await conn.query(
-        'SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = "attendance_streak_milestones"'
+      const [tblRows] = await conn.query(
+        `SELECT table_name FROM information_schema.tables
+         WHERE table_schema = DATABASE()
+           AND table_name IN ('attendance_streak_milestones', 'student_streak_unlocks', 'student_streak_preferences')`
       );
-      const hasTable = Number(r?.[0]?.count || 0) > 0;
-      if (!hasTable) return false;
+      if ((tblRows || []).length < 3) return false;
 
       const [idx] = await conn.query(
         'SELECT COUNT(*) as count FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = "attendance_streak_milestones" AND index_name = "idx_asm_required_streak"'
       );
       return Number(idx?.[0]?.count || 0) > 0;
     },
-    getReason: () => 'attendance_streak_milestones table and indexes already exist',
+    getReason: () => 'all 0035 attendance streak tables and indexes already exist',
   },
 ];
 

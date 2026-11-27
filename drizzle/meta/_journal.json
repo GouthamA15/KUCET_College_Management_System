@@ -253,6 +253,20 @@
             "when": 1791300000000,
             "tag": "0035_attendance_streaks_and_custom_emojis",
             "breakpoints": true
+        },
+        {
+            "idx": 36,
+            "version": "5",
+            "when": 1791400000000,
+            "tag": "0036_seed_default_streak_milestones",
+            "breakpoints": true
+        },
+        {
+            "idx": 37,
+            "version": "5",
+            "when": 1791500000000,
+            "tag": "0037_achievement_goals_notifications_reconciliation",
+            "breakpoints": true
         }
     ]
 }

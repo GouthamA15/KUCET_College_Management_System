@@ -277,12 +277,16 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url || '/';
+  const rawUrl = event.notification.data?.url || '/';
+  const targetUrl = typeof rawUrl === 'string' && rawUrl.startsWith('/') ? rawUrl : '/';
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if (client.url && 'focus' in client) {
+          if ('navigate' in client && !client.url.endsWith(targetUrl)) {
+            return client.navigate(targetUrl).then((c) => (c ? c.focus() : client.focus()));
+          }
           return client.focus();
         }
       }

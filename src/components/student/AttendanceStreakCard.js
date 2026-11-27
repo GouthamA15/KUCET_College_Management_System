@@ -18,17 +18,18 @@ export default function AttendanceStreakCard() {
   const selectedEmoji = streakData?.selectedEmoji || DEFAULT_STREAK_EMOJI;
   const milestoneProgress = streakData?.milestoneProgress || null;
   const nextMilestone = streakData?.nextMilestone || null;
+  const recentAchievement = streakData?.recentAchievement || null;
 
   return (
     <>
       <section className="rounded-xl lg:rounded-sm border border-slate-200 bg-white overflow-hidden shadow-xs">
         {/* Header Bar */}
-        <div className="bg-gradient-to-r from-orange-50/70 via-amber-50/40 to-white px-4 py-3 border-b border-slate-200/80 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-lg select-none leading-none">
-              {currentStreak > 0 ? selectedEmoji.char : '🔥'}
+        <div className="bg-gradient-to-r from-orange-50/70 via-amber-50/40 to-white px-4 py-3 border-b border-slate-200/80 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-lg select-none leading-none shrink-0">
+              {selectedEmoji.char}
             </span>
-            <h2 className="text-[11px] font-bold text-slate-800 uppercase tracking-[0.18em]">
+            <h2 className="text-[11px] font-bold text-slate-800 uppercase tracking-[0.14em] sm:tracking-[0.18em] truncate">
               Attendance Streak & Milestones
             </h2>
           </div>
@@ -36,7 +37,7 @@ export default function AttendanceStreakCard() {
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
-            className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100/70 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
+            className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100/70 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
           >
             <Sparkles className="w-3 h-3 text-blue-600" />
             <span>Emoji Collection</span>
@@ -56,7 +57,7 @@ export default function AttendanceStreakCard() {
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
                   Current Streak
                 </span>
-                <span className={`text-base select-none leading-none ${currentStreak > 0 ? 'animate-pulse' : 'grayscale opacity-60'}`}>
+                <span className={`text-base select-none leading-none ${currentStreak > 0 ? 'motion-safe:animate-pulse' : 'grayscale opacity-60'}`}>
                   {selectedEmoji.char}
                 </span>
               </div>
@@ -119,16 +120,29 @@ export default function AttendanceStreakCard() {
             </div>
           </div>
 
+          {/* Most Recent Achievement */}
+          {recentAchievement && (
+            <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-amber-50/60 border border-amber-200/70 text-xs">
+              <span className="flex items-center gap-1.5 text-amber-900 font-semibold truncate">
+                <span className="text-sm select-none">{recentAchievement.emoji_char}</span>
+                <span className="truncate">Latest Achievement: {recentAchievement.title}</span>
+              </span>
+              <span className="text-[10px] font-bold text-amber-700 shrink-0">
+                {recentAchievement.required_streak} classes
+              </span>
+            </div>
+          )}
+
           {/* Milestone Progress or Announcement Banner */}
           {nextMilestone && milestoneProgress ? (
             <div className="p-3 rounded-lg bg-blue-50/60 border border-blue-200/80 space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold text-blue-900">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-blue-900">
                 <span className="flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                  Next Milestone: {nextMilestone.title} ({nextMilestone.required_streak} classes)
+                  <span className="text-sm select-none leading-none">{nextMilestone.emoji_char}</span>
+                  <span>Next: {nextMilestone.title}</span>
                 </span>
-                <span className="text-[11px] text-blue-700">
-                  {milestoneProgress.remaining} classes to go
+                <span className="text-[11px] font-extrabold text-blue-700 tabular-nums">
+                  {milestoneProgress.current} / {milestoneProgress.target} classes
                 </span>
               </div>
               <div className="w-full h-2 rounded-full bg-blue-100 overflow-hidden">
@@ -137,9 +151,18 @@ export default function AttendanceStreakCard() {
                   style={{ width: `${milestoneProgress.percentage}%` }}
                 />
               </div>
+              <div className="flex items-center justify-between gap-2 text-[11px] text-blue-800/80">
+                <span>{milestoneProgress.remaining} more consecutive classes to unlock</span>
+                <Link
+                  href="/student/academics?tab=attendance"
+                  className="font-bold text-[#0b3578] hover:underline shrink-0 inline-flex items-center gap-1"
+                >
+                  Full Class Timeline <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
+            <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
               <span className="text-[11px] flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 Streak actively tracked across all daily timetable periods.

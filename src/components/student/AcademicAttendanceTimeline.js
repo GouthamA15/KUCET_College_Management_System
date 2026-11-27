@@ -6,8 +6,10 @@ import {
   Sparkles, AlertCircle, Search
 } from 'lucide-react';
 import { useStudent } from '@/context/StudentContext';
-import { DEFAULT_STREAK_EMOJI } from '@/lib/streak-config';
+import { DEFAULT_STREAK_EMOJI, computeAttendanceAnalytics } from '@/lib/streak-config';
 import StreakRewardsModal from './StreakRewardsModal';
+import AttendanceCalendarPanel from './AttendanceCalendarPanel';
+import AttendanceAnalyticsAndGoalsPanel from './AttendanceAnalyticsAndGoalsPanel';
 
 export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
   const { streakData, refreshStreak } = useStudent();
@@ -18,7 +20,10 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
   const [error, setError] = useState(null);
   const [selectedSubject, setSelectedSubject] = useState('ALL');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [visibleCount, setVisibleCount] = useState(25);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const currentStreak = streakData?.currentStreak || 0;
@@ -26,6 +31,8 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
   const totalAttended = streakData?.totalAttendedClasses || 0;
   const totalEligible = streakData?.totalEligibleClasses || 0;
   const selectedEmoji = streakData?.selectedEmoji || DEFAULT_STREAK_EMOJI;
+  const nextMilestone = streakData?.nextMilestone || null;
+  const milestoneProgress = streakData?.milestoneProgress || null;
 
   useEffect(() => {
     let isMounted = true;
@@ -50,7 +57,7 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
     return () => { isMounted = false; };
   }, []);
 
-  // Filtered timeline
+  // Filtered timeline (preserves server-returned descending chronological order)
   const filteredTimeline = useMemo(() => {
     return timeline.filter((item) => {
       if (selectedSubject !== 'ALL' && item.subjectCode !== selectedSubject) {
@@ -60,6 +67,12 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
         return false;
       }
       if (selectedStatus === 'ABSENT' && item.isAttended) {
+        return false;
+      }
+      if (startDate && String(item.date) < startDate) {
+        return false;
+      }
+      if (endDate && String(item.date) > endDate) {
         return false;
       }
       if (searchQuery.trim()) {
@@ -74,7 +87,15 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
       }
       return true;
     });
-  }, [timeline, selectedSubject, selectedStatus, searchQuery]);
+  }, [timeline, selectedSubject, selectedStatus, startDate, endDate, searchQuery]);
+
+  const visibleTimeline = useMemo(() => {
+    return filteredTimeline.slice(0, visibleCount);
+  }, [filteredTimeline, visibleCount]);
+
+  const analytics = useMemo(() => {
+    return computeAttendanceAnalytics(timeline);
+  }, [timeline]);
 
   const uniqueSubjects = useMemo(() => {
     const map = new Map();
@@ -94,7 +115,7 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
               <span className="text-2xl select-none leading-none">
-                {currentStreak > 0 ? selectedEmoji.char : '🔥'}
+                {selectedEmoji.char}
               </span>
               <span>Attendance Streaks & History</span>
             </h2>
@@ -175,10 +196,31 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
             </div>
           </div>
         </div>
+
+        {/* Next Milestone Progress Bar */}
+        {nextMilestone && milestoneProgress && (
+          <div className="p-3 rounded-xl bg-blue-50/60 border border-blue-200/80 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-blue-900">
+              <span className="flex items-center gap-1.5">
+                <span className="text-sm select-none leading-none">{nextMilestone.emoji_char}</span>
+                <span>Next Milestone: {nextMilestone.title}</span>
+              </span>
+              <span className="text-[11px] font-extrabold text-blue-700 tabular-nums">
+                {milestoneProgress.current} / {milestoneProgress.target} classes
+              </span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-blue-100 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-blue-600 to-[#0b3578] rounded-full transition-all duration-500"
+                style={{ width: `${milestoneProgress.percentage}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 2. Sub-Tab Toggle */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
         <button
           type="button"
           onClick={() => setActiveSubView('timeline')}
@@ -188,7 +230,40 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
               : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
           }`}
         >
-          Class-by-Class Timeline ({timeline.length})
+          Class Timeline ({timeline.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSubView('calendar')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+            activeSubView === 'calendar'
+              ? 'bg-[#0b3578] text-white'
+              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+          }`}
+        >
+          Calendar
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSubView('analytics')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+            activeSubView === 'analytics'
+              ? 'bg-[#0b3578] text-white'
+              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+          }`}
+        >
+          Analytics & Insights
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSubView('goals')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+            activeSubView === 'goals'
+              ? 'bg-[#0b3578] text-white'
+              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+          }`}
+        >
+          Goals & Badges
         </button>
         <button
           type="button"
@@ -199,7 +274,7 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
               : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
           }`}
         >
-          Subject-Wise Chart & Breakdown
+          Subject Chart
         </button>
       </div>
 
@@ -207,25 +282,26 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
       {activeSubView === 'timeline' && (
         <div className="space-y-4">
           {/* Controls / Filter Bar */}
-          <div className="p-3 rounded-xl border border-slate-200 bg-white flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs">
+          <div className="p-3 rounded-xl border border-slate-200 bg-white flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5 text-xs">
             {/* Search */}
-            <div className="relative flex-1">
+            <div className="relative flex-1 min-w-0">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Search topic, subject or date..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => { setSearchQuery(e.target.value); setVisibleCount(25); }}
                 className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-[#0b3578] text-xs"
               />
             </div>
 
-            {/* Subject Dropdown */}
-            <div className="flex items-center gap-2">
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-2">
               <select
+                aria-label="Filter by subject"
                 value={selectedSubject}
-                onChange={(e) => setSelectedSubject(e.target.value)}
-                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 focus:outline-none"
+                onChange={(e) => { setSelectedSubject(e.target.value); setVisibleCount(25); }}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 focus:outline-none max-w-full"
               >
                 <option value="ALL">All Subjects</option>
                 {uniqueSubjects.map(([code, name]) => (
@@ -235,16 +311,31 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
                 ))}
               </select>
 
-              {/* Status Dropdown */}
               <select
+                aria-label="Filter by status"
                 value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
+                onChange={(e) => { setSelectedStatus(e.target.value); setVisibleCount(25); }}
                 className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 focus:outline-none"
               >
                 <option value="ALL">All Statuses</option>
                 <option value="PRESENT">Present Only</option>
                 <option value="ABSENT">Missed Only</option>
               </select>
+
+              <input
+                type="date"
+                aria-label="Start date"
+                value={startDate}
+                onChange={(e) => { setStartDate(e.target.value); setVisibleCount(25); }}
+                className="px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 focus:outline-none"
+              />
+              <input
+                type="date"
+                aria-label="End date"
+                value={endDate}
+                onChange={(e) => { setEndDate(e.target.value); setVisibleCount(25); }}
+                className="px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 focus:outline-none"
+              />
             </div>
           </div>
 
@@ -268,7 +359,7 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
             </div>
           ) : (
             <div className="space-y-2.5">
-              {filteredTimeline.map((item, idx) => {
+              {visibleTimeline.map((item, idx) => {
                 const isAttended = item.isAttended;
                 return (
                   <div
@@ -366,9 +457,44 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
                   </div>
                 );
               })}
+
+              {filteredTimeline.length > visibleCount && (
+                <div className="pt-2 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount((prev) => prev + 25)}
+                    className="px-4 py-2 rounded-lg text-xs font-bold text-[#0b3578] bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors cursor-pointer"
+                  >
+                    Load Older Classes ({filteredTimeline.length - visibleCount} remaining)
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
+      )}
+
+      {/* Calendar View */}
+      {activeSubView === 'calendar' && (
+        <AttendanceCalendarPanel calendarDays={analytics.calendarDays} />
+      )}
+
+      {/* Analytics & Subject Insights View */}
+      {activeSubView === 'analytics' && (
+        <AttendanceAnalyticsAndGoalsPanel
+          mode="analytics"
+          analytics={analytics}
+          recognitionBadges={streakData?.recognitionBadges || []}
+        />
+      )}
+
+      {/* Personal Goals, Badges & Notifications View */}
+      {activeSubView === 'goals' && (
+        <AttendanceAnalyticsAndGoalsPanel
+          mode="goals"
+          analytics={analytics}
+          recognitionBadges={streakData?.recognitionBadges || []}
+        />
       )}
 
       {/* 4. Sub-View: Subject-Wise Summary (Existing Bar Chart) */}

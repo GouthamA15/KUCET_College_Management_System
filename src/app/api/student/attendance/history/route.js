@@ -13,9 +13,10 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const assignment_id = searchParams.get('assignment_id');
+    const assignmentIdNum = parseInt(assignment_id || '', 10);
 
-    if (!assignment_id) {
-      return apiError('Assignment ID is required', 400);
+    if (!assignment_id || !Number.isInteger(assignmentIdNum) || assignmentIdNum <= 0) {
+      return apiError('Valid Assignment ID is required', 400);
     }
 
     const history = await db.select({
@@ -28,9 +29,9 @@ export async function GET(request) {
     .leftJoin(attendanceSessions, eq(studentAttendance.session_id, attendanceSessions.id))
     .where(and(
       eq(studentAttendance.student_id, user.student_id),
-      eq(studentAttendance.assignment_id, parseInt(assignment_id, 10))
+      eq(studentAttendance.assignment_id, assignmentIdNum)
     ))
-    .orderBy(desc(studentAttendance.date), desc(studentAttendance.session));
+    .orderBy(desc(studentAttendance.date), desc(studentAttendance.session), desc(studentAttendance.id));
 
     return apiResponse({ data: history });
   } catch (error) {
