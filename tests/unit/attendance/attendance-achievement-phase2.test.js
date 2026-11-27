@@ -11,7 +11,7 @@ import {
 import { computeGoalCurrentValue, GoalAndNotificationService } from '@/services/attendance/GoalAndNotificationService';
 
 // --- Mock setup for Dispute Approval Route & Goal API Route ---
-const { mockReconcile, mockAuthUser, mockDisputeRow, mockTxUpdate, mockTxInsert } = vi.hoisted(() => ({
+const { mockReconcile, mockAuthUser, mockDisputeRow, mockTxUpdate, mockTxInsert, mockBroadcast } = vi.hoisted(() => ({
   mockReconcile: vi.fn(async () => ({ success: true, streakData: { currentStreak: 3, longestStreak: 3 } })),
   mockAuthUser: { current: { id: 77, staffId: 77, role: 'faculty', branch: 'CSE' } },
   mockDisputeRow: {
@@ -35,6 +35,11 @@ const { mockReconcile, mockAuthUser, mockDisputeRow, mockTxUpdate, mockTxInsert 
   },
   mockTxUpdate: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(async () => [{ affectedRows: 1 }]) })) })),
   mockTxInsert: vi.fn(() => ({ values: vi.fn(async () => [{ insertId: 1 }]) })),
+  mockBroadcast: vi.fn(async () => {}),
+}));
+
+vi.mock('@/lib/sse', () => ({
+  broadcastUpdate: mockBroadcast,
 }));
 
 vi.mock('@/lib/logger', () => ({
@@ -208,6 +213,7 @@ describe('Phase 1 + Phase 2 Combined Attendance Achievement System', () => {
       expect(res.status).toBe(200);
       expect(json.success).toBe(true);
       expect(json.streakRecalculated).toBe(true);
+      expect(json.streakData).toEqual(expect.objectContaining({ currentStreak: 3, longestStreak: 3 }));
       expect(mockTxUpdate).toHaveBeenCalled();
       expect(mockTxInsert).toHaveBeenCalled();
       expect(mockReconcile).toHaveBeenCalledWith(
@@ -215,6 +221,15 @@ describe('Phase 1 + Phase 2 Combined Attendance Achievement System', () => {
           studentId: 101,
           triggerSource: 'DISPUTE_APPROVAL',
           referenceId: 42,
+        })
+      );
+      expect(mockBroadcast).toHaveBeenCalledWith(
+        'ATTENDANCE_DISPUTE_APPROVED',
+        expect.objectContaining({
+          student_id: 101,
+          dispute_id: 42,
+          assignment_id: 10,
+          status: 'APPROVED',
         })
       );
     });
@@ -372,7 +387,7 @@ describe('Phase 1 + Phase 2 Combined Attendance Achievement System', () => {
       expect(mockBroadcast).toHaveBeenCalledWith(
         'STREAK_NOTIFICATION_CREATED',
         expect.objectContaining({ student_id: 101, event_key: 'milestone_STREAK_5' }),
-        { room: 'student:101' }
+        { room: 'user:student:101' }
       );
       expect(mockPushSend).toHaveBeenCalledWith(['22KU01'], expect.objectContaining({ category: 'attendance' }));
 

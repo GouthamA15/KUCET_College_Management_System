@@ -19,6 +19,7 @@ export function StudentProvider({ children }) {
   const [isLoadingAcademic, setIsLoadingAcademic] = useState(false);
   const [streakData, setStreakData] = useState(null);
   const [isLoadingStreak, setIsLoadingStreak] = useState(false);
+  const [attendanceSyncVersion, setAttendanceSyncVersion] = useState(0);
   const [latestProfileRequest, setLatestProfileRequest] = useState(null);
   const [latestCertificateRequest, setLatestCertificateRequest] = useState(null);
   const [profileDetails, setProfileDetails] = useState(null);
@@ -54,7 +55,7 @@ export function StudentProvider({ children }) {
         return json.data;
       }
     } catch (e) {
-      console.error('Failed to fetch academic performance', e);
+      console.warn('Failed to fetch academic performance', e?.message || e);
     } finally {
       setIsLoadingAcademic(false);
     }
@@ -71,7 +72,7 @@ export function StudentProvider({ children }) {
         return json.data;
       }
     } catch (e) {
-      console.error('Failed to fetch attendance streak', e);
+      console.warn('Failed to fetch attendance streak', e?.message || e);
     } finally {
       setIsLoadingStreak(false);
     }
@@ -332,12 +333,24 @@ export function StudentProvider({ children }) {
           'STUDENT_VERIFIED',
           'SESSION_ENDED',
           'ATTENDANCE_SUBMITTED',
+          'ATTENDANCE_SAVED',
           'STREAK_NOTIFICATION_CREATED',
           'ATTENDANCE_DISPUTE_APPROVED',
+          'ATTENDANCE_DISPUTE_UPDATED',
           'attendance:submitted',
+          'attendance:saved',
           'attendance:updated',
+          'attendance:session:ended',
         ].includes(type)
       ) {
+        if (type === 'ATTENDANCE_DISPUTE_APPROVED' && payload?.streakData) {
+          setStreakData(payload.streakData);
+        }
+        const rollNo = currentStudent?.roll_no || currentStudent?.student?.roll_no;
+        if (rollNo && typeof window !== 'undefined') {
+          try { sessionStorage.removeItem(`academics_cache_${rollNo}`); } catch { /* empty */ }
+        }
+        setAttendanceSyncVersion((v) => v + 1);
         fetchStreak();
         fetchAcademicPerformance();
       }
@@ -365,6 +378,7 @@ export function StudentProvider({ children }) {
       streakData,
       isLoadingStreak,
       refreshStreak: fetchStreak,
+      attendanceSyncVersion,
       latestProfileRequest,
       latestCertificateRequest,
       profileDetails,

@@ -119,3 +119,4 @@ artifacts/**/*.mp3
 artifacts/**/scene*.png
 
 
+.next_trash_*

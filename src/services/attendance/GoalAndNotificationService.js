@@ -60,19 +60,33 @@ export class GoalAndNotificationService {
   }
 
   static async updateNotificationPreference(studentId, remindersEnabled, dbClient = null) {
+    if (!studentId) {
+      throw new Error('Student ID is required to update notification preferences.');
+    }
     const executor = dbClient || db;
-    await executor
-      .insert(studentStreakPreferences)
-      .values({
-        student_id: studentId,
-        selected_emoji_char: DEFAULT_STREAK_EMOJI.char,
-        selected_emoji_code: DEFAULT_STREAK_EMOJI.code,
-        reminders_enabled: Boolean(remindersEnabled),
-      })
-      .onDuplicateKeyUpdate({
-        set: { reminders_enabled: Boolean(remindersEnabled) },
-      });
-    return { success: true, reminders_enabled: Boolean(remindersEnabled) };
+    const enabled = Boolean(remindersEnabled);
+    try {
+      await executor
+        .insert(studentStreakPreferences)
+        .values({
+          student_id: studentId,
+          selected_emoji_char: DEFAULT_STREAK_EMOJI.char,
+          selected_emoji_code: DEFAULT_STREAK_EMOJI.code,
+          reminders_enabled: enabled,
+        })
+        .onDuplicateKeyUpdate({
+          set: { reminders_enabled: enabled },
+        });
+      return { success: true, reminders_enabled: enabled };
+    } catch (err) {
+      const msg = String(err?.cause?.sqlMessage || err?.message || '');
+      if (msg.includes('reminders_enabled') || msg.includes("doesn't exist")) {
+        throw new Error(
+          'Notification preference schema mismatch: migration 0037_achievement_goals_notifications_reconciliation.sql must be applied.'
+        );
+      }
+      throw err;
+    }
   }
 
   static async createIdempotentNotification(
@@ -120,7 +134,7 @@ export class GoalAndNotificationService {
               title: String(title).slice(0, 150),
               emoji_char: emojiChar || '🔥',
             },
-            { room: `student:${studentId}` }
+            { room: `user:student:${studentId}` }
           );
         } catch (_wsErr) {
           // Non-fatal: DB inbox remains authoritative

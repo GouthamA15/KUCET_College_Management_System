@@ -253,7 +253,10 @@ export class StreakService {
     const executor = dbClient || db;
     try {
       const rows = await executor
-        .select()
+        .select({
+          selected_emoji_char: studentStreakPreferences.selected_emoji_char,
+          selected_emoji_code: studentStreakPreferences.selected_emoji_code,
+        })
         .from(studentStreakPreferences)
         .where(eq(studentStreakPreferences.student_id, studentId))
         .limit(1);
@@ -440,9 +443,10 @@ export class StreakService {
         asc(attendanceSessions.id)
       );
 
-    // 6. Query student's recorded attendance records for these assignments
+    // 6. Query student's recorded attendance records for these assignments (ordered deterministically by id ASC)
     const studentRecords = await executor
       .select({
+        id: studentAttendance.id,
         session_id: studentAttendance.session_id,
         assignment_id: studentAttendance.assignment_id,
         date: studentAttendance.date,
@@ -454,7 +458,8 @@ export class StreakService {
         eq(studentAttendance.student_id, studentId),
         inArray(studentAttendance.assignment_id, assignmentIds),
         gte(studentAttendance.date, admissionDate)
-      ));
+      ))
+      .orderBy(asc(studentAttendance.id));
 
     const studentRecordSessionIds = new Set(studentRecords.map(r => r.session_id).filter(Boolean));
 
@@ -735,6 +740,43 @@ export class StreakService {
    * @param {Object} [params.dbClient]
    * @returns {Promise<{ success: boolean, message: string, selectedEmoji?: { char: string, code: string } }>}
    */
+  static async _upsertEmojiPreference(executor, { studentId, emojiChar, emojiCode, milestoneId }) {
+    try {
+      await executor
+        .insert(studentStreakPreferences)
+        .values({
+          student_id: studentId,
+          selected_emoji_char: emojiChar,
+          selected_emoji_code: emojiCode,
+          selected_milestone_id: milestoneId,
+        })
+        .onDuplicateKeyUpdate({
+          set: {
+            selected_emoji_char: emojiChar,
+            selected_emoji_code: emojiCode,
+            selected_milestone_id: milestoneId,
+          }
+        });
+    } catch (err) {
+      const msg = String(err?.cause?.sqlMessage || err?.message || '');
+      if (msg.includes('reminders_enabled')) {
+        // Fallback when migration 0037 (adding reminders_enabled) has not yet been applied
+        await executor.execute(sql`
+          INSERT INTO student_streak_preferences
+            (student_id, selected_emoji_char, selected_emoji_code, selected_milestone_id)
+          VALUES
+            (${studentId}, ${emojiChar}, ${emojiCode}, ${milestoneId})
+          ON DUPLICATE KEY UPDATE
+            selected_emoji_char = ${emojiChar},
+            selected_emoji_code = ${emojiCode},
+            selected_milestone_id = ${milestoneId}
+        `);
+      } else {
+        throw err;
+      }
+    }
+  }
+
   static async updateSelectedEmoji({ studentId, emojiChar, emojiCode, milestoneId = null, dbClient = null }) {
     const executor = dbClient || db;
     if (!studentId || !emojiChar) {
@@ -743,21 +785,12 @@ export class StreakService {
 
     // Always permit restoring the default flame emoji when no milestoneId is specified
     if (!milestoneId && emojiChar === DEFAULT_STREAK_EMOJI.char && emojiCode === DEFAULT_STREAK_EMOJI.code) {
-      await executor
-        .insert(studentStreakPreferences)
-        .values({
-          student_id: studentId,
-          selected_emoji_char: DEFAULT_STREAK_EMOJI.char,
-          selected_emoji_code: DEFAULT_STREAK_EMOJI.code,
-          selected_milestone_id: null,
-        })
-        .onDuplicateKeyUpdate({
-          set: {
-            selected_emoji_char: DEFAULT_STREAK_EMOJI.char,
-            selected_emoji_code: DEFAULT_STREAK_EMOJI.code,
-            selected_milestone_id: null,
-          }
-        });
+      await this._upsertEmojiPreference(executor, {
+        studentId,
+        emojiChar: DEFAULT_STREAK_EMOJI.char,
+        emojiCode: DEFAULT_STREAK_EMOJI.code,
+        milestoneId: null,
+      });
 
       return {
         success: true,
@@ -796,21 +829,12 @@ export class StreakService {
     const authoritativeEmojiChar = unlocks[0].emojiChar;
     const authoritativeEmojiCode = unlocks[0].emojiCode;
 
-    await executor
-      .insert(studentStreakPreferences)
-      .values({
-        student_id: studentId,
-        selected_emoji_char: authoritativeEmojiChar,
-        selected_emoji_code: authoritativeEmojiCode,
-        selected_milestone_id: parsedMilestoneId,
-      })
-      .onDuplicateKeyUpdate({
-        set: {
-          selected_emoji_char: authoritativeEmojiChar,
-          selected_emoji_code: authoritativeEmojiCode,
-          selected_milestone_id: parsedMilestoneId,
-        }
-      });
+    await this._upsertEmojiPreference(executor, {
+      studentId,
+      emojiChar: authoritativeEmojiChar,
+      emojiCode: authoritativeEmojiCode,
+      milestoneId: parsedMilestoneId,
+    });
 
     return {
       success: true,

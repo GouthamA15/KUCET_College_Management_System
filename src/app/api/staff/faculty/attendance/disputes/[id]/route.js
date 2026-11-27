@@ -4,9 +4,10 @@ import {
   studentAttendanceDisputes, 
   studentAttendance, 
   attendanceAuditLogs,
-  facultySubjectAssignments 
+  facultySubjectAssignments,
+  students as studentsTable
 } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
 import { z } from 'zod';
 
@@ -123,6 +124,13 @@ export async function PUT(request, { params }) {
       return apiError('Unauthorized to review this dispute', 403);
     }
 
+    // Resolve student roll number if available for targeted notifications & cache clearing
+    const [studentRow] = await db.select({ roll_no: studentsTable.roll_no })
+      .from(studentsTable)
+      .where(eq(studentsTable.id, dispute.student_id))
+      .limit(1);
+    const studentRollNo = studentRow?.roll_no || null;
+
     let preStreak = 0;
     let preLongest = 0;
     if (status === 'APPROVED') {
@@ -130,6 +138,7 @@ export async function PUT(request, { params }) {
         const { StreakService } = await import('@/services/attendance/StreakService');
         const beforeData = await StreakService.calculateStudentStreak({
           studentId: dispute.student_id,
+          rollNo: studentRollNo,
           semester: dispute.course_semester,
           academicYear: dispute.academic_year,
           branch: dispute.branch,
@@ -142,6 +151,10 @@ export async function PUT(request, { params }) {
     }
 
     const now = new Date();
+    // Normalize dispute.attendance_date to YYYY-MM-DD string to ensure robust matching across Date objects and strings
+    const dateStr = dispute.attendance_date instanceof Date
+      ? dispute.attendance_date.toISOString().split('T')[0]
+      : String(dispute.attendance_date).slice(0, 10);
 
     // 2. Transactional Update & Audit Log
     await db.transaction(async (tx) => {
@@ -157,36 +170,38 @@ export async function PUT(request, { params }) {
         .where(eq(studentAttendanceDisputes.id, disputeId));
 
       if (status === 'APPROVED') {
-        // Query the exact attendance record to obtain session_id
-        const [attRow] = await tx.select({
+        // Update ALL matching attendance records for this exact student + assignment + date + session
+        // (Avoids .limit(1) leaving stale duplicate rows with ABSENT when unique indexes are absent)
+        const slotPredicate = and(
+          eq(studentAttendance.student_id, dispute.student_id),
+          eq(studentAttendance.assignment_id, dispute.assignment_id),
+          sql`DATE(${studentAttendance.date}) = ${dateStr}`,
+          eq(studentAttendance.session, dispute.session)
+        );
+
+        const matchingRows = await tx.select({
           id: studentAttendance.id,
           session_id: studentAttendance.session_id
         })
         .from(studentAttendance)
-        .where(and(
-          eq(studentAttendance.student_id, dispute.student_id),
-          eq(studentAttendance.assignment_id, dispute.assignment_id),
-          eq(studentAttendance.date, dispute.attendance_date),
-          eq(studentAttendance.session, dispute.session)
-        ))
-        .limit(1);
+        .where(slotPredicate);
 
-        if (attRow) {
-          // Exact session_id + student_id predicate pinned by unique constraints
-          const updatePredicate = attRow.session_id
-            ? and(
-                eq(studentAttendance.id, attRow.id),
-                eq(studentAttendance.session_id, attRow.session_id),
-                eq(studentAttendance.student_id, dispute.student_id)
-              )
-            : and(
-                eq(studentAttendance.id, attRow.id),
-                eq(studentAttendance.student_id, dispute.student_id)
-              );
-
+        if (matchingRows.length > 0) {
           await tx.update(studentAttendance)
             .set({ status: dispute.requested_status })
-            .where(updatePredicate);
+            .where(slotPredicate);
+
+          // Also sync any rows linked by the same session_id + student_id
+          const sessionIds = Array.from(new Set(matchingRows.map(r => r.session_id).filter(Boolean)));
+          if (sessionIds.length > 0) {
+            const { inArray } = await import('drizzle-orm');
+            await tx.update(studentAttendance)
+              .set({ status: dispute.requested_status })
+              .where(and(
+                inArray(studentAttendance.session_id, sessionIds),
+                eq(studentAttendance.student_id, dispute.student_id)
+              ));
+          }
         }
 
         // Insert auditable log
@@ -227,6 +242,7 @@ export async function PUT(request, { params }) {
         const { StreakService } = await import('@/services/attendance/StreakService');
         reconciliationResult = await StreakService.reconcileStudentAfterCorrection({
           studentId: dispute.student_id,
+          rollNo: studentRollNo,
           semester: dispute.course_semester,
           academicYear: dispute.academic_year,
           branch: dispute.branch,
@@ -239,11 +255,55 @@ export async function PUT(request, { params }) {
       } catch (reconcileErr) {
         logger.warn({ err: reconcileErr, disputeId }, 'Post-dispute streak reconciliation warning');
       }
+
+      // Invalidate academic-info cache in Redis if present
+      try {
+        const { invalidateTag, invalidateKey } = await import('@/lib/cache');
+        await Promise.all([
+          invalidateTag(`attendance:${dispute.student_id}`),
+          invalidateKey(`academic_info:${dispute.student_id}:${dispute.branch}:${dispute.course_semester}:${dispute.academic_year}`),
+        ]);
+      } catch (_cacheErr) {
+        // Non-fatal
+      }
+
+      // Broadcast authoritative real-time event to notify student interface
+      try {
+        const { broadcastUpdate } = await import('@/lib/sse');
+        await broadcastUpdate('ATTENDANCE_DISPUTE_APPROVED', {
+          student_id: dispute.student_id,
+          roll_no: studentRollNo,
+          dispute_id: disputeId,
+          assignment_id: dispute.assignment_id,
+          attendance_date: dateStr,
+          session: dispute.session,
+          status: 'APPROVED',
+          streakData: reconciliationResult?.streakData || null,
+        });
+      } catch (_sseErr) {
+        // Non-fatal
+      }
+    } else if (status === 'REJECTED' || status === 'MORE_INFO_REQUIRED') {
+      // Broadcast dispute update to student
+      try {
+        const { broadcastUpdate } = await import('@/lib/sse');
+        await broadcastUpdate('ATTENDANCE_DISPUTE_UPDATED', {
+          student_id: dispute.student_id,
+          roll_no: studentRollNo,
+          dispute_id: disputeId,
+          status,
+          reviewer_comments,
+          rejection_reason
+        });
+      } catch (_sseErr) {
+        // Non-fatal
+      }
     }
 
     return apiResponse({
       success: true,
       streakRecalculated: Boolean(reconciliationResult?.success),
+      streakData: reconciliationResult?.streakData || null,
       message: status === 'APPROVED' 
         ? 'Dispute approved and attendance corrected successfully.' 
         : status === 'REJECTED' 
