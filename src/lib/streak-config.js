@@ -82,7 +82,7 @@ export const DEFAULT_STREAK_MILESTONES = [
     description: 'Attended 5 consecutive eligible classes.',
     required_streak: 5,
     emoji_code: 'first_spark',
-    emoji_char: '🔥',
+    emoji_char: '❤️‍🔥',
     display_order: 1,
     is_active: true,
   },

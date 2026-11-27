@@ -90,7 +90,7 @@ describe('Attendance Streak Milestones & Descending History Verification', () =>
 
   describe('1. Nine Institutional Milestones Configuration & Unlock Thresholds', () => {
     const expectedTiers = [
-      { threshold: 5, emoji: '🔥', title: 'First Spark' },
+      { threshold: 5, emoji: '❤️‍🔥', title: 'First Spark' },
       { threshold: 10, emoji: '⚡', title: 'Consistency' },
       { threshold: 20, emoji: '🏅', title: 'Dedicated' },
       { threshold: 30, emoji: '🚀', title: 'Rising Star' },
