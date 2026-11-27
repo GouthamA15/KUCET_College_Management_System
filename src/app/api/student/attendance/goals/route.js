@@ -8,7 +8,7 @@ const createGoalSchema = z.object({
   goal_type: z.enum(GOAL_TYPES),
   title: z.string().trim().min(2).max(120),
   subject_code: z.string().trim().max(30).nullable().optional(),
-  target_value: z.number().int().positive(),
+  target_value: z.number().int().positive().max(1000),
   semester: z.number().int().positive().max(10).nullable().optional(),
   academic_year: z.string().trim().max(20).nullable().optional(),
 });
@@ -16,7 +16,7 @@ const createGoalSchema = z.object({
 const updateGoalSchema = z.object({
   id: z.number().int().positive(),
   title: z.string().trim().min(2).max(120).optional(),
-  target_value: z.number().int().positive().optional(),
+  target_value: z.number().int().positive().max(1000).optional(),
   status: z.enum(['ACTIVE', 'COMPLETED', 'CANCELLED']).optional(),
 });
 

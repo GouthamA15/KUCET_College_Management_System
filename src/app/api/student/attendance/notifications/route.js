@@ -16,7 +16,8 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const unreadOnly = searchParams.get('unread_only') === 'true';
-    const limit = parseInt(searchParams.get('limit') || '30', 10) || 30;
+    const rawLimit = parseInt(searchParams.get('limit') || '30', 10) || 30;
+    const limit = Math.min(100, Math.max(1, rawLimit));
 
     const data = await GoalAndNotificationService.getStudentNotifications(user.student_id, {
       unreadOnly,
@@ -56,6 +57,9 @@ export async function PATCH(request) {
 
     return apiError('Invalid action', 400);
   } catch (error) {
+    if (error instanceof SyntaxError) {
+      return apiError('Invalid JSON payload', 400);
+    }
     if (error instanceof z.ZodError) {
       return apiError(error.errors?.[0]?.message || 'Invalid request payload', 400);
     }
