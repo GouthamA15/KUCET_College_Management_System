@@ -267,6 +267,13 @@
             "when": 1791500000000,
             "tag": "0037_achievement_goals_notifications_reconciliation",
             "breakpoints": true
+        },
+        {
+            "idx": 38,
+            "version": "5",
+            "when": 1791600000000,
+            "tag": "0038_update_first_spark_emoji",
+            "breakpoints": true
         }
     ]
 }
