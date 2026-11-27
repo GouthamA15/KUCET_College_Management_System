@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import { Info, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import StudentAchievementsTab from '@/components/student/StudentAchievementsTab';
+import AcademicAttendanceTimeline from '@/components/student/AcademicAttendanceTimeline';
 
 // Utility: derive subject metadata (kept isolated for future DB migration)
 function getSubjectMeta(_subjectName) {
@@ -372,83 +373,9 @@ function AcademicsInner({ studentData }) {
         </section>
       )}
 
-      {/* Section 2: Attendance Summary */}
+      {/* Section 2: Attendance Streaks, Timeline & Summary */}
       {activeTab === 'attendance' && (
-        <section className="bg-white border border-gray-300 rounded-md p-4 sm:p-6 lg:p-8 w-full shadow-sm">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-8 flex items-center gap-2">
-            Overall Attendance
-          </h2>
-          
-          {data.length === 0 ? (
-            <div className="p-8 text-center bg-slate-50 rounded-lg border border-dashed border-slate-300">
-              <p className="text-base font-semibold text-slate-700">No attendance records for the current semester</p>
-              <p className="text-xs text-slate-500 mt-1">
-                The academic semester is either in break or upcoming. Records will appear once classes commence.
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Custom Vertical Bar Chart */}
-              <div className="relative h-48 sm:h-56 w-full flex items-end justify-between gap-1 sm:gap-3 mb-6 pr-2 sm:pr-4">
-                 {/* Y-axis labels */}
-                 <div className="absolute left-0 top-0 bottom-0 w-8 flex flex-col justify-between text-[10px] sm:text-xs text-gray-800 font-bold pb-6 z-0">
-                   <span>100</span>
-                   <span>50</span>
-                   <span>0</span>
-                 </div>
-                 
-                 {/* Bars Container */}
-                 <div className="ml-8 flex-1 flex items-end justify-around h-full pb-6 relative z-10 border-b border-gray-200">
-                   {data.map((sub, idx) => {
-                     const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 0;
-                     // Fixed colors mapping exactly to the design constraints
-                     const colors = ['#f97316', '#06b6d4', '#0ea5e9', '#84cc16', '#f59e0b', '#8b5cf6', '#ec4899', '#f97316', '#ef4444', '#10b981'];
-                     const color = colors[idx % colors.length];
-                     return (
-                       <div key={`bar-${sub.subject_code}`} className="w-full max-w-[2.5rem] md:max-w-[3.5rem] lg:max-w-[4rem] mx-1 sm:mx-2 lg:mx-4 flex flex-col items-center justify-end h-full group">
-                         <div 
-                           className="w-full rounded-t-sm transition-all duration-700 hover:opacity-80 cursor-pointer shadow-sm" 
-                           style={{ height: `${pct}%`, backgroundColor: color }}
-                           title={`${sub.subject_name}: ${pct.toFixed(2)}%`}
-                         ></div>
-                       </div>
-                     );
-                   })}
-                 </div>
-              </div>
-
-              {/* Total Attendance Box */}
-              {(() => {
-                const totalHeld = data.reduce((sum, sub) => sum + (sub.total_classes || 0), 0);
-                const totalAttended = data.reduce((sum, sub) => sum + (sub.attended_classes || 0), 0);
-                const overallPct = totalHeld > 0 ? ((totalAttended / totalHeld) * 100).toFixed(2) : '0.00';
-                return (
-                  <div className="bg-[#e8f7ee] border border-[#bbf7d0] rounded-2xl p-4 sm:p-5 mb-8 shadow-sm">
-                    <h3 className="text-base sm:text-lg font-bold text-gray-900">Total Attendance: {overallPct}%</h3>
-                  </div>
-                );
-              })()}
-
-              {/* Legend / List */}
-              <div className="space-y-4 sm:space-y-5">
-                {data.map((sub, idx) => {
-                  const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 0;
-                  const colors = ['#f97316', '#06b6d4', '#0ea5e9', '#84cc16', '#f59e0b', '#8b5cf6', '#ec4899', '#f97316', '#ef4444', '#10b981'];
-                  const color = colors[idx % colors.length];
-                  return (
-                    <div key={`list-${sub.subject_code}`} className="flex items-start sm:items-center justify-between gap-4">
-                      <div className="flex items-start sm:items-center gap-3 sm:gap-4 pr-2">
-                        <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full shrink-0 mt-1 sm:mt-0 shadow-sm" style={{ backgroundColor: color }}></div>
-                        <span className="text-sm sm:text-[15px] font-semibold text-gray-900 leading-tight">{sub.subject_name}</span>
-                      </div>
-                      <span className="text-sm sm:text-[15px] font-semibold text-gray-900 shrink-0 mt-0.5 sm:mt-0">{pct.toFixed(2)}%</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </section>
+        <AcademicAttendanceTimeline overallSubjects={data} />
       )}
 
       {/* Section 3: Internal Assessment Summary */}

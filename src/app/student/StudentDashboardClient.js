@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import { calculateStudentCIE } from '@/lib/evaluation-utils';
 import DashboardActionCenter from '@/components/student/DashboardActionCenter';
+import AttendanceStreakCard from '@/components/student/AttendanceStreakCard';
 import StudentQuickLinks from '@/components/student/StudentQuickLinks';
 import { StudentDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
 
@@ -127,7 +128,7 @@ function pickSubjectVisual(subjectName, index) {
 }
 
 export default function StudentDashboardClient() {
-  const { studentData, academicPerformance, loading: contextLoading } = useStudent();
+  const { studentData, academicPerformance, streakData, loading: contextLoading } = useStudent();
 
   const student = studentData?.student || null;
   const branch = student ? getBranchFromRoll(student.roll_no) : null;
@@ -173,8 +174,8 @@ export default function StudentDashboardClient() {
           </div>
           <div className="relative w-full p-0 lg:p-0">
             {/* Mobile Welcome Layout */}
-            <div className="lg:hidden flex flex-col justify-between gap-2.5">
-              <div className="space-y-1 text-left text-white">
+            <div className="lg:hidden flex items-start justify-between gap-3">
+              <div className="space-y-1 text-left text-white flex-1 min-w-0">
                 <h1 className="text-2xl font-bold tracking-tight text-white leading-tight select-none">
                   Welcome, {student.name.split(' ')[0]}
                 </h1>
@@ -195,30 +196,76 @@ export default function StudentDashboardClient() {
                   ) : null}
                 </div>
               </div>
+
+              {/* Mobile Streak Indicator Badge */}
+              {streakData && (
+                <Link
+                  href="/student/academics?tab=attendance"
+                  aria-label={`Attendance streak: ${streakData.currentStreak} classes`}
+                  className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border backdrop-blur-md transition-transform active:scale-95 shadow-sm ${
+                    streakData.currentStreak > 0
+                      ? 'bg-white/20 border-white/30 text-white'
+                      : 'bg-white/10 border-white/15 text-blue-200'
+                  }`}
+                >
+                  <span className={`text-base select-none leading-none ${streakData.currentStreak > 0 ? 'animate-pulse' : 'grayscale opacity-75'}`}>
+                    {streakData.selectedEmoji?.char || '🔥'}
+                  </span>
+                  <div className="flex flex-col items-start leading-none">
+                    <span className="text-[8.5px] uppercase font-bold text-blue-100/90 tracking-wider">Streak</span>
+                    <span className="text-xs font-black tracking-tight leading-none mt-0.5">{streakData.currentStreak}</span>
+                  </div>
+                </Link>
+              )}
             </div>
 
             {/* Desktop Welcome Layout - Authoritative student name with metadata under it */}
-            <div className="hidden lg:block text-left text-white">
-              <h1 className="text-2xl font-bold tracking-tight text-white select-none">
-                Welcome back, {student.name}
-              </h1>
-              <div className="mt-2 text-xs font-medium text-blue-100/90 space-y-0.5 select-none">
-                <div>B.Tech ({branch})</div>
-                <div>Year {yearOfStudy} • Semester {semester}</div>
-                <div>Academic Year {academicYear}</div>
+            <div className="hidden lg:flex items-center justify-between text-left text-white">
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-white select-none">
+                  Welcome back, {student.name}
+                </h1>
+                <div className="mt-2 text-xs font-medium text-blue-100/90 space-y-0.5 select-none">
+                  <div>B.Tech ({branch})</div>
+                  <div>Year {yearOfStudy} • Semester {semester}</div>
+                  <div>Academic Year {academicYear}</div>
+                </div>
               </div>
+
+              {streakData && (
+                <Link
+                  href="/student/academics?tab=attendance"
+                  aria-label={`Attendance streak: ${streakData.currentStreak} classes`}
+                  className={`flex items-center gap-2.5 px-4 py-2 rounded-xl border backdrop-blur-md transition-all hover:bg-white/20 active:scale-95 shadow-sm ${
+                    streakData.currentStreak > 0
+                      ? 'bg-white/15 border-white/30 text-white'
+                      : 'bg-white/10 border-white/15 text-blue-200'
+                  }`}
+                >
+                  <span className={`text-2xl select-none leading-none ${streakData.currentStreak > 0 ? 'animate-pulse' : 'grayscale opacity-75'}`}>
+                    {streakData.selectedEmoji?.char || '🔥'}
+                  </span>
+                  <div className="flex flex-col items-start leading-tight">
+                    <span className="text-[10px] uppercase font-bold text-blue-100 tracking-wider">Attendance Streak</span>
+                    <span className="text-sm font-black tracking-tight">{streakData.currentStreak} consecutive classes</span>
+                  </div>
+                </Link>
+              )}
             </div>
           </div>
         </header>
 
         <div className="grid grid-cols-1 gap-4 lg:flex lg:flex-col lg:gap-3 lg:flex-1 lg:min-h-0">
 
-          {/* Div 1: contains Priority Actions & Quick Links */}
+          {/* Div 1: contains Priority Actions, Attendance Streak Card & Quick Links */}
           <div className="order-1 lg:order-none lg:contents flex flex-col gap-4 lg:gap-3 lg:min-h-0">
             <div className="lg:order-1 lg:shrink-0 lg:min-h-0 lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               <DashboardActionCenter student={student} />
             </div>
             <div className="lg:order-2 lg:shrink-0">
+              <AttendanceStreakCard />
+            </div>
+            <div className="lg:order-3 lg:shrink-0">
               <StudentQuickLinks />
             </div>
           </div>
