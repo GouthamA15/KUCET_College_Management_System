@@ -41,6 +41,9 @@ export const REALTIME_EVENTS = Object.freeze({
   STUDENT_VERIFIED: 'attendance:student:verified',
   PROXY_ATTEMPTED: 'attendance:proxy:attempted',
   STUDENT_LOCKED: 'attendance:student:locked',
+  ATTENDANCE_DISPUTE_APPROVED: 'ATTENDANCE_DISPUTE_APPROVED',
+  ATTENDANCE_DISPUTE_UPDATED: 'ATTENDANCE_DISPUTE_UPDATED',
+  STREAK_NOTIFICATION_CREATED: 'STREAK_NOTIFICATION_CREATED',
 
   // --- Notifications & Security ---
   NOTIFICATION_CREATED: 'notification:created',

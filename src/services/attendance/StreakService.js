@@ -440,9 +440,10 @@ export class StreakService {
         asc(attendanceSessions.id)
       );
 
-    // 6. Query student's recorded attendance records for these assignments
+    // 6. Query student's recorded attendance records for these assignments (ordered deterministically by id ASC)
     const studentRecords = await executor
       .select({
+        id: studentAttendance.id,
         session_id: studentAttendance.session_id,
         assignment_id: studentAttendance.assignment_id,
         date: studentAttendance.date,
@@ -454,7 +455,8 @@ export class StreakService {
         eq(studentAttendance.student_id, studentId),
         inArray(studentAttendance.assignment_id, assignmentIds),
         gte(studentAttendance.date, admissionDate)
-      ));
+      ))
+      .orderBy(asc(studentAttendance.id));
 
     const studentRecordSessionIds = new Set(studentRecords.map(r => r.session_id).filter(Boolean));
 

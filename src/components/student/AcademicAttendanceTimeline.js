@@ -18,7 +18,7 @@ import {
 } from './AttendanceDisputeModal';
 
 export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
-  const { streakData, refreshStreak } = useStudent();
+  const { streakData, refreshStreak, attendanceSyncVersion = 0 } = useStudent();
 
   const [activeSubView, setActiveSubView] = useState('timeline'); // 'timeline' | 'summary'
   const [timeline, setTimeline] = useState([]);
@@ -48,8 +48,8 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
     setError(null);
     try {
       const [historyRes, disputesRes] = await Promise.all([
-        fetch('/api/student/attendance/streak/history'),
-        fetch('/api/student/attendance/disputes').catch(() => null),
+        fetch('/api/student/attendance/streak/history', { cache: 'no-store' }),
+        fetch('/api/student/attendance/disputes', { cache: 'no-store' }).catch(() => null),
       ]);
       const json = await historyRes.json();
       if (!historyRes.ok) throw new Error(json.error || 'Failed to load class attendance history');
@@ -86,8 +86,9 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
     return () => { isMounted.current = false; };
   }, [fetchHistory]);
 
-  // Synchronize timeline and disputes whenever streakData changes (e.g. via real-time WebSocket event or refreshStreak)
+  // Synchronize timeline and disputes whenever streakData or attendanceSyncVersion changes (e.g. via real-time WebSocket event or refreshStreak)
   const streakDataHash = streakData ? `${streakData.currentStreak}-${streakData.totalAttendedClasses}-${streakData.longestStreak}` : null;
+  const syncKey = `${streakDataHash ?? 'init'}:${attendanceSyncVersion}`;
   const isFirstRender = React.useRef(true);
   useEffect(() => {
     if (isFirstRender.current) {
@@ -97,7 +98,29 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
     const isMounted = { current: true };
     fetchHistory(isMounted);
     return () => { isMounted.current = false; };
-  }, [streakDataHash, fetchHistory]);
+  }, [syncKey, fetchHistory]);
+
+  // Fallback revalidation on tab focus / visibility return (throttled to 15s) in case WebSocket was disconnected
+  const lastFocusSyncRef = React.useRef(0);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onFocusOrVisible = () => {
+      if (document.visibilityState && document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (now - lastFocusSyncRef.current < 15000) return;
+      lastFocusSyncRef.current = now;
+      fetchHistory({ current: true });
+      if (typeof refreshStreak === 'function') {
+        refreshStreak();
+      }
+    };
+    window.addEventListener('focus', onFocusOrVisible);
+    document.addEventListener('visibilitychange', onFocusOrVisible);
+    return () => {
+      window.removeEventListener('focus', onFocusOrVisible);
+      document.removeEventListener('visibilitychange', onFocusOrVisible);
+    };
+  }, [fetchHistory, refreshStreak]);
 
   // Filtered timeline (preserves server-returned descending chronological order)
   const filteredTimeline = useMemo(() => {

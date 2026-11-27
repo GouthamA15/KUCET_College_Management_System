@@ -39,6 +39,7 @@ export default function StudentAcademicsClient() {
 }
 
 function AcademicsInner({ studentData }) {
+  const { academicPerformance } = useStudent();
   const router = useRouter();
   const [data, setData] = useState([]);
   const [_loading, setLoading] = useState(true);
@@ -141,6 +142,13 @@ function AcademicsInner({ studentData }) {
 
     fetchAcademicInfo(false);
   }, [fetchAcademicInfo]);
+
+  useEffect(() => {
+    if (Array.isArray(academicPerformance) && academicPerformance.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setData(academicPerformance);
+    }
+  }, [academicPerformance]);
 
   function resolveSyllabusUrl(studentData) {
     try {

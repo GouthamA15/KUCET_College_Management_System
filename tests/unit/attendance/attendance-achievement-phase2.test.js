@@ -387,7 +387,7 @@ describe('Phase 1 + Phase 2 Combined Attendance Achievement System', () => {
       expect(mockBroadcast).toHaveBeenCalledWith(
         'STREAK_NOTIFICATION_CREATED',
         expect.objectContaining({ student_id: 101, event_key: 'milestone_STREAK_5' }),
-        { room: 'student:101' }
+        { room: 'user:student:101' }
       );
       expect(mockPushSend).toHaveBeenCalledWith(['22KU01'], expect.objectContaining({ category: 'attendance' }));
 

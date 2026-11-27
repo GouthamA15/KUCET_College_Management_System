@@ -120,7 +120,7 @@ export class GoalAndNotificationService {
               title: String(title).slice(0, 150),
               emoji_char: emojiChar || '🔥',
             },
-            { room: `student:${studentId}` }
+            { room: `user:student:${studentId}` }
           );
         } catch (_wsErr) {
           // Non-fatal: DB inbox remains authoritative

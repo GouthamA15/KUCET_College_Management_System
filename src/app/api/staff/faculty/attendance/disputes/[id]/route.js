@@ -170,46 +170,38 @@ export async function PUT(request, { params }) {
         .where(eq(studentAttendanceDisputes.id, disputeId));
 
       if (status === 'APPROVED') {
-        // Query the exact attendance record with normalized date comparison
-        const [attRow] = await tx.select({
-          id: studentAttendance.id,
-          session_id: studentAttendance.session_id
-        })
-        .from(studentAttendance)
-        .where(and(
+        // Update ALL matching attendance records for this exact student + assignment + date + session
+        // (Avoids .limit(1) leaving stale duplicate rows with ABSENT when unique indexes are absent)
+        const slotPredicate = and(
           eq(studentAttendance.student_id, dispute.student_id),
           eq(studentAttendance.assignment_id, dispute.assignment_id),
           sql`DATE(${studentAttendance.date}) = ${dateStr}`,
           eq(studentAttendance.session, dispute.session)
-        ))
-        .limit(1);
+        );
 
-        if (attRow) {
-          // Exact session_id + student_id predicate pinned by unique constraints
-          const updatePredicate = attRow.session_id
-            ? and(
-                eq(studentAttendance.id, attRow.id),
-                eq(studentAttendance.session_id, attRow.session_id),
-                eq(studentAttendance.student_id, dispute.student_id)
-              )
-            : and(
-                eq(studentAttendance.id, attRow.id),
-                eq(studentAttendance.student_id, dispute.student_id)
-              );
+        const matchingRows = await tx.select({
+          id: studentAttendance.id,
+          session_id: studentAttendance.session_id
+        })
+        .from(studentAttendance)
+        .where(slotPredicate);
 
+        if (matchingRows.length > 0) {
           await tx.update(studentAttendance)
             .set({ status: dispute.requested_status })
-            .where(updatePredicate);
-        } else {
-          // Fallback: If studentAttendance row exists by matching date directly or needs slot update
-          await tx.update(studentAttendance)
-            .set({ status: dispute.requested_status })
-            .where(and(
-              eq(studentAttendance.student_id, dispute.student_id),
-              eq(studentAttendance.assignment_id, dispute.assignment_id),
-              sql`DATE(${studentAttendance.date}) = ${dateStr}`,
-              eq(studentAttendance.session, dispute.session)
-            ));
+            .where(slotPredicate);
+
+          // Also sync any rows linked by the same session_id + student_id
+          const sessionIds = Array.from(new Set(matchingRows.map(r => r.session_id).filter(Boolean)));
+          if (sessionIds.length > 0) {
+            const { inArray } = await import('drizzle-orm');
+            await tx.update(studentAttendance)
+              .set({ status: dispute.requested_status })
+              .where(and(
+                inArray(studentAttendance.session_id, sessionIds),
+                eq(studentAttendance.student_id, dispute.student_id)
+              ));
+          }
         }
 
         // Insert auditable log
@@ -266,8 +258,11 @@ export async function PUT(request, { params }) {
 
       // Invalidate academic-info cache in Redis if present
       try {
-        const { invalidateTag } = await import('@/lib/cache');
-        await invalidateTag(`attendance:${dispute.student_id}`);
+        const { invalidateTag, invalidateKey } = await import('@/lib/cache');
+        await Promise.all([
+          invalidateTag(`attendance:${dispute.student_id}`),
+          invalidateKey(`academic_info:${dispute.student_id}:${dispute.branch}:${dispute.course_semester}:${dispute.academic_year}`),
+        ]);
       } catch (_cacheErr) {
         // Non-fatal
       }
