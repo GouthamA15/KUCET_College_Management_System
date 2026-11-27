@@ -132,13 +132,18 @@ fi
 # ---------------------------------------------------------------------------
 # Run database migrations
 # ---------------------------------------------------------------------------
-log "Running database migrations ..."
-  MIGRATE_HOST=127.0.0.1 npm run db:migrate 2>&1 && \
-  log "Database migrations completed successfully." || {
+log "Running database migrations (target=production-vps) ..."
+if env -u DATABASE_URL \
+  MIGRATE_TARGET=production-vps \
+  CONFIRM_PRODUCTION_MIGRATION=true \
+  MIGRATE_HOST=127.0.0.1 \
+  npm run db:migrate 2>&1; then
+  log "Database migrations completed successfully."
+else
   log "ERROR: Database migrations failed! Aborting deployment."
   DEPLOY_STATUS="failed:migrations"
   exit 1
-}
+fi
 
 # ---------------------------------------------------------------------------
 # Prepare host storage directories with least privilege (no chmod 777)

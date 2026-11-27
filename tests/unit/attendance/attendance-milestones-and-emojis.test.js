@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { 
   evaluateMilestoneProgress, 
   validateMilestonesConfig, 
-  DEFAULT_STREAK_EMOJI,
-  DEFAULT_STREAK_MILESTONES 
+  DEFAULT_STREAK_EMOJI
 } from '@/lib/streak-config';
 
 describe('Milestone Evaluation & Config (evaluateMilestoneProgress)', () => {
@@ -59,7 +58,7 @@ describe('Milestone Evaluation & Config (evaluateMilestoneProgress)', () => {
   });
 
   it('5. Handles empty milestone configuration gracefully', () => {
-    const { nextMilestone, unlockedMilestones, milestoneProgress } = evaluateMilestoneProgress(15, DEFAULT_STREAK_MILESTONES);
+    const { nextMilestone, unlockedMilestones, milestoneProgress } = evaluateMilestoneProgress(15, []);
 
     expect(unlockedMilestones).toEqual([]);
     expect(nextMilestone).toBeNull();

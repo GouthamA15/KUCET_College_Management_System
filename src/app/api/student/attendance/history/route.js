@@ -30,7 +30,7 @@ export async function GET(request) {
       eq(studentAttendance.student_id, user.student_id),
       eq(studentAttendance.assignment_id, parseInt(assignment_id, 10))
     ))
-    .orderBy(desc(studentAttendance.date), desc(studentAttendance.session));
+    .orderBy(desc(studentAttendance.date), desc(studentAttendance.session), desc(studentAttendance.id));
 
     return apiResponse({ data: history });
   } catch (error) {

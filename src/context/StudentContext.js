@@ -332,6 +332,8 @@ export function StudentProvider({ children }) {
           'STUDENT_VERIFIED',
           'SESSION_ENDED',
           'ATTENDANCE_SUBMITTED',
+          'STREAK_NOTIFICATION_CREATED',
+          'ATTENDANCE_DISPUTE_APPROVED',
           'attendance:submitted',
           'attendance:updated',
         ].includes(type)

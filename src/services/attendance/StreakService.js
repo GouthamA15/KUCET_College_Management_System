@@ -8,17 +8,24 @@ import {
   labBatchStudents,
   attendanceStreakMilestones,
   studentStreakUnlocks,
-  studentStreakPreferences
+  studentStreakPreferences,
+  studentStreakReconciliationLogs
 } from '@/db/schema';
 import { eq, and, asc, gte, inArray, sql } from 'drizzle-orm';
 import { calculateYearAndSemesterAsync, getCollegeAcademicYear } from '@/lib/academic-utils';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import {
   DEFAULT_STREAK_EMOJI,
+  DEFAULT_STREAK_MILESTONES,
   getServerStreakPolicy,
   evaluateAttendanceStatus,
-  evaluateMilestoneProgress
+  evaluateMilestoneProgress,
+  computeAttendanceAnalytics,
+  evaluateRecognitionBadges,
+  sortTimelineDescending
 } from '@/lib/streak-config';
+
+export { sortTimelineDescending };
 
 /**
  * Pure calculation helper: deterministic calculation of streaks from memory records.
@@ -204,15 +211,35 @@ export class StreakService {
   static async getActiveMilestones(dbClient = null) {
     const executor = dbClient || db;
     try {
-      const rows = await executor
+      let rows = await executor
         .select()
         .from(attendanceStreakMilestones)
         .where(eq(attendanceStreakMilestones.is_active, true))
         .orderBy(asc(attendanceStreakMilestones.required_streak));
+
+      if (!rows || rows.length === 0) {
+        const [totalRow] = await executor
+          .select({ count: sql`COUNT(*)` })
+          .from(attendanceStreakMilestones);
+        const totalCount = Number(totalRow?.count || 0);
+        if (totalCount === 0 && DEFAULT_STREAK_MILESTONES.length > 0) {
+          for (const m of DEFAULT_STREAK_MILESTONES) {
+            await executor
+              .insert(attendanceStreakMilestones)
+              .values(m)
+              .onDuplicateKeyUpdate({ set: { milestone_code: m.milestone_code } });
+          }
+          rows = await executor
+            .select()
+            .from(attendanceStreakMilestones)
+            .where(eq(attendanceStreakMilestones.is_active, true))
+            .orderBy(asc(attendanceStreakMilestones.required_streak));
+        }
+      }
       return rows || [];
     } catch (_err) {
       // Table may not yet be migrated in development/test
-      return [];
+      return DEFAULT_STREAK_MILESTONES;
     }
   }
 
@@ -298,6 +325,8 @@ export class StreakService {
         policyApplied: policy,
         selectedEmoji: { char: DEFAULT_STREAK_EMOJI.char, code: DEFAULT_STREAK_EMOJI.code },
         unlockedMilestones: [],
+        lockedMilestones: [],
+        allMilestones: [],
         timeline: [],
       };
     }
@@ -348,6 +377,15 @@ export class StreakService {
 
     if (assignments.length === 0) {
       const selectedEmoji = await this.getStudentSelectedEmoji(studentId, executor);
+      const milestones = await this.getActiveMilestones(executor);
+      const { nextMilestone, milestoneProgress } = evaluateMilestoneProgress(0, milestones);
+      const allMilestones = milestones.map(m => ({
+        ...m,
+        isUnlocked: false,
+        unlockedAt: null,
+        verifiedStreak: null,
+        remainingClasses: m.required_streak,
+      }));
       return {
         currentStreak: 0,
         longestStreak: 0,
@@ -357,11 +395,13 @@ export class StreakService {
         totalMissedClasses: 0,
         lastAttendedClass: null,
         lastStreakBreak: null,
-        nextMilestone: null,
-        milestoneProgress: null,
+        nextMilestone,
+        milestoneProgress,
         policyApplied: policy,
         selectedEmoji,
         unlockedMilestones: [],
+        lockedMilestones: allMilestones,
+        allMilestones,
         timeline: [],
       };
     }
@@ -455,7 +495,7 @@ export class StreakService {
 
     // 9. Milestone and Custom Emoji Evaluation
     const milestones = await this.getActiveMilestones(executor);
-    const { nextMilestone, unlockedMilestones, milestoneProgress } = evaluateMilestoneProgress(
+    const { nextMilestone, unlockedMilestones: newlyUnlocked, milestoneProgress } = evaluateMilestoneProgress(
       streakResult.currentStreak,
       milestones
     );
@@ -463,9 +503,10 @@ export class StreakService {
     const selectedEmoji = await this.getStudentSelectedEmoji(studentId, executor);
 
     // 10. Record new unlocks idempotently if supported
-    if (unlockedMilestones.length > 0) {
+    if (newlyUnlocked.length > 0) {
       try {
-        for (const m of unlockedMilestones) {
+        for (const m of newlyUnlocked) {
+          if (!m.id) continue;
           await executor
             .insert(studentStreakUnlocks)
             .values({
@@ -475,7 +516,9 @@ export class StreakService {
               is_notified: false,
             })
             .onDuplicateKeyUpdate({
-              set: { verified_streak: streakResult.currentStreak }
+              set: {
+                verified_streak: sql`GREATEST(${studentStreakUnlocks.verified_streak}, ${streakResult.currentStreak})`,
+              }
             });
         }
       } catch (_unlockErr) {
@@ -483,14 +526,201 @@ export class StreakService {
       }
     }
 
+    // 11. Merge persisted unlocks so students retain previously unlocked achievements
+    const persistedUnlockMap = new Map();
+    try {
+      const unlockRows = await executor
+        .select()
+        .from(studentStreakUnlocks)
+        .where(eq(studentStreakUnlocks.student_id, studentId));
+      for (const row of unlockRows || []) {
+        persistedUnlockMap.set(Number(row.milestone_id), row);
+      }
+    } catch (_err) {
+      // Graceful fallback when table is not yet migrated
+    }
+
+    const allMilestones = [];
+    const resolvedUnlockedMilestones = [];
+    const lockedMilestones = [];
+
+    for (const m of milestones) {
+      const persisted = m.id ? persistedUnlockMap.get(Number(m.id)) : null;
+      const isUnlocked = Boolean(persisted) || streakResult.currentStreak >= m.required_streak;
+      const enriched = {
+        ...m,
+        isUnlocked,
+        unlockedAt: persisted?.unlocked_at || null,
+        verifiedStreak: persisted?.verified_streak || (isUnlocked ? streakResult.currentStreak : null),
+        remainingClasses: isUnlocked ? 0 : Math.max(0, m.required_streak - streakResult.currentStreak),
+      };
+      allMilestones.push(enriched);
+      if (isUnlocked) {
+        resolvedUnlockedMilestones.push(enriched);
+      } else {
+        lockedMilestones.push(enriched);
+      }
+    }
+
+    const analytics = computeAttendanceAnalytics(streakResult.timeline);
+    const recognitionBadges = evaluateRecognitionBadges({
+      currentStreak: streakResult.currentStreak,
+      longestStreak: streakResult.longestStreak,
+      previousStreak: streakResult.previousStreak,
+      totalAttendedClasses: streakResult.totalAttendedClasses,
+      totalEligibleClasses: streakResult.totalEligibleClasses,
+      improvementDelta: analytics.improvementDelta,
+    });
+    const recentAchievement = resolvedUnlockedMilestones.length > 0
+      ? resolvedUnlockedMilestones[resolvedUnlockedMilestones.length - 1]
+      : null;
+
     return {
       ...streakResult,
+      counts: analytics.counts,
+      improvementDelta: analytics.improvementDelta,
       nextMilestone,
       milestoneProgress,
       policyApplied: policy,
       selectedEmoji,
-      unlockedMilestones,
+      unlockedMilestones: resolvedUnlockedMilestones,
+      lockedMilestones,
+      allMilestones,
+      recognitionBadges,
+      recentAchievement,
     };
+  }
+
+  /**
+   * Authoritative reconciliation after a faculty-approved attendance dispute or manual correction.
+   * Recalculates the full chronological sequence, awards newly earned milestones idempotently,
+   * syncs personal goals, writes an auditable reconciliation log, and emits idempotent notifications.
+   */
+  static async reconcileStudentAfterCorrection({
+    studentId,
+    rollNo: inputRollNo = null,
+    semester = null,
+    academicYear = null,
+    branch = null,
+    triggerSource = 'DISPUTE_APPROVAL',
+    referenceId = null,
+    previousStreak = 0,
+    previousLongest = 0,
+    notes = null,
+    dbClient = null,
+  }) {
+    const executor = dbClient || db;
+    let rollNo = inputRollNo;
+
+    if (!rollNo && studentId) {
+      const [studentRow] = await executor
+        .select({ roll_no: studentsTable.roll_no })
+        .from(studentsTable)
+        .where(eq(studentsTable.id, studentId))
+        .limit(1);
+      rollNo = studentRow?.roll_no || null;
+    }
+
+    if (!studentId || !rollNo) {
+      return { success: false, reason: 'Missing student context for reconciliation' };
+    }
+
+    const streakData = await this.calculateStudentStreak({
+      studentId,
+      rollNo,
+      semester: semester || undefined,
+      academicYear: academicYear || undefined,
+      branch: branch || undefined,
+      dbClient: executor,
+    });
+
+    // Write auditable reconciliation log
+    try {
+      await executor.insert(studentStreakReconciliationLogs).values({
+        student_id: studentId,
+        trigger_source: triggerSource,
+        reference_id: referenceId ? Number(referenceId) : null,
+        previous_streak: Number(previousStreak) || 0,
+        new_streak: streakData.currentStreak || 0,
+        previous_longest: Number(previousLongest) || 0,
+        new_longest: streakData.longestStreak || 0,
+        notes: notes || `Recalculated via ${triggerSource}`,
+      });
+    } catch (_logErr) {
+      // Non-fatal if reconciliation log table is not yet migrated
+    }
+
+    // Sync goals and emit idempotent notifications
+    try {
+      const { GoalAndNotificationService } = await import('./GoalAndNotificationService.js');
+      await GoalAndNotificationService.syncGoalsWithStreakData(studentId, streakData, executor);
+
+      if (triggerSource === 'DISPUTE_APPROVAL' && referenceId) {
+        await GoalAndNotificationService.createIdempotentNotification(
+          {
+            studentId,
+            rollNo,
+            eventKey: `dispute_approved_${referenceId}`,
+            category: 'DISPUTE_RESTORED',
+            title: 'Attendance Dispute Approved & Streak Updated',
+            message: `Your attendance correction was approved. Your current streak is now ${streakData.currentStreak} consecutive classes (Personal Best: ${streakData.longestStreak}).`,
+            emojiChar: streakData.selectedEmoji?.char || '🔥',
+          },
+          executor
+        );
+      }
+
+      if (streakData.longestStreak > (Number(previousLongest) || 0) && streakData.longestStreak >= 5) {
+        await GoalAndNotificationService.createIdempotentNotification(
+          {
+            studentId,
+            rollNo,
+            eventKey: `personal_best_${streakData.longestStreak}`,
+            category: 'PERSONAL_BEST_UPDATED',
+            title: `New Personal Best: ${streakData.longestStreak} Classes!`,
+            message: `You set a new personal record of ${streakData.longestStreak} consecutive attended classes.`,
+            emojiChar: streakData.selectedEmoji?.char || '🏆',
+          },
+          executor
+        );
+      }
+
+      for (const m of streakData.unlockedMilestones || []) {
+        if (m.milestone_code) {
+          await GoalAndNotificationService.createIdempotentNotification(
+            {
+              studentId,
+              rollNo,
+              eventKey: `milestone_${m.milestone_code}`,
+              category: 'MILESTONE_UNLOCKED',
+              title: `Achievement Unlocked: ${m.title}!`,
+              message: `You reached ${m.required_streak} consecutive attended classes and unlocked the ${m.emoji_char} ${m.title} badge.`,
+              emojiChar: m.emoji_char,
+            },
+            executor
+          );
+        }
+      }
+
+      if (streakData.milestoneProgress && streakData.milestoneProgress.remaining > 0 && streakData.milestoneProgress.remaining <= 2) {
+        await GoalAndNotificationService.createIdempotentNotification(
+          {
+            studentId,
+            rollNo,
+            eventKey: `nearing_${streakData.nextMilestone?.milestone_code}_${streakData.currentStreak}`,
+            category: 'NEARING_MILESTONE',
+            title: `Almost There: ${streakData.nextMilestone?.title}!`,
+            message: `Only ${streakData.milestoneProgress.remaining} more class(es) to unlock ${streakData.nextMilestone?.emoji_char} ${streakData.nextMilestone?.title}.`,
+            emojiChar: streakData.nextMilestone?.emoji_char || '🔥',
+          },
+          executor
+        );
+      }
+    } catch (_notifErr) {
+      // Non-fatal notification failure must never break authoritative attendance recalculation
+    }
+
+    return { success: true, streakData };
   }
 
   /**
@@ -502,16 +732,18 @@ export class StreakService {
    * @param {string} params.emojiChar
    * @param {string} params.emojiCode
    * @param {number} [params.milestoneId]
-   * @returns {Promise<{ success: boolean, message: string }>}
+   * @param {Object} [params.dbClient]
+   * @returns {Promise<{ success: boolean, message: string, selectedEmoji?: { char: string, code: string } }>}
    */
-  static async updateSelectedEmoji({ studentId, emojiChar, emojiCode, milestoneId = null }) {
+  static async updateSelectedEmoji({ studentId, emojiChar, emojiCode, milestoneId = null, dbClient = null }) {
+    const executor = dbClient || db;
     if (!studentId || !emojiChar) {
       throw new Error('Student ID and emoji character are required.');
     }
 
-    // Always permit the default flame emoji
-    if (emojiChar === DEFAULT_STREAK_EMOJI.char || emojiCode === DEFAULT_STREAK_EMOJI.code) {
-      await db
+    // Always permit restoring the default flame emoji when no milestoneId is specified
+    if (!milestoneId && emojiChar === DEFAULT_STREAK_EMOJI.char && emojiCode === DEFAULT_STREAK_EMOJI.code) {
+      await executor
         .insert(studentStreakPreferences)
         .values({
           student_id: studentId,
@@ -527,41 +759,63 @@ export class StreakService {
           }
         });
 
-      return { success: true, message: 'Default streak emoji restored.' };
+      return {
+        success: true,
+        message: 'Default streak emoji restored.',
+        selectedEmoji: { char: DEFAULT_STREAK_EMOJI.char, code: DEFAULT_STREAK_EMOJI.code },
+      };
     }
 
-    // If a custom milestone emoji is requested, verify student ownership
-    if (milestoneId) {
-      const unlocks = await db
-        .select()
-        .from(studentStreakUnlocks)
-        .where(and(
-          eq(studentStreakUnlocks.student_id, studentId),
-          eq(studentStreakUnlocks.milestone_id, Number(milestoneId))
-        ))
-        .limit(1);
-
-      if (unlocks.length === 0) {
-        throw new Error('Unauthorized: You have not yet unlocked this milestone emoji.');
-      }
+    // Any custom milestone emoji MUST specify a valid milestoneId and be verified against student_streak_unlocks
+    const parsedMilestoneId = Number(milestoneId);
+    if (!milestoneId || !Number.isInteger(parsedMilestoneId) || parsedMilestoneId <= 0) {
+      throw new Error('Unauthorized: A valid unlocked milestone ID is required to select a custom emoji.');
     }
 
-    await db
+    const unlocks = await executor
+      .select({
+        unlockId: studentStreakUnlocks.id,
+        milestoneId: attendanceStreakMilestones.id,
+        emojiChar: attendanceStreakMilestones.emoji_char,
+        emojiCode: attendanceStreakMilestones.emoji_code,
+        isActive: attendanceStreakMilestones.is_active,
+      })
+      .from(studentStreakUnlocks)
+      .innerJoin(attendanceStreakMilestones, eq(studentStreakUnlocks.milestone_id, attendanceStreakMilestones.id))
+      .where(and(
+        eq(studentStreakUnlocks.student_id, studentId),
+        eq(studentStreakUnlocks.milestone_id, parsedMilestoneId),
+        eq(attendanceStreakMilestones.is_active, true)
+      ))
+      .limit(1);
+
+    if (unlocks.length === 0) {
+      throw new Error('Unauthorized: You have not yet unlocked this milestone emoji.');
+    }
+
+    const authoritativeEmojiChar = unlocks[0].emojiChar;
+    const authoritativeEmojiCode = unlocks[0].emojiCode;
+
+    await executor
       .insert(studentStreakPreferences)
       .values({
         student_id: studentId,
-        selected_emoji_char: emojiChar,
-        selected_emoji_code: emojiCode || 'custom',
-        selected_milestone_id: milestoneId ? Number(milestoneId) : null,
+        selected_emoji_char: authoritativeEmojiChar,
+        selected_emoji_code: authoritativeEmojiCode,
+        selected_milestone_id: parsedMilestoneId,
       })
       .onDuplicateKeyUpdate({
         set: {
-          selected_emoji_char: emojiChar,
-          selected_emoji_code: emojiCode || 'custom',
-          selected_milestone_id: milestoneId ? Number(milestoneId) : null,
+          selected_emoji_char: authoritativeEmojiChar,
+          selected_emoji_code: authoritativeEmojiCode,
+          selected_milestone_id: parsedMilestoneId,
         }
       });
 
-    return { success: true, message: 'Active streak emoji updated successfully.' };
+    return {
+      success: true,
+      message: 'Active streak emoji updated successfully.',
+      selectedEmoji: { char: authoritativeEmojiChar, code: authoritativeEmojiCode },
+    };
   }
 }

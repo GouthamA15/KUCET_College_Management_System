@@ -6,6 +6,7 @@ import {
   validateMilestonesConfig,
   evaluateMilestoneProgress,
   DEFAULT_STREAK_EMOJI,
+  DEFAULT_STREAK_MILESTONES,
 } from '@/lib/streak-config';
 
 describe('Second-Pass Audit: Comprehensive Attendance Streak Verification (40 Scenarios)', () => {
@@ -582,8 +583,9 @@ describe('Second-Pass Audit: Comprehensive Attendance Streak Verification (40 Sc
       expect(evalResult.milestoneProgress).toBeNull();
     });
 
-    it('39. Invariant: DEFAULT_STREAK_MILESTONES starts empty with no hardcoded fake tiers', () => {
-      const val = validateMilestonesConfig([]);
+    it('39. Default milestone configuration defines all 9 valid institutional tiers and default flame emoji', () => {
+      expect(DEFAULT_STREAK_MILESTONES.length).toBe(9);
+      const val = validateMilestonesConfig(DEFAULT_STREAK_MILESTONES);
       expect(val.valid).toBe(true);
       expect(DEFAULT_STREAK_EMOJI.char).toBe('🔥');
     });

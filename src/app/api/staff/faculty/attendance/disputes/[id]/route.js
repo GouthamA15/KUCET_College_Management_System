@@ -123,6 +123,24 @@ export async function PUT(request, { params }) {
       return apiError('Unauthorized to review this dispute', 403);
     }
 
+    let preStreak = 0;
+    let preLongest = 0;
+    if (status === 'APPROVED') {
+      try {
+        const { StreakService } = await import('@/services/attendance/StreakService');
+        const beforeData = await StreakService.calculateStudentStreak({
+          studentId: dispute.student_id,
+          semester: dispute.course_semester,
+          academicYear: dispute.academic_year,
+          branch: dispute.branch,
+        });
+        preStreak = beforeData?.currentStreak || 0;
+        preLongest = beforeData?.longestStreak || 0;
+      } catch (_preErr) {
+        // Non-fatal
+      }
+    }
+
     const now = new Date();
 
     // 2. Transactional Update & Audit Log
@@ -203,8 +221,29 @@ export async function PUT(request, { params }) {
       after: { status, rejection_reason, reviewer_comments }
     });
 
+    let reconciliationResult = null;
+    if (status === 'APPROVED') {
+      try {
+        const { StreakService } = await import('@/services/attendance/StreakService');
+        reconciliationResult = await StreakService.reconcileStudentAfterCorrection({
+          studentId: dispute.student_id,
+          semester: dispute.course_semester,
+          academicYear: dispute.academic_year,
+          branch: dispute.branch,
+          triggerSource: 'DISPUTE_APPROVAL',
+          referenceId: disputeId,
+          previousStreak: preStreak,
+          previousLongest: preLongest,
+          notes: `Dispute #${disputeId} approved by staff #${user.id} (${dispute.original_status} -> ${dispute.requested_status})`,
+        });
+      } catch (reconcileErr) {
+        logger.warn({ err: reconcileErr, disputeId }, 'Post-dispute streak reconciliation warning');
+      }
+    }
+
     return apiResponse({
       success: true,
+      streakRecalculated: Boolean(reconciliationResult?.success),
       message: status === 'APPROVED' 
         ? 'Dispute approved and attendance corrected successfully.' 
         : status === 'REJECTED' 

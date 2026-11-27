@@ -2,50 +2,33 @@ const { drizzle } = require('drizzle-orm/mysql2');
 const { migrate } = require('drizzle-orm/mysql2/migrator');
 const mysql = require('mysql2/promise');
 const path = require('path');
+const fs = require('fs');
+const dotenv = require('dotenv');
 const { BASELINE_RULES } = require('./baseline-rules.js');
-require('dotenv').config();
-require('dotenv').config({ path: '.env.local', override: true });
-require('dotenv').config({ path: '.env.production', override: false });
-require('dotenv').config({ path: 'DEPLOYMENT_PACKAGE/.env.production', override: false });
+const {
+  loadMigrationEnv,
+  resolveMigrationConfig,
+  assertMigrationTarget,
+} = require('./migrate-config.js');
 
 async function runMigrations() {
-  console.info('⏳ Running database migrations via Drizzle ORM...');
+  const migrateTarget = process.env.MIGRATE_TARGET;
+  const loadedEnvFiles = loadMigrationEnv({ migrateTarget, dotenv });
 
   let dbConfig;
-  if (process.env.DATABASE_URL) {
-    const url = new URL(process.env.DATABASE_URL);
-    if (process.env.MIGRATE_HOST) url.hostname = process.env.MIGRATE_HOST;
-    const isTiDB = url.hostname.includes('tidbcloud.com');
-    dbConfig = {
-      host: url.hostname === 'db' ? '127.0.0.1' : url.hostname,
-      user: url.username,
-      password: decodeURIComponent(url.password),
-      database: url.pathname.slice(1),
-      port: Number(url.port) || (isTiDB ? 4000 : 3306),
-      multipleStatements: true,
-      connectTimeout: Number(process.env.DB_CONNECT_TIMEOUT) || 30000,
-      ssl: (url.searchParams.get('ssl') === 'true' || isTiDB) ? {
-        minVersion: 'TLSv1.2',
-        rejectUnauthorized: true,
-      } : undefined,
-    };
-  } else {
-    const rawHost = process.env.MIGRATE_HOST || process.env.DB_HOST || '127.0.0.1';
-    const isTiDB = (rawHost && rawHost.includes('tidbcloud.com')) || (process.env.DB_HOST && process.env.DB_HOST.includes('tidbcloud.com'));
-    dbConfig = {
-      host: rawHost === 'db' ? '127.0.0.1' : rawHost,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_DATABASE,
-      port: Number(process.env.DB_PORT) || (isTiDB ? 4000 : 3306),
-      multipleStatements: true,
-      connectTimeout: Number(process.env.DB_CONNECT_TIMEOUT) || 30000,
-      ssl: (process.env.DB_SSL === 'true' || isTiDB) ? {
-        minVersion: 'TLSv1.2',
-        rejectUnauthorized: true,
-      } : undefined,
-    };
+  let targetSummary;
+  try {
+    dbConfig = resolveMigrationConfig(process.env);
+    targetSummary = assertMigrationTarget(dbConfig, process.env);
+  } catch (configError) {
+    console.error('❌ Migration configuration/target assertion failed:', configError.message);
+    process.exit(1);
   }
+
+  console.info('⏳ Running database migrations via Drizzle ORM...');
+  console.info(
+    `ℹ️ Target: env=${targetSummary.target}, source=${targetSummary.source}, host=${targetSummary.sanitizedHost}, port=${targetSummary.port}, database=${targetSummary.database}, ssl=${targetSummary.ssl}, envFiles=[${loadedEnvFiles.join(', ')}]`
+  );
 
   const maxAttempts = Number(process.env.DB_MIGRATE_MAX_RETRIES) || 3;
   let connection;
@@ -57,7 +40,8 @@ async function runMigrations() {
       break;
     } catch (connError) {
       lastError = connError;
-      const isRetryable = connError.code === 'ETIMEDOUT' ||
+      const isRetryable =
+        connError.code === 'ETIMEDOUT' ||
         connError.code === 'ECONNRESET' ||
         connError.code === 'EPIPE' ||
         connError.code === 'EAI_AGAIN' ||
@@ -66,7 +50,9 @@ async function runMigrations() {
 
       if (attempt < maxAttempts && isRetryable) {
         const backoffMs = attempt * 2000;
-        console.warn(`⚠️ Connection attempt ${attempt}/${maxAttempts} failed (${connError.code || connError.message}). Retrying in ${backoffMs}ms...`);
+        console.warn(
+          `⚠️ Connection attempt ${attempt}/${maxAttempts} failed (${connError.code || connError.message}). Retrying in ${backoffMs}ms...`
+        );
         await new Promise((resolve) => setTimeout(resolve, backoffMs));
       } else {
         break;
@@ -75,31 +61,39 @@ async function runMigrations() {
   }
 
   if (!connection) {
-    const isConnRefused = lastError?.code === 'ECONNREFUSED' || lastError?.code === 'ENOTFOUND' || lastError?.errno === -111;
-    const hasConfiguredCreds = !!(process.env.DATABASE_URL || (process.env.DB_HOST && process.env.DB_HOST !== '127.0.0.1' && process.env.DB_HOST !== 'localhost'));
-    
-    if (isConnRefused && (process.env.CI || !hasConfiguredCreds)) {
-      console.warn('⚠️ Database connection unavailable in CI environment (missing DB credentials/secrets). Skipping automated migrations cleanly.');
-      return;
-    }
-
-    const hostStr = dbConfig.host || 'unknown';
-    const sanitizedHost = (hostStr === '127.0.0.1' || hostStr === 'localhost')
-      ? hostStr
-      : hostStr.replace(/(.{4}).*(.{4}\.[^.]+$)/, '$1***$2');
-
     console.error('❌ Failed to connect to database for migration:');
     console.error(`   Error: ${lastError?.code || 'UNKNOWN'} - ${lastError?.message}`);
-    console.error(`   Target: host=${sanitizedHost}, port=${dbConfig.port}, database=${dbConfig.database || 'default'}, ssl=${!!dbConfig.ssl}`);
+    console.error(
+      `   Target: env=${targetSummary.target}, host=${targetSummary.sanitizedHost}, port=${targetSummary.port}, database=${targetSummary.database}, ssl=${targetSummary.ssl}`
+    );
     console.error(`   Timeout: ${dbConfig.connectTimeout}ms (${maxAttempts} attempts exhausted)`);
     process.exit(1);
   }
 
-  const fs = require('fs');
   const db = drizzle(connection);
   const startTime = Date.now();
+  let lockAcquired = false;
 
   try {
+    // Log database product/version for target verification
+    try {
+      const [verRows] = await connection.query('SELECT VERSION() AS version');
+      console.info(`ℹ️ Connected DB version: ${verRows?.[0]?.version || 'unknown'}`);
+    } catch (_) {}
+
+    // Acquire database-level advisory lock to prevent concurrent CI/VPS/manual runners
+    try {
+      const [lockRows] = await connection.query("SELECT GET_LOCK('kucet_cms_drizzle_migrate', 15) AS acquired");
+      const acquired = Number(lockRows?.[0]?.acquired);
+      if (acquired === 0) {
+        console.error('❌ Another migration process currently holds the database migration lock. Aborting.');
+        process.exit(1);
+      }
+      lockAcquired = acquired === 1;
+    } catch (lockErr) {
+      console.warn('⚠️ Database advisory GET_LOCK unavailable on this engine, continuing:', lockErr.message);
+    }
+
     // 1. Ensure __drizzle_migrations table exists
     await connection.query(`
       CREATE TABLE IF NOT EXISTS \`__drizzle_migrations\` (
@@ -111,9 +105,10 @@ async function runMigrations() {
 
     // 2. Fetch existing migration timestamps from __drizzle_migrations
     const [existingMigRows] = await connection.query('SELECT created_at FROM `__drizzle_migrations`');
-    const appliedTimestamps = new Set((existingMigRows || []).map(r => Number(r.created_at)));
+    const appliedTimestamps = new Set((existingMigRows || []).map((r) => Number(r.created_at)));
 
     const journalPath = path.join(__dirname, '../../drizzle/meta/_journal.json');
+    let pendingEntries = [];
     if (fs.existsSync(journalPath)) {
       const journal = JSON.parse(fs.readFileSync(journalPath, 'utf8'));
       const entries = journal.entries || [];
@@ -138,7 +133,9 @@ async function runMigrations() {
         try {
           const isSatisfied = await rule.isSatisfied(connection);
           if (isSatisfied) {
-            console.info(`ℹ️ Baseline match for [${rule.description}]. Baselining ${targetEntries.length} migration(s)...`);
+            console.info(
+              `ℹ️ Baseline match for [${rule.description}]. Baselining ${targetEntries.length} migration(s)...`
+            );
             for (const entry of targetEntries) {
               await baselineEntry(entry, rule.getReason(entry));
             }
@@ -146,6 +143,15 @@ async function runMigrations() {
         } catch (ruleError) {
           console.warn(`⚠️ Baseline rule [${rule.description}] check skipped:`, ruleError.message);
         }
+      }
+
+      pendingEntries = entries.filter((e) => !appliedTimestamps.has(e.when));
+      if (pendingEntries.length === 0) {
+        console.info('ℹ️ No pending migrations to apply.');
+      } else {
+        console.info(
+          `ℹ️ Pending migrations (${pendingEntries.length}): ${pendingEntries.map((e) => `${e.tag}.sql`).join(', ')}`
+        );
       }
     }
 
@@ -155,19 +161,23 @@ async function runMigrations() {
         "SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND CONSTRAINT_NAME = 'chk_student_gender'"
       );
       if (chkRows && chkRows.length > 0) {
-        console.info("ℹ️ Cleaning up legacy chk_student_gender check constraint from students table...");
+        console.info('ℹ️ Cleaning up legacy chk_student_gender check constraint from students table...');
         await connection.query('ALTER TABLE `students` DROP CHECK `chk_student_gender`');
       }
     } catch (chkErr) {
-      console.warn("⚠️ Legacy check constraint cleanup skipped:", chkErr.message);
+      console.warn('⚠️ Legacy check constraint cleanup skipped:', chkErr.message);
     }
 
     // 5. Run Drizzle ORM official migration runner
     await migrate(db, {
       migrationsFolder: path.join(__dirname, '../../drizzle'),
     });
+
+    const [postMigRows] = await connection.query('SELECT COUNT(*) AS total FROM `__drizzle_migrations`');
     const elapsed = Date.now() - startTime;
-    console.info(`✅ Migrations verified and executed successfully in ${elapsed}ms!`);
+    console.info(
+      `✅ Migrations verified and executed successfully in ${elapsed}ms! Total recorded migrations: ${postMigRows?.[0]?.total ?? 'unknown'}`
+    );
   } catch (error) {
     console.error('❌ Migration failed:', error.message);
     if (error.cause) {
@@ -176,6 +186,11 @@ async function runMigrations() {
     if (error.stack) console.error(error.stack);
     process.exit(1);
   } finally {
+    if (lockAcquired) {
+      try {
+        await connection.query("SELECT RELEASE_LOCK('kucet_cms_drizzle_migrate')");
+      } catch (_) {}
+    }
     await connection.end();
   }
 }
