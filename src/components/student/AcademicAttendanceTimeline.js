@@ -43,58 +43,61 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
   const nextMilestone = streakData?.nextMilestone || null;
   const milestoneProgress = streakData?.milestoneProgress || null;
 
-  const refreshDisputes = React.useCallback(async () => {
+  const fetchHistory = React.useCallback(async (isMounted = { current: true }) => {
+    setLoading(true);
+    setError(null);
     try {
-      const res = await fetch('/api/student/attendance/disputes');
-      const json = await res.json();
-      if (res.ok && json.data) {
-        setDisputes(json.data);
+      const [historyRes, disputesRes] = await Promise.all([
+        fetch('/api/student/attendance/streak/history'),
+        fetch('/api/student/attendance/disputes').catch(() => null),
+      ]);
+      const json = await historyRes.json();
+      if (!historyRes.ok) throw new Error(json.error || 'Failed to load class attendance history');
+      if (isMounted.current) {
+        setTimeline(json.timeline || []);
+        if (disputesRes && disputesRes.ok) {
+          try {
+            const disputesJson = await disputesRes.json();
+            if (disputesJson?.data) setDisputes(disputesJson.data);
+          } catch (_dErr) {
+            // Ignore malformed dispute payload without breaking timeline
+          }
+        }
       }
-    } catch (_err) {
-      // Non-fatal: timeline remains usable even if disputes endpoint is unavailable
+    } catch (err) {
+      if (isMounted.current) setError(err.message);
+    } finally {
+      if (isMounted.current) setLoading(false);
     }
   }, []);
 
   const handleDisputeSuccess = React.useCallback(async () => {
-    await refreshDisputes();
+    await fetchHistory();
     if (typeof refreshStreak === 'function') {
       await refreshStreak();
     }
-  }, [refreshDisputes, refreshStreak]);
+  }, [fetchHistory, refreshStreak]);
 
+  // Initial load
   useEffect(() => {
-    let isMounted = true;
-    async function fetchHistory() {
-      setLoading(true);
-      setError(null);
-      try {
-        const [historyRes, disputesRes] = await Promise.all([
-          fetch('/api/student/attendance/streak/history'),
-          fetch('/api/student/attendance/disputes').catch(() => null),
-        ]);
-        const json = await historyRes.json();
-        if (!historyRes.ok) throw new Error(json.error || 'Failed to load class attendance history');
-        if (isMounted) {
-          setTimeline(json.timeline || []);
-          if (disputesRes && disputesRes.ok) {
-            try {
-              const disputesJson = await disputesRes.json();
-              if (disputesJson?.data) setDisputes(disputesJson.data);
-            } catch (_dErr) {
-              // Ignore malformed dispute payload without breaking timeline
-            }
-          }
-        }
-      } catch (err) {
-        if (isMounted) setError(err.message);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    }
+    const isMounted = { current: true };
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchHistory(isMounted);
+    return () => { isMounted.current = false; };
+  }, [fetchHistory]);
 
-    fetchHistory();
-    return () => { isMounted = false; };
-  }, []);
+  // Synchronize timeline and disputes whenever streakData changes (e.g. via real-time WebSocket event or refreshStreak)
+  const streakDataHash = streakData ? `${streakData.currentStreak}-${streakData.totalAttendedClasses}-${streakData.longestStreak}` : null;
+  const isFirstRender = React.useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const isMounted = { current: true };
+    fetchHistory(isMounted);
+    return () => { isMounted.current = false; };
+  }, [streakDataHash, fetchHistory]);
 
   // Filtered timeline (preserves server-returned descending chronological order)
   const filteredTimeline = useMemo(() => {
