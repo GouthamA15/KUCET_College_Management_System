@@ -17,6 +17,8 @@ export function StudentProvider({ children }) {
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
   const [academicPerformance, setAcademicPerformance] = useState(null);
   const [isLoadingAcademic, setIsLoadingAcademic] = useState(false);
+  const [streakData, setStreakData] = useState(null);
+  const [isLoadingStreak, setIsLoadingStreak] = useState(false);
   const [latestProfileRequest, setLatestProfileRequest] = useState(null);
   const [latestCertificateRequest, setLatestCertificateRequest] = useState(null);
   const [profileDetails, setProfileDetails] = useState(null);
@@ -55,6 +57,23 @@ export function StudentProvider({ children }) {
       console.error('Failed to fetch academic performance', e);
     } finally {
       setIsLoadingAcademic(false);
+    }
+    return null;
+  }, []);
+
+  const fetchStreak = useCallback(async () => {
+    setIsLoadingStreak(true);
+    try {
+      const res = await fetch('/api/student/attendance/streak', { cache: 'no-store' });
+      if (res.ok) {
+        const json = await res.json();
+        setStreakData(json.data || null);
+        return json.data;
+      }
+    } catch (e) {
+      console.error('Failed to fetch attendance streak', e);
+    } finally {
+      setIsLoadingStreak(false);
     }
     return null;
   }, []);
@@ -129,6 +148,7 @@ export function StudentProvider({ children }) {
           if (current && (current.student?.roll_no !== user.roll_no && current.roll_no !== user.roll_no)) {
             setStudentData(null);
             setAcademicPerformance(null);
+            setStreakData(null);
             setLatestProfileRequest(null);
             setLatestCertificateRequest(null);
             setProfileDetails(null);
@@ -138,7 +158,8 @@ export function StudentProvider({ children }) {
           await fetchCollegeInfo();
           const profilePromise = fetchProfile(user.roll_no);
           const academicPromise = fetchAcademicPerformance();
-          const [profile] = await Promise.all([profilePromise, academicPromise]);
+          const streakPromise = fetchStreak();
+          const [profile] = await Promise.all([profilePromise, academicPromise, streakPromise]);
           lastFetchTimeRef.current = Date.now();
           return profile;
         } else if (me.status === 401 || me.status === 403) {
@@ -154,7 +175,7 @@ export function StudentProvider({ children }) {
 
     activePromiseRef.current = promise;
     return promise;
-  }, [fetchProfile, fetchCollegeInfo, fetchAcademicPerformance]);
+  }, [fetchProfile, fetchCollegeInfo, fetchAcademicPerformance, fetchStreak]);
 
   const handleResume = useCallback(async (event) => {
     const now = Date.now();
@@ -305,8 +326,21 @@ export function StudentProvider({ children }) {
           fetchProfile(rollNo);
         }
       }
+
+      if (
+        [
+          'STUDENT_VERIFIED',
+          'SESSION_ENDED',
+          'ATTENDANCE_SUBMITTED',
+          'attendance:submitted',
+          'attendance:updated',
+        ].includes(type)
+      ) {
+        fetchStreak();
+        fetchAcademicPerformance();
+      }
     }
-  }, [fetchProfile]);
+  }, [fetchProfile, fetchStreak, fetchAcademicPerformance]);
 
   return (
     <StudentContext.Provider value={{
@@ -326,6 +360,9 @@ export function StudentProvider({ children }) {
       academicPerformance,
       isLoadingAcademic,
       refreshAcademic: fetchAcademicPerformance,
+      streakData,
+      isLoadingStreak,
+      refreshStreak: fetchStreak,
       latestProfileRequest,
       latestCertificateRequest,
       profileDetails,

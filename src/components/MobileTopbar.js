@@ -90,12 +90,33 @@ export default function MobileTopbar({ onMenuClick, title }) {
           </div>
         </div>
 
-        {/* Right: Profile Badge */}
-        <div className="flex items-center justify-end min-w-[44px] w-11 h-11">
+        {/* Right: Streak & Profile Badge */}
+        <div className="flex items-center gap-2 justify-end">
+          {isStudent && studentCtx?.streakData !== null && studentCtx?.streakData !== undefined && (
+            <button
+              type="button"
+              onClick={() => router.push('/student/academics?tab=attendance')}
+              aria-label={`Attendance streak: ${studentCtx.streakData.currentStreak} classes`}
+              title={`Current streak: ${studentCtx.streakData.currentStreak} consecutive classes attended. Click to view history.`}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black shadow-2xs transition-all active:scale-95 border cursor-pointer ${
+                studentCtx.streakData.currentStreak > 0
+                  ? 'bg-gradient-to-r from-amber-50 via-orange-50 to-amber-100/70 border-amber-300 text-amber-800'
+                  : 'bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200'
+              }`}
+            >
+              <span className={`text-[13px] leading-none select-none ${studentCtx.streakData.currentStreak > 0 ? 'animate-pulse' : 'grayscale opacity-60'}`}>
+                {studentCtx.streakData.selectedEmoji?.char || '🔥'}
+              </span>
+              <span className="tabular-nums tracking-tight font-black text-[11.5px] leading-none">
+                {studentCtx.streakData.currentStreak}
+              </span>
+            </button>
+          )}
+
           {user && (
             <button 
               onClick={handleProfileClick}
-              className={`w-9 h-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-bold text-[13px] shadow-sm overflow-hidden border-1 border-[#0b3578] transition-all duration-300 active:scale-95 relative ${
+              className={`w-9 h-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-bold text-[13px] shadow-sm overflow-hidden border-1 border-[#0b3578] transition-all duration-300 active:scale-95 relative cursor-pointer ${
                 isProfilePage ? 'opacity-0 scale-50 pointer-events-none' : 'opacity-100 scale-100'
               }`}
               title="View Profile"
