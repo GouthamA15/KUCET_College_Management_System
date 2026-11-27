@@ -10,6 +10,12 @@ import { DEFAULT_STREAK_EMOJI, computeAttendanceAnalytics } from '@/lib/streak-c
 import StreakRewardsModal from './StreakRewardsModal';
 import AttendanceCalendarPanel from './AttendanceCalendarPanel';
 import AttendanceAnalyticsAndGoalsPanel from './AttendanceAnalyticsAndGoalsPanel';
+import {
+  AttendanceDisputeModal,
+  AttendanceDisputeResponseModal,
+  DisputeStatusActions,
+  findMatchingDispute,
+} from './AttendanceDisputeModal';
 
 export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
   const { streakData, refreshStreak } = useStudent();
@@ -25,6 +31,9 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [visibleCount, setVisibleCount] = useState(25);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [disputes, setDisputes] = useState([]);
+  const [selectedDisputeItem, setSelectedDisputeItem] = useState(null);
+  const [respondingDispute, setRespondingDispute] = useState(null);
 
   const currentStreak = streakData?.currentStreak || 0;
   const longestStreak = streakData?.longestStreak || 0;
@@ -34,17 +43,47 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
   const nextMilestone = streakData?.nextMilestone || null;
   const milestoneProgress = streakData?.milestoneProgress || null;
 
+  const refreshDisputes = React.useCallback(async () => {
+    try {
+      const res = await fetch('/api/student/attendance/disputes');
+      const json = await res.json();
+      if (res.ok && json.data) {
+        setDisputes(json.data);
+      }
+    } catch (_err) {
+      // Non-fatal: timeline remains usable even if disputes endpoint is unavailable
+    }
+  }, []);
+
+  const handleDisputeSuccess = React.useCallback(async () => {
+    await refreshDisputes();
+    if (typeof refreshStreak === 'function') {
+      await refreshStreak();
+    }
+  }, [refreshDisputes, refreshStreak]);
+
   useEffect(() => {
     let isMounted = true;
     async function fetchHistory() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch('/api/student/attendance/streak/history');
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Failed to load class attendance history');
+        const [historyRes, disputesRes] = await Promise.all([
+          fetch('/api/student/attendance/streak/history'),
+          fetch('/api/student/attendance/disputes').catch(() => null),
+        ]);
+        const json = await historyRes.json();
+        if (!historyRes.ok) throw new Error(json.error || 'Failed to load class attendance history');
         if (isMounted) {
           setTimeline(json.timeline || []);
+          if (disputesRes && disputesRes.ok) {
+            try {
+              const disputesJson = await disputesRes.json();
+              if (disputesJson?.data) setDisputes(disputesJson.data);
+            } catch (_dErr) {
+              // Ignore malformed dispute payload without breaking timeline
+            }
+          }
         }
       } catch (err) {
         if (isMounted) setError(err.message);
@@ -361,6 +400,14 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
             <div className="space-y-2.5">
               {visibleTimeline.map((item, idx) => {
                 const isAttended = item.isAttended;
+                const existingDispute =
+                  item.status === 'ABSENT'
+                    ? findMatchingDispute(disputes, {
+                        assignmentId: item.assignmentId,
+                        date: item.date,
+                        sessionNumber: item.sessionNumber,
+                      })
+                    : null;
                 return (
                   <div
                     key={`${item.sessionId || item.date}_${item.sessionNumber}_${idx}`}
@@ -420,7 +467,7 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
                           {item.date}
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap justify-end">
                           <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
                             item.status === 'PRESENT'
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -430,6 +477,13 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
                           }`}>
                             {item.status}
                           </span>
+
+                          <DisputeStatusActions
+                            status={item.status}
+                            existingDispute={existingDispute}
+                            onOpenDispute={() => setSelectedDisputeItem(item)}
+                            onRespond={(dispute) => setRespondingDispute(dispute)}
+                          />
 
                           <span className={`text-xs font-black tabular-nums px-2 py-0.5 rounded-full border flex items-center gap-1 ${
                             isAttended
@@ -581,6 +635,22 @@ export default function AcademicAttendanceTimeline({ overallSubjects = [] }) {
         onClose={() => setIsModalOpen(false)}
         streakData={streakData}
         onEmojiSelected={refreshStreak}
+      />
+
+      {/* Attendance Dispute Modals */}
+      <AttendanceDisputeModal
+        session={selectedDisputeItem}
+        subjectName={selectedDisputeItem?.subjectName}
+        subjectCode={selectedDisputeItem?.subjectCode}
+        assignmentId={selectedDisputeItem?.assignmentId}
+        onClose={() => setSelectedDisputeItem(null)}
+        onSuccess={handleDisputeSuccess}
+      />
+
+      <AttendanceDisputeResponseModal
+        dispute={respondingDispute}
+        onClose={() => setRespondingDispute(null)}
+        onSuccess={handleDisputeSuccess}
       />
     </div>
   );
