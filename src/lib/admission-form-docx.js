@@ -1,6 +1,5 @@
-import fs from 'fs';
-import path from 'path';
 import PizZip from 'pizzip';
+import { getInstitutionalLogoBuffer } from '@/lib/institutional-logo';
 
 function escapeXml(unsafe) {
   if (unsafe === undefined || unsafe === null) return '';
@@ -29,17 +28,7 @@ export function generateAdmissionFormDocx(data = {}) {
   const zip = new PizZip();
 
   // Load official college logo
-  let logoBuf = null;
-  const candidateLogoPaths = [
-    path.join(process.cwd(), 'public/assets/ku-college-logo.png'),
-    path.join(process.cwd(), 'public/assets/ku-logo.png')
-  ];
-  for (const lp of candidateLogoPaths) {
-    if (fs.existsSync(lp)) {
-      logoBuf = fs.readFileSync(lp);
-      break;
-    }
-  }
+  const logoBuf = getInstitutionalLogoBuffer();
 
   // 1. [Content_Types].xml
   zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

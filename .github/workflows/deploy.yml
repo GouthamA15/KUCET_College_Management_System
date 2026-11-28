@@ -139,6 +139,7 @@ jobs:
       # -----------------------------------------------------------------
       - name: Upload Deploy Log
         if: always()
+        timeout-minutes: 2
         uses: actions/upload-artifact@v4
         with:
           name: deploy-log-${{ github.sha }}
