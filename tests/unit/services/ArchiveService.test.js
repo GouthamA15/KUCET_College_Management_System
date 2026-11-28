@@ -23,12 +23,13 @@ describe('ArchiveService - Academic Archival Engine', () => {
   });
 
   it('should calculate executive archive overview metrics', async () => {
-    // Mock 4 Promise.all select counts
     db.select
-      .mockImplementationOnce(() => ({ from: vi.fn().mockResolvedValue([{ count: 120 }]) })) // active students
-      .mockImplementationOnce(() => ({ from: vi.fn().mockResolvedValue([{ count: 450 }]) })) // archived students
-      .mockImplementationOnce(() => ({ from: vi.fn().mockResolvedValue([{ count: 5000 }]) })) // active attendance
-      .mockImplementationOnce(() => ({ from: vi.fn().mockResolvedValue([{ count: 25000 }]) })) // archived attendance
+      .mockImplementationOnce(() => ({ from: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue([{ count: 120 }]) })) // active students
+      .mockImplementationOnce(() => ({ from: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue([{ count: 400 }]) })) // logical archived students
+      .mockImplementationOnce(() => ({ from: vi.fn().mockResolvedValue([{ count: 450 }]) })) // legacy archive_students
+      .mockImplementationOnce(() => ({ from: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue([{ count: 5000 }]) })) // active attendance
+      .mockImplementationOnce(() => ({ from: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue([{ count: 20000 }]) })) // logical archived attendance
+      .mockImplementationOnce(() => ({ from: vi.fn().mockResolvedValue([{ count: 5000 }]) })) // legacy archive_student_attendance
       .mockImplementationOnce(() => ({ from: vi.fn().mockResolvedValue([{ count: 800 }]) })) // active marks
       .mockImplementationOnce(() => ({ from: vi.fn().mockResolvedValue([{ count: 4200 }]) })) // archived marks
       .mockImplementationOnce(() => ({ from: vi.fn().mockResolvedValue([{ count: 300 }]) })) // active payments
@@ -47,11 +48,13 @@ describe('ArchiveService - Academic Archival Engine', () => {
 
     expect(overview.metrics.activeStudents).toBe(120);
     expect(overview.metrics.archivedStudents).toBe(450);
+    expect(overview.metrics.activeAttendance).toBe(5000);
+    expect(overview.metrics.archivedAttendance).toBe(25000);
     expect(overview.metrics.totalCompletedJobs).toBe(12);
     expect(overview.metrics.totalStorageSizeBytes).toBe(52428800);
   });
 
-  it('should execute semester archival for closed semester', async () => {
+  it('should execute non-destructive semester archival for closed semester', async () => {
     // 1. Mock facultySubjectAssignments select
     db.select.mockImplementationOnce(() => ({
       from: vi.fn().mockReturnThis(),
@@ -60,40 +63,25 @@ describe('ArchiveService - Academic Archival Engine', () => {
       ])
     }));
 
-    // 2. Mock studentAttendance select with leftJoin
-    db.select.mockImplementationOnce(() => ({
-      from: vi.fn().mockReturnThis(),
-      leftJoin: vi.fn().mockReturnThis(),
-      where: vi.fn().mockResolvedValue([
-        { id: 1, student_id: 10, roll_no: '22567T0901', assignment_id: 101, date: '2025-10-10', session: 1, status: 'PRESENT' }
-      ])
-    }));
+    // 2. Mock logical attendance & session updates via UnifiedAttendanceRepository.markSemesterArchived
+    db.update
+      .mockImplementationOnce(() => ({ set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue([{ affectedRows: 1 }]) }))
+      .mockImplementationOnce(() => ({ set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue([{ affectedRows: 1 }]) }));
 
-    // Mock insert archive attendance
-    db.insert.mockImplementationOnce(() => ({ values: vi.fn().mockResolvedValue([{ affectedRows: 1 }]) }));
-    // Mock delete operational attendance
-    db.delete.mockImplementationOnce(() => ({ where: vi.fn().mockResolvedValue([{ affectedRows: 1 }]) }));
-
-    // 3. Mock attendanceSessions select
-    db.select.mockImplementationOnce(() => ({
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockResolvedValue([])
-    }));
-
-    // 4. Mock studentMarks select with leftJoin
+    // 3. Mock studentMarks select with leftJoin
     db.select.mockImplementationOnce(() => ({
       from: vi.fn().mockReturnThis(),
       leftJoin: vi.fn().mockReturnThis(),
       where: vi.fn().mockResolvedValue([])
     }));
 
-    // 5. Mock studentFeePayments select
+    // 4. Mock studentFeePayments select
     db.select.mockImplementationOnce(() => ({
       from: vi.fn().mockReturnThis(),
       where: vi.fn().mockResolvedValue([])
     }));
 
-    // Mock audit log insert
+    // 5. Mock audit log insert
     db.insert.mockImplementationOnce(() => ({ values: vi.fn().mockResolvedValue([{ insertId: 1 }]) }));
 
     const result = await ArchiveService.runSemesterArchive({
@@ -105,11 +93,12 @@ describe('ArchiveService - Academic Archival Engine', () => {
     });
 
     expect(result.success).toBe(true);
-    expect(result.affectedRecordsCount).toBe(1);
+    expect(result.affectedRecordsCount).toBe(2);
+    expect(db.delete).not.toHaveBeenCalled();
   });
 
-  it('should execute alumni archival with branch filtering', async () => {
-    // Mock students select
+  it('should execute non-destructive alumni archival with branch filtering', async () => {
+    // 1. Mock students select
     db.select.mockImplementationOnce(() => ({
       from: vi.fn().mockReturnThis(),
       where: vi.fn().mockResolvedValue([
@@ -121,28 +110,40 @@ describe('ArchiveService - Academic Archival Engine', () => {
           mobile: '9999999999',
           fee_reimbursement: 'NO',
           academic_status: 'GRADUATED',
-          student_status: 'ARCHIVED',
+          student_status: 'ACTIVE',
           admission_year: '2022',
           pfp: null,
         }
       ])
     }));
 
-    // Mock insert into archive_students
-    db.insert.mockImplementationOnce(() => ({ values: vi.fn().mockResolvedValue([{ insertId: 501 }]) }));
-    // Mock personal details select
+    // 2. Mock idempotent upsert into archive_students
+    db.insert.mockImplementationOnce(() => ({
+      values: vi.fn(() => ({
+        onDuplicateKeyUpdate: vi.fn().mockResolvedValue([{ insertId: 501 }])
+      }))
+    }));
+
+    // 3. Mock archiveStudents id lookup
     db.select.mockImplementationOnce(() => ({
       from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockResolvedValue([])
+      where: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue([{ id: 501 }])
     }));
-    // Mock academic background select
-    db.select.mockImplementationOnce(() => ({
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockResolvedValue([])
-    }));
-    // Mock delete active student
-    db.delete.mockImplementationOnce(() => ({ where: vi.fn().mockResolvedValue([{ affectedRows: 1 }]) }));
-    // Mock audit log insert
+
+    // 4. Mock existingArchivePersonal, studentPersonalDetails, existingArchiveBg, studentAcademicBackground
+    db.select
+      .mockImplementationOnce(() => ({ from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), limit: vi.fn().mockResolvedValue([]) }))
+      .mockImplementationOnce(() => ({ from: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue([]) }))
+      .mockImplementationOnce(() => ({ from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), limit: vi.fn().mockResolvedValue([]) }))
+      .mockImplementationOnce(() => ({ from: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue([]) }));
+
+    // 5. Mock non-destructive updates on student_attendance and students
+    db.update
+      .mockImplementationOnce(() => ({ set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue([{ affectedRows: 1 }]) }))
+      .mockImplementationOnce(() => ({ set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue([{ affectedRows: 1 }]) }));
+
+    // 6. Mock audit log insert
     db.insert.mockImplementationOnce(() => ({ values: vi.fn().mockResolvedValue([{ insertId: 1 }]) }));
 
     const result = await ArchiveService.runAlumniArchive({
@@ -154,5 +155,6 @@ describe('ArchiveService - Academic Archival Engine', () => {
 
     expect(result.success).toBe(true);
     expect(result.affectedStudentsCount).toBe(1);
+    expect(db.delete).not.toHaveBeenCalled();
   });
 });

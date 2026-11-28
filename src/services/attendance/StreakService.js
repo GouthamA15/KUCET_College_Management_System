@@ -1,22 +1,20 @@
 import { db } from '@/db';
 import {
-  studentAttendance,
-  attendanceSessions,
   students as studentsTable,
-  facultySubjectAssignments,
-  labBatchAllocations,
-  labBatchStudents,
   attendanceStreakMilestones,
   studentStreakUnlocks,
   studentStreakPreferences,
-  studentStreakReconciliationLogs
+  studentStreakReconciliationLogs,
+  studentStreakSnapshots
 } from '@/db/schema';
-import { eq, and, asc, gte, inArray, sql } from 'drizzle-orm';
+import { eq, and, asc, sql } from 'drizzle-orm';
 import { calculateYearAndSemesterAsync, getCollegeAcademicYear } from '@/lib/academic-utils';
 import { getBranchFromRoll } from '@/lib/rollNumber';
+import { UnifiedAttendanceRepository, normalizeDateStr } from './UnifiedAttendanceRepository';
 import {
   DEFAULT_STREAK_EMOJI,
   DEFAULT_STREAK_MILESTONES,
+  SNAPSHOT_CALCULATION_VERSION,
   getServerStreakPolicy,
   evaluateAttendanceStatus,
   evaluateMilestoneProgress,
@@ -279,6 +277,9 @@ export class StreakService {
 
   /**
    * Calculates comprehensive streak metrics for an authenticated student.
+   * By default (when no explicit semester/academicYear filter is provided or when
+   * `includeAllSemesters: true` is passed), evaluates seamlessly across ALL semesters,
+   * academic years, and archived records using UnifiedAttendanceRepository.
    *
    * @param {Object} params
    * @param {number} params.studentId
@@ -286,6 +287,7 @@ export class StreakService {
    * @param {number} [params.semester]
    * @param {string} [params.academicYear]
    * @param {string} [params.branch]
+   * @param {boolean} [params.includeAllSemesters]
    * @param {string} [params.policy]
    * @param {Object} [params.dbClient]
    * @returns {Promise<Object>} Streak summary, progress, milestones, and recent timeline
@@ -296,24 +298,35 @@ export class StreakService {
     semester: inputSemester,
     academicYear: inputAcademicYear,
     branch: inputBranch,
+    includeAllSemesters,
     policy = getServerStreakPolicy(),
     dbClient = null,
   }) {
     const executor = dbClient || db;
+    const resolveAllSemesters =
+      includeAllSemesters !== undefined
+        ? Boolean(includeAllSemesters)
+        : !inputSemester && !inputAcademicYear;
 
     // 1. Resolve student context
     let semester = inputSemester;
     let academicYear = inputAcademicYear;
     let branch = inputBranch;
 
-    if (!semester || !academicYear || !branch) {
-      const session = await calculateYearAndSemesterAsync(rollNo, 0);
-      semester = semester || session.semester;
-      academicYear = academicYear || session.academicYear || await getCollegeAcademicYear();
-      branch = branch || getBranchFromRoll(rollNo);
+    if ((!semester || !academicYear || !branch) && rollNo) {
+      try {
+        const session = await calculateYearAndSemesterAsync(rollNo, 0);
+        semester = semester || session.semester;
+        academicYear = academicYear || session.academicYear || await getCollegeAcademicYear();
+        branch = branch || getBranchFromRoll(rollNo);
+      } catch (_ctxErr) {
+        branch = branch || getBranchFromRoll(rollNo);
+      }
+    } else if (!branch && rollNo) {
+      branch = getBranchFromRoll(rollNo);
     }
 
-    if (!studentId || !semester || !academicYear || !branch) {
+    if (!studentId || (!resolveAllSemesters && (!semester || !academicYear || !branch))) {
       return {
         currentStreak: 0,
         longestStreak: 0,
@@ -334,49 +347,22 @@ export class StreakService {
       };
     }
 
-    // 2. Fetch admission date
-    const [studentData] = await executor
-      .select({ admission_date: studentsTable.admission_date })
-      .from(studentsTable)
-      .where(eq(studentsTable.id, studentId))
-      .limit(1);
-
-    const admissionDate = studentData?.admission_date || new Date('1900-01-01');
-
-    // 3. Resolve lab batch allocations for this student in this cohort
-    const allocRows = await executor
-      .select({
-        subject_code: labBatchAllocations.subject_code,
-        batch_number: labBatchStudents.batch_number,
-      })
-      .from(labBatchStudents)
-      .innerJoin(labBatchAllocations, eq(labBatchStudents.allocation_id, labBatchAllocations.id))
-      .where(and(
-        eq(labBatchStudents.student_id, studentId),
-        eq(labBatchAllocations.academic_year, academicYear),
-        eq(labBatchAllocations.branch, branch),
-        eq(labBatchAllocations.semester, semester)
-      ));
-
-    const studentBatchBySubject = new Map();
-    for (const alloc of allocRows) {
-      studentBatchBySubject.set(alloc.subject_code, alloc.batch_number);
-    }
-
-    // 4. Resolve all active canonical subject assignments for this cohort
-    const assignments = await executor
-      .select({
-        id: facultySubjectAssignments.id,
-        subject_code: facultySubjectAssignments.subject_code,
-        subject_name: facultySubjectAssignments.subject_name,
-      })
-      .from(facultySubjectAssignments)
-      .where(and(
-        eq(facultySubjectAssignments.branch, branch),
-        eq(facultySubjectAssignments.course_semester, Number(semester)),
-        eq(facultySubjectAssignments.academic_year, academicYear),
-        eq(facultySubjectAssignments.is_active, true)
-      ));
+    // 2. Load authoritative dataset across active + archived cohorts via UnifiedAttendanceRepository
+    const {
+      assignments,
+      assignmentMap,
+      studentBatchByCohortSubject,
+      studentBatchBySubject,
+      allSessions,
+      studentRecords,
+    } = await UnifiedAttendanceRepository.getStreakCalculationDataset({
+      studentId,
+      semester,
+      academicYear,
+      branch,
+      includeAllSemesters: resolveAllSemesters,
+      dbClient: executor,
+    });
 
     if (assignments.length === 0) {
       const selectedEmoji = await this.getStudentSelectedEmoji(studentId, executor);
@@ -409,80 +395,35 @@ export class StreakService {
       };
     }
 
-    const assignmentMap = new Map();
-    const assignmentIds = [];
-    for (const a of assignments) {
-      assignmentMap.set(a.id, a);
-      assignmentIds.push(a.id);
-    }
-
-    // 5. Query all finalized sessions conducted for these assignments
-    // Authoritative Invariants:
-    // - submitted_at IS NOT NULL (only finalized attendance sessions)
-    // - attendance_date >= admission_date
-    const sessionConditions = [
-      inArray(attendanceSessions.assignment_id, assignmentIds),
-      gte(attendanceSessions.attendance_date, admissionDate),
-      sql`${attendanceSessions.submitted_at} IS NOT NULL`
-    ];
-
-    const allSessions = await executor
-      .select({
-        id: attendanceSessions.id,
-        assignment_id: attendanceSessions.assignment_id,
-        attendance_date: attendanceSessions.attendance_date,
-        session_number: attendanceSessions.session_number,
-        batch_number: attendanceSessions.batch_number,
-        topic_covered: attendanceSessions.topic_covered,
-      })
-      .from(attendanceSessions)
-      .where(and(...sessionConditions))
-      .orderBy(
-        asc(attendanceSessions.attendance_date),
-        asc(attendanceSessions.session_number),
-        asc(attendanceSessions.id)
-      );
-
-    // 6. Query student's recorded attendance records for these assignments (ordered deterministically by id ASC)
-    const studentRecords = await executor
-      .select({
-        id: studentAttendance.id,
-        session_id: studentAttendance.session_id,
-        assignment_id: studentAttendance.assignment_id,
-        date: studentAttendance.date,
-        session: studentAttendance.session,
-        status: studentAttendance.status,
-      })
-      .from(studentAttendance)
-      .where(and(
-        eq(studentAttendance.student_id, studentId),
-        inArray(studentAttendance.assignment_id, assignmentIds),
-        gte(studentAttendance.date, admissionDate)
-      ))
-      .orderBy(asc(studentAttendance.id));
-
     const studentRecordSessionIds = new Set(studentRecords.map(r => r.session_id).filter(Boolean));
+    const studentRecordSlotKeys = new Set(
+      studentRecords.map(r => `${r.assignment_id}_${normalizeDateStr(r.date)}_${r.session}`)
+    );
 
-    // 7. Filter eligible sessions for this specific student:
+    // 3. Filter eligible sessions for this specific student:
     // - Whole-class session (batch_number = 0 or NULL): eligible for all students
     // - Batch-specific session (batch_number = 1 or 2): eligible ONLY IF:
     //     a) Student's allocated batch for that subject matches session.batch_number, OR
-    //     b) Student has an actual record in student_attendance for this session
+    //     b) Student has an actual attendance record for this session
     const eligibleSessions = [];
     for (const session of allSessions) {
-      const assignment = assignmentMap.get(session.assignment_id);
+      const assignment = assignmentMap.get(Number(session.assignment_id));
       if (!assignment) continue;
 
-      const subCode = assignment.subject_code;
-      const allocatedBatch = studentBatchBySubject.get(subCode) || null;
+      const cohortKey = `${assignment.academic_year}_${assignment.course_semester}_${assignment.subject_code}`;
+      const allocatedBatch =
+        studentBatchByCohortSubject.get(cohortKey) ??
+        studentBatchBySubject.get(assignment.subject_code) ??
+        null;
       const batchNum = session.batch_number || 0;
+      const sessionSlotKey = `${session.assignment_id}_${normalizeDateStr(session.attendance_date)}_${session.session_number}`;
 
       let isEligible = false;
       if (batchNum === 0) {
         isEligible = true;
       } else if (allocatedBatch !== null && allocatedBatch === batchNum) {
         isEligible = true;
-      } else if (studentRecordSessionIds.has(session.id)) {
+      } else if (studentRecordSessionIds.has(session.id) || studentRecordSlotKeys.has(sessionSlotKey)) {
         isEligible = true;
       }
 
@@ -495,21 +436,22 @@ export class StreakService {
       }
     }
 
-    // 8. Deterministic chronological streak calculation
+    // 4. Deterministic chronological streak calculation
     const streakResult = calculateStreakFromSequence(eligibleSessions, studentRecords, { policy });
 
-    // 9. Milestone and Custom Emoji Evaluation
+    // 5. Milestone and Custom Emoji Evaluation
     const milestones = await this.getActiveMilestones(executor);
     const { nextMilestone, unlockedMilestones: newlyUnlocked, milestoneProgress } = evaluateMilestoneProgress(
-      streakResult.currentStreak,
+      Math.max(streakResult.currentStreak, streakResult.longestStreak),
       milestones
     );
 
     const selectedEmoji = await this.getStudentSelectedEmoji(studentId, executor);
 
-    // 10. Record new unlocks idempotently if supported
+    // 6. Record new unlocks idempotently if supported
     if (newlyUnlocked.length > 0) {
       try {
+        const achievedStreak = Math.max(streakResult.currentStreak, streakResult.longestStreak);
         for (const m of newlyUnlocked) {
           if (!m.id) continue;
           await executor
@@ -517,12 +459,12 @@ export class StreakService {
             .values({
               student_id: studentId,
               milestone_id: m.id,
-              verified_streak: streakResult.currentStreak,
+              verified_streak: achievedStreak,
               is_notified: false,
             })
             .onDuplicateKeyUpdate({
               set: {
-                verified_streak: sql`GREATEST(${studentStreakUnlocks.verified_streak}, ${streakResult.currentStreak})`,
+                verified_streak: sql`GREATEST(${studentStreakUnlocks.verified_streak}, ${achievedStreak})`,
               }
             });
         }
@@ -531,7 +473,7 @@ export class StreakService {
       }
     }
 
-    // 11. Merge persisted unlocks so students retain previously unlocked achievements
+    // 7. Merge persisted unlocks so students retain previously unlocked achievements
     const persistedUnlockMap = new Map();
     try {
       const unlockRows = await executor
@@ -551,12 +493,15 @@ export class StreakService {
 
     for (const m of milestones) {
       const persisted = m.id ? persistedUnlockMap.get(Number(m.id)) : null;
-      const isUnlocked = Boolean(persisted) || streakResult.currentStreak >= m.required_streak;
+      const isUnlocked =
+        Boolean(persisted) ||
+        streakResult.currentStreak >= m.required_streak ||
+        streakResult.longestStreak >= m.required_streak;
       const enriched = {
         ...m,
         isUnlocked,
         unlockedAt: persisted?.unlocked_at || null,
-        verifiedStreak: persisted?.verified_streak || (isUnlocked ? streakResult.currentStreak : null),
+        verifiedStreak: persisted?.verified_streak || (isUnlocked ? Math.max(streakResult.currentStreak, streakResult.longestStreak) : null),
         remainingClasses: isUnlocked ? 0 : Math.max(0, m.required_streak - streakResult.currentStreak),
       };
       allMilestones.push(enriched);
@@ -564,6 +509,54 @@ export class StreakService {
         resolvedUnlockedMilestones.push(enriched);
       } else {
         lockedMilestones.push(enriched);
+      }
+    }
+
+    // Recompute nextMilestone / progress based on currentStreak against unearned or next tier
+    const nextProgress = evaluateMilestoneProgress(streakResult.currentStreak, milestones);
+
+    // 8. Refresh derived streak snapshot when evaluating full lifetime scope
+    if (resolveAllSemesters) {
+      const lastSession = eligibleSessions[eligibleSessions.length - 1] || null;
+      const snapshotPayload = {
+        student_id: studentId,
+        current_streak: streakResult.currentStreak,
+        longest_streak: streakResult.longestStreak,
+        previous_streak: streakResult.previousStreak,
+        total_eligible_classes: streakResult.totalEligibleClasses,
+        total_attended_classes: streakResult.totalAttendedClasses,
+        total_missed_classes: streakResult.totalMissedClasses,
+        last_evaluated_session_id: lastSession?.id && lastSession.id > 0 ? lastSession.id : null,
+        last_evaluated_date: lastSession ? normalizeDateStr(lastSession.attendance_date) : null,
+        last_attended_date: streakResult.lastAttendedClass ? normalizeDateStr(streakResult.lastAttendedClass.date) : null,
+        last_break_date: streakResult.lastStreakBreak ? normalizeDateStr(streakResult.lastStreakBreak.date) : null,
+        calculation_version: SNAPSHOT_CALCULATION_VERSION,
+        policy_applied: policy,
+        is_stale: false,
+      };
+      try {
+        await executor
+          .insert(studentStreakSnapshots)
+          .values(snapshotPayload)
+          .onDuplicateKeyUpdate({
+            set: {
+              current_streak: snapshotPayload.current_streak,
+              longest_streak: snapshotPayload.longest_streak,
+              previous_streak: snapshotPayload.previous_streak,
+              total_eligible_classes: snapshotPayload.total_eligible_classes,
+              total_attended_classes: snapshotPayload.total_attended_classes,
+              total_missed_classes: snapshotPayload.total_missed_classes,
+              last_evaluated_session_id: snapshotPayload.last_evaluated_session_id,
+              last_evaluated_date: snapshotPayload.last_evaluated_date,
+              last_attended_date: snapshotPayload.last_attended_date,
+              last_break_date: snapshotPayload.last_break_date,
+              calculation_version: snapshotPayload.calculation_version,
+              policy_applied: snapshotPayload.policy_applied,
+              is_stale: false,
+            },
+          });
+      } catch (_snapErr) {
+        // Non-fatal in pre-migration or mocked environments
       }
     }
 
@@ -584,8 +577,8 @@ export class StreakService {
       ...streakResult,
       counts: analytics.counts,
       improvementDelta: analytics.improvementDelta,
-      nextMilestone,
-      milestoneProgress,
+      nextMilestone: nextProgress.nextMilestone || nextMilestone,
+      milestoneProgress: nextProgress.milestoneProgress || milestoneProgress,
       policyApplied: policy,
       selectedEmoji,
       unlockedMilestones: resolvedUnlockedMilestones,
@@ -594,6 +587,86 @@ export class StreakService {
       recognitionBadges,
       recentAchievement,
     };
+  }
+
+  /**
+   * Reads derived streak snapshot if fresh (`is_stale = false` and matching version/policy);
+   * otherwise triggers full authoritative recalculation from source records.
+   */
+  static async getSnapshotOrRecalculate({ studentId, rollNo, policy = getServerStreakPolicy(), dbClient = null }) {
+    const executor = dbClient || db;
+    try {
+      const [snapshot] = await executor
+        .select()
+        .from(studentStreakSnapshots)
+        .where(eq(studentStreakSnapshots.student_id, studentId))
+        .limit(1);
+
+      if (
+        snapshot &&
+        !snapshot.is_stale &&
+        Number(snapshot.calculation_version) === SNAPSHOT_CALCULATION_VERSION &&
+        snapshot.policy_applied === policy
+      ) {
+        const [selectedEmoji, milestones, unlockRows] = await Promise.all([
+          this.getStudentSelectedEmoji(studentId, executor),
+          this.getActiveMilestones(executor),
+          executor.select().from(studentStreakUnlocks).where(eq(studentStreakUnlocks.student_id, studentId)),
+        ]);
+        const unlockMap = new Map((unlockRows || []).map(r => [Number(r.milestone_id), r]));
+        const { nextMilestone, milestoneProgress } = evaluateMilestoneProgress(snapshot.current_streak, milestones);
+        const allMilestones = milestones.map(m => {
+          const persisted = m.id ? unlockMap.get(Number(m.id)) : null;
+          const isUnlocked = Boolean(persisted) || snapshot.current_streak >= m.required_streak || snapshot.longest_streak >= m.required_streak;
+          return {
+            ...m,
+            isUnlocked,
+            unlockedAt: persisted?.unlocked_at || null,
+            verifiedStreak: persisted?.verified_streak || (isUnlocked ? snapshot.longest_streak : null),
+            remainingClasses: isUnlocked ? 0 : Math.max(0, m.required_streak - snapshot.current_streak),
+          };
+        });
+        const unlockedList = allMilestones.filter(m => m.isUnlocked);
+        const recognitionBadges = evaluateRecognitionBadges({
+          currentStreak: snapshot.current_streak,
+          longestStreak: snapshot.longest_streak,
+          previousStreak: snapshot.previous_streak,
+          totalAttendedClasses: snapshot.total_attended_classes,
+          totalEligibleClasses: snapshot.total_eligible_classes,
+          improvementDelta: 0,
+        });
+        return {
+          fromSnapshot: true,
+          currentStreak: snapshot.current_streak,
+          longestStreak: snapshot.longest_streak,
+          previousStreak: snapshot.previous_streak,
+          totalEligibleClasses: snapshot.total_eligible_classes,
+          totalAttendedClasses: snapshot.total_attended_classes,
+          totalMissedClasses: snapshot.total_missed_classes,
+          lastAttendedClass: snapshot.last_attended_date ? { date: snapshot.last_attended_date } : null,
+          lastStreakBreak: snapshot.last_break_date ? { date: snapshot.last_break_date } : null,
+          nextMilestone,
+          milestoneProgress,
+          policyApplied: policy,
+          selectedEmoji,
+          unlockedMilestones: unlockedList,
+          lockedMilestones: allMilestones.filter(m => !m.isUnlocked),
+          allMilestones,
+          recognitionBadges,
+          recentAchievement: unlockedList.length > 0 ? unlockedList[unlockedList.length - 1] : null,
+        };
+      }
+    } catch (_err) {
+      // Fall back to authoritative recalculation
+    }
+
+    return await this.calculateStudentStreak({
+      studentId,
+      rollNo,
+      includeAllSemesters: true,
+      policy,
+      dbClient: executor,
+    });
   }
 
   /**
@@ -630,12 +703,15 @@ export class StreakService {
       return { success: false, reason: 'Missing student context for reconciliation' };
     }
 
+    await UnifiedAttendanceRepository.invalidateStreakSnapshots([studentId], executor);
+
     const streakData = await this.calculateStudentStreak({
       studentId,
       rollNo,
       semester: semester || undefined,
       academicYear: academicYear || undefined,
       branch: branch || undefined,
+      includeAllSemesters: true,
       dbClient: executor,
     });
 

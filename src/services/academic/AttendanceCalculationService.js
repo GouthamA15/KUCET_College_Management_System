@@ -1,8 +1,9 @@
 import { db } from '@/db';
-import { 
-  facultySubjectAssignments, 
+import {
+  facultySubjectAssignments,
   attendanceSessions,
-  studentAttendance 
+  studentAttendance,
+  archiveStudentAttendance
 } from '@/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import logger from '@/lib/logger';
@@ -45,8 +46,7 @@ export class AttendanceCalculationService {
 
       const conditions = [
         eq(facultySubjectAssignments.course_semester, Number(semester)),
-        eq(facultySubjectAssignments.academic_year, academicYear),
-        eq(facultySubjectAssignments.is_active, true)
+        eq(facultySubjectAssignments.academic_year, academicYear)
       ];
 
       if (branch) {
@@ -63,7 +63,6 @@ export class AttendanceCalculationService {
       .from(facultySubjectAssignments)
       .leftJoin(attendanceSessions, and(
         eq(attendanceSessions.assignment_id, facultySubjectAssignments.id),
-        eq(attendanceSessions.is_active, true),
         sql`${attendanceSessions.submitted_at} IS NOT NULL`
       ))
       .leftJoin(studentAttendance, and(
@@ -77,12 +76,42 @@ export class AttendanceCalculationService {
         facultySubjectAssignments.subject_name
       );
 
-      const totalAssignedSubjects = subjectRows.length;
-      const subjectsWithSessions = subjectRows.filter(r => Number(r.totalSessions) > 0).length;
-      const subjectsWithoutSessions = totalAssignedSubjects - subjectsWithSessions;
+      let totalRecordedSessions = subjectRows.reduce((sum, r) => sum + Number(r.totalSessions || 0), 0);
+      let totalAttendedSessions = subjectRows.reduce((sum, r) => sum + Number(r.attendedSessions || 0), 0);
+      let subjectsWithSessions = subjectRows.filter(r => Number(r.totalSessions) > 0).length;
 
-      const totalRecordedSessions = subjectRows.reduce((sum, r) => sum + Number(r.totalSessions || 0), 0);
-      const totalAttendedSessions = subjectRows.reduce((sum, r) => sum + Number(r.attendedSessions || 0), 0);
+      // Fallback merge if legacy archive_student_attendance has rows not in primary table
+      if (totalRecordedSessions === 0) {
+        try {
+          const legacyConditions = [
+            eq(archiveStudentAttendance.student_id, studentId),
+            eq(archiveStudentAttendance.semester, Number(semester)),
+            eq(archiveStudentAttendance.academic_year, academicYear)
+          ];
+          if (branch) legacyConditions.push(eq(archiveStudentAttendance.branch, branch));
+
+          const legacyAttRows = await executor
+            .select({
+              assignmentId: archiveStudentAttendance.assignment_id,
+              status: archiveStudentAttendance.status
+            })
+            .from(archiveStudentAttendance)
+            .where(and(...legacyConditions));
+
+          if (legacyAttRows && legacyAttRows.length > 0) {
+            totalRecordedSessions = legacyAttRows.length;
+            totalAttendedSessions = legacyAttRows.filter(r =>
+              ['PRESENT', 'NCC', 'MEDICAL', 'EXEMPTED'].includes(r.status)
+            ).length;
+            subjectsWithSessions = new Set(legacyAttRows.map(r => r.assignmentId)).size;
+          }
+        } catch (_legacyErr) {
+          // Non-fatal in mocked or pre-migration environments
+        }
+      }
+
+      const totalAssignedSubjects = subjectRows.length;
+      const subjectsWithoutSessions = totalAssignedSubjects - subjectsWithSessions;
 
       const hasRecordedSessions = totalRecordedSessions > 0;
       const attendancePercentage = hasRecordedSessions

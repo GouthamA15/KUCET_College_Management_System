@@ -11,10 +11,20 @@ async function handler(req) {
     logger.info({ archiveType, targetParams }, '[QStashWorker] Processing Archive Job');
 
     if (archiveType === 'semester') {
-      const result = await ArchiveService.runSemesterArchive(targetParams.branch, targetParams.semester);
+      const result = await ArchiveService.runSemesterArchive({
+        branch: targetParams?.branch,
+        semester: targetParams?.semester,
+        academic_year: targetParams?.academic_year || targetParams?.academicYear,
+        archived_by: targetParams?.archived_by || 'QSTASH_WORKER',
+      });
       return NextResponse.json({ success: true, result });
     } else if (archiveType === 'alumni') {
-      const result = await ArchiveService.runAlumniArchive(targetParams.batchYear, targetParams.branch);
+      const result = await ArchiveService.runAlumniArchive({
+        graduation_year: targetParams?.batchYear || targetParams?.graduation_year,
+        branch: targetParams?.branch,
+        student_ids: targetParams?.student_ids || [],
+        archived_by: targetParams?.archived_by || 'QSTASH_WORKER',
+      });
       return NextResponse.json({ success: true, result });
     }
 

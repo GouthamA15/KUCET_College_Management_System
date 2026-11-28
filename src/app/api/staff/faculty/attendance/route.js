@@ -219,9 +219,18 @@ export async function POST(request) {
           set: { 
             status: sql`VALUES(status)`,
             submitted_at: sql`VALUES(submitted_at)`,
-            session_id: sql`VALUES(session_id)`
+            session_id: sql`VALUES(session_id)`,
+            record_version: sql`${studentAttendance.record_version} + 1`,
+            last_modified_by: user.id,
+            last_modified_at: submissionTime
           }
         });
+
+      const { UnifiedAttendanceRepository } = await import('@/services/attendance/UnifiedAttendanceRepository');
+      await UnifiedAttendanceRepository.invalidateStreakSnapshots(
+        attendance_data.map(item => item.student_id),
+        tx
+      );
     });
 
     // AUTO-SAVE TOPIC COVERED if provided
@@ -375,6 +384,15 @@ export async function DELETE(request) {
     }
 
     await db.transaction(async (tx) => {
+      const existingRows = await tx
+        .select({ student_id: studentAttendance.student_id })
+        .from(studentAttendance)
+        .where(and(
+          eq(studentAttendance.assignment_id, targetAssignmentId),
+          eq(studentAttendance.date, date),
+          eq(studentAttendance.session, session)
+        ));
+
       await tx.delete(studentAttendance)
         .where(and(
           eq(studentAttendance.assignment_id, targetAssignmentId),
@@ -390,6 +408,14 @@ export async function DELETE(request) {
           eq(attendanceSessions.attendance_date, date),
           eq(attendanceSessions.session_number, session)
         ));
+
+      if (existingRows?.length > 0) {
+        const { UnifiedAttendanceRepository } = await import('@/services/attendance/UnifiedAttendanceRepository');
+        await UnifiedAttendanceRepository.invalidateStreakSnapshots(
+          existingRows.map(r => r.student_id),
+          tx
+        );
+      }
     });
 
     return apiResponse({ message: 'Attendance for the selected date has been deleted' });

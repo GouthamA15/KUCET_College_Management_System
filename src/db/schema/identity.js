@@ -30,12 +30,16 @@ export const students = mysqlTable('students', {
   password_changed_at: timestamp('password_changed_at'),
   data_policy_consented_at: timestamp('data_policy_consented_at'),
   gps_consent_granted_at: timestamp('gps_consent_granted_at'),
+  is_archived: boolean('is_archived').default(false).notNull(),
+  archive_batch_id: varchar('archive_batch_id', { length: 64 }),
+  archived_at: timestamp('archived_at'),
 }, (table) => ({
   rollNoIdx: index('idx_roll_no').on(table.roll_no),
   rollNoUniq: uniqueIndex('uq_students_roll_no').on(table.roll_no),
   mobileHashIdx: index('idx_students_mobile_hash').on(table.mobile_hash),
   emailIdx: index('idx_students_email').on(table.email),
   createdAtIdx: index('idx_students_created_at').on(table.created_at),
+  archivedIdx: index('idx_students_archived').on(table.is_archived),
 }));
 
 export const staffRegistrationRequests = mysqlTable('staff_registration_requests', {

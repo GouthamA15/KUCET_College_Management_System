@@ -1,6 +1,6 @@
 import { 
   mysqlTable, varchar, int, boolean, text, decimal, timestamp, 
-  mysqlEnum, tinyint, index, date
+  mysqlEnum, tinyint, index, uniqueIndex, date
 } from 'drizzle-orm/mysql-core';
 
 /**
@@ -30,6 +30,7 @@ export const archiveStudents = mysqlTable('archive_students', {
 }, (table) => ({
   rollNoIdx: index('idx_archive_students_roll_no').on(table.roll_no),
   branchBatchIdx: index('idx_archive_students_branch_batch').on(table.branch, table.batch),
+  origStudentUniq: uniqueIndex('uq_archive_students_orig_id').on(table.original_student_id),
 }));
 
 // 2. Archived Student Personal Details
@@ -65,10 +66,11 @@ export const archiveStudentAcademicBackground = mysqlTable('archive_student_acad
   archiveStudentIdx: index('idx_archive_background_student_id').on(table.archive_student_id),
 }));
 
-// 4. Archived Student Attendance Records
+// 4. Archived Student Attendance Records (Legacy Compatibility & Snapshot Table)
 export const archiveStudentAttendance = mysqlTable('archive_student_attendance', {
   id: int('id').autoincrement().primaryKey().notNull(),
   original_attendance_id: int('original_attendance_id'),
+  session_id: int('session_id'),
   student_id: int('student_id').notNull(),
   roll_no: varchar('roll_no', { length: 20 }).notNull(),
   assignment_id: int('assignment_id').notNull(),
@@ -78,19 +80,22 @@ export const archiveStudentAttendance = mysqlTable('archive_student_attendance',
   academic_year: varchar('academic_year', { length: 9 }).notNull(),
   date: date('date').notNull(),
   session: tinyint('session').notNull(),
-  status: mysqlEnum('status', ['PRESENT', 'ABSENT', 'EXEMPTED']).default('PRESENT').notNull(),
+  status: mysqlEnum('status', ['PRESENT', 'ABSENT', 'NCC', 'MEDICAL', 'EXEMPTED']).default('PRESENT').notNull(),
   marked_by: int('marked_by'),
   verification_mode: varchar('verification_mode', { length: 20 }).default('MANUAL'),
   device_fingerprint: text('device_fingerprint'),
+  archive_batch_id: varchar('archive_batch_id', { length: 64 }),
   created_at: timestamp('created_at'),
   archived_at: timestamp('archived_at').defaultNow().notNull(),
 }, (table) => ({
   studentRollIdx: index('idx_archive_att_roll').on(table.roll_no),
   branchSemYearIdx: index('idx_archive_att_branch_sem_year').on(table.branch, table.semester, table.academic_year),
   dateIdx: index('idx_archive_att_date').on(table.date),
+  sessionIdx: index('idx_archive_att_session').on(table.session_id),
+  uqArchiveAttendance: uniqueIndex('uq_archive_student_attendance').on(table.student_id, table.assignment_id, table.date, table.session),
 }));
 
-// 5. Archived Attendance Sessions & Lecture Topics
+// 5. Archived Attendance Sessions & Lecture Topics (Legacy Compatibility & Snapshot Table)
 export const archiveAttendanceSessions = mysqlTable('archive_attendance_sessions', {
   id: int('id').autoincrement().primaryKey().notNull(),
   original_session_id: int('original_session_id'),
@@ -100,13 +105,20 @@ export const archiveAttendanceSessions = mysqlTable('archive_attendance_sessions
   academic_year: varchar('academic_year', { length: 9 }).notNull(),
   date: date('date').notNull(),
   session: tinyint('session').notNull(),
+  batch_number: tinyint('batch_number').default(0).notNull(),
   faculty_id: int('faculty_id'),
   topic_covered: text('topic_covered'),
+  submitted_at: timestamp('submitted_at'),
+  total_students: int('total_students').default(0),
+  present_count: int('present_count').default(0),
+  absent_count: int('absent_count').default(0),
+  archive_batch_id: varchar('archive_batch_id', { length: 64 }),
   created_at: timestamp('created_at'),
   archived_at: timestamp('archived_at').defaultNow().notNull(),
 }, (table) => ({
   assignmentDateIdx: index('idx_archive_sessions_assignment_date').on(table.assignment_id, table.date),
   branchSemYearIdx: index('idx_archive_sessions_lookup').on(table.branch, table.semester, table.academic_year),
+  uqArchiveSession: uniqueIndex('uq_archive_attendance_session').on(table.assignment_id, table.date, table.session, table.batch_number),
 }));
 
 // 6. Archived Student Internal Marks

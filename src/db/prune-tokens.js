@@ -6,14 +6,16 @@ import {
   attendanceSessions,
   rateLimits 
 } from './schema.js';
-import { lt, _sql } from 'drizzle-orm';
+import { lt, and, eq } from 'drizzle-orm';
 import logger from '../lib/logger.js';
 
 /**
  * Database Garbage Collection (Pruning)
  * Removes expired tokens and temporary records to prevent database bloat.
+ * NEVER deletes attendance_sessions (which have CASCADE FKs to student_attendance);
+ * only deactivates expired active PIN sessions.
  */
-async function pruneExpiredRecords() {
+export async function pruneExpiredRecords() {
   logger.info('--- STARTING DATABASE GARBAGE COLLECTION ---');
   const now = new Date();
   
@@ -33,10 +35,13 @@ async function pruneExpiredRecords() {
     const refreshCount = refreshRes.length || refreshRes.affectedRows || 0;
     logger.info({ affectedRows: refreshCount, table: 'refresh_tokens' }, 'Pruned expired refresh tokens');
 
-    // 4. Prune Expired Attendance Sessions (Inactive)
-    const sessionRes = await db.delete(attendanceSessions).where(lt(attendanceSessions.expires_at, now));
+    // 4. Deactivate Expired Attendance Sessions (NEVER delete finalized or historical sessions)
+    const sessionRes = await db
+      .update(attendanceSessions)
+      .set({ is_active: false })
+      .where(and(eq(attendanceSessions.is_active, true), lt(attendanceSessions.expires_at, now)));
     const sessionCount = sessionRes.length || sessionRes.affectedRows || 0;
-    logger.info({ affectedRows: sessionCount, table: 'attendance_sessions' }, 'Pruned expired attendance sessions');
+    logger.info({ affectedRows: sessionCount, table: 'attendance_sessions' }, 'Deactivated expired attendance sessions');
 
     // 5. Prune Expired Rate Limits
     const rateRes = await db.delete(rateLimits).where(lt(rateLimits.expires_at, now));
@@ -50,9 +55,11 @@ async function pruneExpiredRecords() {
   }
 }
 
-// Run the pruning process
-pruneExpiredRecords()
-  .then(() => process.exit(0))
-  .catch((_err) => {
-    process.exit(1);
-  });
+// Run the pruning process when executed directly via CLI (`npm run db:prune`)
+if (!process.env.VITEST) {
+  pruneExpiredRecords()
+    .then(() => process.exit(0))
+    .catch((_err) => {
+      process.exit(1);
+    });
+}

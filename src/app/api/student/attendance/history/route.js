@@ -1,8 +1,6 @@
 import logger from '@/lib/logger';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { db } from '@/db';
-import { studentAttendance, attendanceSessions } from '@/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { UnifiedAttendanceRepository } from '@/services/attendance/UnifiedAttendanceRepository';
 
 export async function GET(request) {
   try {
@@ -19,19 +17,10 @@ export async function GET(request) {
       return apiError('Valid Assignment ID is required', 400);
     }
 
-    const history = await db.select({
-      date: studentAttendance.date,
-      status: studentAttendance.status,
-      session: studentAttendance.session,
-      batch_number: attendanceSessions.batch_number
-    })
-    .from(studentAttendance)
-    .leftJoin(attendanceSessions, eq(studentAttendance.session_id, attendanceSessions.id))
-    .where(and(
-      eq(studentAttendance.student_id, user.student_id),
-      eq(studentAttendance.assignment_id, assignmentIdNum)
-    ))
-    .orderBy(desc(studentAttendance.date), desc(studentAttendance.session), desc(studentAttendance.id));
+    const history = await UnifiedAttendanceRepository.getStudentSubjectHistory(
+      user.student_id,
+      assignmentIdNum
+    );
 
     return apiResponse({ data: history });
   } catch (error) {

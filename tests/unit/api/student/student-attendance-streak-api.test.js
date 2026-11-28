@@ -16,6 +16,7 @@ vi.mock('@/lib/api-utils', async (importOriginal) => {
 vi.mock('@/services/attendance/StreakService', () => ({
   StreakService: {
     calculateStudentStreak: vi.fn(),
+    getSnapshotOrRecalculate: vi.fn(),
     updateSelectedEmoji: vi.fn(),
   },
 }));
@@ -53,7 +54,7 @@ describe('Student Attendance Streak APIs', () => {
         role: 'student',
       });
 
-      StreakService.calculateStudentStreak.mockResolvedValue({
+      StreakService.getSnapshotOrRecalculate.mockResolvedValue({
         currentStreak: 8,
         longestStreak: 12,
         previousStreak: 4,

@@ -46,6 +46,16 @@ vi.mock('@/services/attendance/StreakService', () => ({
         { sessionId: 1, subjectCode: 'CS101', status: 'PRESENT', isAttended: true },
       ],
     })),
+    getSnapshotOrRecalculate: vi.fn(async ({ studentId, policy }) => ({
+      studentId,
+      fromSnapshot: true,
+      currentStreak: 12,
+      longestStreak: 20,
+      previousStreak: 8,
+      policyApplied: policy || 'EXCUSED_INCREMENTS',
+      selectedEmoji: { char: '🔥', code: 'fire' },
+      unlockedMilestones: [],
+    })),
     updateSelectedEmoji: vi.fn(async ({ _studentId, _emojiChar, _emojiCode, milestoneId }) => {
       // Security rule: milestoneId 999 is NOT unlocked by student 101
       if (milestoneId === 999) {
@@ -81,7 +91,7 @@ describe('Second-Pass Audit: Student Attendance Streak Security & Authorization'
 
       expect(response.status).toBe(200);
       expect(json.data.studentId).toBe(101); // Bound to session student_id 101, NOT 999
-      expect(StreakService.calculateStudentStreak).toHaveBeenCalledWith(
+      expect(StreakService.getSnapshotOrRecalculate).toHaveBeenCalledWith(
         expect.objectContaining({ studentId: 101, rollNo: '22KU01' })
       );
     });
@@ -193,14 +203,12 @@ describe('Second-Pass Audit: Student Attendance Streak Security & Authorization'
 
       expect(response.status).toBe(200);
       // Verify StreakService was called WITHOUT client policy override
-      expect(StreakService.calculateStudentStreak).toHaveBeenCalledWith(
+      expect(StreakService.getSnapshotOrRecalculate).toHaveBeenCalledWith(
         expect.not.objectContaining({ policy: 'STRICT_PRESENT_ONLY' })
       );
-      expect(StreakService.calculateStudentStreak).toHaveBeenCalledWith({
+      expect(StreakService.getSnapshotOrRecalculate).toHaveBeenCalledWith({
         studentId: 101,
         rollNo: '22KU01',
-        semester: undefined,
-        academicYear: undefined,
       });
       expect(json.data.policyApplied).toBe('EXCUSED_INCREMENTS');
     });

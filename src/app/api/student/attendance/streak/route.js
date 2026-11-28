@@ -13,14 +13,24 @@ export async function GET(request) {
     const querySemester = searchParams.get('semester');
     const queryAcademicYear = searchParams.get('academic_year');
 
+    const parsedSemester = querySemester ? parseInt(querySemester, 10) : undefined;
+    const parsedAcademicYear = queryAcademicYear || undefined;
+
     // NOTE: Policy is resolved EXCLUSIVELY on the server from trusted institutional configuration.
     // Client-supplied parameters (e.g. ?policy=...) are strictly ignored to prevent manipulation.
-    const streakData = await StreakService.calculateStudentStreak({
-      studentId: user.student_id,
-      rollNo: user.roll_no,
-      semester: querySemester ? parseInt(querySemester, 10) : undefined,
-      academicYear: queryAcademicYear || undefined,
-    });
+    // For full lifetime summary queries (default dashboard load), use derived snapshot cache with
+    // automatic stale/version validation (`getSnapshotOrRecalculate`).
+    const streakData = (!parsedSemester && !parsedAcademicYear)
+      ? await StreakService.getSnapshotOrRecalculate({
+          studentId: user.student_id,
+          rollNo: user.roll_no,
+        })
+      : await StreakService.calculateStudentStreak({
+          studentId: user.student_id,
+          rollNo: user.roll_no,
+          semester: parsedSemester,
+          academicYear: parsedAcademicYear,
+        });
 
     // Strip full timeline from summary payload to keep response lightweight
     const { timeline: _timeline, ...summary } = streakData;
