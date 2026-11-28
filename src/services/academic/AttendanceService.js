@@ -2,6 +2,8 @@ import { db } from '@/db';
 import {
   studentAttendance,
   attendanceSessions,
+  archiveStudentAttendance,
+  archiveAttendanceSessions,
   students as studentsTable,
   facultySubjectAssignments,
   labBatchAllocations,
@@ -9,10 +11,16 @@ import {
 } from '@/db/schema';
 import { eq, and, desc, gte, or, isNull, sql } from 'drizzle-orm';
 
+function normalizeDateStr(val) {
+  if (!val) return '';
+  if (val instanceof Date) return val.toISOString().split('T')[0];
+  return String(val).slice(0, 10);
+}
+
 /**
  * Service to calculate attendance for a single student and assignment.
- * Source of truth for sessions conducted: `attendance_sessions`.
- * Source of truth for student status: `student_attendance`.
+ * Source of truth for sessions conducted: `attendance_sessions` (plus legacy `archive_attendance_sessions` fallback).
+ * Source of truth for student status: `student_attendance` (plus legacy `archive_student_attendance` fallback).
  * Lab-wise batch aware: Only includes sessions for the student's allocated batch or whole-class sessions.
  */
 export async function getStudentSubjectAttendance(studentId, assignmentId) {
@@ -58,11 +66,7 @@ export async function getStudentSubjectAttendance(studentId, assignmentId) {
     }
   }
 
-  // 3. Query conducted sessions eligible for this student:
-  // - Whole-class sessions (batch_number = 0 or NULL) are eligible for all students.
-  // - Batch-specific sessions (batch_number = 1 or 2) are eligible ONLY if:
-  //     a) The student is allocated to that batch (batch_number = studentBatch), OR
-  //     b) The student has an actual attendance record in that session (preserves historical/override records).
+  // 3. Query conducted sessions eligible for this student (active + logically archived):
   const sessionConditions = [
     eq(attendanceSessions.assignment_id, assignmentId),
     gte(attendanceSessions.attendance_date, admissionDate)
@@ -82,8 +86,6 @@ export async function getStudentSubjectAttendance(studentId, assignmentId) {
       )
     );
   } else {
-    // If student has no batch allocation for this subject (e.g. Theory or not yet allocated),
-    // include whole-class sessions plus any session where this student was recorded.
     sessionConditions.push(
       or(
         eq(attendanceSessions.batch_number, 0),
@@ -97,22 +99,72 @@ export async function getStudentSubjectAttendance(studentId, assignmentId) {
     );
   }
 
-  const sessions = await db.select({
+  const primarySessions = await db.select({
     id: attendanceSessions.id,
     date: attendanceSessions.attendance_date,
     sessionNumber: attendanceSessions.session_number,
     batchNumber: attendanceSessions.batch_number,
-    topic: attendanceSessions.topic_covered
+    topic: attendanceSessions.topic_covered,
+    isArchived: attendanceSessions.is_archived,
   })
   .from(attendanceSessions)
   .where(and(...sessionConditions))
   .orderBy(desc(attendanceSessions.attendance_date), desc(attendanceSessions.session_number));
 
-  // 4. Get student's actual recorded attendance status
-  const studentRecords = await db.select({
+  // Merge legacy archive_attendance_sessions if any exist
+  const sessionMap = new Map();
+  for (const s of primarySessions || []) {
+    const key = `${normalizeDateStr(s.date)}_${s.sessionNumber}_${s.batchNumber || 0}`;
+    sessionMap.set(key, {
+      ...s,
+      date: normalizeDateStr(s.date),
+      isArchived: Boolean(s.isArchived),
+    });
+  }
+
+  try {
+    const legacySessions = await db.select({
+      id: archiveAttendanceSessions.original_session_id,
+      archiveId: archiveAttendanceSessions.id,
+      date: archiveAttendanceSessions.date,
+      sessionNumber: archiveAttendanceSessions.session,
+      topic: archiveAttendanceSessions.topic_covered,
+    })
+    .from(archiveAttendanceSessions)
+    .where(and(
+      eq(archiveAttendanceSessions.assignment_id, assignmentId),
+      gte(archiveAttendanceSessions.date, admissionDate)
+    ));
+
+    for (const ls of legacySessions || []) {
+      const dateStr = normalizeDateStr(ls.date);
+      const key = `${dateStr}_${ls.sessionNumber}_0`;
+      if (!sessionMap.has(key)) {
+        sessionMap.set(key, {
+          id: ls.id || -Number(ls.archiveId),
+          date: dateStr,
+          sessionNumber: ls.sessionNumber,
+          batchNumber: 0,
+          topic: ls.topic || null,
+          isArchived: true,
+        });
+      }
+    }
+  } catch (_legacySessErr) {
+    // Legacy table optional in mocked or pre-migration environments
+  }
+
+  const sessions = Array.from(sessionMap.values()).sort((a, b) => {
+    if (a.date !== b.date) return b.date.localeCompare(a.date);
+    return (b.sessionNumber || 0) - (a.sessionNumber || 0);
+  });
+
+  // 4. Get student's actual recorded attendance status (primary + legacy archive fallback, deduplicated)
+  const primaryRecords = await db.select({
     date: studentAttendance.date,
     session: studentAttendance.session,
-    status: studentAttendance.status
+    status: studentAttendance.status,
+    is_archived: studentAttendance.is_archived,
   })
   .from(studentAttendance)
   .where(and(
@@ -121,8 +173,48 @@ export async function getStudentSubjectAttendance(studentId, assignmentId) {
     gte(studentAttendance.date, admissionDate)
   ));
 
+  const recordMap = new Map();
+  for (const r of primaryRecords || []) {
+    const dateStr = normalizeDateStr(r.date);
+    recordMap.set(`${dateStr}_${r.session}`, {
+      date: dateStr,
+      session: r.session,
+      status: r.status,
+      is_archived: Boolean(r.is_archived),
+    });
+  }
+
+  try {
+    const legacyRecords = await db.select({
+      date: archiveStudentAttendance.date,
+      session: archiveStudentAttendance.session,
+      status: archiveStudentAttendance.status,
+    })
+    .from(archiveStudentAttendance)
+    .where(and(
+      eq(archiveStudentAttendance.student_id, studentId),
+      eq(archiveStudentAttendance.assignment_id, assignmentId),
+      gte(archiveStudentAttendance.date, admissionDate)
+    ));
+
+    for (const lr of legacyRecords || []) {
+      const dateStr = normalizeDateStr(lr.date);
+      const key = `${dateStr}_${lr.session}`;
+      if (!recordMap.has(key)) {
+        recordMap.set(key, {
+          date: dateStr,
+          session: lr.session,
+          status: lr.status,
+          is_archived: true,
+        });
+      }
+    }
+  } catch (_legacyRecErr) {
+    // Legacy table optional in mocked or pre-migration environments
+  }
+
   // 5. Normalize and merge
-  let classesHeld = sessions.length;
+  const classesHeld = sessions.length;
   let present = 0;
   let absent = 0;
   let ncc = 0;
@@ -130,12 +222,8 @@ export async function getStudentSubjectAttendance(studentId, assignmentId) {
   let unrecorded = 0;
 
   const timeline = sessions.map(session => {
-    const sessionDateStr = session.date instanceof Date ? session.date.toISOString().split('T')[0] : session.date;
-
-    const record = studentRecords.find(r => {
-      const rDateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : r.date;
-      return rDateStr === sessionDateStr && r.session === session.sessionNumber;
-    });
+    const sessionDateStr = normalizeDateStr(session.date);
+    const record = recordMap.get(`${sessionDateStr}_${session.sessionNumber}`);
 
     let status = 'Not Recorded';
     if (record) {
@@ -143,10 +231,9 @@ export async function getStudentSubjectAttendance(studentId, assignmentId) {
       if (status === 'PRESENT') present++;
       else if (status === 'ABSENT') absent++;
       else if (status === 'NCC') ncc++;
-      else if (status === 'MEDICAL') medical++;
+      else if (status === 'MEDICAL' || status === 'EXEMPTED') medical++;
     } else {
       unrecorded++;
-      // If an eligible session was conducted, but the student was not recorded, it effectively lowers attendance percentage.
       absent++;
     }
 
@@ -155,7 +242,8 @@ export async function getStudentSubjectAttendance(studentId, assignmentId) {
       sessionNumber: session.sessionNumber,
       batchNumber: session.batchNumber || 0,
       topic: session.topic || null,
-      status: status
+      status,
+      is_archived: Boolean(record?.is_archived ?? session.isArchived),
     };
   });
 

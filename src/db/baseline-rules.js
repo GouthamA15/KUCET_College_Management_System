@@ -339,6 +339,33 @@ const BASELINE_RULES = [
     },
     getReason: () => 'all 0035 attendance streak tables and indexes already exist',
   },
+  {
+    id: 39,
+    description: '0039_safe_attendance_archive_and_snapshots',
+    getEntries: (entries) => entries.filter((e) => e.idx === 39),
+    isSatisfied: async (conn) => {
+      const [cols] = await conn.query(
+        `SELECT table_name, column_name FROM information_schema.columns
+         WHERE table_schema = DATABASE()
+           AND (
+             (table_name = 'students' AND column_name = 'is_archived') OR
+             (table_name = 'student_attendance' AND column_name IN ('is_archived', 'record_version')) OR
+             (table_name = 'attendance_sessions' AND column_name = 'is_archived') OR
+             (table_name = 'student_attendance_disputes' AND column_name = 'attendance_source') OR
+             (table_name = 'archive_student_attendance' AND column_name = 'session_id') OR
+             (table_name = 'archive_attendance_sessions' AND column_name = 'batch_number')
+           )`
+      );
+      const [tbl] = await conn.query(
+        'SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = "student_streak_snapshots"'
+      );
+      const [idx] = await conn.query(
+        'SELECT COUNT(*) as count FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = "student_streak_snapshots" AND index_name = "idx_sss_stale"'
+      );
+      return (cols || []).length >= 7 && Number(tbl?.[0]?.count || 0) > 0 && Number(idx?.[0]?.count || 0) > 0;
+    },
+    getReason: () => 'logical attendance archival columns and student_streak_snapshots already exist',
+  },
 ];
 
 module.exports = {

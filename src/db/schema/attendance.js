@@ -13,12 +13,21 @@ export const studentAttendance = mysqlTable('student_attendance', {
   status: mysqlEnum('status', ['PRESENT', 'ABSENT', 'NCC', 'MEDICAL']).notNull(),
   submitted_at: timestamp('submitted_at'),
   created_at: timestamp('created_at').defaultNow(),
+  is_archived: boolean('is_archived').default(false).notNull(),
+  archive_batch_id: varchar('archive_batch_id', { length: 64 }),
+  archived_at: timestamp('archived_at'),
+  record_version: int('record_version').default(1).notNull(),
+  last_modified_by: int('last_modified_by'),
+  last_modified_at: timestamp('last_modified_at').onUpdateNow(),
 }, (table) => ({
   attendanceIdx: index('idx_attendance_lookup').on(table.assignment_id, table.date, table.session),
   historyIdx: index('idx_student_attendance_history').on(table.student_id, table.date),
   studentAssignmentIdx: index('idx_sa_student_assignment').on(table.student_id, table.assignment_id),
   studentStatusDateIdx: index('idx_att_student_status_date').on(table.student_id, table.status, table.date),
   sessionStatusIdx: index('idx_sa_session_status').on(table.session_id, table.status),
+  streakScanIdx: index('idx_sa_streak_scan').on(table.student_id, table.date, table.session, table.status),
+  assignmentArchivedDateIdx: index('idx_sa_assignment_archived_date').on(table.assignment_id, table.is_archived, table.date),
+  archiveBatchIdx: index('idx_sa_archive_batch').on(table.archive_batch_id),
   uqAttendance: uniqueIndex('uq_student_attendance').on(table.student_id, table.assignment_id, table.date, table.session),
   uqSessionStudent: uniqueIndex('uq_session_student').on(table.session_id, table.student_id),
 }));
@@ -44,6 +53,9 @@ export const attendanceSessions = mysqlTable('attendance_sessions', {
   total_students: int('total_students').default(0),
   present_count: int('present_count').default(0),
   absent_count: int('absent_count').default(0),
+  is_archived: boolean('is_archived').default(false).notNull(),
+  archive_batch_id: varchar('archive_batch_id', { length: 64 }),
+  archived_at: timestamp('archived_at'),
 }, (table) => ({
   uqAssignmentSlotBatch: uniqueIndex('uq_assignment_session_slot_batch').on(table.assignment_id, table.attendance_date, table.session_number, table.batch_number),
   allocationIdx: index('idx_as_allocation').on(table.allocation_id),
@@ -52,6 +64,8 @@ export const attendanceSessions = mysqlTable('attendance_sessions', {
   tokenIdx: index('idx_session_token').on(table.session_token),
   facultyIdx: index('idx_as_faculty').on(table.faculty_id),
   assignmentDateIdx: index('idx_sessions_assignment_date').on(table.assignment_id, table.attendance_date),
+  assignmentArchivedSubIdx: index('idx_as_assignment_archived_sub').on(table.assignment_id, table.is_archived, table.submitted_at),
+  archiveBatchIdx: index('idx_as_archive_batch').on(table.archive_batch_id),
 }));
 
 export const attendanceSessionLogs = mysqlTable('attendance_session_logs', {
@@ -86,6 +100,8 @@ export const studentAttendanceDisputes = mysqlTable('student_attendance_disputes
   reviewed_at: timestamp('reviewed_at'),
   rejection_reason: text('rejection_reason'),
   reviewer_comments: text('reviewer_comments'),
+  is_historical_override: boolean('is_historical_override').default(false).notNull(),
+  attendance_source: varchar('attendance_source', { length: 20 }).default('ACTIVE').notNull(),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
 }, (table) => ({

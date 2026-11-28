@@ -1,7 +1,6 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import {
-  studentAttendance,
   studentAttendanceDisputes,
   attendanceDisputeAttachments,
   facultySubjectAssignments,
@@ -12,6 +11,7 @@ import { eq, and, desc, inArray, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { STORAGE_FOLDERS } from '@/lib/storage-config';
 import { storage } from '@/lib/providers';
+import { UnifiedAttendanceRepository } from '@/services/attendance/UnifiedAttendanceRepository';
 import crypto from 'crypto';
 
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'application/pdf']);
@@ -185,16 +185,14 @@ export async function POST(request) {
       return apiError('You must confirm the declaration that the information and documents submitted are genuine.', 400);
     }
 
-    // 2. Validate attendance record exists and status is ABSENT
-    const [attRecord] = await db.select()
-      .from(studentAttendance)
-      .where(and(
-        eq(studentAttendance.student_id, user.student_id),
-        eq(studentAttendance.assignment_id, assignment_id),
-        eq(studentAttendance.date, attendance_date),
-        eq(studentAttendance.session, session)
-      ))
-      .limit(1);
+    // 2. Validate attendance record exists (across active and archived datasets) and status is ABSENT
+    const attLookup = await UnifiedAttendanceRepository.getAttendanceRecordForDispute({
+      studentId: user.student_id,
+      assignmentId: assignment_id,
+      attendanceDate: attendance_date,
+      session,
+    });
+    const attRecord = attLookup?.record || null;
 
     if (!attRecord) {
       return apiError('No attendance record found for this date and session.', 404);
@@ -320,6 +318,7 @@ export async function POST(request) {
             additional_explanation,
             student_declaration,
             proof_url: primaryProofKey,
+            attendance_source: attLookup?.source || 'ACTIVE',
             status: 'PENDING'
           });
           disputeId = result.insertId;

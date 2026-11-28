@@ -2,13 +2,12 @@ import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   studentAttendanceDisputes, 
-  studentAttendance, 
-  attendanceAuditLogs,
   facultySubjectAssignments,
   students as studentsTable
 } from '@/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
+import { UnifiedAttendanceRepository } from '@/services/attendance/UnifiedAttendanceRepository';
 import { z } from 'zod';
 
 const reviewDisputeSchema = z.object({
@@ -142,6 +141,7 @@ export async function PUT(request, { params }) {
           semester: dispute.course_semester,
           academicYear: dispute.academic_year,
           branch: dispute.branch,
+          includeAllSemesters: true,
         });
         preStreak = beforeData?.currentStreak || 0;
         preLongest = beforeData?.longestStreak || 0;
@@ -156,10 +156,9 @@ export async function PUT(request, { params }) {
       ? dispute.attendance_date.toISOString().split('T')[0]
       : String(dispute.attendance_date).slice(0, 10);
 
-    // 2. Transactional Update & Audit Log
+    // 2. Transactional Update & Audit Log (with atomic concurrency guard)
     await db.transaction(async (tx) => {
-      // Update dispute record
-      await tx.update(studentAttendanceDisputes)
+      const disputeUpdateRes = await tx.update(studentAttendanceDisputes)
         .set({
           status,
           reviewed_by_staff_id: user.id,
@@ -167,55 +166,33 @@ export async function PUT(request, { params }) {
           rejection_reason: status === 'REJECTED' ? rejection_reason.trim() : null,
           reviewer_comments: status === 'MORE_INFO_REQUIRED' ? reviewer_comments.trim() : (status === 'APPROVED' ? null : dispute.reviewer_comments)
         })
-        .where(eq(studentAttendanceDisputes.id, disputeId));
+        .where(and(
+          eq(studentAttendanceDisputes.id, disputeId),
+          inArray(studentAttendanceDisputes.status, ['PENDING', 'MORE_INFO_REQUIRED'])
+        ));
+
+      const affected = Array.isArray(disputeUpdateRes)
+        ? disputeUpdateRes[0]?.affectedRows
+        : disputeUpdateRes?.affectedRows;
+      if (affected !== undefined && Number(affected) === 0) {
+        const conflictError = new Error('This dispute has already been resolved');
+        conflictError.statusCode = 409;
+        throw conflictError;
+      }
 
       if (status === 'APPROVED') {
-        // Update ALL matching attendance records for this exact student + assignment + date + session
-        // (Avoids .limit(1) leaving stale duplicate rows with ABSENT when unique indexes are absent)
-        const slotPredicate = and(
-          eq(studentAttendance.student_id, dispute.student_id),
-          eq(studentAttendance.assignment_id, dispute.assignment_id),
-          sql`DATE(${studentAttendance.date}) = ${dateStr}`,
-          eq(studentAttendance.session, dispute.session)
-        );
-
-        const matchingRows = await tx.select({
-          id: studentAttendance.id,
-          session_id: studentAttendance.session_id
-        })
-        .from(studentAttendance)
-        .where(slotPredicate);
-
-        if (matchingRows.length > 0) {
-          await tx.update(studentAttendance)
-            .set({ status: dispute.requested_status })
-            .where(slotPredicate);
-
-          // Also sync any rows linked by the same session_id + student_id
-          const sessionIds = Array.from(new Set(matchingRows.map(r => r.session_id).filter(Boolean)));
-          if (sessionIds.length > 0) {
-            const { inArray } = await import('drizzle-orm');
-            await tx.update(studentAttendance)
-              .set({ status: dispute.requested_status })
-              .where(and(
-                inArray(studentAttendance.session_id, sessionIds),
-                eq(studentAttendance.student_id, dispute.student_id)
-              ));
-          }
-        }
-
-        // Insert auditable log
-        await tx.insert(attendanceAuditLogs).values({
-          student_id: dispute.student_id,
-          assignment_id: dispute.assignment_id,
-          attendance_date: dispute.attendance_date,
+        await UnifiedAttendanceRepository.updateAttendanceStatusWithAudit({
+          studentId: dispute.student_id,
+          assignmentId: dispute.assignment_id,
+          attendanceDate: dispute.attendance_date,
           session: dispute.session,
-          previous_status: dispute.original_status,
-          new_status: dispute.requested_status,
-          modified_by_staff_id: user.id,
-          change_type: 'DISPUTE_RESOLUTION',
-          dispute_id: dispute.id,
-          reason: `Dispute approved by staff #${user.id}: ${dispute.reason}`
+          newStatus: dispute.requested_status,
+          previousStatus: dispute.original_status,
+          modifierStaffId: user.id,
+          changeType: 'DISPUTE_RESOLUTION',
+          disputeId: dispute.id,
+          reason: `Dispute approved by staff #${user.id}: ${dispute.reason}`,
+          tx,
         });
       }
     });
@@ -311,6 +288,9 @@ export async function PUT(request, { params }) {
           : 'Additional information requested from student.'
     });
   } catch (err) {
+    if (err?.statusCode === 409) {
+      return apiError(err.message, 409);
+    }
     if (err?.name === 'ZodError') {
       return apiError(err.errors[0]?.message || 'Validation error', 400);
     }

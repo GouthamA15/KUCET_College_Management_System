@@ -119,3 +119,28 @@ export const studentStreakReconciliationLogs = mysqlTable('student_streak_reconc
 }, (table) => ({
   studentCreatedIdx: index('idx_ssrl_student').on(table.student_id, table.created_at),
 }));
+
+/**
+ * Table: student_streak_snapshots
+ * Derived streak summary cache per student for fast dashboard reads and safe invalidation.
+ * Authoritative source remains student_attendance + attendance_sessions.
+ */
+export const studentStreakSnapshots = mysqlTable('student_streak_snapshots', {
+  student_id: int('student_id').primaryKey().notNull().references(() => students.id, { onDelete: 'cascade' }),
+  current_streak: int('current_streak').default(0).notNull(),
+  longest_streak: int('longest_streak').default(0).notNull(),
+  previous_streak: int('previous_streak').default(0).notNull(),
+  total_eligible_classes: int('total_eligible_classes').default(0).notNull(),
+  total_attended_classes: int('total_attended_classes').default(0).notNull(),
+  total_missed_classes: int('total_missed_classes').default(0).notNull(),
+  last_evaluated_session_id: int('last_evaluated_session_id'),
+  last_evaluated_date: varchar('last_evaluated_date', { length: 10 }),
+  last_attended_date: varchar('last_attended_date', { length: 10 }),
+  last_break_date: varchar('last_break_date', { length: 10 }),
+  calculation_version: int('calculation_version').default(1).notNull(),
+  policy_applied: varchar('policy_applied', { length: 30 }).default('EXCUSED_INCREMENTS').notNull(),
+  is_stale: boolean('is_stale').default(false).notNull(),
+  recalculated_at: timestamp('recalculated_at').defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  staleIdx: index('idx_sss_stale').on(table.is_stale, table.recalculated_at),
+}));

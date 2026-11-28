@@ -274,6 +274,13 @@
             "when": 1791600000000,
             "tag": "0038_update_first_spark_emoji",
             "breakpoints": true
+        },
+        {
+            "idx": 39,
+            "version": "5",
+            "when": 1791700000000,
+            "tag": "0039_safe_attendance_archive_and_snapshots",
+            "breakpoints": true
         }
     ]
 }

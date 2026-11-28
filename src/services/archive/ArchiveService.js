@@ -1,21 +1,22 @@
 import { db } from '@/db';
-import { 
+import {
   students, studentPersonalDetails, studentAcademicBackground,
-  studentAttendance, attendanceSessions, studentMarks, studentFeePayments,
+  studentAttendance, studentMarks, studentFeePayments,
   facultySubjectAssignments,
   archiveStudents, archiveStudentPersonalDetails, archiveStudentAcademicBackground,
-  archiveStudentAttendance, archiveAttendanceSessions, archiveStudentMarks, archiveStudentPayments,
+  archiveStudentAttendance, archiveStudentMarks, archiveStudentPayments,
   archiveOperationsLog, archiveRetentionPolicies
 } from '@/db/schema';
 import { eq, and, inArray, count, sql, like, or, desc } from 'drizzle-orm';
 import { ArchiveMediaService } from './ArchiveMediaService';
+import { UnifiedAttendanceRepository, normalizeDateStr } from '@/services/attendance/UnifiedAttendanceRepository';
 import logger from '@/lib/logger';
 import { getBranchFromRoll, branchCodes } from '@/lib/rollNumber';
 
 /**
  * Archive Service
- * Domain service managing institutional semester archival, alumni graduation archival,
- * retention policy enforcement, and archive operational reporting.
+ * Domain service managing non-destructive institutional semester archival,
+ * alumni graduation registry snapshots, retention policy enforcement, and archive reporting.
  */
 export class ArchiveService {
   /**
@@ -23,18 +24,31 @@ export class ArchiveService {
    */
   static async getArchiveOverview() {
     try {
-      // 1. Active vs Archived Students Count
-      const [[activeStudentsRes], [archivedStudentsRes]] = await Promise.all([
-        db.select({ count: count() }).from(students),
+      // 1. Active vs Archived Students Count (logical + legacy deduplicated)
+      const [[activeStudentsRes], [logicalArchivedStudentsRes], [legacyArchivedStudentsRes]] = await Promise.all([
+        db.select({ count: count() }).from(students).where(eq(students.is_archived, false)),
+        db.select({ count: count() }).from(students).where(eq(students.is_archived, true)),
         db.select({ count: count() }).from(archiveStudents),
       ]);
 
       const activeStudentsCount = activeStudentsRes?.count || 0;
-      const archivedStudentsCount = archivedStudentsRes?.count || 0;
+      const archivedStudentsCount = Math.max(
+        logicalArchivedStudentsRes?.count || 0,
+        legacyArchivedStudentsRes?.count || 0
+      );
 
-      // 2. Active vs Archived Records
-      const [[activeAttRes], [archivedAttRes], [activeMarksRes], [archivedMarksRes], [activePayRes], [archivedPayRes]] = await Promise.all([
-        db.select({ count: count() }).from(studentAttendance),
+      // 2. Active vs Archived Records (logical in-place + legacy physical archive)
+      const [
+        [activeAttRes],
+        [logicalArchivedAttRes],
+        [legacyArchivedAttRes],
+        [activeMarksRes],
+        [archivedMarksRes],
+        [activePayRes],
+        [archivedPayRes]
+      ] = await Promise.all([
+        db.select({ count: count() }).from(studentAttendance).where(eq(studentAttendance.is_archived, false)),
+        db.select({ count: count() }).from(studentAttendance).where(eq(studentAttendance.is_archived, true)),
         db.select({ count: count() }).from(archiveStudentAttendance),
         db.select({ count: count() }).from(studentMarks),
         db.select({ count: count() }).from(archiveStudentMarks),
@@ -42,8 +56,15 @@ export class ArchiveService {
         db.select({ count: count() }).from(archiveStudentPayments),
       ]);
 
-      const totalActiveRecords = (activeAttRes?.count || 0) + (activeMarksRes?.count || 0) + (activePayRes?.count || 0);
-      const totalArchivedRecords = (archivedAttRes?.count || 0) + (archivedMarksRes?.count || 0) + (archivedPayRes?.count || 0);
+      const activeAttendanceCount = activeAttRes?.count || 0;
+      const archivedAttendanceCount = (logicalArchivedAttRes?.count || 0) + (legacyArchivedAttRes?.count || 0);
+      const activeMarksCount = activeMarksRes?.count || 0;
+      const archivedMarksCount = archivedMarksRes?.count || 0;
+      const activePaymentsCount = activePayRes?.count || 0;
+      const archivedPaymentsCount = archivedPayRes?.count || 0;
+
+      const totalActiveRecords = activeAttendanceCount + activeMarksCount + activePaymentsCount;
+      const totalArchivedRecords = archivedAttendanceCount + archivedMarksCount + archivedPaymentsCount;
 
       // 3. Operational Log Metrics
       const [logMetrics] = await db
@@ -69,12 +90,19 @@ export class ArchiveService {
         metrics: {
           activeStudents: activeStudentsCount,
           archivedStudents: archivedStudentsCount,
+          activeAttendance: activeAttendanceCount,
+          archivedAttendance: archivedAttendanceCount,
+          activeMarks: activeMarksCount,
+          archivedMarks: archivedMarksCount,
+          activePayments: activePaymentsCount,
+          archivedPayments: archivedPaymentsCount,
           activeRecords: totalActiveRecords,
           archivedRecords: totalArchivedRecords,
           totalStorageSizeBytes: Number(logMetrics?.totalSize || 0),
           totalCompletedJobs: Number(logMetrics?.totalJobs || 0),
           totalAffectedRecords: Number(logMetrics?.totalAffectedRecords || 0),
           totalAffectedMediaCount: Number(logMetrics?.totalAffectedMedia || 0),
+          lastJobDate: lastJob[0]?.created_at || null,
         },
         lastArchivalJob: lastJob[0] || null,
         retentionPolicies: policies || [],
@@ -86,7 +114,9 @@ export class ArchiveService {
   }
 
   /**
-   * Run a semester data archival job for closed semesters
+   * Run a non-destructive, idempotent semester archival job for closed semesters.
+   * Marks student_attendance and attendance_sessions with `is_archived = true` in-place
+   * so student streaks, timelines, audit logs, and foreign keys remain 100% intact.
    */
   static async runSemesterArchive({ branch, semester, academic_year, archived_by = 'SYSTEM', reason = 'Semester closure' }) {
     const startTime = Date.now();
@@ -125,78 +155,16 @@ export class ArchiveService {
 
       await db.transaction(async (tx) => {
         if (assignmentIds.length > 0) {
-          // 1. Move Attendance Records
-          const attendanceRows = await tx
-            .select({
-              id: studentAttendance.id,
-              student_id: studentAttendance.student_id,
-              assignment_id: studentAttendance.assignment_id,
-              date: studentAttendance.date,
-              session: studentAttendance.session,
-              status: studentAttendance.status,
-              created_at: studentAttendance.created_at,
-              roll_no: students.roll_no,
-            })
-            .from(studentAttendance)
-            .leftJoin(students, eq(studentAttendance.student_id, students.id))
-            .where(inArray(studentAttendance.assignment_id, assignmentIds));
+          // 1. Non-destructive logical archival for attendance & sessions (NEVER delete operational attendance!)
+          const { attendanceArchived, sessionsArchived } = await UnifiedAttendanceRepository.markSemesterArchived({
+            assignmentIds,
+            jobId,
+            archivedAt: new Date(),
+            tx,
+          });
+          recordsArchived += attendanceArchived + sessionsArchived;
 
-          if (attendanceRows.length > 0) {
-            const archiveAttEntries = attendanceRows.map(row => {
-              const assignment = assignmentMap.get(row.assignment_id) || {};
-              return {
-                original_attendance_id: row.id,
-                student_id: row.student_id,
-                roll_no: row.roll_no || 'UNKNOWN',
-                assignment_id: row.assignment_id,
-                branch: assignment.branch || branch || 'CSE',
-                semester: assignment.course_semester || Number(semester),
-                academic_year: assignment.academic_year || academic_year,
-                date: row.date,
-                session: row.session,
-                status: row.status,
-                topic_covered: null,
-                archived_at: new Date(),
-              };
-            });
-
-            await tx.insert(archiveStudentAttendance).values(archiveAttEntries);
-            const attIds = attendanceRows.map(r => r.id);
-            await tx.delete(studentAttendance).where(inArray(studentAttendance.id, attIds));
-            recordsArchived += attendanceRows.length;
-          }
-
-          // 2. Move Attendance Sessions
-          const sessionRows = await tx
-            .select()
-            .from(attendanceSessions)
-            .where(inArray(attendanceSessions.assignment_id, assignmentIds));
-
-          if (sessionRows.length > 0) {
-            const archiveSessEntries = sessionRows.map(row => {
-              const assignment = assignmentMap.get(row.assignment_id) || {};
-              return {
-                original_session_id: row.id,
-                assignment_id: row.assignment_id,
-                branch: assignment.branch || branch || 'CSE',
-                semester: assignment.course_semester || Number(semester),
-                academic_year: assignment.academic_year || academic_year,
-                date: row.attendance_date || new Date().toISOString().split('T')[0],
-                session: row.session_number || 1,
-                faculty_id: row.faculty_id,
-                topic_covered: row.topic_covered,
-                created_at: row.created_at,
-                archived_at: new Date(),
-              };
-            });
-
-            await tx.insert(archiveAttendanceSessions).values(archiveSessEntries);
-            const sessionIds = sessionRows.map(r => r.id);
-            await tx.delete(attendanceSessions).where(inArray(attendanceSessions.id, sessionIds));
-            recordsArchived += sessionRows.length;
-          }
-
-          // 3. Move Marks Records
+          // 2. Archive Marks Records (idempotent on existing rows)
           const marksRows = await tx
             .select({
               id: studentMarks.id,
@@ -247,7 +215,7 @@ export class ArchiveService {
           }
         }
 
-        // 4. Archive Financial Payment Screenshots for the Semester
+        // 3. Archive Financial Payment Screenshots for the Semester
         const payConditions = [
           eq(studentFeePayments.academic_year, academic_year),
         ];
@@ -273,13 +241,12 @@ export class ArchiveService {
           }
         }
 
-        // 5. Record Operation in Audit Log
+        // 4. Record Operation in Audit Log
         await tx.insert(archiveOperationsLog).values({
           job_id: jobId,
           archive_type: 'SEMESTER',
-          target_scope: `${branch || 'ALL'}-SEM${semester}-${academic_year}`,
           academic_year,
-          semester,
+          semester: Number(semester),
           branch,
           affected_students_count: 0,
           affected_records_count: recordsArchived,
@@ -288,7 +255,11 @@ export class ArchiveService {
           execution_time_ms: Date.now() - startTime,
           status: 'COMPLETED',
           archived_by,
-          notes: reason,
+          details: JSON.stringify({
+            target_scope: `${branch || 'ALL'}-SEM${semester}-${academic_year}`,
+            mode: 'LOGICAL_IN_PLACE_ATTENDANCE',
+            reason,
+          }),
           created_at: new Date(),
         });
       });
@@ -317,7 +288,7 @@ export class ArchiveService {
         affectedMediaCount: mediaArchived,
         storageSizeBytes,
         executionTimeMs,
-        message: `Successfully archived ${recordsArchived} records for ${branch || 'ALL'} Semester ${semester} (${academic_year}).`,
+        message: `Successfully archived ${recordsArchived} records for ${branch || 'ALL'} Semester ${semester} (${academic_year}) with full streak & history preservation.`,
       };
     } catch (error) {
       logger.error({ jobId, error: error.message }, '[SEMESTER_ARCHIVE_FAILURE]');
@@ -326,14 +297,16 @@ export class ArchiveService {
       await db.insert(archiveOperationsLog).values({
         job_id: jobId,
         archive_type: 'SEMESTER',
-        target_scope: `${branch || 'ALL'}-SEM${semester}-${academic_year}`,
         academic_year,
-        semester,
+        semester: Number(semester),
         branch,
         status: 'FAILED',
         error_message: error.message,
         archived_by,
-        notes: reason,
+        details: JSON.stringify({
+          target_scope: `${branch || 'ALL'}-SEM${semester}-${academic_year}`,
+          reason,
+        }),
         created_at: new Date(),
       }).catch(() => { /* empty */ });
 
@@ -342,7 +315,10 @@ export class ArchiveService {
   }
 
   /**
-   * Run an alumni graduation archival job for passed out / completed students
+   * Run a non-destructive alumni graduation archival job for passed-out students.
+   * Preserves the `students` primary row (marking `is_archived = true`, `academic_status = 'GRADUATED'`)
+   * so cascading foreign keys NEVER wipe attendance, streak unlocks, goals, or preferences,
+   * while maintaining an idempotent alumni registry snapshot in `archive_students`.
    */
   static async runAlumniArchive({ graduation_year, branch, student_ids = [], archived_by = 'SYSTEM', reason = 'Course completion' }) {
     const startTime = Date.now();
@@ -355,17 +331,12 @@ export class ArchiveService {
       let mediaArchived = 0;
       let storageSizeBytes = 0;
 
-      // Build target query for students
+      // Build target query for eligible non-archived graduated students
       const conditions = [
-        or(
-          eq(students.academic_status, 'GRADUATED'),
-          eq(students.student_status, 'ARCHIVED')
-        )
+        eq(students.academic_status, 'GRADUATED'),
+        eq(students.is_archived, false),
       ];
 
-      if (graduation_year) {
-        conditions.push(eq(students.academic_offset_years, 0)); // Or filter by batch/year
-      }
       if (branch) {
         const branchCode = Object.keys(branchCodes).find(code => branchCodes[code].toUpperCase() === branch.toUpperCase());
         if (branchCode) {
@@ -401,16 +372,16 @@ export class ArchiveService {
       }
 
       const targetStudentIds = targetStudents.map(s => s.id);
+      const now = new Date();
 
       await db.transaction(async (tx) => {
-        // Move students to archive_students
         for (const s of targetStudents) {
           const studentBranch = getBranchFromRoll(s.roll_no) || branch || 'CSE';
 
           let archivedPfp = s.pfp;
           if (s.pfp) {
             const { newPath, sizeBytes } = await ArchiveMediaService.archiveMediaFile(
-              s.pfp, 
+              s.pfp,
               `students/${studentBranch}/profile`
             );
             archivedPfp = newPath;
@@ -434,76 +405,126 @@ export class ArchiveService {
             pfp: archivedPfp,
             archived_by,
             archive_reason: reason,
-            archived_at: new Date(),
+            archived_at: now,
           };
 
-          const [insertedStudent] = await tx.insert(archiveStudents).values(archiveStudentEntry);
-          const archiveStudentId = insertedStudent.insertId;
+          // Idempotent upsert into alumni registry snapshot
+          await tx
+            .insert(archiveStudents)
+            .values(archiveStudentEntry)
+            .onDuplicateKeyUpdate({
+              set: {
+                name: archiveStudentEntry.name,
+                email: archiveStudentEntry.email,
+                mobile: archiveStudentEntry.mobile,
+                graduation_year: archiveStudentEntry.graduation_year,
+                pfp: archiveStudentEntry.pfp,
+                archived_by,
+                archive_reason: reason,
+                archived_at: now,
+              },
+            });
 
-          // Move Personal Details
-          const personalRows = await tx
-            .select()
-            .from(studentPersonalDetails)
-            .where(eq(studentPersonalDetails.student_id, s.id));
+          const [archiveStudentRow] = await tx
+            .select({ id: archiveStudents.id })
+            .from(archiveStudents)
+            .where(eq(archiveStudents.original_student_id, s.id))
+            .limit(1);
+          const archiveStudentId = archiveStudentRow?.id;
 
-          if (personalRows.length > 0) {
-            for (const pd of personalRows) {
-              let archivedSig = pd.signature_path;
-              if (pd.signature_path) {
-                const { newPath, sizeBytes } = await ArchiveMediaService.archiveMediaFile(
-                  pd.signature_path,
-                  `students/${studentBranch}/signatures`
-                );
-                archivedSig = newPath;
-                storageSizeBytes += sizeBytes;
-                mediaArchived += 1;
+          if (archiveStudentId) {
+            // Snapshot Personal Details (preserve original rows in operational table!)
+            const existingArchivePersonal = await tx
+              .select({ id: archiveStudentPersonalDetails.id })
+              .from(archiveStudentPersonalDetails)
+              .where(eq(archiveStudentPersonalDetails.archive_student_id, archiveStudentId))
+              .limit(1);
+
+            if (existingArchivePersonal.length === 0) {
+              const personalRows = await tx
+                .select()
+                .from(studentPersonalDetails)
+                .where(eq(studentPersonalDetails.student_id, s.id));
+
+              for (const pd of personalRows) {
+                let archivedSig = pd.signature_path;
+                if (pd.signature_path) {
+                  const { newPath, sizeBytes } = await ArchiveMediaService.archiveMediaFile(
+                    pd.signature_path,
+                    `students/${studentBranch}/signatures`
+                  );
+                  archivedSig = newPath;
+                  storageSizeBytes += sizeBytes;
+                  mediaArchived += 1;
+                }
+
+                await tx.insert(archiveStudentPersonalDetails).values({
+                  archive_student_id: archiveStudentId,
+                  original_detail_id: pd.id,
+                  father_name: pd.father_name,
+                  mother_name: pd.mother_name,
+                  dob: pd.dob,
+                  category: pd.category,
+                  sub_caste: pd.sub_caste,
+                  gender: pd.gender,
+                  aadhaar_no: pd.aadhaar_no,
+                  guardian_mobile: pd.guardian_mobile,
+                  permanent_address: pd.permanent_address,
+                  signature_path: archivedSig,
+                  archived_at: now,
+                });
               }
-
-              await tx.insert(archiveStudentPersonalDetails).values({
-                archive_student_id: archiveStudentId,
-                original_detail_id: pd.id,
-                father_name: pd.father_name,
-                mother_name: pd.mother_name,
-                dob: pd.dob,
-                category: pd.category,
-                sub_caste: pd.sub_caste,
-                gender: pd.gender,
-                aadhaar_no: pd.aadhaar_no,
-                guardian_mobile: pd.guardian_mobile,
-                permanent_address: pd.permanent_address,
-                signature_path: archivedSig,
-                archived_at: new Date(),
-              });
             }
 
-            await tx.delete(studentPersonalDetails).where(eq(studentPersonalDetails.student_id, s.id));
-          }
+            // Snapshot Academic Background (preserve original rows in operational table!)
+            const existingArchiveBg = await tx
+              .select({ id: archiveStudentAcademicBackground.id })
+              .from(archiveStudentAcademicBackground)
+              .where(eq(archiveStudentAcademicBackground.archive_student_id, archiveStudentId))
+              .limit(1);
 
-          // Move Academic Background
-          const backgroundRows = await tx
-            .select()
-            .from(studentAcademicBackground)
-            .where(eq(studentAcademicBackground.student_id, s.id));
+            if (existingArchiveBg.length === 0) {
+              const backgroundRows = await tx
+                .select()
+                .from(studentAcademicBackground)
+                .where(eq(studentAcademicBackground.student_id, s.id));
 
-          if (backgroundRows.length > 0) {
-            for (const bg of backgroundRows) {
-              await tx.insert(archiveStudentAcademicBackground).values({
-                archive_student_id: archiveStudentId,
-                ssc_school: bg.ssc_school,
-                ssc_gpa: bg.ssc_gpa,
-                inter_college: bg.inter_college,
-                inter_gpa: bg.inter_gpa,
-                archived_at: new Date(),
-              });
+              for (const bg of backgroundRows) {
+                await tx.insert(archiveStudentAcademicBackground).values({
+                  archive_student_id: archiveStudentId,
+                  ssc_school: bg.ssc_school,
+                  ssc_gpa: bg.ssc_gpa,
+                  inter_college: bg.inter_college,
+                  inter_gpa: bg.inter_gpa,
+                  archived_at: now,
+                });
+              }
             }
-            await tx.delete(studentAcademicBackground).where(eq(studentAcademicBackground.student_id, s.id));
           }
+
+          // Mark student attendance & sessions for this student as logically archived
+          await tx
+            .update(studentAttendance)
+            .set({
+              is_archived: true,
+              archive_batch_id: jobId,
+              archived_at: now,
+            })
+            .where(and(eq(studentAttendance.student_id, s.id), eq(studentAttendance.is_archived, false)));
 
           recordsArchived += 1;
         }
 
-        // Delete moved students from active table
-        await tx.delete(students).where(inArray(students.id, targetStudentIds));
+        // Non-destructive update on `students` (NEVER delete `students` row; avoids ON DELETE CASCADE wiping streaks!)
+        await tx
+          .update(students)
+          .set({
+            academic_status: 'GRADUATED',
+            is_archived: true,
+            archive_batch_id: jobId,
+            archived_at: now,
+          })
+          .where(inArray(students.id, targetStudentIds));
 
         await tx.insert(archiveOperationsLog).values({
           job_id: jobId,
@@ -517,7 +538,7 @@ export class ArchiveService {
           archived_by,
           execution_time_ms: Date.now() - startTime,
           status: 'COMPLETED',
-          details: JSON.stringify({ reason, count: targetStudents.length }),
+          details: JSON.stringify({ reason, count: targetStudents.length, mode: 'NON_DESTRUCTIVE_ALUMNI' }),
         });
       });
 
@@ -564,7 +585,7 @@ export class ArchiveService {
         status: 'FAILED',
         error_message: error.message,
         details: JSON.stringify({ reason }),
-      });
+      }).catch(() => { /* empty */ });
 
       throw new Error(`Alumni archival failed: ${error.message}`);
     }
@@ -606,12 +627,11 @@ export class ArchiveService {
     try {
       let policies = await db.select().from(archiveRetentionPolicies);
       if (policies.length === 0) {
-        // Seed default institutional retention policies
         const defaults = [
-          { entity_type: 'ATTENDANCE', auto_archive_enabled: true, retention_months: 6, description: 'Archive student attendance logs 6 months after semester completion.' },
+          { entity_type: 'ATTENDANCE', auto_archive_enabled: true, retention_months: 6, description: 'Logically archive student attendance logs 6 months after semester completion without deleting streak history.' },
           { entity_type: 'MARKS', auto_archive_enabled: true, retention_months: 6, description: 'Archive internal/mid term marks after final result declaration.' },
           { entity_type: 'PAYMENT_EVIDENCE', auto_archive_enabled: true, retention_months: 12, description: 'Archive verified payment receipt screenshots after annual audit.' },
-          { entity_type: 'GRADUATED_STUDENTS', auto_archive_enabled: true, retention_months: 1, description: 'Archive student profiles into Alumni database upon official graduation.' },
+          { entity_type: 'GRADUATED_STUDENTS', auto_archive_enabled: true, retention_months: 1, description: 'Transition graduated student profiles into Alumni Archive status while preserving attendance and achievements.' },
           { entity_type: 'SIGNATURES', auto_archive_enabled: true, retention_months: 1, description: 'Archive student signatures into persistent archive storage upon graduation.' },
         ];
         await db.insert(archiveRetentionPolicies).values(defaults);
@@ -648,7 +668,7 @@ export class ArchiveService {
   }
 
   /**
-   * Search across all archived domain entities
+   * Search across both logically archived operational entities and legacy archive tables.
    */
   static async searchArchivedRecords({ search_query, entity_type = 'ALL', limit = 50 }) {
     if (!search_query || search_query.trim().length === 0) {
@@ -661,33 +681,111 @@ export class ArchiveService {
       const results = { students: [], attendance: [], marks: [], payments: [] };
 
       if (entity_type === 'ALL' || entity_type === 'STUDENTS') {
-        results.students = await db
-          .select()
-          .from(archiveStudents)
-          .where(
-            or(
-              like(archiveStudents.roll_no, term),
-              like(archiveStudents.name, term),
-              like(archiveStudents.branch, term),
-              like(archiveStudents.batch, term)
+        const [legacyStudents, logicalStudents] = await Promise.all([
+          db
+            .select()
+            .from(archiveStudents)
+            .where(
+              or(
+                like(archiveStudents.roll_no, term),
+                like(archiveStudents.name, term),
+                like(archiveStudents.branch, term),
+                like(archiveStudents.batch, term)
+              )
             )
-          )
-          .limit(limit);
+            .limit(limit),
+          db
+            .select({
+              id: students.id,
+              original_student_id: students.id,
+              roll_no: students.roll_no,
+              name: students.name,
+              email: students.email,
+              academic_status: students.academic_status,
+              archived_at: students.archived_at,
+            })
+            .from(students)
+            .where(
+              and(
+                eq(students.is_archived, true),
+                or(like(students.roll_no, term), like(students.name, term))
+              )
+            )
+            .limit(limit),
+        ]);
+
+        const byRoll = new Map();
+        for (const ls of legacyStudents || []) {
+          byRoll.set(ls.roll_no, ls);
+        }
+        for (const s of logicalStudents || []) {
+          if (!byRoll.has(s.roll_no)) {
+            byRoll.set(s.roll_no, {
+              ...s,
+              branch: getBranchFromRoll(s.roll_no) || 'N/A',
+              batch: 'ALUMNI',
+            });
+          }
+        }
+        results.students = Array.from(byRoll.values()).slice(0, limit);
       }
 
       if (entity_type === 'ALL' || entity_type === 'ATTENDANCE') {
-        results.attendance = await db
-          .select()
-          .from(archiveStudentAttendance)
-          .where(
-            or(
-              like(archiveStudentAttendance.roll_no, term),
-              like(archiveStudentAttendance.subject_code, term),
-              like(archiveStudentAttendance.branch, term),
-              like(archiveStudentAttendance.academic_year, term)
+        const [logicalAtt, legacyAtt] = await Promise.all([
+          db
+            .select({
+              id: studentAttendance.id,
+              student_id: studentAttendance.student_id,
+              roll_no: students.roll_no,
+              assignment_id: studentAttendance.assignment_id,
+              branch: facultySubjectAssignments.branch,
+              semester: facultySubjectAssignments.course_semester,
+              subject_code: facultySubjectAssignments.subject_code,
+              academic_year: facultySubjectAssignments.academic_year,
+              date: studentAttendance.date,
+              session: studentAttendance.session,
+              status: studentAttendance.status,
+              archived_at: studentAttendance.archived_at,
+            })
+            .from(studentAttendance)
+            .innerJoin(students, eq(studentAttendance.student_id, students.id))
+            .innerJoin(facultySubjectAssignments, eq(studentAttendance.assignment_id, facultySubjectAssignments.id))
+            .where(
+              and(
+                eq(studentAttendance.is_archived, true),
+                or(
+                  like(students.roll_no, term),
+                  like(facultySubjectAssignments.subject_code, term),
+                  like(facultySubjectAssignments.branch, term),
+                  like(facultySubjectAssignments.academic_year, term)
+                )
+              )
             )
-          )
-          .limit(limit);
+            .limit(limit),
+          db
+            .select()
+            .from(archiveStudentAttendance)
+            .where(
+              or(
+                like(archiveStudentAttendance.roll_no, term),
+                like(archiveStudentAttendance.subject_code, term),
+                like(archiveStudentAttendance.branch, term),
+                like(archiveStudentAttendance.academic_year, term)
+              )
+            )
+            .limit(limit),
+        ]);
+
+        const attMap = new Map();
+        for (const row of logicalAtt || []) {
+          const key = `${row.student_id}_${row.assignment_id}_${normalizeDateStr(row.date)}_${row.session}`;
+          attMap.set(key, row);
+        }
+        for (const row of legacyAtt || []) {
+          const key = `${row.student_id}_${row.assignment_id}_${normalizeDateStr(row.date)}_${row.session}`;
+          if (!attMap.has(key)) attMap.set(key, row);
+        }
+        results.attendance = Array.from(attMap.values()).slice(0, limit);
       }
 
       if (entity_type === 'ALL' || entity_type === 'MARKS') {

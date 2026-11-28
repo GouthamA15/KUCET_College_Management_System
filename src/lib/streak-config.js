@@ -24,6 +24,8 @@ export const STREAK_ATTENDANCE_POLICIES = {
  */
 export const DEFAULT_STREAK_POLICY = STREAK_ATTENDANCE_POLICIES.EXCUSED_INCREMENTS;
 
+export const SNAPSHOT_CALCULATION_VERSION = 1;
+
 /**
  * Resolves the active institutional attendance streak policy strictly from trusted server configuration.
  * Client requests CANNOT select or override this policy.
@@ -48,7 +50,7 @@ export function evaluateAttendanceStatus(status, policy = DEFAULT_STREAK_POLICY)
     return { action: 'INCREMENT', isAttended: true, isExcused: false };
   }
 
-  if (status === 'NCC' || status === 'MEDICAL') {
+  if (status === 'NCC' || status === 'MEDICAL' || status === 'EXEMPTED') {
     if (policy === STREAK_ATTENDANCE_POLICIES.EXCUSED_INCREMENTS) {
       return { action: 'INCREMENT', isAttended: true, isExcused: true };
     }

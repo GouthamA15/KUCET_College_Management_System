@@ -355,6 +355,9 @@ export async function POST(request) {
         .onDuplicateKeyUpdate({
           set: { status: 'PRESENT' }
         });
+
+      const { UnifiedAttendanceRepository } = await import('@/services/attendance/UnifiedAttendanceRepository');
+      await UnifiedAttendanceRepository.invalidateStreakSnapshots([user.student_id], tx);
     });
 
     // --- REAL-TIME: Notify Faculty ---
