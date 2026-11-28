@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import React from 'react';
 import { NextResponse } from 'next/server';
 import { getAuthUser, apiError } from '@/lib/api-utils';
@@ -10,24 +8,8 @@ import { db } from '@/db';
 import { studentAdmissionDrafts } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { formatDate } from '@/lib/date';
+import { getInstitutionalLogoDataUrl } from '@/lib/institutional-logo';
 import logger from '@/lib/logger';
-
-let cachedLogoDataUrl = null;
-function getCachedLogoDataUrl() {
-  if (cachedLogoDataUrl) return cachedLogoDataUrl;
-  const candidateLogoPaths = [
-    path.join(process.cwd(), 'public/assets/ku-college-logo.png'),
-    path.join(process.cwd(), 'public/assets/ku-logo.png')
-  ];
-  for (const logoPath of candidateLogoPaths) {
-    if (fs.existsSync(logoPath)) {
-      const logoBuf = fs.readFileSync(logoPath);
-      cachedLogoDataUrl = `data:image/png;base64,${logoBuf.toString('base64')}`;
-      break;
-    }
-  }
-  return cachedLogoDataUrl;
-}
 
 export async function GET(req) {
   try {
@@ -126,7 +108,7 @@ export async function GET(req) {
       }
     }
 
-    const logoUrl = getCachedLogoDataUrl();
+    const logoUrl = getInstitutionalLogoDataUrl();
     const pdfBuffer = await renderToBuffer(
       React.createElement(AdmissionFormPDF, { data: formData, logoUrl })
     );

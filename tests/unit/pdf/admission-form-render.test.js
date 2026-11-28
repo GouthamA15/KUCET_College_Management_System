@@ -3,6 +3,7 @@ import React from 'react';
 import { renderToBuffer } from '@react-pdf/renderer';
 import AdmissionFormPDF from '@/pdf/templates/AdmissionFormPDF';
 import { generateAdmissionFormDocx } from '@/lib/admission-form-docx';
+import { getInstitutionalLogoBuffer, getInstitutionalLogoDataUrl } from '@/lib/institutional-logo';
 import PizZip from 'pizzip';
 
 describe('Admission Form Digitalization Suite', () => {
@@ -87,6 +88,7 @@ describe('Admission Form Digitalization Suite', () => {
     expect(zip.file('_rels/.rels')).toBeDefined();
     expect(zip.file('word/document.xml')).toBeDefined();
     expect(zip.file('word/styles.xml')).toBeDefined();
+    expect(zip.file('word/media/image1.png')).toBeDefined();
 
     const docXml = zip.file('word/document.xml').asText();
     expect(docXml).toContain('KU COLLEGE OF ENGINEERING &amp; TECHNOLOGY');
@@ -135,5 +137,15 @@ describe('Admission Form Digitalization Suite', () => {
       expect(totalSpan, `Row ${idx + 1} gridSpan sum`).toBe(7);
       expect(totalWidth, `Row ${idx + 1} cell width sum (dxa)`).toBe(10800);
     });
+  });
+
+  it('resolves the institutional logo buffer and data URL from allowlisted public/assets paths', () => {
+    const buf = getInstitutionalLogoBuffer();
+    expect(Buffer.isBuffer(buf)).toBe(true);
+    expect(buf.length).toBeGreaterThan(1000);
+
+    const dataUrl = getInstitutionalLogoDataUrl();
+    expect(typeof dataUrl).toBe('string');
+    expect(dataUrl.startsWith('data:image/png;base64,')).toBe(true);
   });
 });
